@@ -18,6 +18,7 @@ walls and each model's size.
 """
 from __future__ import annotations
 
+import copy
 import json
 import random
 import re
@@ -27,7 +28,8 @@ from typing import Any
 import structlog
 
 from app.config import settings
-from app.services.ai_design_text import reconcile_summary
+from app.services.ai_design_text import _ANY_COLOUR, describe_plan, reconcile_summary
+from app.services.design_presets import load_presets, trim_profiles
 from app.services.design_image import PreparedImage
 from app.services.llm import call_llm
 from app.services.smeta import LIGHT_TYPE_NAMES
@@ -54,13 +56,15 @@ FURNITURE_ROLES = (
 )
 
 # Name rules, first match wins. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
+# "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
 _ROLE_BY_NAME: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.I), role) for pattern, role in (
         (r"gilam|rug|carpet|kovrolin", "rug"),
         (r"jurnal|kofe|coffee", "coffee_table"),
         (r"tumbochka|nightstand|prikrovat", "nightstand"),
         (r"\btv\b|televizor|tumba", "tv_unit"),
-        (r"yozuv|kompyuter|desk|ish stoli", "desk"),
+        (r"\bish stuli|ofis stuli|kompyuter stuli|kreslo-kompyuter|office chair|desk chair|(офисн|компьютерн)\S*\s+(стул|кресл)", "desk_chair"),
+        (r"yozuv|kompyuter|desk|\bish stoli|компьютерн\S*\s+стол", "desk"),
         (r"kreslo|armchair", "armchair"),
         (r"shkaf|garderob|wardrobe", "wardrobe"),
         (r"javon|komod|stellaj|vitrina|bookcase", "shelf"),
@@ -124,14 +128,22 @@ class DesignPlan:
     floor: dict[str, Any] | None = None
     lights: list[dict[str, str]] = field(default_factory=list)
     furniture: list[dict[str, str]] = field(default_factory=list)
+    # The ceiling profile, skirting and cornice, in the shape the studio applies for a ready-made
+    # style (frontend DesignTrim): {"ceiling": {"design": id}, "skirting": {"id": id},
+    # "cornice": {"id": id} | None}. A key that is missing leaves that part as it is; a None
+    # cornice takes it off. None when the model chose no trim at all.
+    trim: dict[str, Any] | None = None
     warnings: list[str] = field(default_factory=list)
     # Image designs only: what the picture had and what the catalog lacked. Kept out of
     # summary because reconcile_summary (rightly) rejects a summary naming things the
     # plan does not apply, and these notes are about exactly such things.
     image_notes: str = ""
+    # The id of the ready-made style the plan started from (the room type's default included);
+    # None when there was none, as with an image and no named style.
+    style: str | None = None
 
     def is_empty(self) -> bool:
-        return not (self.walls or self.floor or self.lights or self.furniture)
+        return not (self.walls or self.floor or self.lights or self.furniture or self.trim)
 
 
 def _hex(value: Any) -> str | None:
@@ -181,9 +193,11 @@ def _clip_summary(text: str) -> str:
 
 def validate_plan(
     data: dict, furniture_by_label: dict[str, dict], wall_ids: list[str], max_furniture: int = MAX_FURNITURE,
+    starting_preset: dict | None = None,
 ) -> DesignPlan:
     """Keep only what the studio can apply; note what was dropped. Never raises on a bad
-    field, only when nothing at all is left. *wall_ids* are the room's own wall ids."""
+    field, only when nothing at all is left. *wall_ids* are the room's own wall ids;
+    *starting_preset* is the ready-made style the model was told to start from, if any."""
     zones = set(zones_for(wall_ids))
     first_wall_zone = f"wall_{wall_ids[0]}" if wall_ids else "center"
     plan = DesignPlan(
@@ -272,9 +286,38 @@ def validate_plan(
         plan.furniture.append({"id": item["id"], "name": item["name"], "role": role})
         kinds.append(category)
 
+    plan.trim = _validate_trim(data.get("trim"), warn)
+    # The model names the ceiling by design only; kept from the starting style, it keeps that
+    # style's colour and light strip too (the dark style's dark border ceiling).
+    preset_ceiling = (starting_preset or {}).get("trim", {}).get("ceiling") or {}
+    if plan.trim and plan.trim.get("ceiling", {}).get("design") == preset_ceiling.get("design") and preset_ceiling.get("settings"):
+        plan.trim["ceiling"]["settings"] = copy.deepcopy(preset_ceiling["settings"])
+
     if plan.is_empty():
         raise DesignError("AI mos tavsiya topa olmadi. Boshqacha yozib ko'ring.")
     return plan
+
+
+def _validate_trim(raw: Any, warn) -> dict[str, Any] | None:
+    """The model's trim ({"ceiling": id, "skirting": id, "cornice": id or null}) in the studio's shape.
+    An unknown profile is dropped with a warning, so that part stays as the room has it; a null
+    ceiling or skirting means the same. Only a null cornice is applied: a room without one."""
+    if not isinstance(raw, dict):
+        return None
+    profiles = trim_profiles()
+    trim: dict[str, Any] = {}
+    for kind, wrap in (("ceiling", "design"), ("skirting", "id"), ("cornice", "id")):
+        if kind not in raw:
+            continue
+        value = raw[kind]
+        if value is None:
+            if kind == "cornice":
+                trim["cornice"] = None
+        elif isinstance(value, str) and value in profiles[kind]:
+            trim[kind] = {wrap: value}
+        else:
+            warn("Noma'lum shift yoki plintus profili o'tkazib yuborildi")
+    return trim or None
 
 
 # The furniture styles (backend/app/schemas/admin_catalog.py FURNITURE_STYLES) as the menu names
@@ -283,6 +326,9 @@ STYLE_LABELS: dict[str, str] = {
     "neoklassika": "Neoklassika", "klassik": "Klassik", "zamonaviy": "Zamonaviy", "hitech": "Hi-Tech",
     "minimalist": "Minimalist", "skandinav": "Skandinav", "loft": "Loft", "milliy": "Milliy",
 }
+# Every apostrophe a request may carry in o', g' and the like: ASCII, the Uzbek okina (ʻ), the
+# curly quotes (’ ‘), the modifier apostrophe (ʼ) and a backtick.
+_APOS = "['ʻ’‘ʼ`]"
 _STYLE_WORDS: dict[str, re.Pattern[str]] = {
     "neoklassika": re.compile(r"neo[-\s]?klassi|neoclassic", re.I),
     "klassik": re.compile(r"(?<!neo)(?<!neo-)(?<!neo )klassi|(?<!neo)classic", re.I),
@@ -291,7 +337,7 @@ _STYLE_WORDS: dict[str, re.Pattern[str]] = {
     "minimalist": re.compile(r"minimal", re.I),
     "skandinav": re.compile(r"skandinav|scandi", re.I),
     "loft": re.compile(r"\bloft", re.I),
-    "milliy": re.compile(r"milliy|sharqona|o['ʻ’]?zbekona", re.I),
+    "milliy": re.compile(rf"milliy|sharqona|o{_APOS}?zbekona", re.I),
 }
 
 
@@ -300,19 +346,220 @@ def styles_in_prompt(prompt: str) -> set[str]:
     return {style for style, words in _STYLE_WORDS.items() if words.search(prompt or "")}
 
 
+def first_style_in_prompt(prompt: str) -> str | None:
+    """The style a request names first, by where it appears in the text ("loft va minimalist" →
+    loft); two matches at the same place go by FURNITURE_STYLES order (_STYLE_WORDS keeps it).
+    Position, not FURNITURE_STYLES order, decides: in that order minimalist comes before loft, and
+    the user who wrote "loft va minimalist" asked for a loft room."""
+    found = [
+        (m.start(), n, style)
+        for n, (style, words) in enumerate(_STYLE_WORDS.items())
+        if (m := words.search(prompt or ""))
+    ]
+    return min(found)[2] if found else None
+
+
+def preset_for_style(style: str) -> dict | None:
+    """The ready-made style for a furniture style: the preset with that id first (every furniture
+    style has one), then the first preset whose furnitureStyle it is ("dark" is a zamonaviy preset,
+    but zamonaviy has its own)."""
+    presets = load_presets()
+    if style in presets:
+        return presets[style]
+    return next((p for p in presets.values() if p["furnitureStyle"] == style), None)
+
+
+_PRESET_WALLS = "ABCD"  # presets are written for a plain room, walls A-D
+
+
+def _room_zone(zone: str, wall_of: dict[str, str]) -> str | None:
+    """A preset zone in this room's wall ids ("corner_CD" → "corner_W3_W4"); None when the room lacks
+    one of its walls."""
+    if zone == "center":
+        return zone
+    if zone.startswith("wall_"):
+        wall = wall_of.get(zone[5:])
+        return f"wall_{wall}" if wall else None
+    if zone.startswith("corner_") and len(zone) == 9:
+        a, b = wall_of.get(zone[7]), wall_of.get(zone[8])
+        return f"corner_{a}_{b}" if a and b else None
+    return None
+
+
+# Moods that name a ready-made style of their own rather than a furniture style, as a request
+# names them, and how the starting plan is labelled. Not a bare "to'q": "to'q yashil devorlar" asks
+# for a dark green wall, not the dark style. Nor a dark colour in English ("dark green walls") or
+# Russian ("тёмно-зелёные"), nor curtains that darken the room ("затемняющие шторы",
+# "qorong'ilashtiruvchi parda"). Uzbek is matched in Cyrillic too ("қоронғи хона").
+_DARK_COLOURS = r"green|blue|navy|brown|gr[ae]y|black|red|wood|walnut|oak|olive|purple|beige|teal"
+_MOOD_WORDS: dict[str, re.Pattern[str]] = {
+    "dark": re.compile(
+        rf"qorong{_APOS}?i(?!lash)|қоронғи(?!лаш)"
+        rf"|\bdark\b(?![\s-]+(?:{_DARK_COLOURS}))|(?<![а-яё])т[её]мн(?!о-)",
+        re.I,
+    ),
+}
+MOOD_LABELS: dict[str, str] = {"dark": "Qorong'i"}
+
+
+def _starting_choice(prompt: str) -> tuple[str, dict] | None:
+    """The plan label and ready-made style the request names first: a furniture style's preset or a
+    mood's own. Position decides, as between styles ("qorong'i loft" is the dark style, "loft,
+    qorong'i" the loft one); at the same place a furniture style goes first."""
+    found = [
+        (m.start(), n, kind, key)
+        for kind, words in ((0, _STYLE_WORDS), (1, _MOOD_WORDS))
+        for n, (key, pattern) in enumerate(words.items())
+        if (m := pattern.search(prompt or ""))
+    ]
+    if not found:
+        return None
+    _, _, kind, key = min(found, key=lambda f: (f[0], f[2], f[1]))
+    if kind == 0:
+        preset = preset_for_style(key)
+        return (STYLE_LABELS.get(key, key), preset) if preset else None
+    preset = load_presets().get(key)
+    return (MOOD_LABELS[key], preset) if preset else None
+
+
+# The ready-made style a room type starts from when the request names no style or mood: only a
+# suggestion, the request's own colours and materials come first (_DEFAULT_PLAN_RULE).
+_ROOM_TYPE_PRESETS: dict[str, str] = {
+    "mehmonxona": "zamonaviy", "oshxona": "zamonaviy",
+    "yotoqxona": "skandinav", "bolalar": "skandinav", "balkon": "skandinav",
+    "kabinet": "minimalist", "hammom": "minimalist",
+}
+
+
+# Not the style's name: labelled "Zamonaviy", the plan has the model write "Zamonaviy uslubda" for a
+# request that named no style.
+_ROOM_TYPE_PLAN_LABEL = "xona turi uchun taklif"
+
+
+def _room_type_choice(room_type: str | None) -> tuple[str, dict] | None:
+    """The plan label and ready-made style *room_type* starts from; None for a room of no known type."""
+    preset = load_presets().get(_ROOM_TYPE_PRESETS.get(room_type or "", ""))
+    return (_ROOM_TYPE_PLAN_LABEL, preset) if preset else None
+
+
+def starting_preset(prompt: str, room_type: str | None = None) -> dict | None:
+    """The ready-made style the model starts from for *prompt*: the one it names, else the room
+    type's own, else None."""
+    choice = _starting_choice(prompt) or _room_type_choice(room_type)
+    return choice[1] if choice else None
+
+
+def furniture_styles_for_prompt(prompt: str, room_type: str | None = None) -> set[str]:
+    """The furniture styles whose pieces the menu puts first: those the request names, or, when it
+    names none, the furniture style of the ready-made style it starts from (a dark room is furnished
+    zamonaviy, a bedroom with no style skandinav)."""
+    named = styles_in_prompt(prompt)
+    if named:
+        return named
+    preset = starting_preset(prompt, room_type)
+    return {preset["furnitureStyle"]} if preset and preset.get("furnitureStyle") else set()
+
+
+def _starting_plan(preset: dict, wall_ids: list[str]) -> dict:
+    """The preset's walls, floor, lights and trim as the model answers them: walls and zones in this
+    room's own wall ids, by position (A is the first wall, B the second...), anything on a wall the room
+    does not have left out; trim by profile id. Works on a copy: the presets are cached."""
+    wall_of = dict(zip(_PRESET_WALLS, wall_ids))
+    walls = copy.deepcopy(preset["walls"])
+    accent = walls.get("accent")
+    if accent:
+        if accent.get("wall") in wall_of:
+            accent["wall"] = wall_of[accent["wall"]]
+        else:
+            del walls["accent"]
+    lights = []
+    for light in preset["lights"]:
+        zone = _room_zone(light["zone"], wall_of)
+        if zone:
+            lights.append({**light, "zone": zone})
+    trim = preset["trim"]
+    return {
+        "walls": walls,
+        "floor": copy.deepcopy(preset["floor"]),
+        "lights": lights,
+        "trim": {
+            "ceiling": trim["ceiling"]["design"] if trim.get("ceiling") else None,
+            "skirting": trim["skirting"]["id"] if trim.get("skirting") else None,
+            "cornice": trim["cornice"]["id"] if trim.get("cornice") else None,
+        },
+    }
+
+
+_CATALOG_ROOM_TYPE = {"bolalar": "yotoqxona", "kabinet": "mehmonxona"}
+_KIDS_NAME = re.compile(r"bolalar|детск|kids", re.I)
+_PREFERRED_PIECES = {
+    "bolalar": lambda i: bool(_KIDS_NAME.search(i.get("name_uz") or "")),
+}
+# Roles a room type always offers, whatever room the catalog files the piece under, ahead of the
+# rest: a study borrows living-room pieces, but its desk may be filed under the bedroom. (A
+# children's room needs no entry: it takes bedroom pieces, and beds and desks are filed there.)
+_ALWAYS_ROLES = {"kabinet": ("desk", "desk_chair", "shelf")}
+MAX_ALWAYS_PER_ROLE = 3
+# A study's shelf is one for books: not a chest of drawers or a display case (infer_role's "shelf"
+# takes those too), and not a kitchen's or a bathroom's. A book cupboard ("kitob shkafi") is one.
+_STUDY_SHELF = re.compile(r"javon|stellaj|kitob|bookcase", re.I)
+_WET_ROOM_NAME = re.compile(r"oshxona|hammom|vanna|кухон|ванн", re.I)
+
+
+def _always_role(item: dict, roles: tuple[str, ...]) -> str | None:
+    name = item.get("name_uz") or ""
+    role = infer_role(item.get("category"), name)
+    if role in ("desk", "desk_chair") and role in roles:
+        return role
+    if "shelf" in roles and _STUDY_SHELF.search(name) and not _WET_ROOM_NAME.search(name) \
+            and item.get("room_type") not in ("oshxona", "hammom"):
+        return "shelf"
+    return None
+
+
+def always_offered(items: list[dict], room_type: str | None, prompt: str = "", has_image: bool = False) -> list[dict]:
+    """The pieces *room_type* always offers from any room (_ALWAYS_ROLES): up to
+    MAX_ALWAYS_PER_ROLE of each role, those of a style the request names first."""
+    roles = _ALWAYS_ROLES.get(room_type or "", ())
+    if not roles:
+        return []
+    wanted = furniture_styles_for_prompt(prompt, None if has_image else room_type)
+    by_role: dict[str, list[dict]] = {role: [] for role in roles}
+    for item in items:
+        role = _always_role(item, roles)
+        if role:
+            by_role[role].append(item)
+    return [
+        item for role in roles
+        for item in sorted(by_role[role], key=lambda i: 0 if wanted & set(i.get("styles") or []) else 1)[:MAX_ALWAYS_PER_ROLE]
+    ]
+
+
 def furniture_menu(
-    items: list[dict], room_type: str | None, prompt: str = "",
+    items: list[dict], room_type: str | None, prompt: str = "", has_image: bool = False,
 ) -> tuple[list[str], dict[str, dict]]:
     """The catalog as short labelled lines for the prompt, and the label -> item map.
 
     Pieces made for this room type (and those for every room) come first, so a long catalog is
     cut where it matters least; among them, pieces of a style the request names come first, so
-    they are not the ones cut. Each line names the piece's styles; an unstyled piece suits any.
+    they are not the ones cut. With a photo the room type's own style does not count: the photo is
+    the style. Each line names the piece's styles; an unstyled piece suits any.
     """
-    wanted = styles_in_prompt(prompt)
+    wanted = furniture_styles_for_prompt(prompt, None if has_image else room_type)
+    # The catalog has no children's room or study (schemas/admin_catalog.py ROOM_TYPES): a children's
+    # room takes bedroom pieces, children's ones first; a study takes living-room pieces, plus its
+    # desk, desk chair and shelf from any room, those first.
+    catalog_type = _CATALOG_ROOM_TYPE.get(room_type or "", room_type)
+    preferred = _PREFERRED_PIECES.get(room_type or "")
+
+    def always_rank(i: dict) -> int:
+        return 0 if i["id"] in always else 1
 
     def rank(i: dict) -> int:
-        return 0 if i.get("room_type") in (None, room_type) else 1
+        return 0 if i.get("room_type") in (None, catalog_type) or always_rank(i) == 0 else 1
+
+    def preferred_rank(i: dict) -> int:
+        return 0 if preferred and preferred(i) else 1
 
     def style_rank(i: dict) -> int:
         return 0 if wanted & set(i.get("styles") or []) else 1
@@ -322,7 +569,8 @@ def furniture_menu(
     # Lamps are the plan's lights, not furniture: offered here, a model picks a torsher twice.
     pool = [i for i in items if i.get("category") != "lampa" and not _LIGHT_LIKE.search(i["name_uz"])]
     random.shuffle(pool)
-    pool.sort(key=lambda i: (rank(i), style_rank(i)))
+    always = {i["id"] for i in always_offered(pool, room_type, prompt, has_image)}
+    pool.sort(key=lambda i: (rank(i), always_rank(i), preferred_rank(i), style_rank(i)))
     # With enough pieces made for this room (or for every room), the others are not offered at all:
     # a dressing table has no place in a living room.
     fitting = [i for i in pool if rank(i) == 0]
@@ -331,7 +579,9 @@ def furniture_menu(
     lines: list[str] = []
     for n, item in enumerate(chosen, start=1):
         label = f"F{n}"
-        by_label[label] = {"id": item["id"], "name": item["name_uz"], "category": item["category"]}
+        by_label[label] = {
+            "id": item["id"], "name": item["name_uz"], "category": item["category"], "styles": item.get("styles") or [],
+        }
         size = ""
         if item.get("footprint_w") and item.get("footprint_d"):
             # The catalog stores footprints in centimetres.
@@ -356,11 +606,13 @@ Qoidalar:
   Har bir mebelga vazifa (role) bering, "Vazifalar" qatoridan. Joyini o'zimiz hisoblaymiz.
   Mebel qatorida "uslub: ..." bo'lsa, u shu uslubga mos. So'rovda yoki rasmda uslub aniq bo'lsa (masalan neoklassika, hi-tech, milliy), mebelni avval shu uslubdagilardan tanlang. Uslubi yozilmagan mebel hamma uslubga mos. Mos uslubdagi mebel bo'lmasa, eng yaqinini oling.
   Vazifalar: sofa (divan), armchair (kreslo), coffee_table (jurnal stoli), tv_unit (TV tumba), dining_table (ovqat stoli), dining_chair (ovqat stuli, bitta model tanlang: sonini o'zimiz belgilaymiz), bed (karavot), nightstand (tumbochka), desk (yozuv stoli), desk_chair (ish stuli), wardrobe (shkaf), shelf (javon, stellaj), decor (bezak), rug (gilam).
-- Oltin/zarhal talab qilinsa: devor aksenti yoki oboy accent_color uchun haqiqiy oltin tus ishlating (masalan #C9A24B yoki #B8860B), boshqa narsani oltin deb atamang.
+- Shift profili (trim.ceiling), plintus (trim.skirting) va galtel (trim.cornice): faqat xabardagi ro'yxatlardan. cornice null bo'lsa galtel qo'yilmaydi.
 - Bolalar xonasi: yumshoq pastel ranglar (to'yingan, qichituvchi emas), yorqinlik yuqori, qarama-qarshilik past.
 - title: 2-4 so'zli nom.
 - summary: 2-3 jumla, O'zbek tilida, nima uchun shunday tanlaganingizni tushuntiring. Uni ENG OXIRIDA, hamma narsani tanlab bo'lgach yozing.
   summary FAQAT siz yuqorida tanlagan narsalarni tasvirlasin: devor va pol rangini/materialini, tanlangan chiroq va mebel nomlarini.
+  Bitta jumlada tanlangan mebelni nomi bilan sanang (masalan "Chester divan, Barokko kreslo"). Ichki belgilarni
+  (F1, F2, wall_A, corner_C_D, led_panel) summary'da yozmang.
   Tanlamagan narsangizni (ro'yxatdagi boshqa mebel, boshqa rang, boshqa pol) tilga olmang va va'da bermang.
   Chiroq va mebelning RANGINI tanlab bo'lmaydi (faqat turini), shuning uchun ularga rang bermang ("oltin chiroq", "qora divan" demang).
   Agar so'rovdagi biror narsani bajarib bo'lmasa (masalan, "oltin detallar"), buni yashirmang: nima qilganingizni ayting
@@ -376,6 +628,7 @@ JSON shakli:
   "floor": {"type": "<pol turi>", "pattern": "<yog'och pol naqshi yoki null>", "tint": "#RRGGBB yoki null"},
   "lights": [{"type": "<chiroq turi>", "zone": "<zona>"}],
   "furniture": [{"id": "F1", "role": "<vazifa>"}],
+  "trim": {"ceiling": "<shift profili yoki null>", "skirting": "<plintus profili yoki null>", "cornice": "<galtel profili yoki null>"},
   "summary": "..."
 }
 Pol naqshi va tint faqat parquet va laminate uchun; plitka va beton uchun null."""
@@ -392,8 +645,25 @@ _IMAGE_INSTRUCTIONS = (
 )
 
 
+# A bedroom this small has no room for a double bed and a passage around it: the model, left alone,
+# still picks the 160-180 cm bed and a full wardrobe. Under 10 m2, or under 2.6 m across.
+_SMALL_BEDROOM_TYPES = ("yotoqxona", "bolalar")
+_SMALL_BEDROOM_AREA = 10.0
+_SMALL_BEDROOM_SIDE = 2.6
+_SMALL_BEDROOM_LINE = (
+    "Xona kichik: bir kishilik karavot (eni 120 sm gacha) va tor shkaf tanlang, "
+    "mebelni kamroq oling, o'tish joyi qolsin."
+)
+
+
+def _is_small_bedroom(room: dict, area: float) -> bool:
+    if room.get("room_type") not in _SMALL_BEDROOM_TYPES:
+        return False
+    return area < _SMALL_BEDROOM_AREA or min(room["width"], room["depth"]) < _SMALL_BEDROOM_SIDE
+
+
 def build_user_message(
-    prompt: str, room: dict, light_menu: str, furniture_lines: list[str],
+    prompt: str, room: dict, light_menu: str, furniture_lines: list[str], has_image: bool = False,
 ) -> str:
     walls = "; ".join(
         f"{w['id']} {w['length']:g} m" + (f" ({', '.join(w['openings'])})" if w["openings"] else "")
@@ -402,6 +672,7 @@ def build_user_message(
     room_type = room.get("room_type") or "xona turi noma'lum"
     area = room.get("area") or room["width"] * room["depth"]
     lo, hi = furniture_budget(area)
+    profiles = trim_profiles()
     return "\n".join([
         f"Foydalanuvchi so'rovi: {prompt.strip()}",
         "",
@@ -409,16 +680,117 @@ def build_user_message(
         f"o'lchami {room['width']:g} x {room['depth']:g} m, shift {room['ceiling_h']:g} m.",
         f"Devorlar (id va uzunligi): {walls}",
         f"Mebel soni: {lo}-{hi} ta (xona {area:.1f} m2).",
+        *([_SMALL_BEDROOM_LINE] if _is_small_bedroom(room, area) else []),
         f"Zonalar: {', '.join(zones_for([w['id'] for w in room['walls']]))}",
         "",
         f"Pol turlari: {', '.join(FLOOR_TYPES)}",
         f"Yog'och pol naqshlari: {', '.join(FLOOR_PATTERNS)}",
         f"Oboy naqshlari: {', '.join(p for p in OBOY_PATTERNS if p != 'bolalar')} (bolalar: faqat bolalar xonasi uchun)",
         f"Chiroq turlari: {light_menu}",
+        f"Shift profillari: {', '.join(profiles['ceiling'])}",
+        f"Plintus profillari: {', '.join(profiles['skirting'])}",
+        f"Galtel profillari: {', '.join(profiles['cornice'])}",
         "",
+        *_style_guidance(prompt, [w["id"] for w in room["walls"]], room.get("room_type"), has_image),
         "Mebel katalogi:",
         *(furniture_lines or ["(katalogda mebel yo'q: furniture bo'sh qolsin)"]),
     ])
+
+
+_STARTING_PLAN_RULE = (
+    "Shu rejadan boshlang. So'rovda aniq aytilgan narsalarni o'zgartiring, qolganini saqlang. "
+    "Pol turi va naqshini, chiroq turlarini sababsiz almashtirmang."
+)
+_NO_STYLE_GUIDANCE = (
+    "Pol turini xona turi va atmosferaga qarab tanlang, har doim parket emas: oshxona va hammomda plitka, "
+    "loft yoki sanoat ruhida beton.",
+    "Qandil faqat klassik va neoklassik ruhda.",
+    "So'ralmagan accent devor qo'ymang.",
+)
+# A room type's plan is a suggestion, not the user's choice: the request's colours and materials
+# win over it, and none of it is held "without reason" as a named style's plan is.
+_DEFAULT_PLAN_RULE = (
+    "Uslub aytilmagan: quyidagi reja xona turiga qarab taklif qilingan boshlang'ich nuqta, xolos. "
+    "So'rovdagi rang, atmosfera va material istaklari (masalan iliq ranglar, yorqin, to'q, yog'och) undan ustun: "
+    "devor, pol va ranglarni shularga moslab o'zgartiring. So'rovda aytilmagan narsalarda shu rejaga tayaning."
+)
+_GOLD_WORDS = re.compile(r"oltin|zarhal|gold|золот", re.I)
+_GOLD_LINE = "Oltin talab qilingan: aksent yoki oboy accent_color uchun haqiqiy oltin tus (#C9A24B yoki #B8860B)"
+# Whole words only: "pochta", "ochiq oshxona" (an open kitchen) and "kam yorug'lik" (little light)
+# do not ask for light colours.
+_LIGHT_WORDS = re.compile(
+    rf"\boch\b|\bochroq\b|\bochiq rang|\byorug{_APOS} rang|\byorug{_APOS}roq|светл|\blight\b", re.I,
+)
+_LIGHT_LINE = "Aksent ham och va asosiy rangga yaqin bo'lsin"
+# Kitchens and bathrooms are tiled whatever the style: a preset's wooden floor is not kept there.
+_TILE_ROOMS = ("oshxona", "hammom")
+# Words of colour or mood in a request with no style. The room type's plan then sends no wall colours:
+# the model, given a grey wall, keeps it for "iliq ranglar". Not "sokin": a calm room keeps the
+# plan's calm walls (left to choose, the model painted a calm study dark grey).
+_MOOD_COLOUR_WORDS = re.compile(r"\biliq\w*|\byorqin\w*|\bto'q(?:roq)?\b|\bquyuq\w*")
+
+
+def _asks_for_colours(prompt: str) -> bool:
+    """Whether *prompt* names a colour, a light or dark tone, or a mood ("iliq ranglar", "sokin")."""
+    text = re.sub(_APOS, "'", (prompt or "").lower())
+    return bool(
+        _MOOD_COLOUR_WORDS.search(text) or _ANY_COLOUR.search(text)
+        or _LIGHT_WORDS.search(text) or _GOLD_WORDS.search(text)
+    )
+
+
+def _room_type_plan(preset: dict, wall_ids: list[str], prompt: str, room_type: str | None) -> dict:
+    """The room type's starting plan as a suggestion: never an accent wall nobody asked for, and no
+    wall colours at all when the request has colours or a mood of its own. A wet room is tiled; a dry
+    one is not (the minimalist study's tile becomes laminate)."""
+    start = _starting_plan(preset, wall_ids)
+    if room_type in _TILE_ROOMS:
+        start["floor"] = {"type": "tile", "pattern": None, "tint": None}
+    elif start["floor"].get("type") == "tile":
+        start["floor"] = {"type": "laminate", "pattern": None, "tint": None}
+    start["walls"].pop("accent", None)
+    if _asks_for_colours(prompt):
+        del start["walls"]
+    return start
+
+
+def _style_guidance(
+    prompt: str, wall_ids: list[str], room_type: str | None = None, has_image: bool = False,
+) -> list[str]:
+    """The starting plan of the style or mood the request names; when it names none, the room type's
+    own as a suggestion, with the general guidance (only that guidance for a room of no known type,
+    or with a photo, which is the style itself); then the gold and light-colour lines when the request asks for them. Ends with
+    a blank line."""
+    choice = _starting_choice(prompt)
+    default = None if choice or has_image else _room_type_choice(room_type)
+    lines: list[str] = []
+    if choice:
+        label, preset = choice
+        start = _starting_plan(preset, wall_ids)
+        if room_type in _TILE_ROOMS:
+            start["floor"] = {"type": "tile", "pattern": None, "tint": None}
+        lines += [
+            f"Boshlang'ich reja ({label}):",
+            json.dumps(start, ensure_ascii=False),
+            _STARTING_PLAN_RULE,
+        ]
+    elif default:
+        label, preset = default
+        start = _room_type_plan(preset, wall_ids, prompt, room_type)
+        # The rule first, so the model reads the plan as the suggestion it is.
+        lines += [
+            _DEFAULT_PLAN_RULE,
+            f"Boshlang'ich reja ({label}):",
+            json.dumps(start, ensure_ascii=False),
+            *_NO_STYLE_GUIDANCE,
+        ]
+    else:
+        lines += list(_NO_STYLE_GUIDANCE)
+    if _GOLD_WORDS.search(prompt or ""):
+        lines.append(_GOLD_LINE)
+    if _LIGHT_WORDS.search(prompt or ""):
+        lines.append(_LIGHT_LINE)
+    return [*lines, ""]
 
 
 async def design_room(
@@ -431,12 +803,13 @@ async def design_room(
 
     With an image the daily limit is the router's own pool, so it is not counted
     against the text designer's here (user_id=None)."""
-    lines, by_label = furniture_menu(furniture_items, room.get("room_type"), prompt)
+    lines, by_label = furniture_menu(furniture_items, room.get("room_type"), prompt, has_image=image is not None)
     light_menu = ", ".join(f"{k} ({v})" for k, v in LIGHT_TYPE_NAMES.items())
+    message_prompt = prompt if image is None else (prompt or _IMAGE_DEFAULT_PROMPT)
     if image is None:
-        content: str | list[dict] = build_user_message(prompt, room, light_menu, lines)
+        content: str | list[dict] = build_user_message(message_prompt, room, light_menu, lines)
     else:
-        text = build_user_message(prompt or _IMAGE_DEFAULT_PROMPT, room, light_menu, lines)
+        text = build_user_message(message_prompt, room, light_menu, lines, has_image=True)
         content = [
             {"type": "image", "source": {"type": "base64", "media_type": image.media_type, "data": image.data_b64}},
             {"type": "text", "text": text + "\n\n" + _IMAGE_INSTRUCTIONS},
@@ -455,12 +828,21 @@ async def design_room(
     text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text")
     log.info("ai_design.answered", chars=len(text))
     area = room.get("area") or room["width"] * room["depth"]
+    start = starting_preset(message_prompt, None if image else room.get("room_type"))
     plan = validate_plan(
         extract_json(text), by_label, [w["id"] for w in room["walls"]], furniture_budget(area)[1],
+        starting_preset=start,
     )
+    plan.style = start["id"] if start else None
     # The summary must say only what the plan holds: the model promises colours it cannot apply and
-    # pieces that validation dropped. Where it does, the plan's own description is shown instead.
-    wrong = reconcile_summary(plan, [item["name"] for item in by_label.values()])
+    # pieces that validation dropped. Where it does, those sentences go, or when nothing honest is
+    # left, the plan's own description is shown instead.
+    wrong = reconcile_summary(
+        plan, [item["name"] for item in by_label.values()], {item["name"]: item["styles"] for item in by_label.values()},
+        {label: item["name"] for label, item in by_label.items()},
+    )
     if wrong:
-        log.info("ai_design.summary_replaced", problems=wrong)
+        # Trimmed: only the false sentences went, the model's other words are kept.
+        replaced = plan.summary == describe_plan(plan)
+        log.info("ai_design.summary_replaced" if replaced else "ai_design.summary_trimmed", problems=wrong)
     return plan

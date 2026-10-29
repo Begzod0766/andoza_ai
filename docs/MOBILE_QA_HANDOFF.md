@@ -290,3 +290,258 @@ PR'lar (hammasi `master`da va production'da): [#36](https://github.com/Begzod10/
 - Admin endi smeta mahsulotlarini (galtel, plintus, suvoq, bo'yoq va boshqalar) paneldan qo'shadi. Masalan, `galtel` kalitli mahsulot qo'shilsa, smetadagi galtel qatori taxminiy 11 000 so'm o'rniga shu mahsulot narxi bilan va `is_approximate: false` bo'lib chiqadi.
 - Javob formati o'zgarmagan, mobil Smeta ekrani hech narsani o'zgartirishi shart emas.
 
+
+---
+
+## 9. 2026-10-25 dagi o'zgarishlar: mobil ilova nima qilishi kerak
+
+PR'lar (hammasi `master`da): [#43](https://github.com/Begzod10/andoza_ai/pull/43), [#44](https://github.com/Begzod10/andoza_ai/pull/44), [#47](https://github.com/Begzod10/andoza_ai/pull/47), [#49](https://github.com/Begzod10/andoza_ai/pull/49), [#51](https://github.com/Begzod10/andoza_ai/pull/51), [#52](https://github.com/Begzod10/andoza_ai/pull/52), [#53](https://github.com/Begzod10/andoza_ai/pull/53), [#55](https://github.com/Begzod10/andoza_ai/pull/55). Eng shoshilinchi **9.1** (domen): eski domen hozircha ishlaydi, lekin mobil'ni ko'chirish kerak.
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 9.1 | Production domeni `andozaai.uz` | Ha (URL'larni almashtirish) |
+| 9.2 | Til: `users.language`, `Accept-Language` | Tavsiya |
+| 9.3 | AI dizayn: mebelda `role`, `zone` yo'q | Faqat native render bo'lsa |
+| 9.4 | `GET /furniture?has_model=true`, `q`, tartib | Ha (3D va joylashtirish ekranlari) |
+| 9.5 | Demo do'konlar (`is_demo`) | Ixtiyoriy, avval backend kerak |
+| 9.6 | Oboy smetada rulon bo'yicha | Ma'lumot uchun |
+
+### 9.1 Production domeni: `andozaai.uz`
+
+**Nima o'zgardi.** Sayt va API endi `https://andozaai.uz` da:
+
+| | Yangi | Eski |
+|---|---|---|
+| Sayt | `https://andozaai.uz` | `https://andoza.jumaniyozov.uz` (sahifalar **301** bilan yangisiga o'tadi) |
+| API | `https://andozaai.uz/api/v1` | eski domendagi `/api/` hali **ishlaydi** |
+| Media | `https://andozaai.uz/media/` | eski domendagi `/media/` hali **ishlaydi** |
+
+Eski domen API va media uchun saqlab qolingan, shuning uchun store'dagi hozirgi mobil versiya ishlashda davom etadi. Lekin eski domenni keyinroq o'chirish mumkin, shuning uchun yangi reliz yangi domenga o'tishi shart. Backend `glb_url`, `thumbnail_url`, `image_url` ni so'rov kelgan domen bo'yicha to'liq URL qilib qaytaradi, ya'ni yangi domenga kirgan klient yangi domendagi media URL oladi.
+
+**Mobil'da nima qilish kerak:**
+- **Android:** `.github/workflows/release.yml` ichidagi `--dart-define` qiymatlarini (API va studio URL'lari) `https://andozaai.uz/api/v1` va `https://andozaai.uz` ga almashtiring.
+- **iOS:** GitHub secrets `API_URL_PROD`, `API_BASE_URL_PROD`, `STUDIO_BASE_URL_PROD` ni yangilang (qarang: [docs/WEB_PROD_DEPLOY.md](WEB_PROD_DEPLOY.md), 5-bo'lim, 4-band; iOS build qo'llanmasi mobil repo'dagi `docs/mobile/IOS_BUILD.md`).
+- **WebView studio va smeta:** `https://andozaai.uz/...?app=1` ga o'ting. Eski domen ochilsa 301 orqali yangisiga o'tadi, lekin to'g'ridan-to'g'ri yangi URL'dan boshlang va `?app=1` redirect'dan keyin ham saqlanishini tekshiring.
+- Kodga qotirilgan (hardcoded) `andoza.jumaniyozov.uz` qolmaganini qidiring (`grep -rn jumaniyozov`). Lokal keshdagi eski media URL'lari ishlaydi.
+- **Google Sign-In:** web client'ning ruxsat etilgan origin'lariga `andozaai.uz` qo'shildi. Native Google login'ni o'zgartirish shart emas. WebView ichidagi Google login yangi domendan ishlashi kerak.
+
+**Qanday sinash:**
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://andozaai.uz/api/v1/furniture                 # 200
+curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" https://andoza.jumaniyozov.uz/login   # 301 https://andozaai.uz/login
+curl -s -o /dev/null -w "%{http_code}\n" https://andoza.jumaniyozov.uz/api/v1/furniture        # 200 (eski API ishlaydi)
+```
+Ilovada yangi build bilan login, katalog, GLB yuklash va Studio WebView'ni oching. Tarmoq jurnalida eski domenga so'rov qolmasligi kerak.
+
+> Eslatma: Cloudflare proksisi hozircha o'chirilgan (DNS only), chunki hosting provayderi tomonida muammo bor ([docs/ops/2026-10-25-cloudflare-525-hosting.md](ops/2026-10-25-cloudflare-525-hosting.md)). Mobil'ga ta'siri yo'q: domen to'g'ridan-to'g'ri serverga ochiladi.
+
+### 9.2 Til tanlash (#43, #44)
+
+**Nima o'zgardi.** Web'da O'zbekcha / Русский / English tanlovi paydo bo'ldi. Tanlov akkauntda saqlanadi, server xatolarining `detail` matni so'rovdagi tilga tarjima qilinadi. Migration `1786000040`.
+
+**Endpoint va maydonlar:**
+- `users.language`: `"uz" | "ru" | "en"`, standart `"uz"`. `GET /api/v1/auth/me` javobida (`UserOut.language`) keladi.
+- `PATCH /api/v1/auth/me`, tana `{"language": "ru"}` (majburiy, uchta qiymatdan biri, aks holda 422). Javob: yangilangan `UserOut`.
+- `POST /api/v1/auth/register` va `POST /api/v1/auth/google` tanasiga ixtiyoriy `language` qo'shildi. Ro'yxatdan o'tishda yangi akkaunt shu tilni oladi. Google login'da `language` **faqat yangi akkaunt** uchun ishlaydi, mavjud akkaunt o'z tilini saqlaydi.
+- **`Accept-Language` sarlavhasi:** server `detail` matnini `uz`, `ru`, `en` dan (q-qiymati bo'yicha eng yaxshisiga) tarjima qiladi. Sarlavha bo'lmasa yoki boshqa til bo'lsa, **o'zbekcha** qoladi, ya'ni hozirgi xatti-harakat o'zgarmagan.
+- **Tarjima qilinmaydi:** AI chiqishi, katalog ma'lumotlari (mebel, material, do'kon nomlari), push va SMS.
+
+**Mobil'da nima qilish kerak:**
+1. Har bir so'rovga ilova interfeysi tiliga mos `Accept-Language: uz|ru|en` qo'shing (Dio interceptor).
+2. Foydalanuvchi ilovada tilni almashtirganda `PATCH /auth/me {"language": ...}` chaqiring va javobni lokal profilga yozing. Oflayn bo'lsa tanlovni saqlab turing va keyingi `/auth/me` tekshiruvida qayta yuboring (web shunday qiladi).
+3. Ro'yxatdan o'tish va Google login so'rovida joriy ilova tilini `language` sifatida yuboring.
+4. Kirgandan keyin `me.language` ilova tilidan farq qilsa, web'dagidek akkaunt tili ustun bo'lsin.
+5. Ilovaning o'z matnlari bu PR'larga kirmagan: tarjimani mobil jamoa qiladi. Atamalar: [docs/i18n-glossary.md](i18n-glossary.md).
+
+**Qanday sinash:** noto'g'ri parol bilan `POST /auth/login` ni `Accept-Language: ru` bilan yuboring: `detail` ruscha bo'lishi kerak, sarlavhasiz so'rovda o'zbekcha. Akkaunt bilan `PATCH /auth/me {"language":"en"}`, keyin `GET /auth/me` da `language: "en"`. `{"language":"de"}` → 422.
+
+### 9.3 AI dizayn: mebelda `role`, `zone` yo'q (#47)
+
+**Nima o'zgardi.** AI dizayn rejasidagi (`POST /rooms/{id}/ai-design`, `/ai-design/image`, `/ai-design/pin`) har bir mebel elementida endi `role` bor va `zone` **yo'q**. Joylashtirish (guruhlar: mehmonxona, ovqatlanish, uxlash, ish, saqlash) endi **klient tomonida** hisoblanadi (web: `frontend/src/lib/furnitureGroups.ts`, `furnitureLayout.ts`, `walkway.ts`). Server koordinata yoki zona bermaydi.
+
+**Maydon:** `furniture[]` elementi `{"id", "name", "role"}`. `role` 14 qiymatdan biri: `sofa, armchair, coffee_table, tv_unit, dining_table, dining_chair, bed, nightstand, desk, desk_chair, wardrobe, shelf, decor, rug`. AI noto'g'ri yoki bo'sh `role` bersa, server uni nomi va kategoriyasidan o'zi to'ldiradi, ya'ni maydon har doim bor.
+
+**Mobil'da nima qilish kerak:**
+- AI dizayn natijasini native chizsangiz, **`zone`ga tayanmang** (u endi kelmaydi). Joylashtirishni `role` bo'yicha o'zingiz hisoblang yoki WebView Studio'dan foydalaning (u o'zi hisoblaydi).
+- Noma'lum `role` qiymatiga chidamli bo'ling (kelajakda qo'shilishi mumkin): uni `decor` kabi ko'rsating.
+- Studio WebView'da qo'shimcha ish kerak emas.
+
+**Qanday sinash:** `POST /rooms/{id}/ai-design` javobida `furniture[*].role` bor va `zone` kaliti yo'qligini tekshiring. Studio'da AI dizayn qo'llang: divan devorga suyangan, stol atrofida stullar, eshikdan o'tish yo'li ochiq, joy yetmaganlar uchun "Joy yetmadi: … qo'yilmadi." xabari chiqadi.
+
+### 9.4 Katalog: `has_model`, `q`, barqaror tartib
+
+**Nima o'zgardi.** `GET /api/v1/furniture`:
+- **`has_model=true`** (standart `false`): faqat 3D modeli (GLB) bor mebelni qaytaradi. Parametrsiz so'rov hammasini, jumladan GLB'siz demo-do'kon mahsulotlarini (faqat foto) qaytaradi.
+- **`q`** (≤ 100 belgi): `name_uz` bo'yicha qism qidiruv, server tomonida. `GET /api/v1/materials` ham `q` ni qo'llaydi.
+- **Barqaror tartib:** `/furniture` yangisi birinchi (`created_at DESC, id`), sahifalar bir-biriga tushmaydi va qator tashlab ketilmaydi. `/materials` ham barqaror tartibda.
+- Boshqa parametrlar o'zgarmagan: `category`, `room_type`, `page`, `per_page` (≤ 100). Javob `{items, total, page, per_page}`.
+
+**Mobil'da nima qilish kerak:**
+- **3D sahna, joylashtirish va uslub tanlovi ekranlari** (studio mebel ro'yxati): har doim `?has_model=true` yuboring. Aks holda GLB'siz mahsulot ro'yxatda chiqib, joylashtirishda `glb_url == null` bilan yiqiladi.
+- **Do'kon ekrani:** `has_model` yubormang, fotoli mahsulotlar ham ko'rinsin. `glb_url == null` bo'lsa "Joylashtirish" tugmasini yashiring.
+- Qidiruvni serverga ulang (`q`) va `page` bo'yicha cheksiz ro'yxat qiling (`total` gacha). "Birinchi sahifani olib lokal filtrlash" endi to'liq katalogni ko'rsatmaydi.
+- `FurnitureOut.glb_url` `string | null`: har doim mavjud deb hisoblamang.
+
+**Qanday sinash:**
+```bash
+curl -s 'https://andozaai.uz/api/v1/furniture?has_model=true&per_page=100' | jq '[.items[]|select(.glb_url==null)]|length'   # 0
+curl -s 'https://andozaai.uz/api/v1/furniture?per_page=1' | jq '.total'    # has_model=true dagidan katta (demo mahsulotlar)
+curl -s 'https://andozaai.uz/api/v1/furniture?q=divan' | jq '.items[].name_uz'
+```
+1-sahifa va 2-sahifa `id` lari kesishmasligini tekshiring.
+
+### 9.5 Demo do'konlar (`is_demo`) (#51, #52, #53)
+
+**Nima o'zgardi.** Taqdimot uchun Toshkentdagi haqiqiy do'konlar mahsulotlari bazaga qo'shildi (boshida 9 do'kon, 187 rasm: mebel va lampalar, MAFF materiallari, "Модные Стены" oboylari; keyin deraza va gilamlar). Ular bilan hali **shartnoma yo'q**. Har bir shunday do'konda `stores.is_demo = true` (migration `1786000041`). Admin ro'yxatida "Namuna" belgisi bor. Demo ma'lumotlar bitta buyruq bilan o'chiriladi (`python -m app.seed_demo_stores --remove`), shuning uchun ularni doimiy deb hisoblamang.
+
+**Muhim: `is_demo` ommaviy API'da YO'Q.** Kodda tekshirildi:
+- `is_demo` faqat **admin** javobida bor: `GET /api/v1/admin/stores`, `is_demo: bool` (`backend/app/schemas/admin_catalog.py`).
+- Mobil ishlatadigan ommaviy javoblarda bu maydon **yo'q**: `GET /api/v1/furniture` (`FurnitureOut`: `store_id`, `store_name`, ...), `GET /api/v1/stores` (`StoreOut`: `id, name, district, phone, telegram, logo_color, partner_tier`), `GET /api/v1/materials`.
+
+Ya'ni oddiy foydalanuvchi ilovasi "Namuna" belgisini hozircha `is_demo`dan **ola olmaydi**. Variantlar:
+1. **Backend'ga maydon qo'shish** (tavsiya, kichik ish): `StoreOut` ga `is_demo: bool = False` va `FurnitureOut` ga `store_is_demo: bool = False` (keshlar ham yangilanadi). Shu o'zgarish kirguncha mobil'da belgi ko'rsatmang.
+2. Belgi shart bo'lmasa, hech narsa qilmang: demo mahsulotlar oddiy mahsulot kabi ko'rinadi.
+
+Maydon qo'shilgach mobil'da: `is_demo == true` bo'lsa do'kon kartasi va mahsulot sahifasida kichik "Namuna" belgisini ko'rsating.
+
+**Mobil'ga hozirgi ta'siri:**
+- Katalogda GLB'siz mahsulotlar ko'p: 9.4 ga qarang.
+- Rasmlar `thumbnail_url` (mebel) va `image_url` (material) da, to'liq URL.
+- Demo do'konlardan buyurtma haqiqiy savdo emas: taqdimotda buyurtmani oxirigacha bajarmang.
+
+**Qanday sinash:** `curl https://andozaai.uz/api/v1/stores | jq '.[].name'` da demo do'konlar (Dafna, ARCA Mebel, Ergo, MAFF va boshqalar) chiqishi kerak. Admin bilan `GET /admin/stores` da `is_demo: true`.
+
+### 9.6 Oboy smetada rulon bo'yicha (#51)
+
+**Nima o'zgardi.** `POST /rooms/{id}/estimate/preview` va `/estimate`: studio kutubxonasidan tanlangan va rulon eni, uzunligi hamda narxi ma'lum bo'lgan oboy endi **rulon bo'yicha** hisoblanadi (rulon narxi, kerakli rulon soni). Javob formati o'zgarmagan. Rulon o'lchami yoki narxi noma'lum oboy avvalgidek hisoblanadi (7.2).
+
+**Mobil'da nima qilish kerak:** native Smeta ekrani oboy qatorida birlikni qat'iy "m²" deb yozmasin, javobdagi birlik va miqdor maydonlarini ko'rsatsin. WebView Smeta'da o'zgarish o'zi o'tadi.
+
+**Qanday sinash:** xonaga kutubxonadan "Модные Стены" oboyini qo'ying va smetani oching: oboy qatori rulon soni va rulon narxi bilan chiqishi kerak.
+
+### Mobil'da qilinadigan ishlar (qisqa ro'yxat)
+1. **Domen:** Android/iOS prod URL'lari va WebView'ni `andozaai.uz` ga o'tkazish (9.1).
+2. **Katalog:** studio ekranlarida `?has_model=true`, do'kon ekranida `glb_url == null` ga chidamlilik, `q` qidiruvi (9.4).
+3. **Til:** `Accept-Language`, `PATCH /auth/me`, register va Google'da `language` (9.2).
+4. **AI dizayn:** native render bo'lsa `zone`dan voz kechib, `role`dan foydalaning (9.3).
+5. **Namuna belgisi:** avval backend'ga `is_demo` maydonini qo'shdiring (9.5).
+
+---
+
+## 10. 2026-10-28: Bundle ID va shift mahsulotlari
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 10.1 | Bundle ID tanlash | Ha, App Store Connect'da ilova yaratishdan **oldin** |
+| 10.2 | Shift mahsulotlari do'kondan (#84) | Faqat native studio bo'lsa |
+
+### 10.1 Bundle ID
+
+Bu repoda ikki xil eski ("uytamir") identifikator bor:
+
+| Fayl | Qiymat |
+|---|---|
+| `capacitor.config.ts` | `appId: 'uz.uytamir.app'` |
+| `app.json` | `bundleIdentifier: "com.uytamir.mobile"` |
+
+Flutter loyihasidagi `PRODUCT_BUNDLE_IDENTIFIER` ni ham tekshiring. Bundle ID App Store Connect'da ilova yaratilgach **o'zgartirib bo'lmaydi**. Shuning uchun brend nomiga mos bittasini tanlang (masalan `uz.andozaai.app`), hamma joyda bir xil qiling, keyin App ID yarating.
+
+### 10.2 Shift mahsulotlari do'kondan (#84)
+
+**Nima o'zgardi.**
+- Studio'dagi "Shift" bo'limida gipsokarton, karkas profili va LED lentani do'kondan tanlash mumkin. "Galtel" bo'limida galtelni ham.
+- Tanlov `room.surfaces["smeta:<smeta_key>"] = <material_id>` ko'rinishida saqlanadi. Kalitlar: `smeta:gipsokarton`, `smeta:profil`, `smeta:led_lenta`, `smeta:galtel`.
+- Bo'sh qiymat (`""`) tanlov yo'q degani.
+- Smeta shu qatorni tanlangan mahsulot narxi bilan hisoblaydi va `is_approximate: false` qiladi. Miqdor bo'yicha izoh (`warning`) qoladi.
+- `GET /api/v1/materials?smeta_key=gipsokarton`: yangi filtr, shu smeta qatoriga narx beradigan mahsulotlarni qaytaradi.
+
+**Mobil'da nima qilish kerak:**
+- WebView Studio va Smeta'da o'zgarish o'zi o'tadi.
+- Native studio bo'lsa, `surfaces` ni PATCH qilayotganda `smeta:*` kalitlarini **o'chirib yubormang**. Butun obyektni qayta yozganda serverdagi qiymatlarni saqlang.
+- `smeta:*` kalitlarini devor deb o'qimang. Ular devor bo'yog'i yoki oboy emas.
+
+**Qanday sinash:** osma shiftli xonada Studio → Bo'yoq/Oboi → Shift → "Do'kondan tanlang" ro'yxatidan gipsokarton tanlang. Smetada "Shift: <mahsulot nomi>" qatori "taxminiy" belgisisiz chiqishi kerak.
+
+---
+
+## 11. 2026-10-27: Apple orqali kirish va kontentga shikoyat (App Store talablari)
+
+App Store ko'rigi uchun ikkita backend funksiyasi: **4.8** (Google bilan kirish bor ekan, "Sign in with Apple" ham bo'lishi kerak) va **1.2** (foydalanuvchilar e'lon qilgan kontentga shikoyat qilish imkoniyati).
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 11.1 | `POST /api/v1/auth/apple` | Ha, iOS'da (Google tugmasi yonida) |
+| 11.2 | `POST /api/v1/reports`, admin navbati | Ha (usta, portfolio, mahsulot, do'kon, oboy sahifalarida) |
+
+Migration'lar: `1786000044` (`users.apple_sub`, unique indeks) va `1786000045` (`content_reports` jadvali).
+
+### 11.1 Apple orqali kirish
+
+**So'rov:** `POST /api/v1/auth/apple`
+
+```json
+{"identity_token": "<Apple identityToken, JWT>", "name": "Ali Valiyev", "language": "uz"}
+```
+
+- `identity_token`: majburiy, 1..8192 belgi.
+- `name`: ixtiyoriy, ≤100 belgi. Apple ismni **faqat birinchi avtorizatsiyada** beradi (tokenda ism yo'q), shuning uchun ilova `givenName` + `familyName` ni shu yerga qo'shib yuboradi. Faqat yangi akkaunt yaratilganda yoziladi, keyingi kirishlarda e'tiborsiz qoldiriladi.
+- `language`: ixtiyoriy, `uz|ru|en`, faqat yangi akkaunt uchun (Google'dagi kabi).
+
+**Javob:** `200`, `/auth/google` bilan **aynan bir xil** `LoginResponse` (`user`, `access_token`, `refresh_token`, `token_type`). Tokenlar body'da faqat `X-Client-Type: mobile` bo'lsa keladi.
+
+**Qoidalar:**
+- Token imzosi Apple kalitlari (`https://appleid.apple.com/auth/keys`, 24 soat keshlanadi) bilan RS256 bo'yicha tekshiriladi; `iss == https://appleid.apple.com`, `aud` `APPLE_CLIENT_IDS` ro'yxatida, muddati o'tmagan.
+- Foydalanuvchi `sub` bo'yicha topiladi (`users.apple_sub`). Email bo'yicha boshqa akkauntga **hech qachon** bog'lanmaydi. Email (ko'pincha `@privaterelay.appleid.com`) faqat ko'rsatish uchun saqlanadi.
+- Apple akkauntida parol yo'q: `POST /auth/delete-account` parol so'ramaydi (Google akkaunti kabi).
+
+**Xatolar:** `401` "Apple orqali kirib bo'lmadi. Qayta urinib ko'ring." (token yaroqsiz, `aud`/`iss` noto'g'ri, akkaunt o'chirilgan); `503` "Apple bilan bog'lanib bo'lmadi..." (Apple kalitlari olinmadi) yoki "Apple orqali kirish hozircha mavjud emas." (`APPLE_CLIENT_IDS` bo'sh); `429` IP bo'yicha 15 daqiqada 20 urinishdan keyin; `422` noto'g'ri tana.
+
+**Sozlama:** `APPLE_CLIENT_IDS` (vergul bilan). Standart qiymat iOS bundle id `uz.andozaai.app` (eski `com.tamiruy.tamirUyMobileFlutter` hech qachon chiqarilmagan).
+
+### 11.2 Kontentga shikoyat
+
+**So'rov (kirgan foydalanuvchi):** `POST /api/v1/reports`
+
+```json
+{"target_type": "usta", "target_id": "<id>", "reason": "spam", "details": "ixtiyoriy izoh"}
+```
+
+- `target_type`: `usta | product | seller | portfolio_item | wallpaper`.
+- `target_id`: 1..64 belgi, ekrandagi obyekt id'si (backend uning mavjudligini tekshirmaydi).
+- `reason`: `spam | inappropriate | fraud | other`.
+- `details`: ixtiyoriy, ≤1000 belgi.
+
+**Javob:** `201 {"id": "<uuid>", "status": "open"}`. Bir foydalanuvchi bitta obyektga ikkinchi marta shikoyat qilsa ham `201` va **o'sha** shikoyat (`id` va joriy `status`) qaytadi, yangisi yaratilmaydi, 409 bo'lmaydi.
+
+**Xatolar:** `401` kirmagan; `422` noma'lum `target_type`/`reason` yoki uzunlik; `429` bir soatda 20 tadan ko'p shikoyat.
+
+**Admin:**
+- `GET /api/v1/admin/reports?status=open` (`status` ixtiyoriy: `open|resolved|dismissed`, bo'lmasa hammasi; `limit` 1..500, standart 200), yangilari birinchi. Har bir element: `id`, `reporter_id`, `target_type`, `target_id`, `reason`, `details`, `status`, `created_at`, `resolved_at`.
+- `PATCH /api/v1/admin/reports/{id}` tana `{"status": "resolved" | "dismissed"}`, javob yangilangan element (`resolved_at` to'ldiriladi). Topilmasa `404`.
+- Admin bo'lmagan foydalanuvchi: `403`. Kontentni yashirish hozircha qo'lda (`/admin/moderation` va boshqa admin bo'limlari orqali).
+
+**Mobil'da nima qilish kerak:** usta profili, portfolio elementi, mahsulot, do'kon va oboy sahifalarida "Shikoyat qilish" tugmasi: sabab tanlovi va ixtiyoriy izoh, yuborilgach "Shikoyatingiz qabul qilindi" xabari. Kirmagan foydalanuvchini avval kirishga yo'naltiring.
+
+## 12. 2026-10-28: Do'konning ochiq sahifasi va mebelni xonaga qo'yish
+
+Xaridor do'konning o'z sahifasini (ma'lumot, kontaktlar, mahsulotlari) ko'radi va do'kon mebelini bitta tugma bilan o'z xonasiga qo'yadi. Migration yo'q.
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 12.1 | `GET /api/v1/stores/{id}` | Ha (do'kon sahifasi) |
+| 12.2 | `GET /api/v1/furniture?store={id}`, `GET /api/v1/furniture/{id}` | Ha (do'kon mebeli, mebel sahifasi) |
+| 12.3 | Studio `?place=<furniture id>` | Ha ("Xonamga qo'yish") |
+
+### 12.1 Bitta do'kon
+
+`GET /api/v1/stores/{id}`, login shart emas. Javob `/stores` ro'yxatidagi element bilan bir xil: `id`, `name`, `district`, `phone`, `telegram`, `logo_color`, `partner_tier`. Do'kon yopiq bo'lsa (`is_active=false`, ya'ni kutilayotgan, rad etilgan yoki o'chirilgan), `404` "Do'kon topilmadi" qaytadi. Noto'g'ri UUID bo'lsa `422`.
+
+### 12.2 Do'kon mebeli va bitta mebel
+
+- `GET /api/v1/furniture?store={id}`: faqat shu do'konning tirik mebeli. Boshqa filtrlar (`category`, `q`, `has_model`, sahifalash) avvalgidek ishlaydi. Kesh kaliti `store` bo'yicha ham farqlanadi.
+- `GET /api/v1/furniture/{id}`: bitta tirik mebel, `/furniture` ro'yxatidagi `FurnitureOut` bilan bir xil. Mebel o'chirilgan yoki do'koni yopilgan bo'lsa `404` "Mahsulot topilmadi".
+- `glb_url` null bo'lsa, mahsulotning faqat rasmi bor (masalan demo do'konlar). Uni xonaga qo'yib bo'lmaydi.
+
+### 12.3 Studio: `?place=`
+
+`/studio/{roomId}?place=<furniture id>` ochilganda Studio shu mebelni `GET /furniture/{id}` orqali oladi va xona serverdan yuklangach uni xonaning bo'sh joyiga **bir marta** qo'yadi. Nomi va narxi smeta uchun yoziladi. Keyin parametr URL'dan olib tashlanadi, shuning uchun sahifa yangilansa mebel qayta qo'shilmaydi. Natija toast bilan bildiriladi: "… xonaga qo'yildi". Mebel sotuvda bo'lmasa yoki 3D modeli yo'q bo'lsa, xato toast chiqadi. Saqlash odatdagi avtosaqlash orqali bo'ladi.

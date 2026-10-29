@@ -13,11 +13,11 @@ import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
 import { useRoomStore } from "@/store/roomStore";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
-import { useEmbeddedApp } from "@/lib/embedded";
+import { useCompactStudio } from "@/lib/compactStudio";
 import { PlanViewToggle } from "@/components/studio/PlanViewToggle";
 import { QuarterArcMenu } from "@/components/studio/QuarterArcMenu";
 import { useArcCategories } from "@/features/studio/useArcCategories";
-import { deleteRoom, updateRoom, listCatalogFurniture, pinParam } from "@/lib/api";
+import { deleteRoom, updateRoom, listCatalogFurniture, listRenders, pinParam } from "@/lib/api";
 import type { Room } from "@/lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MebelPlanView } from "@/features/studio/MebelPlanView";
@@ -66,6 +66,8 @@ import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
+import { effectiveRoomType } from "@/lib/roomType";
+import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -115,6 +117,9 @@ export interface StudioContext {
   /** Lets the header float over the viewport without a background (inside the
    *  native app only; StudioPage decides). On while the live 3D view shows. */
   setOverlayHeader?: (on: boolean) => void;
+  /** The server's copy of this room is in the store (see StudioPage); edits
+   *  made before then would be lost or would stop it loading. */
+  roomReady?: boolean;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -123,8 +128,8 @@ export type { PhaseKey } from "@/lib/phases"
 
 export default function ThreeDPage() {
   const { t } = useTranslation()
-  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader } = useOutletContext<StudioContext>();
-  const embedded = useEmbeddedApp();
+  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false } = useOutletContext<StudioContext>();
+  const compact = useCompactStudio();
   const geometry = useRoomStore((s) => s.geometry);
   const designState = useRoomStore((s) => s.designState);
   const highQuality3d = useRoomStore((s) => s.highQuality3d);
@@ -360,6 +365,14 @@ export default function ThreeDPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
   }, []);
   const [showRender, setShowRender] = useState(false);
+  // "gallery" opens the saved pictures without rendering again; see RenderSheet.
+  const [renderMode, setRenderMode] = useState<'render' | 'gallery'>('render');
+  const { data: savedRenders = [] } = useQuery({
+    queryKey: ['renders', room.id],
+    queryFn: () => listRenders(room.id),
+    enabled: !!room.id,
+    staleTime: 60_000,
+  });
   const [selectedWall, setSelectedWall] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
   // Desktop-only edge-collapse toggles for the phase-stepper rail and design
@@ -673,6 +686,16 @@ export default function ThreeDPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const confirm = useConfirm();
+  // A shop model the room was opened to place (?place=, from the mobile app).
+  usePlaceFromLink({
+    roomReady,
+    onPlaced: useCallback((item) => {
+      toast({ variant: 'success', title: t('studio.mebel.placed_from_link', { name: item.name_uz }) });
+    }, [toast, t]),
+    onFailed: useCallback(() => {
+      toast({ variant: 'error', title: t('studio.mebel.place_link_failed') });
+    }, [toast, t]),
+  });
   // The flat's rooms, refreshed on every room switch — see useFlatRooms for
   // why the plain query left a neighbour drawn from a stale list.
   const aptRooms = useFlatRooms(aptId, room.id);
@@ -772,7 +795,7 @@ export default function ThreeDPage() {
             try { await onSave(); } catch { /* offline — switch anyway */ }
             navigate(`/studio/${id}/ichkarida`);
           }}
-          onOpenSmeta={embedded ? () => navigate(`/smeta/${room.id}${location.search}`) : undefined}
+          onOpenSmeta={compact ? () => navigate(`/smeta/${room.id}${location.search}`) : undefined}
         />
 
         {/* Canvas area. relative: anchors the Mebelirovka top-right control
@@ -789,11 +812,11 @@ export default function ThreeDPage() {
             viewport otherwise. Inline there: the overlay variant positions
             itself absolutely, which inside a flex header would sit it over
             the title. */}
-        {/* Inside the native app the strip is left out and the smeta is a ⋮
-            menu row instead, so the floating header is just its buttons and
+        {/* On a small screen (lib/compactStudio) the strip is left out and the
+            smeta is a ⋮ menu row instead, so the floating header is just its buttons and
             the 3D view gets the screen. */}
         {tabSlot
-          ? embedded ? null : createPortal(<StudioTabStrip roomId={room.id} variant="inline" />, tabSlot)
+          ? compact ? null : createPortal(<StudioTabStrip roomId={room.id} variant="inline" />, tabSlot)
           : <StudioTabStrip roomId={room.id} />}
         {/* Mebelirovka: one viewport at a time. The 2D/3D pill switch swaps
             the full-width top-view plan editor ('2d') for the live 3D
@@ -1013,9 +1036,24 @@ export default function ThreeDPage() {
                 the picture from THAT camera it would make. The 360 camera goes
                 to the render sheet; a fixed one saves its own still, so it also
                 needs to be asked which shape. */}
+            {/* The pictures already made for this room, from any camera: looking
+                at one again must not cost another render. */}
+            {savedRenders.length > 0 && (
+              <button
+                onClick={() => { setRenderMode('gallery'); setShowRender(true); }}
+                title={t("render.saqlangan")}
+                className="px-4 h-12 rounded-full bg-white/95 text-brand text-[13px] font-bold shadow-lg ring-1 ring-black/5 flex items-center gap-1.5"
+              >
+                {t("render.renderlarim")}
+                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-brand text-white text-[11px] leading-5 text-center">
+                  {savedRenders.length}
+                </span>
+              </button>
+            )}
+
             {panorama && (
               <button
-                onClick={() => setShowRender(true)}
+                onClick={() => { setRenderMode('render'); setShowRender(true); }}
                 title={t("render.sarlavha")}
                 className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
               >
@@ -1165,7 +1203,17 @@ export default function ThreeDPage() {
           DOM, and whichever item was held supplies its own label and action. */}
       <HoldDeleteButton />
 
-      <RenderSheet open={showRender} onOpenChange={setShowRender} roomId={room.id} />
+      <RenderSheet
+        open={showRender}
+        onOpenChange={(open) => {
+          setShowRender(open);
+          // A render made in the sheet adds to the count on the button.
+          if (!open) void queryClient.invalidateQueries({ queryKey: ['renders', room.id] });
+        }}
+        roomId={room.id}
+        mode={renderMode}
+        canRender={panorama}
+      />
 
       {/* The room that would go through the tapped wall: its shape, drawn, and
           three numbers to change it by. */}
@@ -1201,7 +1249,8 @@ export default function ThreeDPage() {
         setShowAiSheet={setShowAiSheet}
         onSave={onSave}
         roomId={room.id}
-        roomType={room.room_type}
+        aptId={aptId}
+        roomType={effectiveRoomType(room.room_type, room.name)}
         aiPin={aiPin}
         radial={radial}
         radialItems={(r) => buildRadialItems(r, {

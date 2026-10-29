@@ -103,6 +103,24 @@ describe('layoutFurniture', () => {
   })
 })
 
+describe('layoutFurniture: a rug that fits only turned', () => {
+  // A 200 x 300 rug turned with the main piece crosses the walls; turned a quarter it fits.
+  for (const [W, D] of [[3600, 2700], [2700, 3600]]) {
+    it(`a ${W / 1000} x ${D / 1000} m living room and bedroom lay the 200 x 300 rug turned, inside the room`, () => {
+      const model = roomModel(box(W, D))
+      for (const [roomType, main] of [['mehmonxona', piece('Divan', 'sofa', 2.0, 0.9)], ['yotoqxona', piece('Karavot', 'bed', 1.6, 2.0)]] as const) {
+        const { placed, dropped } = layoutFurniture([main, piece('Gilam', 'rug', 2.0, 3.0)], model, roomType, [])
+        const rug = placed.find((p) => p.piece.role === 'rug')
+        expect(rug, roomType).toBeDefined()
+        expect(model.inside(rug!.rect)).toBe(true)
+        const anchor = placed.find((p) => p.piece === main)!
+        expect(Math.abs(Math.sin(rug!.rect.rotation - anchor.rect.rotation))).toBeCloseTo(1, 5)
+        expect(dropped).toEqual([])
+      }
+    })
+  }
+})
+
 describe('layoutFurniture: searching the main group', () => {
   it('tries more than the best main arrangement: a lounge slid along its wall leaves room for the dining set', () => {
     const model = roomModel(box(4500, 3200, { A: [el('eshik', 900, 500)], C: [el('deraza', 1400, 1550)] }))
@@ -208,7 +226,9 @@ describe('applyDesignPlan lays the furniture out in groups', () => {
       { id: 'chair', name: 'Stul', role: 'dining_chair' },
     ]), ALL_PARTS, CATALOG, 'mehmonxona')
     expect(applied.furniture).toBe(1)
-    expect(applied.dropped).toEqual([{ name: 'Ovqat stoli', count: 1 }, { name: 'Stul', count: chairCount(1.4) }])
+    expect(applied.dropped).toEqual([
+      { name: 'Ovqat stoli', count: 1, role: 'dining_table' }, { name: 'Stul', count: chairCount(1.4), role: 'dining_chair' },
+    ])
     expect(applied.skipped).toBe(1 + chairCount(1.4))
   })
 })
@@ -411,5 +431,19 @@ describe('final review: layout time', () => {
     // Measured on a Mac: ~50 ms alone, ~130-150 ms under full-suite load (~230 ms alone before the dining
     // cache). The bound is generous so a slower CI runner under load does not flake.
     expect(median).toBeLessThan(600)
+  })
+})
+
+describe('what a bedroom piece weighs', () => {
+  const model = () => roomModel(box(5000, 4500, { B: [el('eshik', 900, 800)] }))
+  const bed = piece('Karavot', 'bed', 1.6, 2.0)
+  it('a clothes wardrobe outweighs the desk with its chair', () => {
+    const { weight } = layoutFurniture([bed, { ...piece('Kiyim shkafi', 'wardrobe', 1.5, 0.6), tall: true }], model(), 'yotoqxona', [])
+    expect(weight).toBe(100 + 10)
+  })
+  it('a bookcase read as a wardrobe weighs one, like any other storage', () => {
+    const { placed, weight } = layoutFurniture([bed, { ...piece('Kitob shkafi', 'wardrobe', 0.9, 0.35), tall: true }], model(), 'yotoqxona', [])
+    expect(placed).toHaveLength(2)
+    expect(weight).toBe(100 + 1)
   })
 })

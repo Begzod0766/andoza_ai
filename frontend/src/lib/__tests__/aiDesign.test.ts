@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useRoomStore } from '@/store/roomStore'
-import type { RoomGeometry } from '@/store/roomStore'
+import type { RoomGeometry, WallElement } from '@/store/roomStore'
 import type { AiDesignPlan, CatalogFurniture } from '@/lib/api'
-import { ALL_PARTS, applyDesignPlan, restoreDesign, snapshotDesign } from '../aiDesign'
+import { ALL_PARTS, applyDesignPlan, countSwaps, restoreDesign, snapshotDesign } from '../aiDesign'
+import { overlaps, type Rect } from '../aiDesignLayout'
 
 const geometry = (): RoomGeometry => ({
   walls: ['A', 'B', 'C', 'D'].map((id, i) => ({ id, length: i % 2 ? 3000 : 4000, elements: [] })),
@@ -94,7 +95,7 @@ describe('applyDesignPlan', () => {
   it('applies only the parts that are switched on', () => {
     const counts = applyDesignPlan(plan(), { walls: false, floor: true, lights: false, furniture: false }, catalog)
     const s = useRoomStore.getState()
-    expect(counts).toEqual({ walls: false, floor: true, lights: 0, furniture: 0, skipped: 0, dropped: [] })
+    expect(counts).toEqual({ walls: false, floor: true, lights: 0, furniture: 0, skipped: 0, dropped: [], placed: [], swapped: [], placedLights: [], droppedLights: [] })
     expect(s.lights).toHaveLength(0) && expect(s.furniture).toHaveLength(0)
     expect(s.designState.wallCoverings.ALL).not.toEqual({ kind: 'paint', color: '#2c2c2c' })
   })
@@ -243,10 +244,26 @@ describe('ceiling and trim', () => {
     expect([ds.ceiling, ds.skirting, ds.cornice]).toEqual([before.ceiling, before.skirting, before.cornice])
   })
 
-  it('an AI plan, which has no trim, leaves them alone', () => {
+  it('an AI plan, with null or no trim, leaves them alone', () => {
     useRoomStore.getState().setDesignState({ skirting: { id: 'b052' } })
     applyDesignPlan(plan(), ALL_PARTS, catalog)
+    applyDesignPlan({ ...plan(), trim: null }, ALL_PARTS, catalog)
     expect(useRoomStore.getState().designState.skirting).toEqual({ id: 'b052' })
+  })
+
+  it('an AI plan sets only the parts it chose, the rest stay', () => {
+    useRoomStore.getState().setDesignState({ ceiling: { design: 'flat' }, cornice: { id: 't56' } })
+    applyDesignPlan({ ...plan(), trim: { skirting: { id: 'b055' } } }, ALL_PARTS, catalog)
+    const ds = useRoomStore.getState().designState
+    expect([ds.ceiling, ds.skirting, ds.cornice]).toEqual([{ design: 'flat' }, { id: 'b055' }, { id: 't56' }])
+  })
+
+  it('an AI plan keeping the same ceiling design without settings keeps the current settings', () => {
+    useRoomStore.getState().setDesignState({ ceiling: { design: 'border', settings: { color: '#123456', stripK: 2700 } } })
+    applyDesignPlan({ ...plan(), trim: { ceiling: { design: 'border' } } }, ALL_PARTS, catalog)
+    expect(useRoomStore.getState().designState.ceiling).toEqual({ design: 'border', settings: { color: '#123456', stripK: 2700 } })
+    applyDesignPlan({ ...plan(), trim: { ceiling: { design: 'flat' } } }, ALL_PARTS, catalog)
+    expect(useRoomStore.getState().designState.ceiling).toEqual({ design: 'flat' })
   })
 
   it('undo puts the ceiling and trim back', () => {
@@ -275,5 +292,221 @@ describe('snapshot and restore', () => {
     applyDesignPlan(plan(), ALL_PARTS, catalog)
     expect(before.lights).toHaveLength(0)
     expect(before.designState.wallCoverings.ALL).not.toEqual({ kind: 'paint', color: '#2c2c2c' })
+  })
+})
+
+describe('floor lamps and furniture', () => {
+  const beds = [item('bed', 'Karavot', 160, 200, 'karavot'), item('long', 'Uzun divan', 300, 95)]
+  const sizes: Record<string, { w: number; d: number }> = { bed: { w: 1.6, d: 2 }, long: { w: 3, d: 0.95 } }
+  const lampPlan = (lights: AiDesignPlan['lights']): AiDesignPlan => ({ ...plan(), lights, furniture: [] })
+  const LIGHTS_ONLY = { walls: false, floor: false, lights: true, furniture: false }
+  /** A light's footprint in world metres (the 4 x 3 m room's corner is at -2, -1.5). */
+  const lampRect = (l: { xMm: number; zMm: number }): Rect => ({ x: l.xMm / 1000 - 2, z: l.zMm / 1000 - 1.5, w: 0.4, d: 0.4, rotation: 0 })
+  const furnitureRects = () => useRoomStore.getState().furniture.map((f) => ({ x: f.x / 1000, z: f.y / 1000, ...sizes[f.furniture_id], rotation: f.rotation }))
+  /** Where the lamp stands in an empty room. */
+  const freeSpot = (lights: AiDesignPlan['lights']) => {
+    applyDesignPlan(lampPlan(lights), LIGHTS_ONLY, beds)
+    const out = useRoomStore.getState().lights.map(({ xMm, zMm }) => ({ xMm, zMm }))
+    useRoomStore.setState({ lights: [] })
+    return out
+  }
+
+  it("a corner lamp whose corner the user's bed takes is moved off the bed, still inside the room", () => {
+    const [corner] = freeSpot([{ type: 'floor_lamp', zone: 'corner_A_B' }])
+    const at = lampRect(corner)
+    useRoomStore.getState().placeFurniture({ id: 'mine', furniture_id: 'bed', x: at.x * 1000, y: at.z * 1000, rotation: 0 })
+    applyDesignPlan(lampPlan([{ type: 'floor_lamp', zone: 'corner_A_B' }]), LIGHTS_ONLY, beds)
+    const lamp = lampRect(useRoomStore.getState().lights[0])
+    expect(furnitureRects().some((r) => overlaps(lamp, r, 0))).toBe(false)
+    expect(Math.abs(lamp.x) + 0.2).toBeLessThanOrEqual(2) && expect(Math.abs(lamp.z) + 0.2).toBeLessThanOrEqual(1.5)
+  })
+
+  it("does not stand inside the design's own furniture: a sofa running into both corners", () => {
+    const p: AiDesignPlan = { ...lampPlan([{ type: 'floor_lamp', zone: 'corner_A_B' }, { type: 'floor_lamp', zone: 'corner_A_D' }]),
+      furniture: [{ id: 'long', name: 'Uzun divan', role: 'sofa', zone: 'wall_A' }] }
+    applyDesignPlan(p, ALL_PARTS, beds, 'mehmonxona')
+    expect(furnitureRects()).toHaveLength(1)
+    for (const l of useRoomStore.getState().lights) expect(overlaps(lampRect(l), furnitureRects()[0], 0)).toBe(false)
+  })
+
+  it('a lamp clear of the furniture stays where it was', () => {
+    const [corner] = freeSpot([{ type: 'floor_lamp', zone: 'corner_A_B' }])
+    useRoomStore.getState().placeFurniture({ id: 'mine', furniture_id: 'bed', x: -1000, y: 400, rotation: 0 })
+    applyDesignPlan(lampPlan([{ type: 'floor_lamp', zone: 'corner_A_B' }]), LIGHTS_ONLY, beds)
+    expect(useRoomStore.getState().lights.map(({ xMm, zMm }) => ({ xMm, zMm }))).toEqual([corner])
+  })
+
+  it('two floor lamps in one corner do not stand on the same spot', () => {
+    const lights = [{ type: 'floor_lamp', zone: 'corner_A_B' }, { type: 'floor_lamp', zone: 'corner_A_B' }]
+    applyDesignPlan(lampPlan(lights), LIGHTS_ONLY, beds)
+    const [a, b] = useRoomStore.getState().lights.map(lampRect)
+    expect(overlaps(a, b, 0)).toBe(false)
+  })
+
+  it('a lamp under a shelf hung on the wall stays where it was', () => {
+    const shelf = { ...item('shelf', 'Osma javon', 80, 30, 'javon'), placement: 'devor' as const }
+    const [corner] = freeSpot([{ type: 'floor_lamp', zone: 'corner_A_B' }])
+    const at = lampRect(corner)
+    useRoomStore.getState().placeFurniture({ id: 'mine', furniture_id: 'shelf', x: at.x * 1000, y: at.z * 1000, rotation: 0 })
+    applyDesignPlan(lampPlan([{ type: 'floor_lamp', zone: 'corner_A_B' }]), LIGHTS_ONLY, [...beds, shelf])
+    expect(useRoomStore.getState().lights.map(({ xMm, zMm }) => ({ xMm, zMm }))).toEqual([corner])
+  })
+
+  it('ceiling and wall lights are left where they are, over the furniture or not', () => {
+    const lights = [{ type: 'chandelier', zone: 'center' }, { type: 'bra', zone: 'wall_B' }]
+    const before = freeSpot(lights)
+    useRoomStore.getState().placeFurniture({ id: 'mine', furniture_id: 'bed', x: 0, y: 0, rotation: 0 })
+    useRoomStore.getState().placeFurniture({ id: 'mine2', furniture_id: 'bed', x: 1100, y: 0, rotation: 0 })
+    applyDesignPlan(lampPlan(lights), LIGHTS_ONLY, beds)
+    expect(useRoomStore.getState().lights.map(({ xMm, zMm }) => ({ xMm, zMm }))).toEqual(before)
+  })
+})
+
+describe('a main piece that does not fit', () => {
+  // A narrow bedroom, 2.2 x 3.0 m with its door on a long wall: a 160 cm double bed finds no place, not
+  // even along a wall (1.6 m of bed and 0.6 m beside it leave no gap to the wall across), a 140 cm one
+  // does. (A door may swing over the floor beside a bed, so the 2.6 m room this was keeps a double.)
+  const door = { id: 'door', type: 'eshik', width: 800, height: 2000, sill_height: 0, position: 800, positionAuto: false } as WallElement
+  const bedroom = (): RoomGeometry => ({
+    walls: ['A', 'B', 'C', 'D'].map((id, i) => ({ id, length: i % 2 ? 3000 : 2200, elements: id === 'B' ? [door] : [] })),
+  }) as RoomGeometry
+  const bed = (id: string, w: number, d: number, styles: string[] = []): CatalogFurniture =>
+    ({ ...item(id, `Karavot ${id}`, w, d, 'karavot'), styles })
+  const bedPlan = (): AiDesignPlan => ({ ...plan(), lights: [], furniture: [{ id: 'double', name: 'Karavot double', role: 'bed', zone: 'wall_A' }] })
+
+  beforeEach(() => useRoomStore.setState({ geometry: bedroom() }))
+
+  it('is swapped for a smaller one of the same kind from the catalog', () => {
+    const counts = applyDesignPlan(bedPlan(), ALL_PARTS, [bed('double', 160, 200), bed('single', 90, 200)], 'yotoqxona')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id)).toEqual(['single'])
+    expect(counts.furniture).toBe(1)
+    expect(counts.dropped).toEqual([])
+  })
+
+  it('prefers a smaller piece of the same style over an even smaller one of another style', () => {
+    const catalog = [bed('double', 160, 200, ['klassik']), bed('other', 90, 190, ['zamonaviy']), bed('same', 100, 200, ['klassik'])]
+    applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'yotoqxona')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id)).toEqual(['same'])
+  })
+
+  it('with no smaller piece of its kind, is left out as before', () => {
+    const catalog = [bed('double', 160, 200), item('stand', 'Tumbochka', 45, 40, 'tumbochka')]
+    const counts = applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'yotoqxona')
+    expect(useRoomStore.getState().furniture).toHaveLength(0)
+    expect(counts.dropped).toEqual([{ name: 'Karavot double', count: 1, role: 'bed' }])
+  })
+
+
+  it('takes the largest smaller piece that fits, not the smallest: a 120 cm bed over a 90 cm one', () => {
+    // A 140 cm bed is tried first and does not fit either.
+    const catalog = [bed('double', 160, 200), bed('single', 90, 200), bed('b140', 140, 200), bed('b120', 120, 200)]
+    applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'yotoqxona')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id)).toEqual(['b120'])
+  })
+
+  it("a children's bed is not put in a bedroom, but is in a children's room", () => {
+    const catalog = [bed('double', 160, 200), bed('single', 90, 200), { ...item('kids', 'Bolalar karavoti', 120, 190, 'karavot'), styles: [] }]
+    applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'yotoqxona')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id)).toEqual(['single'])
+    applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'bolalar')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id)).toEqual(['kids'])
+  })
+
+  it('counts an unstyled piece as one of the same style (it suits every style)', () => {
+    const catalog = [bed('double', 160, 200, ['klassik']), bed('other', 140, 200, ['zamonaviy']),
+      bed('plain', 120, 200), bed('same', 90, 200, ['klassik'])]
+    applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'yotoqxona')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id)).toEqual(['plain'])
+  })
+
+  describe('a wardrobe too wide for the bedroom', () => {
+    const cabinet = (id: string, name: string, w: number, d: number, more: Partial<CatalogFurniture> = {}): CatalogFurniture =>
+      ({ ...item(id, name, w, d, 'shkaf'), ...more })
+    const wardrobePlan = (): AiDesignPlan => ({ ...plan(), lights: [], furniture: [{ id: 'big', name: 'Shkaf big', role: 'wardrobe', zone: 'wall_A' }] })
+    const big = cabinet('big', 'Shkaf big', 400, 60, { room_type: 'yotoqxona' })
+    const placedIds = () => useRoomStore.getState().furniture.map((f) => f.furniture_id)
+
+    it("is not swapped for a kitchen's wall cabinet, a bathroom's cabinet or one hung on a wall", () => {
+      const catalog = [big,
+        cabinet('kitchen', 'Osma shkaf', 80, 35, { room_type: 'oshxona', placement: 'devor' }),
+        cabinet('bath', 'Shkafcha', 60, 30, { room_type: 'hammom' }),
+        cabinet('hung', 'Devor shkafi', 70, 30, { placement: 'devor' })]
+      applyDesignPlan(wardrobePlan(), ALL_PARTS, catalog, 'yotoqxona')
+      expect(placedIds()).toEqual([])
+    })
+
+    it('is not swapped for a bookcase or a bathroom cabinet, whatever room they are for', () => {
+      const catalog = [big,
+        cabinet('books', 'Kitob shkafi', 90, 35, { room_type: null }),
+        cabinet('bath', 'Hammom shkafi', 60, 45, { room_type: null })]
+      for (const roomType of ['yotoqxona', undefined]) {
+        applyDesignPlan(wardrobePlan(), ALL_PARTS, catalog, roomType)
+        expect(placedIds()).toEqual([])
+      }
+    })
+
+    it('is swapped only for a clothes wardrobe, by any of its names', () => {
+      for (const name of ['Kiyim shkafi Nord', 'Garderob', 'Wardrobe Oslo', 'Шкаф для одежды', 'Гардероб Лион']) {
+        applyDesignPlan(wardrobePlan(), ALL_PARTS, [big, cabinet('w', name, 150, 60, { room_type: 'yotoqxona' })], 'yotoqxona')
+        expect(placedIds()).toEqual(['w'])
+      }
+    })
+
+    it("is swapped for a bedroom's wardrobe", () => {
+      const catalog = [big, cabinet('bath', 'Shkafcha', 60, 30, { room_type: 'hammom' }),
+        cabinet('bedroom', 'Kiyim shkafi', 150, 60, { room_type: 'yotoqxona' })]
+      applyDesignPlan(wardrobePlan(), ALL_PARTS, catalog, 'yotoqxona')
+      expect(placedIds()).toEqual(['bedroom'])
+    })
+
+    it("in a children's room, takes a bedroom's wardrobe (the catalog has no children's rooms)", () => {
+      const catalog = [big, cabinet('living', 'Shkaf', 120, 50, { room_type: 'mehmonxona' }),
+        cabinet('bedroom', 'Kiyim shkafi', 150, 60, { room_type: 'yotoqxona' })]
+      applyDesignPlan(wardrobePlan(), ALL_PARTS, catalog, 'bolalar')
+      expect(placedIds()).toEqual(['bedroom'])
+    })
+  })
+})
+
+describe('a bedroom with a bed too big for it', () => {
+  // 4 x 2.4 m, its door on a short wall: a 2.1 x 1.9 m bed finds no place, a 160 cm one (stored 200 x
+  // 160) does, and beside it a clothes wardrobe but not the desk with its chair too. The wardrobe, desk
+  // and chair without a bed must not beat the bed with the wardrobe.
+  const door = { id: 'door', type: 'eshik', width: 800, height: 2000, sill_height: 0, position: 200, positionAuto: false } as WallElement
+  const room = (): RoomGeometry => ({
+    walls: ['A', 'B', 'C', 'D'].map((id, i) => ({ id, length: i % 2 ? 2400 : 4000, elements: id === 'B' ? [door] : [] })),
+  }) as RoomGeometry
+  const catalog = [item('huge', 'Karavot huge', 210, 190, 'karavot'), item('b160', 'Karavot 160', 200, 160, 'karavot'),
+    item('wardrobe', 'Kiyim shkafi', 180, 60, 'shkaf'), item('desk', 'Yozuv stoli', 120, 60, 'stol'),
+    item('chair', 'Ish stuli', 50, 50, 'stul')]
+  const bedPlan = (): AiDesignPlan => ({ ...plan(), lights: [], furniture: [
+    { id: 'huge', name: 'Karavot huge', role: 'bed', zone: 'wall_A' }, { id: 'wardrobe', name: 'Kiyim shkafi', role: 'wardrobe', zone: 'wall_C' },
+    { id: 'desk', name: 'Yozuv stoli', role: 'desk', zone: 'wall_D' }, { id: 'chair', name: 'Ish stuli', role: 'desk_chair', zone: 'wall_D' }] })
+
+  it('gets the stand-in bed and the wardrobe', () => {
+    useRoomStore.setState({ geometry: room() })
+    const counts = applyDesignPlan(bedPlan(), ALL_PARTS, catalog, 'yotoqxona')
+    const ids = useRoomStore.getState().furniture.map((f) => f.furniture_id)
+    expect(ids).toEqual(expect.arrayContaining(['b160', 'wardrobe']))
+    expect(counts.swapped).toEqual([{ from: 'Karavot huge', to: 'Karavot 160', count: 1 }])
+  })
+
+  it('fits a 160 bed with a desk and its chair', () => {
+    // A door may swing over the floor beside a bed, but the bed that leaves the door's swing alone
+    // is tried first: it leaves the room for the desk.
+    useRoomStore.setState({ geometry: room() })
+    const deskPlan: AiDesignPlan = { ...plan(), lights: [], furniture: [
+      { id: 'b160', name: 'Karavot 160', role: 'bed', zone: 'wall_A' },
+      { id: 'desk', name: 'Yozuv stoli', role: 'desk', zone: 'wall_D' }, { id: 'chair', name: 'Ish stuli', role: 'desk_chair', zone: 'wall_D' }] }
+    const counts = applyDesignPlan(deskPlan, ALL_PARTS, catalog, 'yotoqxona')
+    expect(useRoomStore.getState().furniture.map((f) => f.furniture_id).sort()).toEqual(['b160', 'chair', 'desk'])
+    expect(counts.dropped).toEqual([])
+  })
+})
+
+describe('countSwaps', () => {
+  it('makes the same swap, made more than once, one entry with how many', () => {
+    expect(countSwaps([{ from: 'Shkaf', to: 'Nord' }, { from: 'Karavot', to: 'Karavot 140' }, { from: 'Shkaf', to: 'Nord' }]))
+      .toEqual([{ from: 'Shkaf', to: 'Nord', count: 2 }, { from: 'Karavot', to: 'Karavot 140', count: 1 }])
   })
 })

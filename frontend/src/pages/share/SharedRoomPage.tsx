@@ -20,6 +20,8 @@ import { RoomScene, SceneLighting, BrandedSky, PlacedLights } from "@/pages/stud
 import { FurnitureModels } from "@/features/studio/StudioFurniture";
 import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { Link2Off, Loader2 } from "lucide-react";
+import { effectiveRoomType } from "@/lib/roomType";
+import { RoomTypeBadge } from "@/components/studio/RoomTypeBadge";
 import { IconBubble, Panel } from "@/components/ui/Panel";
 
 /**
@@ -125,7 +127,7 @@ export default function SharedRoomPage() {
       id: "shared",
       apartment_id: "shared",
       name: roomName || defaultRoomName(),
-      room_type: "mehmonxona",
+      room_type: effectiveRoomType(null, roomName) ?? null,
       area: 0,
       ceiling_height: ceilingHeight / 1000,
       width: (wallB?.length ?? 3000) / 1000,
@@ -161,7 +163,11 @@ export default function SharedRoomPage() {
       <main className="flex-1 relative overflow-hidden">
         {/* The scene runs edge to edge; the title and credit float over it. */}
         <Panel className="absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-3 rounded-full px-5 py-2.5 backdrop-blur-xl sm:left-4 sm:right-4 sm:top-4">
-          <h1 className="min-w-0 truncate text-[16px] font-extrabold text-ink">{room.name}</h1>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h1 className="min-w-0 truncate text-[16px] font-extrabold text-ink">{room.name}</h1>
+            {/* The type, as text only: a visitor cannot change it. */}
+            <RoomTypeBadge readOnly className="max-w-[45%] shrink-0 text-[11px] font-semibold text-ink-muted" />
+          </div>
           <span className="flex shrink-0 items-center gap-2 text-[11px] font-bold text-ink-muted">
             <img src="/icon.svg" alt="" className="h-5 w-5 rounded-md" aria-hidden="true" />
             andoza.ai

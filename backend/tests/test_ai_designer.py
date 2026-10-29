@@ -211,6 +211,33 @@ class TestDesignRoom:
         assert p.image_notes == notes
         assert "image_notes" in ad._IMAGE_INSTRUCTIONS
 
+    async def test_a_photo_alone_gets_no_room_type_plan(self):
+        # The photo is the style: the room type's suggestion would pull the design away from it.
+        call = AsyncMock(return_value=self._reply(json.dumps({**GOOD, "trim": {"ceiling": "flat"}})))
+        with patch("app.services.ai_designer.call_llm", new=call):
+            p = await ad.design_room("", ROOM, ITEMS, user_id="u", image=self._image())
+        text = call.await_args.kwargs["messages"][0]["content"][1]["text"]
+        assert "Boshlang'ich reja" not in text
+        for line in NO_STYLE_LINES:
+            assert line in text
+        assert p.trim["ceiling"] == {"design": "flat"}  # not zamonaviy's ceiling settings
+        assert "Xona: Xona (mehmonxona)" in text  # the room is still named by its type
+
+    async def test_a_photo_does_not_reorder_the_menu_by_the_room_type_s_style(self):
+        items = [_styled("modern", ["zamonaviy"], "yotoqxona"), _styled("scandi", ["skandinav"], "yotoqxona")]
+        call = AsyncMock(return_value=self._reply(json.dumps(GOOD)))
+        with patch("app.services.ai_designer.call_llm", new=call):
+            await ad.design_room("Shinam yotoqxona", {**ROOM, "room_type": "yotoqxona"}, items, user_id="u",
+                                 image=self._image())
+        assert "F1: Divan modern" in call.await_args.kwargs["messages"][0]["content"][1]["text"]
+
+    async def test_a_photo_with_a_named_style_keeps_its_strict_plan(self):
+        call = AsyncMock(return_value=self._reply(json.dumps(GOOD)))
+        with patch("app.services.ai_designer.call_llm", new=call):
+            await ad.design_room("loft", ROOM, ITEMS, user_id="u", image=self._image())
+        text = call.await_args.kwargs["messages"][0]["content"][1]["text"]
+        assert "Boshlang'ich reja (Loft)" in text and STARTING_PLAN_RULE in text
+
     async def test_without_an_image_nothing_changes(self):
         call = AsyncMock(return_value=self._reply(json.dumps(GOOD)))
         with patch("app.services.ai_designer.call_llm", new=call):
@@ -399,6 +426,7 @@ def test_the_menu_shows_a_piece_s_styles_and_leaves_unstyled_lines_as_they_were(
     ("Neoklassika, och bej", {"neoklassika"}),
     ("klassik uslub, oltin detallar", {"klassik"}),
     ("milliy uslub, gilam", {"milliy"}),
+    ("o‘zbekona", {"milliy"}), ("oʼzbekona", {"milliy"}), ("o`zbekona", {"milliy"}),
     ("zamonaviy va loft aralash", {"zamonaviy", "loft"}),
     ("Skandinav, yorug'", {"skandinav"}),
     ("minimalist oq xona", {"minimalist"}),
@@ -444,6 +472,14 @@ def test_the_endpoint_hands_the_designer_each_piece_s_styles(client):
     ("divan", "Divan Roma", "sofa"), ("karavot", "Karavot", "bed"),
     ("stol", "Ovqat stoli", "dining_table"), ("stul", "Stul", "dining_chair"),
     ("boshqa", "Puf", "decor"),
+    ("stul", "Ish stuli", "desk_chair"), ("stul", "Office chair", "desk_chair"),
+    ("kreslo", "Kompyuter stuli", "desk_chair"), ("stul", "Офисное кресло", "desk_chair"),
+    ("divan", "Kreslo", "armchair"),
+    ("stol", "Компьютерный стол", "desk"), ("kreslo", "Компьютерное кресло", "desk_chair"),
+    ("stul", "Офисный стул", "desk_chair"),
+    # "ovqatlanish" ends in "ish": a dining chair or table is not a desk chair or desk
+    ("stul", "KLEIN ovqatlanish stuli", "dining_chair"), ("stol", "NARVI ovqatlanish stoli — oq", "dining_table"),
+    ("stul", "Ish stuli Pro", "desk_chair"), ("stol", "Ish stoli", "desk"),
 ])
 def test_infer_role(category, name, role):
     assert ad.infer_role(category, name) == role
@@ -469,3 +505,555 @@ def test_prompt_lists_roles():
     assert len(ad.FURNITURE_ROLES) == 14
     for role in ad.FURNITURE_ROLES:
         assert role in ad._SYSTEM
+
+
+# --- start from the style's preset, gold/light lines, trim, room-type menu ----------------------
+
+STARTING_PLAN_RULE = (
+    "Shu rejadan boshlang. So'rovda aniq aytilgan narsalarni o'zgartiring, qolganini saqlang. "
+    "Pol turi va naqshini, chiroq turlarini sababsiz almashtirmang."
+)
+NO_STYLE_LINES = (
+    "Pol turini xona turi va atmosferaga qarab tanlang, har doim parket emas: oshxona va hammomda plitka, "
+    "loft yoki sanoat ruhida beton.",
+    "Qandil faqat klassik va neoklassik ruhda.",
+    "So'ralmagan accent devor qo'ymang.",
+)
+GOLD_LINE = "Oltin talab qilingan: aksent yoki oboy accent_color uchun haqiqiy oltin tus (#C9A24B yoki #B8860B)"
+LIGHT_LINE = "Aksent ham och va asosiy rangga yaqin bo'lsin"
+
+
+def _message(prompt, room=None):
+    return ad.build_user_message(prompt, room or ROOM, "chandelier (Qandil)", LINES)
+
+
+def test_style_prompt_embeds_starting_plan():
+    from app.services.design_presets import load_presets
+    message = _message("Loft, g'isht va qora metall")
+    assert "Boshlang'ich reja (Loft)" in message
+    assert STARTING_PLAN_RULE in message
+    loft = load_presets()["loft"]
+    assert json.dumps(loft["floor"], ensure_ascii=False) in message  # concrete, no pattern
+    assert '"ceiling": "non_drop"' in message  # the preset's trim, as the profile ids the model answers with
+
+
+def test_two_styles_use_first():
+    message = _message("loft va minimalist")
+    assert message.count("Boshlang'ich reja") == 1
+    assert "Boshlang'ich reja (Loft)" in message
+
+
+def test_no_style_gets_general_guidance():
+    message = _message("iliq, sokin atmosfera", {**ROOM, "room_type": None})
+    for line in NO_STYLE_LINES:
+        assert line in message
+    assert "Boshlang'ich reja" not in message
+    assert STARTING_PLAN_RULE not in message
+
+
+# --- a room type's own starting style when the request names none ---------------------------------
+
+SOFT_PLAN_RULE = (
+    "Uslub aytilmagan: quyidagi reja xona turiga qarab taklif qilingan boshlang'ich nuqta, xolos. "
+    "So'rovdagi rang, atmosfera va material istaklari (masalan iliq ranglar, yorqin, to'q, yog'och) undan ustun: "
+    "devor, pol va ranglarni shularga moslab o'zgartiring. So'rovda aytilmagan narsalarda shu rejaga tayaning."
+)
+
+
+def _plan_label(message):
+    return message.split("Boshlang'ich reja (", 1)[1].split(")", 1)[0]
+
+
+def _plan_in(message):
+    return json.loads(message.split("Boshlang'ich reja", 1)[1].split("\n")[1])
+
+
+# Not the style's name: the model would write "Zamonaviy uslubda" for a request that named no style.
+ROOM_TYPE_LABEL = "xona turi uchun taklif"
+
+
+def test_a_cosy_bedroom_starts_from_the_scandinavian_plan_with_the_soft_rule():
+    message = _message("Shinam yotoqxona", {**ROOM, "room_type": "yotoqxona"})
+    assert _plan_label(message) == ROOM_TYPE_LABEL
+    assert _plan_in(message)["floor"]["tint"] == "#d2b48c"  # skandinav's light laminate
+    assert "Skandinav" not in message
+    assert SOFT_PLAN_RULE in message
+    assert STARTING_PLAN_RULE not in message and "sababsiz" not in message
+
+
+def test_a_room_type_s_plan_gives_way_to_the_request_s_colours():
+    message = _message("Iliq ranglar")  # ROOM is a mehmonxona
+    assert _plan_label(message) == ROOM_TYPE_LABEL
+    assert _plan_in(message)["floor"]["tint"] == "#a88b6a"  # zamonaviy's laminate
+    assert "rang" in SOFT_PLAN_RULE and "ustun" in SOFT_PLAN_RULE
+    assert STARTING_PLAN_RULE not in message
+    # the general guidance still holds, the accent wall line too
+    for line in NO_STYLE_LINES:
+        assert line in message
+
+
+def test_a_room_type_s_plan_sends_no_wall_colours_when_the_request_has_its_own():
+    message = _message("Iliq ranglar")  # zamonaviy: #d9d6d0 walls, a #8c8a86 accent
+    assert "#d9d6d0" not in message and "#8c8a86" not in message
+    start = _starting("Iliq ranglar", WALLS)
+    assert "walls" not in start and {"floor", "lights", "trim"} <= set(start)
+
+
+def test_a_room_type_s_plan_keeps_the_wall_colour_but_never_an_accent():
+    start = _starting("Shinam mehmonxona", WALLS)
+    assert start["walls"] == {"main": {"type": "paint", "color": "#d9d6d0"}}
+    assert NO_STYLE_LINES[2] in _message("Shinam mehmonxona")
+
+
+@pytest.mark.parametrize(("prompt", "colours"), [
+    ("Iliq ranglar", True), ("yorqin xona", True), ("to'q devorlar", True), ("toʻq devorlar", True),
+    ("och tuslar", True), ("quyuq ranglar", True), ("kulrang devor", True),
+    ("Yashil va oq", True), ("oltin detallar", True), ("светлая", True),
+    ("Shinam mehmonxona", False), ("sokin", False), ("ochiq oshxona", False), ("keng va qulay", False),
+])
+def test_colour_and_mood_words_take_the_wall_colours_out_of_the_room_type_s_plan(prompt, colours):
+    assert ("walls" not in _starting(prompt, WALLS)) is colours
+
+
+def test_a_study_without_a_style_starts_on_laminate_not_minimalist_tile():
+    message = _message("sokin kabinet", {**ROOM, "room_type": "kabinet"})
+    start = json.loads(message.split("Boshlang'ich reja", 1)[1].split("\n")[1])
+    assert start["floor"] == {"type": "laminate", "pattern": None, "tint": None}
+    # a shape the studio takes as it is
+    p = ad.validate_plan({**GOOD, "floor": start["floor"]}, BY_LABEL, WALLS)
+    assert p.floor == {"type": "laminate", "pattern": None, "tint": None}
+    # a named minimalist study keeps the style's own tile
+    named = _message("minimalist kabinet", {**ROOM, "room_type": "kabinet"})
+    assert json.loads(named.split("Boshlang'ich reja", 1)[1].split("\n")[1])["floor"]["type"] == "tile"
+
+
+def test_the_soft_rule_comes_before_the_room_type_s_plan():
+    message = _message("Shinam mehmonxona")
+    assert message.index(SOFT_PLAN_RULE) < message.index("Boshlang'ich reja")
+
+
+def test_a_named_style_wins_over_the_room_type_s_own():
+    message = _message("loft", {**ROOM, "room_type": "yotoqxona"})
+    assert _plan_label(message) == "Loft"
+    assert STARTING_PLAN_RULE in message and SOFT_PLAN_RULE not in message
+
+
+@pytest.mark.parametrize(("room_type", "preset"), [
+    ("mehmonxona", "zamonaviy"), ("oshxona", "zamonaviy"), ("yotoqxona", "skandinav"), ("bolalar", "skandinav"),
+    ("balkon", "skandinav"), ("kabinet", "minimalist"), ("hammom", "minimalist"), (None, None),
+])
+def test_each_room_type_has_its_starting_style(room_type, preset):
+    found = ad.starting_preset("iliq, sokin", room_type)
+    assert (found["id"] if found else None) == preset
+    assert ad.starting_preset("loft", room_type)["id"] == "loft"
+
+
+def test_a_bathroom_without_a_style_starts_from_minimalist_on_tile():
+    message = _message("sokin hammom", {**ROOM, "room_type": "hammom"})
+    assert _plan_label(message) == ROOM_TYPE_LABEL
+    start = _plan_in(message)
+    assert start["trim"]["ceiling"] == "non_drop"  # minimalist's ceiling
+    assert start["floor"] == {"type": "tile", "pattern": None, "tint": None}
+
+
+def test_a_kitchen_without_a_style_starts_from_a_tile_floor():
+    message = _message("iliq oshxona", {**ROOM, "room_type": "oshxona"})
+    start = json.loads(message.split("Boshlang'ich reja", 1)[1].split("\n")[1])
+    assert start["floor"] == {"type": "tile", "pattern": None, "tint": None}
+
+
+def test_a_room_type_s_style_puts_its_furniture_first():
+    items = [_styled("modern", ["zamonaviy"], "yotoqxona"), _styled("scandi", ["skandinav"], "yotoqxona")]
+    _, by_label = ad.furniture_menu(items, "yotoqxona", "Shinam yotoqxona")
+    assert by_label["F1"]["id"] == "scandi"
+    # a style the request names still comes first
+    _, by_label = ad.furniture_menu(items, "yotoqxona", "zamonaviy yotoqxona")
+    assert by_label["F1"]["id"] == "modern"
+    assert ad.furniture_styles_for_prompt("Shinam yotoqxona", None) == set()
+
+
+async def test_design_room_hands_the_room_type_s_style_to_validation():
+    reply = SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps({**GOOD, "trim": {"ceiling": "flat"}}))])
+    with patch("app.services.ai_designer.call_llm", new=AsyncMock(return_value=reply)):
+        p = await ad.design_room("Iliq ranglar", ROOM, ITEMS, user_id="u")  # a mehmonxona: zamonaviy
+    assert p.trim["ceiling"] == {"design": "flat", "settings": {"color": "#f2f1ee", "strip": True, "stripK": 3000}}
+
+
+def test_gold_and_light_lines_hold_with_a_room_type_s_plan():
+    message = _message("och ranglar, oltin detallar")
+    assert GOLD_LINE in message and LIGHT_LINE in message
+
+
+def test_gold_line_only_when_asked():
+    assert GOLD_LINE not in _message("Neoklassik, och ranglar")
+    assert GOLD_LINE in _message("Klassik, oltin detallar")
+    assert "#C9A24B" not in ad._SYSTEM
+
+
+def test_light_accent_line():
+    assert LIGHT_LINE in _message("Neoklassik, och ranglar")
+    assert LIGHT_LINE not in _message("qorong'i, iliq atmosfera")
+
+
+def test_room_type_none_still_builds():
+    message = _message("loft", {**ROOM, "room_type": None})
+    assert "xona turi noma'lum" in message and "Boshlang'ich reja (Loft)" in message
+
+
+def test_message_lists_trim_profiles():
+    from app.services.design_presets import trim_profiles
+    message = _message("iliq")
+    profiles = trim_profiles()
+    for kind in ("ceiling", "skirting", "cornice"):
+        assert ", ".join(profiles[kind]) in message
+    assert '"trim"' in ad._SYSTEM
+
+
+def test_validate_plan_keeps_known_trim():
+    p = plan(trim={"ceiling": "double_layer", "skirting": "b054", "cornice": "t140"})
+    # the shape the studio applies for a ready-made style (frontend DesignTrim)
+    assert p.trim == {"ceiling": {"design": "double_layer"}, "skirting": {"id": "b054"}, "cornice": {"id": "t140"}}
+    assert p.warnings == []
+    assert plan(trim={"ceiling": "flat", "skirting": "tekis", "cornice": None}).trim["cornice"] is None
+
+
+def test_validate_plan_drops_unknown_trim_profile():
+    p = plan(trim={"ceiling": "dome", "skirting": "b054", "cornice": "t999"})
+    assert p.trim == {"skirting": {"id": "b054"}}  # unknown ones left out: the studio keeps what it has
+    assert len(p.warnings) == 2
+    assert plan(trim={"ceiling": "dome"}).trim is None
+    assert plan().trim is None and plan(trim="flat").trim is None
+
+
+def test_menu_bolalar_prefers_kids_items():
+    items = [
+        {"id": "sofa", "name_uz": "Divan", "category": "divan", "room_type": "mehmonxona", "placement": "pol"},
+        {"id": "bed", "name_uz": "Karavot", "category": "karavot", "room_type": "yotoqxona", "placement": "pol"},
+        {"id": "kids", "name_uz": "Bolalar karavoti", "category": "karavot", "room_type": "yotoqxona", "placement": "pol"},
+    ]
+    _, by_label = ad.furniture_menu(items, "bolalar")
+    order = [v["id"] for v in by_label.values()]
+    assert order[0] == "kids" and order.index("bed") < order.index("sofa")
+
+
+def test_menu_kabinet_prefers_desk():
+    items = [
+        {"id": "bed", "name_uz": "Karavot", "category": "karavot", "room_type": "yotoqxona", "placement": "pol"},
+        {"id": "sofa", "name_uz": "Divan", "category": "divan", "room_type": "mehmonxona", "placement": "pol"},
+        {"id": "chair", "name_uz": "Ish stuli", "category": "stul", "room_type": "mehmonxona", "placement": "pol"},
+        {"id": "desk", "name_uz": "Yozuv stoli", "category": "stol", "room_type": "mehmonxona", "placement": "pol"},
+    ]
+    _, by_label = ad.furniture_menu(items, "kabinet")
+    order = [v["id"] for v in by_label.values()]
+    assert set(order[:2]) == {"chair", "desk"} and order.index("sofa") < order.index("bed")
+
+
+def _living(n):
+    return [
+        {"id": f"l{k}", "name_uz": f"Zal {k}", "category": "divan", "room_type": "mehmonxona", "placement": "pol"}
+        for k in range(n)
+    ]
+
+
+def test_menu_kabinet_always_offers_a_desk_chair_and_shelf_from_other_rooms_first():
+    study = [
+        {"id": "desk", "name_uz": "Yozuv stoli", "category": "stol", "room_type": "yotoqxona", "placement": "pol"},
+        {"id": "chair", "name_uz": "Ofis stuli", "category": "stul", "room_type": "yotoqxona", "placement": "pol"},
+        {"id": "shelf", "name_uz": "Kitob javoni", "category": "javon", "room_type": "yotoqxona", "placement": "pol"},
+    ]
+    bed = {"id": "bed", "name_uz": "Karavot", "category": "karavot", "room_type": "yotoqxona", "placement": "pol"}
+    items = _living(ad.MAX_CATALOG_IN_PROMPT + 10) + [bed] + study
+    _, by_label = ad.furniture_menu(items, "kabinet")
+    order = [v["id"] for v in by_label.values()]
+    assert set(order[:3]) == {"desk", "chair", "shelf"}
+    assert "bed" not in order and len(order) == ad.MAX_CATALOG_IN_PROMPT
+
+
+def _demo_catalog():
+    from pathlib import Path
+    data = json.loads((Path(ad.__file__).parents[1] / "seed_data/demo_stores/catalog.json").read_text(encoding="utf-8"))
+    return [
+        {**item, "id": f"{store['slug']}-{n}"}
+        for store in data["stores"] for n, item in enumerate(store["items"]) if item.get("kind") == "furniture"
+    ]
+
+
+def test_a_study_s_always_offered_pieces_hold_no_dining_piece_or_chest_of_drawers():
+    names = [i["name_uz"] for i in ad.always_offered(_demo_catalog(), "kabinet")]
+    assert not any(word in name.lower() for name in names for word in ("ovqat", "komod"))
+
+
+def test_a_study_takes_book_shelves_and_cupboards_but_not_kitchen_or_bathroom_shelves():
+    items = [
+        {"id": "kitchen", "name_uz": "Oshxona javoni", "category": "shkaf", "room_type": "oshxona"},
+        {"id": "bath", "name_uz": "Javon", "category": "shkaf", "room_type": "hammom"},
+        {"id": "untagged-kitchen", "name_uz": "Oshxona javoni", "category": "shkaf", "room_type": None},
+        {"id": "komod", "name_uz": "Komod Rumba", "category": "shkaf", "room_type": None},
+        {"id": "vitrina", "name_uz": "Vitrina", "category": "shkaf", "room_type": "mehmonxona"},
+        {"id": "books", "name_uz": "Kitob shkafi", "category": "shkaf", "room_type": "yotoqxona"},
+        {"id": "rack", "name_uz": "Stellaj", "category": "shkaf", "room_type": "yotoqxona"},
+    ]
+    assert {i["id"] for i in ad.always_offered(items, "kabinet")} == {"books", "rack"}
+    assert ad.always_offered(items, "mehmonxona") == []
+
+
+def test_a_study_offers_at_most_three_of_each_always_offered_role_by_style():
+    desks = [
+        {"id": f"d{k}", "name_uz": f"Yozuv stoli {k}", "category": "stol", "room_type": "yotoqxona", "placement": "pol"}
+        for k in range(10)
+    ]
+    desks[-1]["styles"] = ["hitech"]
+    always = ad.always_offered(desks, "kabinet", "hi-tech uslubida")
+    assert len(always) == 3 and always[0]["id"] == "d9"
+    _, by_label = ad.furniture_menu(desks + _living(20), "kabinet", "hi-tech uslubida")
+    order = [v["id"] for v in by_label.values()]
+    assert order[0] == "d9" and sum(i.startswith("d") for i in order) == 3
+    assert sum(i.startswith("l") for i in order) == 20
+
+
+def test_menu_mehmonxona_does_not_pull_in_other_rooms_desks():
+    desk = {"id": "desk", "name_uz": "Yozuv stoli", "category": "stol", "room_type": "yotoqxona", "placement": "pol"}
+    items = [desk] + _living(10)
+    _, by_label = ad.furniture_menu(items, "mehmonxona")
+    assert [v["id"] for v in by_label.values()] == [f"l{k}" for k in range(10)]
+
+
+def test_menu_kabinet_without_a_desk_still_builds():
+    _, by_label = ad.furniture_menu(_living(10), "kabinet")
+    assert [v["id"] for v in by_label.values()] == [f"l{k}" for k in range(10)]
+
+
+# --- fix round 1 -------------------------------------------------------------------------------
+
+def _room_walls(ids):
+    return {**ROOM, "walls": [{"id": w, "length": 3.0, "openings": []} for w in ids]}
+
+
+def _starting(prompt, ids):
+    message = _message(prompt, _room_walls(ids))
+    line = message.split("Boshlang'ich reja", 1)[1].split("\n")[1]
+    return json.loads(line)
+
+
+def test_starting_plan_keeps_letters_in_an_a_to_d_room():
+    start = _starting("zamonaviy", ["A", "B", "C", "D"])
+    assert start["walls"]["accent"]["wall"] == "C"
+    zones = [l["zone"] for l in start["lights"]]
+    assert zones == ["center", "wall_A", "corner_C_D"]
+
+
+def test_starting_plan_translates_walls_to_the_room_s_own_ids():
+    start = _starting("zamonaviy", ["W1", "W2", "W3", "W4"])
+    assert start["walls"]["accent"]["wall"] == "W3"
+    assert [l["zone"] for l in start["lights"]] == ["center", "wall_W1", "corner_W3_W4"]
+    neo = _starting("neoklassika", ["W1", "W2", "W3", "W4"])
+    assert [l["zone"] for l in neo["lights"]] == ["center", "wall_W2", "wall_W4"]
+
+
+def test_starting_plan_drops_what_a_smaller_room_lacks():
+    start = _starting("zamonaviy", ["W1", "W2", "W3"])  # corner_CD needs a fourth wall
+    assert [l["zone"] for l in start["lights"]] == ["center", "wall_W1"]
+    assert start["walls"]["accent"]["wall"] == "W3"
+    neo = _starting("neoklassika", ["W1", "W2", "W3"])
+    assert [l["zone"] for l in neo["lights"]] == ["center", "wall_W2"]
+
+
+def test_building_a_message_leaves_the_cached_presets_alone():
+    import copy
+    from app.services.design_presets import load_presets
+    before = copy.deepcopy(load_presets())
+    _message("zamonaviy", _room_walls(["W1", "W2", "W3"]))
+    _message("neoklassika", _room_walls(["W1", "W2", "W3", "W4"]))
+    assert load_presets() == before
+
+
+def test_same_ceiling_as_the_starting_preset_keeps_its_settings():
+    from app.services.design_presets import load_presets
+    dark = load_presets()["dark"]
+    p = ad.validate_plan({**GOOD, "trim": {"ceiling": "border"}}, BY_LABEL, WALLS, starting_preset=dark)
+    assert p.trim["ceiling"] == {"design": "border", "settings": {"color": "#2f2f2f", "strip": True, "stripK": 2700}}
+    p.trim["ceiling"]["settings"]["color"] = "#000000"
+    assert dark["trim"]["ceiling"]["settings"]["color"] == "#2f2f2f"  # a copy, not the cached preset
+    other = ad.validate_plan({**GOOD, "trim": {"ceiling": "flat"}}, BY_LABEL, WALLS, starting_preset=dark)
+    assert other.trim["ceiling"] == {"design": "flat"}
+
+
+async def test_design_room_hands_the_starting_preset_to_validation():
+    reply = SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps({**GOOD, "trim": {"ceiling": "non_drop"}}))])
+    with patch("app.services.ai_designer.call_llm", new=AsyncMock(return_value=reply)):
+        p = await ad.design_room("loft uslubida", ROOM, ITEMS, user_id="u")
+    assert p.trim["ceiling"] == {"design": "non_drop", "settings": {"color": "#bdbab4"}}
+
+
+@pytest.mark.parametrize(("prompt", "asked"), [
+    ("pochta", False), ("ochiq oshxona", False), ("kam yorug'lik", False),
+    ("och ranglar", True), ("yorug' ranglar", True), ("yorugʻ ranglar", True), ("светлая комната", True),
+    ("yorug‘ ranglar", True), ("yorugʼroq", True), ("yorug`roq", True),
+])
+def test_light_line_only_for_light_colours(prompt, asked):
+    assert (LIGHT_LINE in _message(prompt)) is asked
+
+
+def test_a_plan_with_only_trim_is_not_empty():
+    assert not ad.DesignPlan(trim={"cornice": None}).is_empty()
+
+
+def test_first_style_tie_at_same_position_goes_by_furniture_styles_order(monkeypatch):
+    import re as _re
+    words = {"klassik": _re.compile("uslub"), "loft": _re.compile("uslub")}
+    monkeypatch.setattr(ad, "_STYLE_WORDS", words)
+    assert ad.first_style_in_prompt("uslub") == "klassik"
+    monkeypatch.setattr(ad, "_STYLE_WORDS", dict(reversed(list(words.items()))))
+    assert ad.first_style_in_prompt("uslub") == "loft"  # _STYLE_WORDS order is the tie-break
+
+
+def test_first_style_by_position():
+    assert ad.first_style_in_prompt("minimalist, keyin loft") == "minimalist"
+    assert ad.first_style_in_prompt("loft va minimalist") == "loft"
+    assert ad.first_style_in_prompt("iliq") is None
+
+
+def test_no_gold_hex_in_the_system_prompt():
+    assert "#B8860B" not in ad._SYSTEM and "#C9A24B" not in ad._SYSTEM
+
+
+# --- final review ------------------------------------------------------------------------------
+
+@pytest.mark.parametrize(("room_type", "prompt"), [("oshxona", "zamonaviy oshxona"), ("hammom", "milliy hammom")])
+def test_styled_kitchen_and_bathroom_start_from_a_tile_floor(room_type, prompt):
+    message = _message(prompt, {**ROOM, "room_type": room_type})
+    start = json.loads(message.split("Boshlang'ich reja", 1)[1].split("\n")[1])
+    assert start["floor"] == {"type": "tile", "pattern": None, "tint": None}
+    assert "laminate" not in json.dumps(start) and "parquet" not in json.dumps(start)
+
+
+def test_a_styled_living_room_keeps_the_preset_floor():
+    start = _starting("zamonaviy", ["A", "B", "C", "D"])  # ROOM is a mehmonxona
+    assert start["floor"]["type"] == "laminate"
+
+
+def test_a_tile_floor_answer_is_kept_against_a_wooden_starting_preset():
+    from app.services.design_presets import load_presets
+    tile = {"type": "tile", "pattern": None, "tint": None}
+    p = ad.validate_plan({**GOOD, "floor": tile}, BY_LABEL, WALLS, starting_preset=load_presets()["zamonaviy"])
+    assert p.floor == tile
+
+
+# --- moods that pick a ready-made style ----------------------------------------------------------
+
+@pytest.mark.parametrize(("prompt", "preset"), [
+    ("qorong'i, sokin mehmonxona", "dark"),
+    ("qorongʻi xona", "dark"),
+    ("dark mood", "dark"),
+    ("тёмная гостиная", "dark"),
+    ("to'q yashil devorlar", None),  # a dark colour is not the dark style
+    ("qorong'i loft", "dark"),
+    ("loft, qorong'i", "loft"),
+    ("qorong'i mehmonxona", "dark"),
+    ("dark room", "dark"),
+    ("тёмная комната", "dark"),
+    ("в тёмных тонах", "dark"),
+    # A dark colour, or curtains that darken the room, are not the dark style.
+    ("dark green walls", None),
+    ("dark-blue accent wall", None),
+    ("dark wood floor", None),
+    ("тёмно-зелёные стены", None),
+    ("затемняющие шторы", None),
+    ("qorong'ilashtiruvchi parda", None),
+    # Every apostrophe a phone keyboard types, and Uzbek in Cyrillic.
+    ("qorong‘i", "dark"),
+    ("qorongʼi", "dark"),
+    ("qorong`i", "dark"),
+    ("қоронғи хона", "dark"),
+    ("қоронғилаштирувчи парда", None),
+])
+def test_the_dark_mood_starts_from_the_dark_preset_where_it_comes_first(prompt, preset):
+    found = ad.starting_preset(prompt)
+    assert (found["id"] if found else None) == preset
+
+
+def test_a_dark_request_starts_from_the_dark_plan():
+    start = _starting("qorong'i, sokin mehmonxona", ["A", "B", "C", "D"])
+    assert start["walls"]["accent"] == {"wall": "C", "color": "#1a1a1a"}
+    assert start["trim"]["ceiling"] == "border"
+    assert "Boshlang'ich reja (Qorong'i)" in _message("qorong'i, sokin mehmonxona")
+
+
+def test_a_dark_kitchen_still_starts_from_a_tile_floor():
+    message = _message("qorong'i oshxona", {**ROOM, "room_type": "oshxona"})
+    start = json.loads(message.split("Boshlang'ich reja", 1)[1].split("\n")[1])
+    assert start["floor"] == {"type": "tile", "pattern": None, "tint": None}
+
+
+def test_a_dark_request_puts_the_dark_style_s_furniture_first():
+    items = [_styled("loft", ["loft"]), _styled("modern", ["zamonaviy"])]
+    _, by_label = ad.furniture_menu(items, "mehmonxona", "qorong'i, sokin")
+    assert by_label["F1"]["id"] == "modern"
+    # a furniture style the request names is still the one that comes first
+    _, by_label = ad.furniture_menu(items, "mehmonxona", "qorong'i loft")
+    assert by_label["F1"]["id"] == "loft"
+
+
+async def test_a_dark_answer_keeping_the_border_ceiling_keeps_its_settings():
+    reply = SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps({**GOOD, "trim": {"ceiling": "border"}}))])
+    with patch("app.services.ai_designer.call_llm", new=AsyncMock(return_value=reply)):
+        p = await ad.design_room("qorong'i, sokin mehmonxona", ROOM, ITEMS, user_id="u")
+    assert p.trim["ceiling"] == {"design": "border", "settings": {"color": "#2f2f2f", "strip": True, "stripK": 2700}}
+
+
+# --- small bedrooms ------------------------------------------------------------------------------
+
+SMALL_ROOM_LINE = ad._SMALL_BEDROOM_LINE
+
+
+def _sized(room_type, width, depth):
+    return {**ROOM, "room_type": room_type, "width": width, "depth": depth, "area": width * depth}
+
+
+@pytest.mark.parametrize(("room_type", "width", "depth", "small"), [
+    ("yotoqxona", 3.0, 3.0, True),     # 9 m2
+    ("bolalar", 3.2, 3.0, True),       # 9.6 m2
+    ("yotoqxona", 4.2, 2.5, True),     # 10.5 m2, but too narrow for a double bed and a passage
+    ("yotoqxona", 4.0, 4.0, False),    # 16 m2
+    ("mehmonxona", 3.0, 3.0, False),   # not a bedroom
+])
+def test_a_small_bedroom_is_told_to_take_a_single_bed(room_type, width, depth, small):
+    assert (SMALL_ROOM_LINE in _message("sokin xona", _sized(room_type, width, depth))) is small
+
+
+def test_the_small_bedroom_line_asks_for_a_single_bed_and_a_narrow_wardrobe():
+    assert "bir kishilik karavot" in SMALL_ROOM_LINE and "120 sm" in SMALL_ROOM_LINE
+    assert "shkaf" in SMALL_ROOM_LINE
+
+
+def test_the_message_shows_the_room_area():
+    assert "xona 9.0 m2" in _message("sokin xona", _sized("yotoqxona", 3.0, 3.0))
+
+
+def test_the_menu_shows_the_bed_s_size():
+    lines, _ = ad.furniture_menu(ITEMS, "yotoqxona")
+    assert any(line.startswith("F") and "Krovat (krovat, 2x1.6 m" in line for line in lines)
+
+
+async def _planned(prompt, room, image=None):
+    reply = SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps(GOOD))])
+    with patch("app.services.ai_designer.call_llm", new=AsyncMock(return_value=reply)):
+        return await ad.design_room(prompt, room, ITEMS, user_id="u", image=image)
+
+
+async def test_design_plan_style_named():
+    assert (await _planned("loft uslubida", ROOM)).style == "loft"
+
+
+async def test_design_plan_style_room_default():
+    assert (await _planned("Shinam xona", {**ROOM, "room_type": "yotoqxona"})).style == "skandinav"
+
+
+async def test_design_plan_style_none_with_image():
+    image = SimpleNamespace(media_type="image/jpeg", data_b64="AAAA")
+    assert (await _planned("", {**ROOM, "room_type": "yotoqxona"}, image=image)).style is None
+
+
+def test_the_summary_is_asked_to_name_the_furniture_by_name_and_never_by_label():
+    assert "mebelni nomi bilan" in ad._SYSTEM
+    assert "F1" in ad._SYSTEM and "yozmang" in ad._SYSTEM

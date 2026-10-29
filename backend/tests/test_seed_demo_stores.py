@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 from sqlalchemy.sql.elements import BinaryExpression, BooleanClauseList, False_, True_
@@ -56,7 +57,9 @@ def test_the_catalog_has_stores_with_furniture_and_materials():
     assert len(names) == len(set(names))
     for store in CATALOG["stores"]:
         assert store["items"], store["name"]
-        assert len(store["items"]) <= 30, store["name"]
+        # A sample of each shop — except Loftbek, whose whole range was asked for.
+        # A sample of each shop; from Loftbek (v4) on, the whole range or up to 60 of it.
+        assert len(store["items"]) <= (30 if demo.item_since(store, {}) < LOFTBEK_VERSION else 100), store["name"]
         # A real store links its site; the market-average store has none (it is no shop).
         assert store.get("website", "").startswith("https://") or _is_market_average(store)
         assert len(store["name"]) <= 200
@@ -154,6 +157,74 @@ def test_carpets_come_from_divan_uz_as_version_3_rugs():
             assert max(im.size) <= 800
 
 
+LOFTBEK_VERSION = 4
+
+
+def test_loftbek_office_furniture_is_version_4():
+    from PIL import Image
+
+    store = next(s for s in CATALOG["stores"] if s["slug"] == "loftbek")
+    assert store["since"] == LOFTBEK_VERSION and store["website"] == "https://loftbek.uz"
+    assert demo.catalog_version(CATALOG) >= LOFTBEK_VERSION
+    # Only Loftbek is new in version 4.
+    assert [s["slug"] for s in CATALOG["stores"]
+            if any(demo.item_since(s, i) == LOFTBEK_VERSION for i in s["items"])] == ["loftbek"]
+    assert len(store["items"]) >= 60
+    categories = {item["category"] for item in store["items"]}
+    assert {"stol", "shkaf"} <= categories
+    for item in store["items"]:
+        assert item["kind"] == "furniture" and item["placement"] == "pol", item
+        assert isinstance(item["price_uzs"], int) and 100_000 <= item["price_uzs"] <= 20_000_000, item
+        assert item["source_url"].startswith("https://loftbek.uz/products/"), item
+        if "footprint_w" in item:  # "130x70x78h" on the page: width × depth × height
+            assert 30 <= item["footprint_w"] <= 400 and 20 <= item["footprint_d"] <= 200, item
+        with Image.open(demo.DATA_DIR / item["image"]) as im:
+            assert max(im.size) <= 800
+
+
+V5 = 5
+V5_STORES = {"home-interior": "Home Interior", "jaquar": "Jaquar", "foondament": "Foondament",
+             "quramiz": "Quramiz", "ks-lux": "KS Lux", "europol": "Europol"}
+MATERIAL_UNITS = {"litr", "rulon", "m2", "qop", "dona", "m", "komplekt"}
+
+
+def test_the_v5_stores_are_new_in_version_5_with_sane_rows():
+    from PIL import Image
+
+    assert demo.catalog_version(CATALOG) >= V5
+    assert {s["slug"] for s in CATALOG["stores"]
+            if any(demo.item_since(s, i) == V5 for i in s["items"])} == set(V5_STORES)
+    for slug, name in V5_STORES.items():
+        store = next(s for s in CATALOG["stores"] if s["slug"] == slug)
+        assert store["name"] == name and store["since"] == V5 and 10 <= len(store["items"]) <= 100, slug
+        for item in store["items"]:
+            assert urlsplit(item["source_url"]).hostname.endswith(urlsplit(store["website"]).hostname.removeprefix("www.")), item
+            if item["kind"] == "material":
+                # The seed's Material needs a price and one of the enum's units.
+                assert isinstance(item["price_uzs"], int) and item["price_uzs"] >= 1000, item
+                assert item["unit"] in MATERIAL_UNITS, item
+                if item["category"] in ("laminat", "parket", "plitka"):
+                    assert item["unit"] == "m2" and 30_000 <= item["price_uzs"] <= 5_000_000, item
+            with Image.open(demo.DATA_DIR / item["image"]) as im:
+                assert max(im.size) <= 800
+
+
+V6 = 6
+
+
+def test_estimate_keys_are_ones_the_engine_can_price():
+    from app.services.smeta_keys import smeta_key_problem
+
+    keyed = [(s, i) for s, i in _items("material") if i.get("smeta_key")]
+    assert {i["smeta_key"] for _, i in keyed} == {"gipsokarton", "suvoq", "shpatlyovka", "kabel"}
+    for store, item in keyed:
+        assert demo.item_since(store, item) <= V5, item  # keys only, on rows production has
+        assert smeta_key_problem(item["smeta_key"], item["unit"], item.get("pack_qty"),
+                                 item.get("pack_unit")) is None, item
+        assert "фасад" not in item["name_uz"].lower() and "fasad" not in item["name_uz"].lower(), item
+    assert demo.catalog_version(CATALOG) >= V6
+
+
 def test_no_photo_on_disk_is_unreferenced():
     referenced = {item["image"] for _, item in _items()}
     on_disk = {p.relative_to(demo.DATA_DIR).as_posix() for p in (demo.DATA_DIR / "images").rglob("*.webp")}
@@ -162,7 +233,7 @@ def test_no_photo_on_disk_is_unreferenced():
 
 def test_the_photos_stay_small():
     total = sum(p.stat().st_size for p in (demo.DATA_DIR / "images").rglob("*.webp"))
-    assert total <= 12 * 1024 * 1024
+    assert total <= 16 * 1024 * 1024
 
 
 def test_names_fit_and_are_unique_per_store():
@@ -179,7 +250,8 @@ def test_names_read_like_product_names():
         assert not name.endswith("."), name
         assert not re.match(r"(Люстры|Торшеры|Одинарные светильники)\b|\w+ \[", name), name
         assert name[0] == name[0].upper(), name
-        for word in name.split():  # no Latin look-alikes inside a Cyrillic word ("Cтильный")
+        # No Latin look-alikes inside a Cyrillic word ("Cтильный"); "плит-GRANIT" is two words.
+        for word in re.split(r"[\s,/-]+", name):
             assert not (re.search(r"[а-яё]", word, re.I) and re.search(r"[A-Za-z]", word)), name
 
 
@@ -488,11 +560,12 @@ async def test_a_database_seeded_before_versions_gets_exactly_the_new_rows(env):
     assert (result["wallpapers"], result["existing"]) == (0, 0)
     assert result["stores"] == len({s["name"] for s, _ in newer})
     added = set(session.of(Store)) - stores_before
-    assert {st.name for st in added} == {"Deraza bozori — o'rtacha narx", "Divan.uz"}
+    assert {st.name for st in added} == {"Deraza bozori — o'rtacha narx", "Divan.uz", "Loftbek", *V5_STORES.values()}
     window_store = next(st for st in added if st.name.startswith("Deraza"))
     assert window_store.is_demo is True and "o'rtacha narx" in window_store.moderation_note
     windows = [m for m in session.of(Material) if m.store_id == window_store.id]
-    assert sorted(m.name_uz for m in windows) == sorted(i["name_uz"] for i in new_materials)
+    assert sorted(m.name_uz for m in windows) == sorted(
+        i["name_uz"] for s, i in newer if i["kind"] == "material" and s["slug"] == "deraza-bozori")
     assert len(uploads.keys) - uploads_before == len(newer)
     assert [m.key for m in session.of(SeedMarker)] == [f"demo_stores_v{demo.catalog_version(CATALOG)}"]
 
@@ -553,6 +626,7 @@ async def _seed_at_version_2(session, monkeypatch):
 async def test_the_v2_to_v3_upgrade_adds_only_the_carpets(env, monkeypatch):
     session, uploads, _ = env
     await _seed_at_version_2(session, monkeypatch)
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(CARPET_VERSION))
     stores_before, rows_before, uploads_before = set(session.of(Store)), len(session.rows), len(uploads.keys)
 
     result = await demo.seed_demo_stores()
@@ -579,6 +653,7 @@ async def test_the_v2_to_v3_upgrade_adds_only_the_carpets(env, monkeypatch):
 async def test_after_the_v3_upgrade_the_next_deploy_adds_nothing(env, monkeypatch):
     session, uploads, _ = env
     await _seed_at_version_2(session, monkeypatch)
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(CARPET_VERSION))
     await demo.seed_demo_stores()
     rows, n_uploads = len(session.rows), len(uploads.keys)
 
@@ -586,6 +661,132 @@ async def test_after_the_v3_upgrade_the_next_deploy_adds_nothing(env, monkeypatc
 
     assert result == {"status": "already_seeded", "version": CARPET_VERSION}
     assert len(session.rows) == rows and len(uploads.keys) == n_uploads
+
+
+async def test_the_v3_to_v4_upgrade_adds_only_loftbek(env, monkeypatch):
+    """Production after the carpet deploy (marker demo_stores_v3) gets Loftbek and nothing else."""
+    session, uploads, _ = env
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(CARPET_VERSION))
+    await demo.seed_demo_stores()
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(LOFTBEK_VERSION))
+    stores_before, uploads_before = set(session.of(Store)), len(uploads.keys)
+
+    result = await demo.seed_demo_stores()
+
+    items = next(s for s in CATALOG["stores"] if s["slug"] == "loftbek")["items"]
+    assert (result["from_version"], result["version"]) == (CARPET_VERSION, LOFTBEK_VERSION)
+    assert (result["stores"], result["furniture"], result["materials"]) == (1, len(items), 0)
+    added = set(session.of(Store)) - stores_before
+    assert [st.name for st in added] == ["Loftbek"] and added.pop().is_demo is True
+    assert len(uploads.keys) - uploads_before == len(items)
+    assert [m.key for m in session.of(SeedMarker)] == [f"demo_stores_v{LOFTBEK_VERSION}"]
+
+
+async def test_the_v4_to_v5_upgrade_adds_only_the_v5_stores(env, monkeypatch):
+    session, uploads, _ = env
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(LOFTBEK_VERSION))
+    await demo.seed_demo_stores()
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(V5))
+    stores_before, uploads_before = set(session.of(Store)), len(uploads.keys)
+
+    result = await demo.seed_demo_stores()
+
+    new = [s for s in CATALOG["stores"] if s["slug"] in V5_STORES]
+    n_mat = sum(1 for s in new for i in s["items"] if i["kind"] == "material" and demo.item_since(s, i) == V5)
+    n_fur = sum(1 for s in new for i in s["items"] if i["kind"] == "furniture" and demo.item_since(s, i) == V5)
+    assert (result["from_version"], result["version"]) == (LOFTBEK_VERSION, V5)
+    assert (result["stores"], result["materials"], result["furniture"]) == (len(V5_STORES), n_mat, n_fur)
+    added = set(session.of(Store)) - stores_before
+    assert {st.name for st in added} == set(V5_STORES.values())
+    assert all(st.is_demo for st in added)
+    assert len(uploads.keys) - uploads_before == n_mat + n_fur
+    assert [m.key for m in session.of(SeedMarker)] == [f"demo_stores_v{V5}"]
+
+
+def _without_keys(catalog: dict) -> dict:
+    """The catalog as version 5 shipped it: no estimate keys on any row."""
+    drop = ("smeta_key", "pack_qty", "pack_unit")
+    return {**catalog, "stores": [
+        {**s, "items": [{k: v for k, v in i.items() if k not in drop} for i in s["items"]]}
+        for s in catalog["stores"]]}
+
+
+async def test_the_v5_to_v6_upgrade_only_keys_the_materials_already_there(env, monkeypatch):
+    session, uploads, _ = env
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _without_keys(_catalog_upto(V5)))
+    await demo.seed_demo_stores()
+    assert not any(m.smeta_key for m in session.of(Material))
+    # An admin already keyed one of them by hand: that key stays.
+    keyed = {i["name_uz"]: i for _, i in _items("material") if i.get("smeta_key")}
+    hand = next(m for m in session.of(Material) if m.name_uz in keyed)
+    hand.smeta_key = "grunt"
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(V6))
+    rows, n_uploads = len(session.rows), len(uploads.keys)
+
+    result = await demo.seed_demo_stores()
+
+    assert (result["from_version"], result["version"]) == (V5, V6)
+    assert (result["stores"], result["materials"], result["furniture"]) == (0, 0, 0)
+    assert result["keyed"] == len(keyed) - 1
+    assert len(session.rows) == rows and len(uploads.keys) == n_uploads
+    for m in session.of(Material):
+        if m is hand:
+            assert m.smeta_key == "grunt"
+        elif m.name_uz in keyed:
+            item = keyed[m.name_uz]
+            assert (m.smeta_key, m.pack_qty, m.pack_unit) == (
+                item["smeta_key"], item.get("pack_qty"), item.get("pack_unit"))
+
+
+V7 = 7
+
+
+def test_version_7_adds_ks_lux_sheet_goods_for_the_mebel_tool():
+    from PIL import Image
+
+    assert demo.catalog_version(CATALOG) == V7
+    new = [(s, i) for s, i in _items() if demo.item_since(s, i) == V7]
+    assert {s["slug"] for s, _ in new} == {"ks-lux"}
+    by_cat = {}
+    for _, i in new:
+        by_cat.setdefault(i["category"], []).append(i)
+    assert set(by_cat) == {"ldsp", "hdf", "mdf", "kromka"}
+    for cat, items in by_cat.items():
+        for i in items:
+            # a board is priced by the sheet, edge band by the metre: what the /mebel BOM reads
+            assert i["kind"] == "material" and i["unit"] == ("m" if cat == "kromka" else "dona"), i
+            assert i["source_url"].startswith("https://kslux.uz/catalog/"), i
+            with Image.open(demo.DATA_DIR / i["image"]) as im:
+                assert max(im.size) <= 800
+    assert all(50_000 <= i["price_uzs"] <= 2_000_000 for i in by_cat["ldsp"] + by_cat["hdf"] + by_cat["mdf"])
+    assert all(1_000 <= i["price_uzs"] <= 50_000 for i in by_cat["kromka"])
+    assert all("x22 мм" in i["name_uz"] for i in by_cat["kromka"])
+
+
+async def test_the_v6_to_v7_upgrade_adds_only_the_sheet_goods(env, monkeypatch):
+    session, uploads, _ = env
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: _catalog_upto(V6))
+    await demo.seed_demo_stores()
+    monkeypatch.setattr(demo, "load_catalog", lambda *a, **k: CATALOG)
+    stores_before, uploads_before = set(session.of(Store)), len(uploads.keys)
+
+    result = await demo.seed_demo_stores()
+
+    new = [i for s, i in _items() if demo.item_since(s, i) == V7]
+    assert (result["from_version"], result["version"]) == (V6, V7)
+    assert (result["stores"], result["materials"], result["furniture"]) == (0, len(new), 0)
+    assert set(session.of(Store)) == stores_before
+    assert len(uploads.keys) - uploads_before == len(new)
+    ks = next(st for st in session.of(Store) if st.name == "KS Lux")
+    assert {m.category for m in session.of(Material) if m.store_id == ks.id} >= {"ldsp", "hdf", "mdf", "kromka"}
+
+
+async def test_a_fresh_seed_inserts_the_estimate_keys(env):
+    session, _, _ = env
+    result = await demo.seed_demo_stores()
+    keyed = {i["name_uz"]: i["smeta_key"] for _, i in _items("material") if i.get("smeta_key")}
+    assert result["keyed"] == 0
+    assert {m.name_uz: m.smeta_key for m in session.of(Material) if m.smeta_key} == keyed
 
 
 async def test_a_remove_at_version_2_keeps_the_carpets_out(env, monkeypatch):

@@ -5,11 +5,10 @@
  * to the sofa must stay open, and whatever did not fit is named in the notice.
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import i18n from '@/i18n'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry, WallElement } from '@/store/roomStore'
 import type { AiDesignPlan, CatalogFurniture } from '@/lib/api'
-import { ALL_PARTS, applyDesignPlan, droppedNotice } from '../aiDesign'
+import { ALL_PARTS, applyDesignPlan } from '../aiDesign'
 import { overlaps, roomModel, type Rect } from '../aiDesignLayout'
 import { doorEntries, walkable } from '../walkway'
 
@@ -97,20 +96,8 @@ describe('the screenshot living room', () => {
     expect(Math.abs(Math.sin(tables[0].rotation))).toBeCloseTo(1, 5) // long side across the room's long axis
     expect(placed.filter((f) => f.furniture_id === 'wardrobe')).toHaveLength(0)
     expect(placed.filter((f) => f.furniture_id === 'pouf')).toHaveLength(1)
-    expect(applied.dropped).toEqual([{ name: 'Kreslo', count: 2 }, { name: 'Shkaf', count: 1 }])
+    expect(applied.dropped).toEqual([{ name: 'Kreslo', count: 2, role: 'armchair' }, { name: 'Shkaf', count: 1, role: 'wardrobe' }])
     expect(applied.skipped).toBe(3)
     expect(applied.furniture + applied.skipped).toBe(PLAN.furniture.length - 1 + 4) // the chair line stands for four
-    expect(droppedNotice(applied.dropped, i18n.t)).toBe("Joy yetmadi: 2 ta Kreslo, Shkaf qo'yilmadi.")
-  })
-})
-
-describe('droppedNotice', () => {
-  it('lists each piece with how many, joined with commas', () => {
-    expect(droppedNotice([{ name: 'Ovqat stoli', count: 1 }, { name: 'stul', count: 4 }], i18n.t))
-      .toBe("Joy yetmadi: Ovqat stoli, 4 ta stul qo'yilmadi.")
-  })
-
-  it('is empty when everything fitted', () => {
-    expect(droppedNotice([], i18n.t)).toBe('')
   })
 })

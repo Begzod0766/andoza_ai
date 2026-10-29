@@ -183,22 +183,29 @@ export type ParsedZone =
   | { kind: 'wall'; wall: WallInfo }
   | { kind: 'corner'; wall: WallInfo; toward: WallInfo }
 
-/** The zone as walls of this room; null when it names a wall the room does not have. */
-export function parseZone(zone: string, model: RoomModel): ParsedZone | null {
-  if (zone === 'center') return { kind: 'center' }
-  const find = (id: string) => model.walls.find((w) => w.id === id)
-  if (zone.startsWith('wall_')) {
-    const wall = find(zone.slice(5))
-    return wall ? { kind: 'wall', wall } : null
-  }
+/**
+ * The wall ids a zone names, by its spelling alone: one for `wall_<id>`, two for `corner_<a>_<b>` (the
+ * old four-wall spelling is corner_AB), none for the centre. Null for a zone of no known spelling.
+ */
+export function zoneWallIds(zone: string): string[] | null {
+  if (zone === 'center') return []
+  if (zone.startsWith('wall_')) return [zone.slice(5)]
   if (zone.startsWith('corner_')) {
     const rest = zone.slice(7)
-    // corner_<a>_<b>; the old four-wall spelling is corner_AB.
     const parts = rest.includes('_') ? rest.split('_') : rest.length === 2 ? [rest[0], rest[1]] : []
-    const [a, b] = parts.length === 2 ? [find(parts[0]), find(parts[1])] : [undefined, undefined]
-    return a && b ? { kind: 'corner', wall: a, toward: b } : null
+    return parts.length === 2 ? parts : null
   }
   return null
+}
+
+/** The zone as walls of this room; null when it names a wall the room does not have. */
+export function parseZone(zone: string, model: RoomModel): ParsedZone | null {
+  const ids = zoneWallIds(zone)
+  if (!ids) return null
+  if (ids.length === 0) return { kind: 'center' }
+  const [a, b] = ids.map((id) => model.walls.find((w) => w.id === id))
+  if (ids.length === 1) return a ? { kind: 'wall', wall: a } : null
+  return a && b ? { kind: 'corner', wall: a, toward: b } : null
 }
 
 /** The corners of a footprint grown by `margin`, as rectCorners gives them, into `out` (x0, z0, ... x3, z3). */
@@ -328,6 +335,43 @@ export function furnitureSpot(
 /** Is a point on `wall`, `along` metres from its midpoint, inside a door or window (plus clearance)? */
 function onOpening(model: RoomModel, wallId: string, along: number): boolean {
   return model.openings.some((o) => o.wallId === wallId && along > o.from - LIGHT_CLEARANCE && along < o.to + LIGHT_CLEARANCE)
+}
+
+/** How far in from the walls a floor lamp moved off the furniture stands (its centre), and the step along them, metres. */
+const LAMP_WALL_GAP = 0.25
+const LAMP_STEP = 0.3
+
+/**
+ * Where a floor lamp meant for `at` (world metres) stands: where it is when that is inside the room,
+ * clear of `furniture` and out of a door's swing, else the nearest such spot among the zone's other
+ * spots, the room's corners and points along its walls. Null when there is none (a narrow balcony
+ * lined with its seats): the lamp is better left out than standing in a piece, a doorway or a wall.
+ */
+export function floorLampSpot(
+  at: { x: number; z: number }, size: { w: number; d: number }, zone: string, model: RoomModel, furniture: Rect[],
+): { x: number; z: number } | null {
+  const probe = (x: number, z: number): Rect => ({ x, z, w: size.w, d: size.d, rotation: 0 })
+  const inDoorSwing = (r: Rect) => model.clear.some((c) => c.kind === 'door' && overlaps(r, c.rect, 0))
+  const clear = (r: Rect) => model.inside(r) && !furniture.some((f) => overlaps(r, f, 0)) && !inDoorSwing(r)
+  if (clear(probe(at.x, at.z))) return at
+
+  const candidates: Array<[number, number]> = []
+  for (let nth = 0; nth < 5; nth++) {
+    const s = lightSpot(zone, 'floor', model, nth)
+    candidates.push([(s.xMm - model.offsetMm.x) / 1000, (s.zMm - model.offsetMm.z) / 1000])
+  }
+  for (const w of model.walls) {
+    const reach = w.length / 2 - LAMP_WALL_GAP
+    if (reach < 0) continue
+    const onWall = (along: number): [number, number] =>
+      [w.midX + w.nx * LAMP_WALL_GAP + w.dirX * along, w.midZ + w.nz * LAMP_WALL_GAP + w.dirZ * along]
+    candidates.push(onWall(reach), onWall(-reach)) // the corners
+    for (const along of slideOffsets(reach, LAMP_STEP)) candidates.push(onWall(along))
+  }
+  const free = candidates
+    .filter(([x, z]) => clear(probe(x, z)))
+    .sort((a, b) => Math.hypot(a[0] - at.x, a[1] - at.z) - Math.hypot(b[0] - at.x, b[1] - at.z))
+  return free.length ? { x: free[0][0], z: free[0][1] } : null
 }
 
 /** The spot for a light fixture, in the store's millimetres from the room's corner. */

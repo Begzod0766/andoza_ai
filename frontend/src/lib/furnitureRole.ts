@@ -28,12 +28,14 @@ export function isRole(v: unknown): v is FurnitureRole {
 }
 
 // Name rules, first match wins. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
+// "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
 const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
   [/gilam|rug|carpet|kovrolin/i, 'rug'],
   [/jurnal|kofe|coffee/i, 'coffee_table'],
   [/tumbochka|nightstand|prikrovat/i, 'nightstand'],
   [/\btv\b|televizor|tumba/i, 'tv_unit'],
-  [/yozuv|kompyuter|desk|ish stoli/i, 'desk'],
+  [/\bish stuli|ofis stuli|kompyuter stuli|kreslo-kompyuter|office chair|desk chair|(офисн|компьютерн)\S*\s+(стул|кресл)/i, 'desk_chair'],
+  [/yozuv|kompyuter|desk|\bish stoli|компьютерн\S*\s+стол/i, 'desk'],
   [/kreslo|armchair/i, 'armchair'],
   [/shkaf|garderob|wardrobe/i, 'wardrobe'],
   [/javon|komod|stellaj|vitrina|bookcase/i, 'shelf'],
@@ -41,6 +43,13 @@ const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
 const ROLE_BY_CATEGORY: Record<string, FurnitureRole> = {
   divan: 'sofa', karavot: 'bed', stol: 'dining_table', stul: 'dining_chair',
 }
+
+/**
+ * A wardrobe for clothes, by name. "Shkaf" alone names any cupboard (a bookcase, a bathroom cabinet),
+ * which `inferRole` reads as a wardrobe too; only one named like this stands in for a wardrobe or is
+ * worth a wardrobe's weight in a bedroom.
+ */
+export const WARDROBE_NAME = /kiyim shkaf|garderob|wardrobe|шкаф для одежды|гардероб/i
 
 /** The role of a catalog piece from its name, then its category; anything else is decor. */
 export function inferRole(category: string | null | undefined, name: string): FurnitureRole {
