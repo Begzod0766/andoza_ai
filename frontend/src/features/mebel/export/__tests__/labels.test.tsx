@@ -55,3 +55,15 @@ describe('LabelsPrintView', () => {
     expect(screen.getAllByTestId('label')[0].getAttribute('style')).toContain('break-after: page')
   })
 })
+
+describe('free part labels', () => {
+  it('carry the part\'s own name', () => {
+    const p = newProject('Oshxona')
+    p.freeParts = [{ id: 'f1', label: 'D1', name: 'Stoleshnitsa', length: 2400, width: 600, qty: 1, material: 'board', grain: 'length', edges: { L1: null, L2: null, W1: null, W2: null } }]
+    const labels = partLabels(computeProject(p, EMPTY_PRICE_BOOK, {}).parts, { ...opts, labelOf: () => '' })
+    const l = labels.find(x => x.partId === 'D1-1')!
+    expect(l.name).toBe('Stoleshnitsa')
+    render(<LabelsPrintView projectName="Oshxona" labels={[l]} format="a4" />)
+    expect(screen.getByText('Stoleshnitsa')).toBeInTheDocument()
+  })
+})

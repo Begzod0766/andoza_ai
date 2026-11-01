@@ -506,4 +506,118 @@ describe('MebelProjectPage labels', () => {
     expect(await screen.findByRole('tab', { name: t('mebel.tab.drilling'), selected: true })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: `M1-02 — ${t('mebel.drill.holes')}` })).toBeInTheDocument()
   })
+
+})
+
+describe('MebelProjectPage free parts', () => {
+  const addFree = () => fireEvent.click(screen.getByRole('button', { name: t('mebel.free.add') }))
+  const field = (label: string) => within(screen.getByTestId('free-D1')).getByLabelText(label) as HTMLInputElement
+
+  it('+ Detal adds D1, editable, and it shows in the cut list', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.change(field(t('mebel.free.name')), { target: { value: 'Sokol' } })
+    fireEvent.change(field(t('mebel.free.length')), { target: { value: '2400' } })
+    fireEvent.change(field(t('mebel.free.width')), { target: { value: '100' } })
+    fireEvent.change(field(t('mebel.free.qty')), { target: { value: '2' } })
+    const row = within(partsTable()).getAllByRole('row').find(r => r.textContent?.includes('Sokol'))!
+    expect(row).toBeTruthy()
+    expect(row.textContent).toContain('2400')
+  })
+
+  it('band buttons cycle none → visible → hidden', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    const l1 = within(screen.getByTestId('free-D1')).getByRole('button', { name: /^L1/ })
+    expect(l1.textContent).toContain('—')
+    fireEvent.click(l1)
+    expect(l1.textContent).toContain('2')
+    fireEvent.click(l1)
+    expect(l1.textContent).toContain('0.4')
+    fireEvent.click(l1)
+    expect(l1.textContent).toContain('—')
+  })
+
+  it('a free-part error marks its field and row', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.change(field(t('mebel.free.length')), { target: { value: '5' } })
+    expect(within(screen.getByTestId('free-D1')).getByText(t('mebel.error.free_size', { min: 10, max: 3000 }))).toBeInTheDocument()
+    expect(within(screen.getByTestId('free-D1')).getByTestId('free-error-dot')).toBeInTheDocument()
+  })
+
+  it('the last cabinet can go once a free part exists', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    const removeCabinet = () => within(screen.getByTestId('cabinet-M1')).queryByRole('button', { name: t('mebel.remove') })
+    expect(removeCabinet()).toBeNull()
+    addFree()
+    fireEvent.click(removeCabinet()!)
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: t('mebel.remove') }))
+    await waitFor(() => expect(screen.queryByTestId('cabinet-M1')).toBeNull())
+    expect(screen.getByRole('table', { name: t('mebel.tab.parts') })).toBeInTheDocument()
+  })
+
+  it('removing a free part asks first', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.click(within(screen.getByTestId('free-D1')).getByRole('button', { name: t('mebel.remove') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(t('mebel.free.remove_confirm', { label: 'D1' }))).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: t('common.bekor') }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByTestId('free-D1')).toBeInTheDocument()
+  })
+
+  it('the only part of a project with no cabinet cannot be removed', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.click(within(screen.getByTestId('cabinet-M1')).getByRole('button', { name: t('mebel.remove') }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: t('mebel.remove') }))
+    await waitFor(() => expect(screen.queryByTestId('cabinet-M1')).toBeNull())
+    expect(within(screen.getByTestId('free-D1')).queryByRole('button', { name: t('mebel.remove') })).toBeNull()
+  })
+
+  it('a bad width marks the width field, and the top box does not repeat it', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.change(field(t('mebel.free.width')), { target: { value: '5' } })
+    expect(field(t('mebel.free.width'))).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getAllByText(t('mebel.error.free_size', { min: 10, max: 3000 })).length).toBeLessThanOrEqual(2)
+    const box = screen.getByText(t('mebel.errors_title')).parentElement!
+    expect(within(box).queryByText(t('mebel.error.free_size', { min: 10, max: 3000 }))).toBeNull()
+  })
+})
+
+describe('MebelProjectPage free part links', () => {
+  it('a free part label names D1, and its QR opens the cut list, not another part\'s drilling map', async () => {
+    const p = newProject('Oshxona')
+    p.freeParts = [{ id: 'f1', label: 'D1', name: 'Stoleshnitsa', length: 2400, width: 600, qty: 1, material: 'board', grain: 'length', edges: { L1: null, L2: null, W1: null, W2: null } }]
+    vi.mocked(api.getMebelProject).mockResolvedValue({ id: 'p1', name: 'Oshxona', data: p } as never)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <ConfirmProvider>
+        <MemoryRouter initialEntries={['/mebel/p1?part=D1-1']}>
+          <Routes>
+            <Route path="/mebel/:id" element={<MebelProjectPage />} />
+          </Routes>
+        </MemoryRouter>
+        </ConfirmProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByRole('tab', { name: t('mebel.tab.parts'), selected: true })).toBeInTheDocument()
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.button') }))
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.a4') }))
+    const label = screen.getAllByTestId('label').find(l => l.textContent?.includes('D1-1'))!
+    expect(label.textContent).toContain('D1 · Oshxona')
+    print.mockRestore()
+  })
 })

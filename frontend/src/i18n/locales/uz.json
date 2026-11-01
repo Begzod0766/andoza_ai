@@ -2388,7 +2388,8 @@
       "drawer_front": "Tortma fasadi",
       "drawer_side": "Tortma yoni",
       "drawer_end": "Tortma old/orqa",
-      "drawer_bottom": "Tortma tagi"
+      "drawer_bottom": "Tortma tagi",
+      "free": "Erkin detal"
     },
     "material": {
       "board": "LDSP",
@@ -2461,7 +2462,13 @@
       "drawers_type": "Tortma faqat pastki shkafda bo'ladi",
       "drawer_low": "Tortma juda past: qutisi kamida {{min}} mm bo'lishi kerak",
       "drawer_shallow": "Shkaf tortma uchun juda sayoz (yo'naltiruvchi kamida {{min}} mm)",
-      "position_range": "Joyi 0 yoki undan katta bo'lishi kerak"
+      "position_range": "Joyi 0 yoki undan katta bo'lishi kerak",
+      "free_size": "O'lcham {{min}}–{{max}} mm, butun son",
+      "free_qty": "Soni {{min}}–{{max}}",
+      "free_name": "Nom kiriting",
+      "too_many_free": "Ko'pi bilan {{max}} ta erkin detal",
+      "empty_project": "Kamida bitta shkaf yoki detal kerak",
+      "free_pieces": "Jami ko'pi bilan {{max}} dona erkin detal"
     },
     "warning": {
       "shelf_sag": "{{length}} mm uzun {{t}} mm polka egilishi mumkin",
@@ -2569,6 +2576,25 @@
       "button": "Yorliqlar",
       "a4": "A4 varaq (3×8, 70×37 mm)",
       "roll": "Rulon 58×40 mm"
+    },
+    "free": {
+      "title": "Erkin detallar",
+      "add": "+ Detal",
+      "empty": "Shkafsiz detallar: stoleshnitsa, sokol, alohida panel…",
+      "name": "Nomi",
+      "length": "Uzunlik, mm",
+      "width": "Eni, mm",
+      "qty": "Soni",
+      "pieces": "{{n}} dona",
+      "material": "Material",
+      "materials": {
+        "board": "LDSP",
+        "back": "HDF",
+        "facade": "Fasad LDSP"
+      },
+      "grain": "Tekstura",
+      "edges": "Kromka (L1 L2 W1 W2)",
+      "remove_confirm": "{{label}} detalini olib tashlaysizmi?"
     }
   }
 }

@@ -58,7 +58,7 @@ export function LabelsPrintView({ projectName, labels, format }: { projectName: 
           }}>
           <div style={{ display: "flex", minWidth: 0, flex: 1, flexDirection: "column", fontSize: "7pt", lineHeight: 1.2 }}>
             <div style={{ fontSize: "13pt", fontWeight: 700, lineHeight: 1.1 }}>{l.partId}</div>
-            <div style={{ fontWeight: 700 }}>{partName(l.role)}</div>
+            <div style={{ fontWeight: 700 }}>{partName(l.role, l.name)}</div>
             <div style={{ fontSize: "9pt", fontWeight: 700 }}>{`${l.length} × ${l.width} × ${l.thickness}`}</div>
             <div style={{ display: "flex", alignItems: "center", gap: "1mm" }}>
               <Bands edges={l.edges} />

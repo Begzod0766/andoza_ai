@@ -61,12 +61,50 @@ class DefaultsIn(BaseModel):
     sheet: SheetIn | None = None
 
 
+MAX_FREE_PARTS = 100
+MAX_FREE_PIECES = 1000
+
+Band = Literal["visible", "hidden"] | None
+
+
+class FreePartEdges(BaseModel):
+    L1: Band
+    L2: Band
+    W1: Band
+    W2: Band
+
+
+class FreePartIn(BaseModel):
+    """A part entered by hand, belonging to no cabinet: the same limits as the engine."""
+    model_config = ConfigDict(extra="allow")
+
+    id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=16)
+    name: str = Field(min_length=1, max_length=60)
+    length: int = Field(ge=10, le=3000)
+    width: int = Field(ge=10, le=3000)
+    qty: int = Field(ge=1, le=100)
+    material: Literal["board", "back", "facade"]
+    grain: Literal["length", "none"]
+    edges: FreePartEdges
+
+
 class ProjectData(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     schemaVersion: Literal[1]
     defaults: DefaultsIn
     cabinets: list[CabinetIn] = Field(max_length=MAX_CABINETS)
+    # saved before free parts existed: none
+    freeParts: list[FreePartIn] = Field(default_factory=list, max_length=MAX_FREE_PARTS)
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> "ProjectData":
+        if not self.cabinets and not self.freeParts:
+            raise ValueError("a project needs a cabinet or a free part")
+        if sum(f.qty for f in self.freeParts) > MAX_FREE_PIECES:
+            raise ValueError(f"at most {MAX_FREE_PIECES} free pieces")
+        return self
 
 
 class ProjectIn(BaseModel):

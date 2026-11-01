@@ -18,13 +18,14 @@ export function edgesSummary(edges: Part["edges"]): string {
   return [edges.L1, edges.L2, edges.W1, edges.W2].map(formatBand).join(" · ");
 }
 
-export function partName(role: Part["role"]): string {
-  return i18n.t(`mebel.part.${role}`);
+/** A part's name: a free part's own, else its role's. */
+export function partName(role: Part["role"], name?: string): string {
+  return role === "free" && name ? name : i18n.t(`mebel.part.${role}`);
 }
 
-/** A cut-list line's name: every part it holds ("Old planka, Orqa planka"). */
-export function groupName(g: { roles: Part["role"][] }): string {
-  return g.roles.map(partName).join(", ");
+/** A cut-list line's name: every part it holds ("Old planka, Orqa planka"; free parts by their own names). */
+export function groupName(g: { roles: Part["role"][]; names?: string[] }): string {
+  return g.roles.map((r) => (r === "free" && g.names?.length ? g.names.join(", ") : partName(r))).join(", ");
 }
 
 /** A BOM line's label in the interface language (the engine keeps keys). */

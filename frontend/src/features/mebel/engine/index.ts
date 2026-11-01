@@ -6,6 +6,7 @@ import { resolveDefaults } from './rules/baseCabinet'
 import { cabinetParts } from './rules'
 import { doorParts, facadeOrderLines } from './rules/doors'
 import { drawerCount, drawerFacadeOrder, drawerParts, drawerSlides } from './rules/drawers'
+import { freePartParts } from './rules/freeParts'
 import { partWarnings, validateCabinets } from './validate'
 import { thicknessWarnings } from './materials'
 import { DEFAULTS } from './model'
@@ -20,6 +21,7 @@ export { nestSheets } from './nest'
 export { baseCabinetParts, resolveDefaults } from './rules/baseCabinet'
 export { LIMITS, LIMITS_BY_TYPE, partWarnings } from './validate'
 export { cabinetParts } from './rules'
+export { freePartParts } from './rules/freeParts'
 
 /** A project saved before a setting existed gets that setting's default; a cabinet
  *  saved before types existed is a base cabinet. */
@@ -28,6 +30,7 @@ export function normalizeProject(p: FurnitureProject): FurnitureProject {
     ...p,
     defaults: { ...DEFAULTS, ...p.defaults },
     cabinets: p.cabinets.map((c) => (c.type ? c : { ...c, type: 'base' })),
+    freeParts: p.freeParts ?? [],
   }
 }
 
@@ -66,7 +69,8 @@ export function computeProject(project: FurnitureProject, prices: PriceBook, cat
   const facadeOrder = p.cabinets.flatMap((c) =>
     drawerCount(c) > 0 ? drawerFacadeOrder(c, settings(c.id)) : facadeOrderLines(c, settings(c.id)))
   const slides = p.cabinets.map((c) => drawerSlides(c, settings(c.id))).filter((s): s is { length: number; pairs: number } => s != null)
-  const parts = drillParts(boxParts, p.cabinets, settings)
+  // free parts have no holes: they join after the drilling
+  const parts = [...drillParts(boxParts, p.cabinets, settings), ...(p.freeParts ?? []).flatMap((f) => freePartParts(f, p.defaults))]
   const groups = groupParts(parts)
   const edges = edgeTotals(
     parts,
