@@ -572,4 +572,52 @@ describe('MebelProjectPage free parts', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(screen.getByTestId('free-D1')).toBeInTheDocument()
   })
+
+  it('the only part of a project with no cabinet cannot be removed', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.click(within(screen.getByTestId('cabinet-M1')).getByRole('button', { name: t('mebel.remove') }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: t('mebel.remove') }))
+    await waitFor(() => expect(screen.queryByTestId('cabinet-M1')).toBeNull())
+    expect(within(screen.getByTestId('free-D1')).queryByRole('button', { name: t('mebel.remove') })).toBeNull()
+  })
+
+  it('a bad width marks the width field, and the top box does not repeat it', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.change(field(t('mebel.free.width')), { target: { value: '5' } })
+    expect(field(t('mebel.free.width'))).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getAllByText(t('mebel.error.free_size', { min: 10, max: 3000 })).length).toBeLessThanOrEqual(2)
+    const box = screen.getByText(t('mebel.errors_title')).parentElement!
+    expect(within(box).queryByText(t('mebel.error.free_size', { min: 10, max: 3000 }))).toBeNull()
+  })
+})
+
+describe('MebelProjectPage free part links', () => {
+  it('a free part label names D1, and its QR opens the cut list, not another part\'s drilling map', async () => {
+    const p = newProject('Oshxona')
+    p.freeParts = [{ id: 'f1', label: 'D1', name: 'Stoleshnitsa', length: 2400, width: 600, qty: 1, material: 'board', grain: 'length', edges: { L1: null, L2: null, W1: null, W2: null } }]
+    vi.mocked(api.getMebelProject).mockResolvedValue({ id: 'p1', name: 'Oshxona', data: p } as never)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <ConfirmProvider>
+        <MemoryRouter initialEntries={['/mebel/p1?part=D1-1']}>
+          <Routes>
+            <Route path="/mebel/:id" element={<MebelProjectPage />} />
+          </Routes>
+        </MemoryRouter>
+        </ConfirmProvider>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByRole('tab', { name: t('mebel.tab.parts'), selected: true })).toBeInTheDocument()
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.button') }))
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.a4') }))
+    const label = screen.getAllByTestId('label').find(l => l.textContent?.includes('D1-1'))!
+    expect(label.textContent).toContain('D1 · Oshxona')
+    print.mockRestore()
+  })
 })

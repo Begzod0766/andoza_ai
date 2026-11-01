@@ -62,6 +62,16 @@ class DefaultsIn(BaseModel):
 
 
 MAX_FREE_PARTS = 100
+MAX_FREE_PIECES = 1000
+
+Band = Literal["visible", "hidden"] | None
+
+
+class FreePartEdges(BaseModel):
+    L1: Band
+    L2: Band
+    W1: Band
+    W2: Band
 
 
 class FreePartIn(BaseModel):
@@ -69,12 +79,14 @@ class FreePartIn(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=16)
     name: str = Field(min_length=1, max_length=60)
     length: int = Field(ge=10, le=3000)
     width: int = Field(ge=10, le=3000)
     qty: int = Field(ge=1, le=100)
     material: Literal["board", "back", "facade"]
     grain: Literal["length", "none"]
+    edges: FreePartEdges
 
 
 class ProjectData(BaseModel):
@@ -90,6 +102,8 @@ class ProjectData(BaseModel):
     def _not_empty(self) -> "ProjectData":
         if not self.cabinets and not self.freeParts:
             raise ValueError("a project needs a cabinet or a free part")
+        if sum(f.qty for f in self.freeParts) > MAX_FREE_PIECES:
+            raise ValueError(f"at most {MAX_FREE_PIECES} free pieces")
         return self
 
 

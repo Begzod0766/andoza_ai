@@ -344,3 +344,20 @@ def test_an_old_payload_without_free_parts_still_saves(client):
     data = _data()
     assert "freeParts" not in data
     assert _post(client, data).status_code == 201
+
+
+@pytest.mark.parametrize("bad", [{"label": ""}, {"edges": {"L1": "x", "L2": None, "W1": None, "W2": None}}, {"edges": {"L1": None}}])
+def test_free_part_label_and_bands_are_checked(client, bad):
+    data = _data()
+    part = _free()
+    part.update(bad)
+    data["freeParts"] = [part]
+    assert _post(client, data).status_code == 422
+
+
+def test_at_most_1000_free_pieces(client):
+    data = _data()
+    data["freeParts"] = [_free(id=f"f{i}", qty=100) for i in range(11)]
+    assert _post(client, data).status_code == 422
+    data["freeParts"] = data["freeParts"][:10]
+    assert _post(client, data).status_code == 201

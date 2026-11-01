@@ -2467,7 +2467,8 @@
       "free_qty": "Quantity {{min}}–{{max}}",
       "free_name": "Enter a name",
       "too_many_free": "At most {{max}} free parts",
-      "empty_project": "At least one cabinet or part is needed"
+      "empty_project": "At least one cabinet or part is needed",
+      "free_pieces": "At most {{max}} free pieces in all"
     },
     "warning": {
       "shelf_sag": "A {{length}} mm long {{t}} mm shelf may sag",

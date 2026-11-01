@@ -10,7 +10,7 @@ import { formatBand } from "./format";
 type Update = (fn: (p: FurnitureProject) => FurnitureProject) => void
 
 /** The field each free-part error belongs to. */
-const FREE_ERROR_FIELD: Record<string, "size" | "qty" | "name"> = { free_size: "size", free_qty: "qty", free_name: "name" };
+export const FREE_ERROR_FIELD: Record<string, "size" | "qty" | "name"> = { free_size: "size", free_qty: "qty", free_name: "name" };
 const NEXT_BAND: Record<string, Band> = { none: "visible", visible: "hidden", hidden: null };
 
 /**
@@ -78,9 +78,11 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
                     onChange={(e) => setPart(f.id, { name: e.target.value })} />
                   {errorFor(f.id, "name") && <p className="text-xs text-red-600">{errorFor(f.id, "name")}</p>}
                 </div>
-                <NumField id={`${f.id}-len`} label={t("mebel.free.length")} value={f.length} error={sizeError}
+                <NumField id={`${f.id}-len`} label={t("mebel.free.length")} value={f.length}
+                  error={sizeError && !(f.length >= 10 && f.length <= 3000 && Number.isInteger(f.length)) ? sizeError : undefined}
                   onChange={(v) => setPart(f.id, { length: v })} />
                 <NumField id={`${f.id}-wid`} label={t("mebel.free.width")} value={f.width}
+                  error={sizeError && !(f.width >= 10 && f.width <= 3000 && Number.isInteger(f.width)) ? sizeError : undefined}
                   onChange={(v) => setPart(f.id, { width: v })} />
                 <NumField id={`${f.id}-qty`} label={t("mebel.free.qty")} value={f.qty} error={errorFor(f.id, "qty")}
                   onChange={(v) => setPart(f.id, { qty: v })} />
@@ -110,9 +112,12 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
                 <button type="button" onClick={() => add(f)} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900">
                   {t("mebel.duplicate")}
                 </button>
-                <button type="button" onClick={() => void remove(f)} className="text-xs font-semibold text-red-600">
-                  {t("mebel.remove")}
-                </button>
+                {/* a project with no cabinet keeps at least one part */}
+                {(project.cabinets.length > 0 || parts.length > 1) && (
+                  <button type="button" onClick={() => void remove(f)} className="text-xs font-semibold text-red-600">
+                    {t("mebel.remove")}
+                  </button>
+                )}
               </div>
             </details>
           );

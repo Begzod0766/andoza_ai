@@ -22,6 +22,7 @@ import { LabelsPrintView } from "@/features/mebel/export/LabelsPrintView";
 import { partLabels, type LabelFormat } from "@/features/mebel/export/labels";
 import { groupName } from "@/features/mebel/ui/format";
 import { ERROR_FIELD } from "@/features/mebel/ui/ParamsPanel";
+import { FREE_ERROR_FIELD } from "@/features/mebel/ui/FreePartsPanel";
 
 type Tab = "parts" | "nesting" | "drilling" | "edges" | "bom" | "warnings";
 const TABS: Tab[] = ["parts", "nesting", "drilling", "edges", "bom", "warnings"];
@@ -48,7 +49,8 @@ export default function MebelProjectPage() {
   useEffect(() => {
     if (!linkedPart || !loaded?.parts.some((p) => p.id === linkedPart)) return;
     setSelectedPartId(linkedPart);
-    setTab("drilling");
+    // a part with no holes (a free part) has no drilling map: show it in the cut list
+    setTab(loaded.parts.find((p) => p.id === linkedPart)?.holes?.length ? "drilling" : "parts");
     setPane("result");
     // once, when the project has loaded
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,7 +67,9 @@ export default function MebelProjectPage() {
 
   const { project, result } = m;
   const materialName = (mid: string | null) => (mid ? m.catalog[mid]?.name ?? null : null);
-  const labelOf = (cabId?: string) => project.cabinets.find((c) => c.id === cabId)?.label ?? null;
+  // a free part's parts carry its id where a cabinet's carry the cabinet's
+  const labelOf = (cabId?: string) =>
+    project.cabinets.find((c) => c.id === cabId)?.label ?? project.freeParts?.find((f) => f.id === cabId)?.label ?? null;
   const used = [
     project.defaults.board.materialId, project.defaults.back.materialId ?? null,
     project.defaults.edge.visible.materialId, project.defaults.edge.hidden.materialId,
@@ -181,7 +185,7 @@ export default function MebelProjectPage() {
             {failed ? (
               <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
                 <p className="font-semibold">{t("mebel.errors_title")}</p>
-                {result.errors.filter((e) => !e.cabinetId || !ERROR_FIELD[e.code]).map((e) => (
+                {result.errors.filter((e) => !e.cabinetId || !(ERROR_FIELD[e.code] || FREE_ERROR_FIELD[e.code])).map((e) => (
                   <p key={`${e.code}|${e.cabinetId ?? ""}`}>{t(`mebel.error.${e.code}` as TKey, e.params)}</p>
                 ))}
               </div>

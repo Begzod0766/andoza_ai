@@ -12,9 +12,12 @@ export function freePartParts(spec: FreePartSpec, d: ConstructionDefaults): Part
     return b != null && t > 0 ? { band: b, thickness: t } : null
   }
   const edges = { L1: side(spec.edges.L1), L2: side(spec.edges.L2), W1: side(spec.edges.W1), W2: side(spec.edges.W2) }
-  const from = spec.material === 'back'
+  // Door LDSP only while the doors are LDSP; with MDF (or no) doors the door
+  // material is an MDF item, so a "door LDSP" part is cut from the board.
+  const material = spec.material === 'facade' && d.facade?.kind !== 'ldsp' ? 'board' : spec.material
+  const from = material === 'back'
     ? { materialId: d.back.materialId ?? null, thickness: d.back.thickness }
-    : spec.material === 'facade'
+    : material === 'facade'
       ? { materialId: d.facade.materialId, thickness: d.facade.thickness }
       : { materialId: d.board.materialId, thickness: d.board.thickness }
   const finished = { length: spec.length, width: spec.width }
@@ -24,7 +27,7 @@ export function freePartParts(spec: FreePartSpec, d: ConstructionDefaults): Part
     cabinetId: spec.id,
     role: 'free' as const,
     name: spec.name,
-    material: spec.material,
+    material,
     ...from,
     finished: { ...finished },
     cut,

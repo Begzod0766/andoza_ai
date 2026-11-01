@@ -2467,7 +2467,8 @@
       "free_qty": "Soni {{min}}–{{max}}",
       "free_name": "Nom kiriting",
       "too_many_free": "Ko'pi bilan {{max}} ta erkin detal",
-      "empty_project": "Kamida bitta shkaf yoki detal kerak"
+      "empty_project": "Kamida bitta shkaf yoki detal kerak",
+      "free_pieces": "Jami ko'pi bilan {{max}} dona erkin detal"
     },
     "warning": {
       "shelf_sag": "{{length}} mm uzun {{t}} mm polka egilishi mumkin",

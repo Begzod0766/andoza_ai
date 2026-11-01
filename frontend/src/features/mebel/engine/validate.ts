@@ -8,6 +8,7 @@ export const LIMITS = {
   shelves: [0, 4],
   cabinets: 30,
   freeParts: 100,
+  freePieces: 1000,
 } as const
 
 /** Size and shelf limits per cabinet type. */
@@ -30,6 +31,9 @@ export function validateCabinets(
   if (p.cabinets.length > LIMITS.cabinets) errors.push({ code: 'too_many_cabinets', params: { max: LIMITS.cabinets } })
   const free = p.freeParts ?? []
   if (free.length > LIMITS.freeParts) errors.push({ code: 'too_many_free', params: { max: LIMITS.freeParts } })
+  // every piece is nested on every keystroke: keep the total within reach
+  const pieces = free.reduce((n, f) => n + (Number.isFinite(f.qty) ? f.qty : 0), 0)
+  if (pieces > LIMITS.freePieces) errors.push({ code: 'free_pieces', params: { max: LIMITS.freePieces } })
   if (p.cabinets.length === 0 && free.length === 0) errors.push({ code: 'empty_project' })
   const whole = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi
   for (const f of free) {

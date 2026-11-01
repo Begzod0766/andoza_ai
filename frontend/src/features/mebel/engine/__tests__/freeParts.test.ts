@@ -34,10 +34,9 @@ describe('free parts', () => {
 
   it('material picks thickness and materialId from the matching setting', () => {
     const d = newProject('x').defaults
-    const set = { ...d, board: { ...d.board, materialId: 'b' }, back: { ...d.back, materialId: 'h' }, facade: { ...d.facade, kind: 'mdf' as const, materialId: 'f', thickness: 18 as const } }
+    const set = { ...d, board: { ...d.board, materialId: 'b' }, back: { ...d.back, materialId: 'h' }, facade: { ...d.facade, kind: 'ldsp' as const, materialId: 'f', thickness: 18 as const } }
     expect(freePartParts(free({ material: 'board' }), set)[0]).toMatchObject({ material: 'board', thickness: 18, materialId: 'b' })
     expect(freePartParts(free({ material: 'back' }), set)[0]).toMatchObject({ material: 'back', thickness: 4, materialId: 'h' })
-    // a door-LDSP free part is cut even when the doors themselves are ordered in MDF
     expect(freePartParts(free({ material: 'facade' }), set)[0]).toMatchObject({ material: 'facade', thickness: 18, materialId: 'f' })
   })
 
@@ -88,5 +87,22 @@ describe('free parts', () => {
     const g = r.groups.find(x => x.role === 'free')!
     expect(g.qty).toBe(2)
     expect(groupName(g)).toBe('A, B')
+  })
+
+  it('a door-LDSP free part is cut from the board when the doors are not LDSP', () => {
+    for (const kind of ['mdf', 'none'] as const) {
+      const p = withFree([free({ material: 'facade' })])
+      p.defaults.board.materialId = 'b'
+      p.defaults.facade = { ...p.defaults.facade, kind, materialId: 'MDF1', thickness: 19 }
+      const r = run(p)
+      expect(r.parts.find(x => x.id === 'D1-1')).toMatchObject({ material: 'board', materialId: 'b', thickness: 18 })
+      expect(r.bom.some(l => l.label === 'facade_19')).toBe(false)
+    }
+  })
+
+  it('at most 1000 free pieces in all', () => {
+    const rows = Array.from({ length: 11 }, (_, i) => free({ id: `f${i}`, label: `D${i + 1}`, qty: 100 }))
+    expect(codes(validateProject(withFree(rows)).errors)).toContain('free_pieces')
+    expect(codes(validateProject(withFree(rows.slice(0, 10))).errors)).not.toContain('free_pieces')
   })
 })
