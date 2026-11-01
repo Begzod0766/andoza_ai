@@ -2388,7 +2388,8 @@
       "drawer_front": "Drawer front",
       "drawer_side": "Drawer side",
       "drawer_end": "Drawer front/back",
-      "drawer_bottom": "Drawer bottom"
+      "drawer_bottom": "Drawer bottom",
+      "free": "Free part"
     },
     "material": {
       "board": "Board",
@@ -2461,7 +2462,12 @@
       "drawers_type": "Only base cabinets have drawers",
       "drawer_low": "Drawer too low: its box needs at least {{min}} mm",
       "drawer_shallow": "Too shallow for a drawer (slides start at {{min}} mm)",
-      "position_range": "Position must be 0 or more"
+      "position_range": "Position must be 0 or more",
+      "free_size": "Size {{min}}–{{max}} mm, whole number",
+      "free_qty": "Quantity {{min}}–{{max}}",
+      "free_name": "Enter a name",
+      "too_many_free": "At most {{max}} free parts",
+      "empty_project": "At least one cabinet or part is needed"
     },
     "warning": {
       "shelf_sag": "A {{length}} mm long {{t}} mm shelf may sag",

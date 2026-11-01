@@ -7,6 +7,7 @@ export const LIMITS = {
   depth: [250, 700],
   shelves: [0, 4],
   cabinets: 30,
+  freeParts: 100,
 } as const
 
 /** Size and shelf limits per cabinet type. */
@@ -27,6 +28,15 @@ export function validateCabinets(
 ): { errors: Warning[] } {
   const errors: Warning[] = []
   if (p.cabinets.length > LIMITS.cabinets) errors.push({ code: 'too_many_cabinets', params: { max: LIMITS.cabinets } })
+  const free = p.freeParts ?? []
+  if (free.length > LIMITS.freeParts) errors.push({ code: 'too_many_free', params: { max: LIMITS.freeParts } })
+  if (p.cabinets.length === 0 && free.length === 0) errors.push({ code: 'empty_project' })
+  const whole = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi
+  for (const f of free) {
+    if (!whole(f.length, 10, 3000) || !whole(f.width, 10, 3000)) errors.push({ code: 'free_size', cabinetId: f.id, params: { min: 10, max: 3000 } })
+    if (!whole(f.qty, 1, 100)) errors.push({ code: 'free_qty', cabinetId: f.id, params: { min: 1, max: 100 } })
+    if (!f.name?.trim()) errors.push({ code: 'free_name', cabinetId: f.id })
+  }
   const d0 = p.defaults
   const s = d0.sheet
   const trimOk = finite(d0.trim) && d0.trim <= 50

@@ -2388,7 +2388,8 @@
       "drawer_front": "Tortma fasadi",
       "drawer_side": "Tortma yoni",
       "drawer_end": "Tortma old/orqa",
-      "drawer_bottom": "Tortma tagi"
+      "drawer_bottom": "Tortma tagi",
+      "free": "Erkin detal"
     },
     "material": {
       "board": "LDSP",
@@ -2461,7 +2462,12 @@
       "drawers_type": "Tortma faqat pastki shkafda bo'ladi",
       "drawer_low": "Tortma juda past: qutisi kamida {{min}} mm bo'lishi kerak",
       "drawer_shallow": "Shkaf tortma uchun juda sayoz (yo'naltiruvchi kamida {{min}} mm)",
-      "position_range": "Joyi 0 yoki undan katta bo'lishi kerak"
+      "position_range": "Joyi 0 yoki undan katta bo'lishi kerak",
+      "free_size": "O'lcham {{min}}–{{max}} mm, butun son",
+      "free_qty": "Soni {{min}}–{{max}}",
+      "free_name": "Nom kiriting",
+      "too_many_free": "Ko'pi bilan {{max}} ta erkin detal",
+      "empty_project": "Kamida bitta shkaf yoki detal kerak"
     },
     "warning": {
       "shelf_sag": "{{length}} mm uzun {{t}} mm polka egilishi mumkin",
