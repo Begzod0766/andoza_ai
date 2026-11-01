@@ -630,3 +630,7 @@ Hamma endpoint login talab qiladi. Har foydalanuvchi faqat o'z ma'lumotini ko'ra
 4. "PDF" tugmasi chop etish yoki PDF oynasini ochadi. "CSV" tugmasi "Ulashish" oynasini ochadi va fayl Excel yoki Google Sheets'da to'g'ri ko'rinadi.
 5. AI maydoniga quyidagini yozing: *"60 lik 3 ta osma shkaf, 2 eshikli"*. Taklif chiqadi, "Qo'shish" bosilganda loyihaga 3 ta devor shkafi qo'shiladi.
 6. Telefonni yotqizib qo'ying: raskroy va chizmalar kengroq ko'rinishi kerak (ekran burilishi bloklanmasin).
+
+## 15. 2026-11-01: `POST /rooms/{id}/room-scan`: `scan_group` (ko'p xonali skaner)
+
+Ixtiyoriy multipart maydon `scan_group` (≤ 64 belgi) qo'shildi va `room.room_scan.scan_group` da saqlanadi. Bir skaner sessiyasida skanerlangan xonalar bir xil `scan_group` bilan yuboriladi. 30 daqiqalik takroriy skanerni tozalash (`room_scan_dedupe`) bir guruhdagi xonalarni bir-birining nusxasi deb hisoblamaydi, ular bir xil o'lchamda bo'lsa ham (masalan, ikki teng yotoqxona). Maydon yuborilmasa, xatti-harakat avvalgidek qoladi.
