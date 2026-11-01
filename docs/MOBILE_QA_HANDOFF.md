@@ -428,6 +428,209 @@ Maydon qo'shilgach mobil'da: `is_demo == true` bo'lsa do'kon kartasi va mahsulot
 
 ---
 
-## 10. `POST /rooms/{id}/room-scan`: `scan_group` (ko'p xonali skaner)
+## 10. 2026-10-28: Bundle ID va shift mahsulotlari
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 10.1 | Bundle ID tanlash | Ha, App Store Connect'da ilova yaratishdan **oldin** |
+| 10.2 | Shift mahsulotlari do'kondan (#84) | Faqat native studio bo'lsa |
+
+### 10.1 Bundle ID
+
+Bu repoda ikki xil eski ("uytamir") identifikator bor:
+
+| Fayl | Qiymat |
+|---|---|
+| `capacitor.config.ts` | `appId: 'uz.uytamir.app'` |
+| `app.json` | `bundleIdentifier: "com.uytamir.mobile"` |
+
+Flutter loyihasidagi `PRODUCT_BUNDLE_IDENTIFIER` ni ham tekshiring. Bundle ID App Store Connect'da ilova yaratilgach **o'zgartirib bo'lmaydi**. Shuning uchun brend nomiga mos bittasini tanlang (masalan `uz.andozaai.app`), hamma joyda bir xil qiling, keyin App ID yarating.
+
+### 10.2 Shift mahsulotlari do'kondan (#84)
+
+**Nima o'zgardi.**
+- Studio'dagi "Shift" bo'limida gipsokarton, karkas profili va LED lentani do'kondan tanlash mumkin. "Galtel" bo'limida galtelni ham.
+- Tanlov `room.surfaces["smeta:<smeta_key>"] = <material_id>` ko'rinishida saqlanadi. Kalitlar: `smeta:gipsokarton`, `smeta:profil`, `smeta:led_lenta`, `smeta:galtel`.
+- Bo'sh qiymat (`""`) tanlov yo'q degani.
+- Smeta shu qatorni tanlangan mahsulot narxi bilan hisoblaydi va `is_approximate: false` qiladi. Miqdor bo'yicha izoh (`warning`) qoladi.
+- `GET /api/v1/materials?smeta_key=gipsokarton`: yangi filtr, shu smeta qatoriga narx beradigan mahsulotlarni qaytaradi.
+
+**Mobil'da nima qilish kerak:**
+- WebView Studio va Smeta'da o'zgarish o'zi o'tadi.
+- Native studio bo'lsa, `surfaces` ni PATCH qilayotganda `smeta:*` kalitlarini **o'chirib yubormang**. Butun obyektni qayta yozganda serverdagi qiymatlarni saqlang.
+- `smeta:*` kalitlarini devor deb o'qimang. Ular devor bo'yog'i yoki oboy emas.
+
+**Qanday sinash:** osma shiftli xonada Studio → Bo'yoq/Oboi → Shift → "Do'kondan tanlang" ro'yxatidan gipsokarton tanlang. Smetada "Shift: <mahsulot nomi>" qatori "taxminiy" belgisisiz chiqishi kerak.
+
+---
+
+## 11. 2026-10-27: Apple orqali kirish va kontentga shikoyat (App Store talablari)
+
+App Store ko'rigi uchun ikkita backend funksiyasi: **4.8** (Google bilan kirish bor ekan, "Sign in with Apple" ham bo'lishi kerak) va **1.2** (foydalanuvchilar e'lon qilgan kontentga shikoyat qilish imkoniyati).
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 11.1 | `POST /api/v1/auth/apple` | Ha, iOS'da (Google tugmasi yonida) |
+| 11.2 | `POST /api/v1/reports`, admin navbati | Ha (usta, portfolio, mahsulot, do'kon, oboy sahifalarida) |
+
+Migration'lar: `1786000044` (`users.apple_sub`, unique indeks) va `1786000045` (`content_reports` jadvali).
+
+### 11.1 Apple orqali kirish
+
+**So'rov:** `POST /api/v1/auth/apple`
+
+```json
+{"identity_token": "<Apple identityToken, JWT>", "name": "Ali Valiyev", "language": "uz"}
+```
+
+- `identity_token`: majburiy, 1..8192 belgi.
+- `name`: ixtiyoriy, ≤100 belgi. Apple ismni **faqat birinchi avtorizatsiyada** beradi (tokenda ism yo'q), shuning uchun ilova `givenName` + `familyName` ni shu yerga qo'shib yuboradi. Faqat yangi akkaunt yaratilganda yoziladi, keyingi kirishlarda e'tiborsiz qoldiriladi.
+- `language`: ixtiyoriy, `uz|ru|en`, faqat yangi akkaunt uchun (Google'dagi kabi).
+
+**Javob:** `200`, `/auth/google` bilan **aynan bir xil** `LoginResponse` (`user`, `access_token`, `refresh_token`, `token_type`). Tokenlar body'da faqat `X-Client-Type: mobile` bo'lsa keladi.
+
+**Qoidalar:**
+- Token imzosi Apple kalitlari (`https://appleid.apple.com/auth/keys`, 24 soat keshlanadi) bilan RS256 bo'yicha tekshiriladi; `iss == https://appleid.apple.com`, `aud` `APPLE_CLIENT_IDS` ro'yxatida, muddati o'tmagan.
+- Foydalanuvchi `sub` bo'yicha topiladi (`users.apple_sub`). Email bo'yicha boshqa akkauntga **hech qachon** bog'lanmaydi. Email (ko'pincha `@privaterelay.appleid.com`) faqat ko'rsatish uchun saqlanadi.
+- Apple akkauntida parol yo'q: `POST /auth/delete-account` parol so'ramaydi (Google akkaunti kabi).
+
+**Xatolar:** `401` "Apple orqali kirib bo'lmadi. Qayta urinib ko'ring." (token yaroqsiz, `aud`/`iss` noto'g'ri, akkaunt o'chirilgan); `503` "Apple bilan bog'lanib bo'lmadi..." (Apple kalitlari olinmadi) yoki "Apple orqali kirish hozircha mavjud emas." (`APPLE_CLIENT_IDS` bo'sh); `429` IP bo'yicha 15 daqiqada 20 urinishdan keyin; `422` noto'g'ri tana.
+
+**Sozlama:** `APPLE_CLIENT_IDS` (vergul bilan). Standart qiymat iOS bundle id `uz.andozaai.app` (eski `com.tamiruy.tamirUyMobileFlutter` hech qachon chiqarilmagan).
+
+### 11.2 Kontentga shikoyat
+
+**So'rov (kirgan foydalanuvchi):** `POST /api/v1/reports`
+
+```json
+{"target_type": "usta", "target_id": "<id>", "reason": "spam", "details": "ixtiyoriy izoh"}
+```
+
+- `target_type`: `usta | product | seller | portfolio_item | wallpaper`.
+- `target_id`: 1..64 belgi, ekrandagi obyekt id'si (backend uning mavjudligini tekshirmaydi).
+- `reason`: `spam | inappropriate | fraud | other`.
+- `details`: ixtiyoriy, ≤1000 belgi.
+
+**Javob:** `201 {"id": "<uuid>", "status": "open"}`. Bir foydalanuvchi bitta obyektga ikkinchi marta shikoyat qilsa ham `201` va **o'sha** shikoyat (`id` va joriy `status`) qaytadi, yangisi yaratilmaydi, 409 bo'lmaydi.
+
+**Xatolar:** `401` kirmagan; `422` noma'lum `target_type`/`reason` yoki uzunlik; `429` bir soatda 20 tadan ko'p shikoyat.
+
+**Admin:**
+- `GET /api/v1/admin/reports?status=open` (`status` ixtiyoriy: `open|resolved|dismissed`, bo'lmasa hammasi; `limit` 1..500, standart 200), yangilari birinchi. Har bir element: `id`, `reporter_id`, `target_type`, `target_id`, `reason`, `details`, `status`, `created_at`, `resolved_at`.
+- `PATCH /api/v1/admin/reports/{id}` tana `{"status": "resolved" | "dismissed"}`, javob yangilangan element (`resolved_at` to'ldiriladi). Topilmasa `404`.
+- Admin bo'lmagan foydalanuvchi: `403`. Kontentni yashirish hozircha qo'lda (`/admin/moderation` va boshqa admin bo'limlari orqali).
+
+**Mobil'da nima qilish kerak:** usta profili, portfolio elementi, mahsulot, do'kon va oboy sahifalarida "Shikoyat qilish" tugmasi: sabab tanlovi va ixtiyoriy izoh, yuborilgach "Shikoyatingiz qabul qilindi" xabari. Kirmagan foydalanuvchini avval kirishga yo'naltiring.
+
+## 12. 2026-10-28: Do'konning ochiq sahifasi va mebelni xonaga qo'yish
+
+Xaridor do'konning o'z sahifasini (ma'lumot, kontaktlar, mahsulotlari) ko'radi va do'kon mebelini bitta tugma bilan o'z xonasiga qo'yadi. Migration yo'q.
+
+| # | Mavzu | Majburiymi |
+|---|---|---|
+| 12.1 | `GET /api/v1/stores/{id}` | Ha (do'kon sahifasi) |
+| 12.2 | `GET /api/v1/furniture?store={id}`, `GET /api/v1/furniture/{id}` | Ha (do'kon mebeli, mebel sahifasi) |
+| 12.3 | Studio `?place=<furniture id>` | Ha ("Xonamga qo'yish") |
+
+### 12.1 Bitta do'kon
+
+`GET /api/v1/stores/{id}`, login shart emas. Javob `/stores` ro'yxatidagi element bilan bir xil: `id`, `name`, `district`, `phone`, `telegram`, `logo_color`, `partner_tier`. Do'kon yopiq bo'lsa (`is_active=false`, ya'ni kutilayotgan, rad etilgan yoki o'chirilgan), `404` "Do'kon topilmadi" qaytadi. Noto'g'ri UUID bo'lsa `422`.
+
+### 12.2 Do'kon mebeli va bitta mebel
+
+- `GET /api/v1/furniture?store={id}`: faqat shu do'konning tirik mebeli. Boshqa filtrlar (`category`, `q`, `has_model`, sahifalash) avvalgidek ishlaydi. Kesh kaliti `store` bo'yicha ham farqlanadi.
+- `GET /api/v1/furniture/{id}`: bitta tirik mebel, `/furniture` ro'yxatidagi `FurnitureOut` bilan bir xil. Mebel o'chirilgan yoki do'koni yopilgan bo'lsa `404` "Mahsulot topilmadi".
+- `glb_url` null bo'lsa, mahsulotning faqat rasmi bor (masalan demo do'konlar). Uni xonaga qo'yib bo'lmaydi.
+
+### 12.3 Studio: `?place=`
+
+`/studio/{roomId}?place=<furniture id>` ochilganda Studio shu mebelni `GET /furniture/{id}` orqali oladi va xona serverdan yuklangach uni xonaning bo'sh joyiga **bir marta** qo'yadi. Nomi va narxi smeta uchun yoziladi. Keyin parametr URL'dan olib tashlanadi, shuning uchun sahifa yangilansa mebel qayta qo'shilmaydi. Natija toast bilan bildiriladi: "… xonaga qo'yildi". Mebel sotuvda bo'lmasa yoki 3D modeli yo'q bo'lsa, xato toast chiqadi. Saqlash odatdagi avtosaqlash orqali bo'ladi.
+
+## 13. 2026-10-30: WebView tili, `?lang=`
+
+Har qanday veb sahifa (Studio, Smeta, wizard) `?lang=uz|ru|en` bilan ochilsa, o'sha tilda ochiladi. Bu til akkauntdagi tildan ham, telefon tilidan ham ustun turadi. Til "kutilayotgan" deb belgilanadi, shuning uchun sessiya tekshiruvi uni akkauntga saqlaydi (`PATCH /auth/me {language}`) va akkauntning eski tiliga qaytarmaydi. Boshqa qiymat bo'lsa, parametr e'tiborsiz qoladi.
+
+Mobil ilova WebView'ni `?app=1&lang=<ilova tili>` bilan ochadi. Natijada Studio ilova bilan bir tilda bo'ladi va akkaunt tili ilovada tanlangan tilga moslashadi.
+
+## 14. 2026-10-30: Mebel ustaxonasi (`/mebel`) WebView orqali
+
+Web'da mebel ustaxonalari uchun yangi bo'lim ishga tushdi. Usta shkaf o'lchamlarini kiritadi, sayt esa quyidagilarni hisoblaydi:
+- detallar ro'yxati va kromka;
+- list bo'yicha raskroy;
+- teshiklar xaritasi va yig'ish chizmasi;
+- smeta;
+- AI yordamchi: matndan shkaflar taklifi.
+
+Hisob-kitob to'liq brauzerda TypeScript'da bajariladi (`frontend/src/features/mebel/engine`). **Uni Flutter'da qayta yozmang.** Ilova bu bo'limni Studio kabi WebView'da ochadi. Web'dagi har bir tuzatish shunda ilovaga o'zi o'tadi va hisob-kitob ikki joyda bir-biridan farq qilib qolmaydi.
+
+| # | Ish | Majburiymi |
+|---|---|---|
+| 14.1 | Kirish nuqtasi va WebView URL | Ha |
+| 14.2 | Orqaga tugmasi | Ha |
+| 14.3 | PDF (`window.print()`) | Ha |
+| 14.4 | CSV yuklab olish | Ha |
+| 14.5 | AI va limitlar | Faqat sinash |
+
+### 14.1 Kirish nuqtasi va URL
+
+- **Qayerda:** Profil ekranida "Sotuvchi paneli" ostiga karta qo'ying. Web'dagi matn bilan bir xil bo'lsin: sarlavha **"Mebel ishlab chiqarish"**, izoh *"Ustaxonalar uchun: shkaf detallari, kromka va narx"*. Kalitlar: `profile.mebel` va `profile.mebel_izoh` (`frontend/src/i18n/locales/*.json`). Pastki menyuga qo'shish shart emas: web'da ham telefonda bo'lim faqat Profil orqali ochiladi.
+- **URL:** `https://andozaai.uz/mebel?app=1&lang=<ilova tili>`. Login Studio WebView'dagi kabi ishlaydi: sessiya o'sha usulda uzatiladi. Kirmagan foydalanuvchi web'ning login sahifasiga tushadi.
+- **`?app=1` bo'lganda web nima qiladi:** web'ning pastki menyusi va chap paneli chizilmaydi, chunki ilovaning o'z AppBar'i bor. `?app=1` belgisi WebView sessiyasi davomida eslab qolinadi (`sessionStorage`), shuning uchun ro'yxat va loyiha sahifalari orasida o'tganda menyu qaytib chiqmaydi. Loyiha sahifasidagi "← Ro'yxatga" havolasi qoladi: u WebView ichidagi o'tish.
+
+### 14.2 Orqaga tugmasi
+
+AppBar'dagi orqaga tugmasi va Android'ning tizim orqaga tugmasi shunday ishlasin:
+- WebView'da `canGoBack()` bo'lsa, `goBack()` bajarilsin (loyiha → ro'yxat);
+- bo'lmasa, ekran yopilsin.
+
+Loyiha o'zgarishlari avtomatik saqlanadi (taxminan 1 soniyada). Shuning uchun ekranni yopishda "saqlaysizmi?" deb so'rash kerak emas.
+
+### 14.3 PDF: `window.print()`
+
+"PDF" tugmasi `window.print()` ni chaqiradi. Chop etish varag'ida quyidagilar bor:
+- detallar ro'yxati;
+- raskroy listlari;
+- teshiklar xaritasi;
+- yig'ish chizmasi.
+
+Flutter WebView `window.print()` ni o'zi bajarmaydi, shuning uchun tugma hech narsa qilmaydi. Variantlar:
+- **Android (`webview_flutter`):** JS kanal orqali print chaqiruvini ushlang (masalan, `window.print` ni sahifa yuklangach JS kanalga yo'naltiring). Keyin `WebView` kontentidan `PrintManager` bilan chop eting yoki `printing` paketi bilan PDF yarating.
+- **iOS (`WKWebView`):** `UIPrintInteractionController` va `webView.viewPrintFormatter()`.
+- **Eng oddiy yo'l:** print chaqiruvi kelganda shu URL'ni tizim brauzerida oching. U yerda chop etish va PDF saqlash ishlaydi.
+
+### 14.4 CSV yuklab olish
+
+"CSV" tugmasi cut list'ni `blob:` URL va `<a download="<loyiha nomi>.csv">` orqali yuklaydi (`frontend/src/features/mebel/export/csv.ts`). WebView'da buni shunday ulang:
+1. Yuklab olish so'rovini ushlang: Android'da `DownloadListener` yoki `onDownloadStart`, iOS'da `WKDownloadDelegate`, iOS 14.5 dan oldingi versiyalarda JS kanal.
+2. `blob:` URL'ni JS orqali o'qing (`fetch(blobUrl).then(r => r.text())`) va matnni kanal bilan Flutter'ga yuboring. Web `blob:` URL'ni 1 soniyadan keyin bekor qiladi (`revokeObjectURL`), shuning uchun uni darhol o'qing. Ishonchliroq yo'l: sahifa yuklangach `HTMLAnchorElement.prototype.click` ni ushlab, `download` atributli `blob:` havolani bosilish paytida o'qish.
+3. Faylni vaqtinchalik papkaga `.csv` qilib yozing va tizimning "Ulashish" oynasini oching (`share_plus`).
+
+Fayl UTF-8 va BOM bilan yoziladi, shuning uchun Excel o'zbek va rus harflarini to'g'ri ochadi.
+
+### 14.5 AI va limitlar (native ish yo'q, faqat sinash)
+
+- Loyiha sahifasidagi "AI bilan qo'shish" maydoni `POST /api/v1/mebel/ai/suggest` ni chaqiradi. Tana: `{"text": "..."}`, 1–1000 belgi.
+- Javob: `cabinets`, `facade`, `questions`, `dropped`, `warnings`.
+- Limit: bitta foydalanuvchiga kuniga **30** ta so'rov. Limit tugasa `429` "Bugungi AI limiti tugadi" qaytadi, web uni qizil matnda ko'rsatadi.
+- Klaviatura matn maydonini to'sib qo'ymasligini tekshiring: WebView `resizeToAvoidBottomInset` yoki shunga o'xshash sozlama bilan ochilsin.
+
+### API (ma'lumot uchun, native ekran kerak emas)
+
+Hamma endpoint login talab qiladi. Har foydalanuvchi faqat o'z ma'lumotini ko'radi:
+- `GET/POST /api/v1/mebel/projects`
+- `GET/PUT/DELETE /api/v1/mebel/projects/{id}`
+- `GET/PUT /api/v1/mebel/price-book`
+- `POST /api/v1/mebel/ai/suggest`
+
+### Qanday sinash
+
+1. Profil → "Mebel ishlab chiqarish". Sahifa ilova tilida ochilishi va pastida web menyusi bo'lmasligi kerak.
+2. "Yangi loyiha" → shkaf qo'shing → detallar, raskroy va teshiklar varaqlari hisoblanadi.
+3. Loyihadan orqaga qayting: ro'yxatga tushadi. Yana bir marta orqaga: ekran yopiladi. Qayta ochganda o'zgarishlar saqlangan bo'ladi.
+4. "PDF" tugmasi chop etish yoki PDF oynasini ochadi. "CSV" tugmasi "Ulashish" oynasini ochadi va fayl Excel yoki Google Sheets'da to'g'ri ko'rinadi.
+5. AI maydoniga quyidagini yozing: *"60 lik 3 ta osma shkaf, 2 eshikli"*. Taklif chiqadi, "Qo'shish" bosilganda loyihaga 3 ta devor shkafi qo'shiladi.
+6. Telefonni yotqizib qo'ying: raskroy va chizmalar kengroq ko'rinishi kerak (ekran burilishi bloklanmasin).
+
+## 15. 2026-11-01: `POST /rooms/{id}/room-scan`: `scan_group` (ko'p xonali skaner)
 
 Ixtiyoriy multipart maydon `scan_group` (≤ 64 belgi) qo'shildi va `room.room_scan.scan_group` da saqlanadi. Bir skaner sessiyasida skanerlangan xonalar bir xil `scan_group` bilan yuboriladi. 30 daqiqalik takroriy skanerni tozalash (`room_scan_dedupe`) bir guruhdagi xonalarni bir-birining nusxasi deb hisoblamaydi, ular bir xil o'lchamda bo'lsa ham (masalan, ikki teng yotoqxona). Maydon yuborilmasa, xatti-harakat avvalgidek qoladi.

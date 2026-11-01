@@ -6,6 +6,7 @@ import { storeGeometryToApiGeometry } from "@/lib/apiRoomGeometry";
 import { useNoPageZoom } from "@/hooks/useNoPageZoom";
 import { NavLink, Outlet, useParams, useNavigate, useLocation } from "react-router-dom";
 import RoomSettingsSheet from "@/components/studio/RoomSettingsSheet";
+import { RoomTypeBadge } from "@/components/studio/RoomTypeBadge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getRoom, getDraftRoom, createApartment, createRoom, updateRoom, deleteRoom,
@@ -51,6 +52,9 @@ export default function StudioPage() {
   const apartmentId = useRoomStore((s) => s.apartmentId);
   const name = useRoomStore((s) => s.name);
   const roomType = useRoomStore((s) => s.roomType);
+  // The store's id (as RoomSettingsSheet's picker uses): null for a draft not
+  // saved yet, so the header's type picker keeps the pick local until then.
+  const storeRoomId = useRoomStore((s) => s.roomId);
   const ceilingHeight = useRoomStore((s) => s.ceilingHeight);
   const draftId = useRoomStore((s) => s.draftId);
   const loadDraftState = useRoomStore((s) => s.loadDraftState);
@@ -228,6 +232,10 @@ export default function StudioPage() {
     return p;
   }
   async function saveOnce(): Promise<boolean> {
+    // The store still holds the room left behind (the next one has not loaded, or failed to):
+    // writing it to this URL's room would overwrite that room with the other's design.
+    const held = useRoomStore.getState().roomId;
+    if (roomId && held && held !== roomId) return false;
     setSaveStatus('saving');
     try {
       const s = useRoomStore.getState();
@@ -367,7 +375,9 @@ export default function StudioPage() {
       id: roomId ?? "local",
       apartment_id: apartmentId ?? "local",
       name: name || defaultRoomName(),
-      room_type: roomType,
+      // The store's type is the store's room's: while it still holds another (a room switch
+      // loading, or a fetch that failed), this room's type is not known.
+      room_type: storeRoomId && storeRoomId !== roomId ? null : roomType,
       area: computeFloorArea(geometry) / 1e6,
       ceiling_height: ceilingHeight / 1000,
       width: widthM,
@@ -389,7 +399,7 @@ export default function StudioPage() {
     // A whole-store `storeState` object here previously recomputed on every
     // Zustand `set()` anywhere in the app (new top-level object per write),
     // not just when geometry/name/ceilingHeight/apartmentId changed.
-  }, [roomId, geometry, apartmentId, name, ceilingHeight, roomType]);
+  }, [roomId, geometry, apartmentId, name, ceilingHeight, roomType, storeRoomId]);
 
   type FetchStatus = "ok" | "auth" | "notfound" | "offline";
 
@@ -416,6 +426,10 @@ export default function StudioPage() {
     enabled: !!roomId,
     retry: false,
   });
+
+  // The header's type is the store's room's: hidden while the store holds another room, and
+  // while a page load (store holding none) is still fetching this one.
+  const typeNotKnownYet = storeRoomId ? storeRoomId !== roomId : !!roomId && apiRoom === undefined && !error;
 
   const fetchStatus: FetchStatus = !error
     ? "ok"
@@ -448,9 +462,15 @@ export default function StudioPage() {
     return t('studio.page.olchamlar_koppburchak', { area: formatDecimal(room.area, 1), count: geometry.walls.length, height: h });
   }, [room.ceiling_height, room.length, room.width, room.area, geometry.walls, t]);
 
+  // Which room the effect below has settled: the server's copy is in the store,
+  // or was deliberately kept out (unsaved edits). Pages wait for it before
+  // editing the room on their own, e.g. placing a model from a link.
+  const [settledRoomId, setSettledRoomId] = useState<string | null>(null);
+
   // When a saved room loads from API and has a full state blob, restore it into the store.
   useEffect(() => {
     if (!apiRoom) return;
+    setSettledRoomId(apiRoom.id);
     // Keep the store's apartment linkage in sync — localRoom.apartment_id
     // (and the "+ add room" flow) read it from the store, not the API response.
     setApartmentId(apiRoom.apartment_id ?? null);
@@ -533,18 +553,34 @@ export default function StudioPage() {
                 </svg>
               </NavLink>
             </WebOnly>
-            <button
-              className="min-w-0 text-left hidden sm:block"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <p className="text-[16px] lg:text-[20px] font-extrabold text-ink truncate">{room.name}</p>
-              <p className="text-[11px] text-ink-muted flex items-center gap-1">
-                {dimsLabel}
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 1.5L8.5 3 3.5 8H2V6.5L7 1.5z"/>
-                </svg>
-              </p>
-            </button>
+            {/* The name and the dimensions open the room settings; the room
+                type beside them opens its own small picker. Separate buttons,
+                since a button cannot hold another. The name truncates first,
+                then the type, and the dimensions never do. */}
+            <div className="min-w-0 hidden sm:block">
+              <button
+                className="block max-w-full min-w-0 text-left"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <p className="text-[16px] lg:text-[20px] font-extrabold text-ink truncate">{room.name}</p>
+              </button>
+              <div className="text-[11px] text-ink-muted flex items-center gap-1 min-w-0">
+                <button
+                  className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  {dimsLabel}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M7 1.5L8.5 3 3.5 8H2V6.5L7 1.5z"/>
+                  </svg>
+                </button>
+                {/* Only once the store holds THIS room: while it still holds
+                    another (switching rooms, or the fetch failed) the type on
+                    show was that room's, and a pick was PATCHed to it; while
+                    this room is first being fetched its type is not known. */}
+                {!typeNotKnownYet && <RoomTypeBadge roomId={storeRoomId} />}
+              </div>
+            </div>
           </div>
 
           {/* The tab strip rides in the middle of the header (2026-09-28, at
@@ -707,7 +743,7 @@ export default function StudioPage() {
             </div>
           }
         >
-          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader }} />
+          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId }} />
         </Suspense>
       </main>
     </div>

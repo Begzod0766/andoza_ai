@@ -269,6 +269,11 @@
       "toxtatish": "— stop"
     },
     "lib": {
+      "presetRoom": {
+        "adapted": "The {{style}} style, adapted for the {{room}}.",
+        "floor": "Floor: moisture-resistant tile.",
+        "bathroom": "The walls are painted, and the main light is on the ceiling."
+      },
       "preset": {
         "neoklassika": {
           "label": "Neoclassical",
@@ -864,7 +869,11 @@
       "wallpaper_needed": "Wallpaper needed",
       "calculating": "Calculating...",
       "rolls_one": "{{count}} roll",
-      "rolls_other": "{{count}} rolls"
+      "rolls_other": "{{count}} rolls",
+      "shop_board": "Plasterboard",
+      "shop_profile": "Frame profile",
+      "shop_strip": "LED strip",
+      "shop_pick_note": "A product chosen from the shop goes into the estimate at its exact price."
     },
     "mebel": {
       "drop_here": "Drop the image",
@@ -892,6 +901,8 @@
       "texture_failed": "The texture could not be applied",
       "all": "All",
       "mine": "Mine",
+      "placed_from_link": "{{name}} placed in the room",
+      "place_link_failed": "Couldn't place the product: it is no longer for sale",
       "models": "3D models",
       "parts_count_one": "{{count}} part.",
       "parts_count_other": "{{count}} parts.",
@@ -1156,7 +1167,24 @@
     "smeta_placeholder": "For example: is there a cheaper option than laminate?",
     "tavsiya_1": "Is there a cheaper alternative?",
     "tavsiya_2": "Which part is the most expensive?",
-    "tavsiya_3": "How was this price calculated?"
+    "tavsiya_3": "How was this price calculated?",
+    "barcha_xonalarga": "Apply to all rooms",
+    "barcha_xonalarga_izoh": "This design will also be applied to the apartment's other rooms. Each room gets furniture for its type; the furniture you placed stays where it is.",
+    "xona_taxmin": "(guessed)",
+    "xona_mebel_yoq": "no furniture found",
+    "xona_chizilmagan": "room not drawn, will be skipped",
+    "xona_hisoblanmadi": "the design could not be fitted, will be skipped",
+    "qollanmoqda": "Applying…",
+    "xonalarga_qollandi_one": "Applied to {{count}} room.",
+    "xonalarga_qollandi_other": "Applied to {{count}} rooms.",
+    "xonalar_otkazildi": "Skipped: {{list}}.",
+    "xona_sabab": "{{name}} ({{reason}})",
+    "rooms_changed": "changed in another window",
+    "rooms_failed": "could not be saved",
+    "xonalar_qaytarildi_one": "{{count}} room restored.",
+    "xonalar_qaytarildi_other": "{{count}} rooms restored.",
+    "xonalar_qaytarilmadi": "Not restored: {{list}}.",
+    "xonalar_xato": "Could not apply to the other rooms. Please try again."
   },
   "photoModel": {
     "tugma": "3D model from an image",
@@ -1169,6 +1197,9 @@
     "xato": "The model could not be created"
   },
   "render": {
+    "yangi": "New render",
+    "kamera_kerak": "Pick the 360 camera — a new render is taken from it",
+    "renderlarim": "My renders",
     "nomi": "Render",
     "sarlavha": "Realistic render",
     "izoh": "Creates a realistic image from the current view of the room. Takes a few seconds.",
@@ -1258,7 +1289,9 @@
     "ochirib_bolmadi": "Could not delete the account. Please try again.",
     "qaytarib_bolmaydi": "This cannot be undone",
     "ochirish_matn": "Your account and all your data will be deleted permanently: projects, images, orders, and your shop or craftsman profile (if any). They cannot be restored.",
-    "parol_placeholder": "Enter your account password"
+    "parol_placeholder": "Enter your account password",
+    "mebel": "Furniture manufacturing",
+    "mebel_izoh": "For workshops: cabinet parts, edge banding and price"
   },
   "layout": {
     "uy": "Home",
@@ -1859,7 +1892,12 @@
         "gips": "Gypsum",
         "sement": "Cement",
         "santexnika": "Plumbing",
-        "elektr_mat": "Electrical"
+        "elektr_mat": "Electrical",
+        "ldsp": "Particleboard (LDSP)",
+        "mdf": "MDF",
+        "hdf": "HDF",
+        "kromka": "Edge banding",
+        "furnitura": "Furniture fittings"
       },
       "unit": {
         "litr": "liter",
@@ -2131,7 +2169,12 @@
         "eshik": "Door",
         "deraza": "Window",
         "dekorativ": "Decorative",
-        "gips": "Gypsum and plaster"
+        "gips": "Gypsum and plaster",
+        "ldsp": "Particleboard (LDSP)",
+        "mdf": "MDF",
+        "hdf": "HDF",
+        "kromka": "Edge banding",
+        "furnitura": "Furniture fittings"
       },
       "subtitle": "Furniture and materials: prices by shop.",
       "search_ph": "Search…",
@@ -2246,12 +2289,286 @@
       "balkon": "Balcony"
     },
     "type_guess": "Guess: {{type}}",
-    "type_save_failed": "Could not save the room type"
+    "type_save_failed": "Could not save the room type",
+    "type_guess_mark": "(guess)",
+    "type_choose": "Choose the room type"
   },
   "models": {
     "front_label": "Front",
     "front_auto": "Front: detected automatically ({{deg}}°)",
     "front_none": "Front not detected: pick it yourself if needed",
     "front_option": "Turn {{deg}}°"
+  },
+  "mebel": {
+    "title": "Furniture manufacturing",
+    "subtitle": "Parts, edge banding and price from cabinet sizes",
+    "new_project": "New project",
+    "default_name": "Kitchen",
+    "empty": "No projects yet. Create the first one.",
+    "load_failed": "Could not load the projects. Check your connection and try again.",
+    "retry": "Retry",
+    "updated": "Updated: {{date}}",
+    "delete": "Delete",
+    "delete_confirm": "Delete the project \"{{name}}\"?",
+    "back_to_list": "Projects",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "save_failed": "Not saved",
+    "project_name": "Project name",
+    "settings": "Construction",
+    "board_thickness": "Board thickness",
+    "board_material": "Board",
+    "back_material": "Back panel (HDF)",
+    "back_kind": "Back panel",
+    "back": {
+      "hdf_nailed": "HDF, nailed",
+      "hdf_groove": "HDF, in a groove",
+      "none": "None"
+    },
+    "bottom_joint": "Bottom",
+    "joint": {
+      "between_sides": "Between the sides",
+      "under_sides": "Under the sides"
+    },
+    "edge_visible": "Visible edge band",
+    "edge_hidden": "Hidden edge band",
+    "edge_material": "Edge band material",
+    "premilled": "Pre-milled (don't subtract at cutting)",
+    "sheet_size": "Sheet size",
+    "no_material": "Not chosen",
+    "cabinets": "Cabinets",
+    "add_cabinet": "Add cabinet",
+    "duplicate": "Duplicate",
+    "remove": "Remove",
+    "width": "Width, mm",
+    "height": "Height, mm",
+    "depth": "Depth, mm",
+    "shelves": "Shelves",
+    "tab": {
+      "parts": "Parts",
+      "edges": "Edge banding",
+      "bom": "Materials and price",
+      "warnings": "Warnings",
+      "nesting": "Cutting layout",
+      "drilling": "Drilling"
+    },
+    "show_cut": "Cut size",
+    "show_finished": "Finished size",
+    "col": {
+      "id": "ID",
+      "part": "Part",
+      "material": "Material",
+      "thickness": "Thickness",
+      "length": "Length",
+      "width": "Width",
+      "qty": "Qty",
+      "grain": "Grain",
+      "edges": "Edges (L1 L2 W1 W2)",
+      "band": "Band",
+      "meters": "Metres",
+      "with_waste": "With waste",
+      "unit_price": "Price",
+      "total": "Total"
+    },
+    "grain": {
+      "length": "Along length",
+      "width": "Along width",
+      "none": "None"
+    },
+    "part": {
+      "side_left": "Left side",
+      "side_right": "Right side",
+      "bottom": "Bottom",
+      "rail_front": "Front rail",
+      "rail_back": "Back rail",
+      "shelf": "Shelf",
+      "back": "Back panel",
+      "top": "Top panel",
+      "door": "Door",
+      "drawer_front": "Drawer front",
+      "drawer_side": "Drawer side",
+      "drawer_end": "Drawer front/back",
+      "drawer_bottom": "Drawer bottom"
+    },
+    "material": {
+      "board": "Board",
+      "back": "HDF",
+      "facade": "Door board"
+    },
+    "area": "{{m2}} m²",
+    "bom": {
+      "board": "Board {{t}} mm",
+      "back": "HDF {{t}} mm",
+      "edge": "Edge band {{t}}×{{w}} mm",
+      "leg": "Leg",
+      "confirmat": "Confirmat screw",
+      "shelfPin": "Shelf pin",
+      "nail": "HDF nail",
+      "cut": "Cutting",
+      "banding": "Edge banding {{t}} mm",
+      "markup": "Markup {{p}}%",
+      "facade": "Door board {{t}} mm",
+      "facade_mdf": "MDF doors",
+      "hinge": "Hinge",
+      "handle": "Handle",
+      "hanger": "Hanger",
+      "slide": "Slides {{l}} mm (pair)"
+    },
+    "unit": {
+      "sheet": "sheet",
+      "m": "m",
+      "dona": "pcs",
+      "m2": "m²",
+      "percent": "%"
+    },
+    "unpriced": "unpriced",
+    "total": "Total",
+    "total_unpriced": "Total (unpriced lines left out)",
+    "price_book": "Price book",
+    "price_book_hint": "These prices apply to all your projects. A blank price comes from the shop catalogue.",
+    "pb": {
+      "materials": "Materials (per sheet / m)",
+      "cut_per_sheet": "Cutting, per sheet",
+      "banding": "Edge banding, per m ({{t}} mm)",
+      "hardware": "Hardware, per piece",
+      "markup": "Markup, %",
+      "slide": "Slides, per pair",
+      "sheets": "Sheets (when no material is chosen)",
+      "board": "Chipboard {{t}} mm, per sheet",
+      "back": "HDF, per sheet",
+      "mdf_m2": "MDF door, per m²"
+    },
+    "save": "Save",
+    "cancel": "Cancel",
+    "export": "Export",
+    "export_csv": "Cut list (CSV, Excel)",
+    "export_pdf": "PDF (print)",
+    "no_warnings": "No warnings",
+    "errors_title": "Cannot calculate: fix the sizes",
+    "error": {
+      "width_range": "Width must be {{min}}–{{max}} mm",
+      "height_range": "Height must be {{min}}–{{max}} mm",
+      "depth_range": "Depth must be {{min}}–{{max}} mm",
+      "shelves_range": "Shelves must be {{min}}–{{max}}",
+      "inner_width": "Too narrow: no inner width left",
+      "shelf_depth": "No depth left for the shelf",
+      "too_many_cabinets": "At most {{max}} cabinets per project",
+      "whole_mm": "Sizes must be whole millimetres",
+      "sheet_size": "The sheet size must be at least {{min}} mm",
+      "settings_invalid": "A construction setting is empty or negative",
+      "doors_range": "Doors must be {{min}}–{{max}}",
+      "drawers_range": "Drawers must be {{min}}–{{max}}",
+      "drawers_type": "Only base cabinets have drawers",
+      "drawer_low": "Drawer too low: its box needs at least {{min}} mm",
+      "drawer_shallow": "Too shallow for a drawer (slides start at {{min}} mm)",
+      "position_range": "Position must be 0 or more"
+    },
+    "warning": {
+      "shelf_sag": "A {{length}} mm long {{t}} mm shelf may sag",
+      "part_exceeds_sheet": "A {{length}}×{{width}} mm part does not fit the sheet",
+      "unpriced": "Some lines have no price: add it to the price book or the catalogue",
+      "thickness_board": "Chipboard: the chosen sheet is {{actual}} mm, the setting {{expected}} mm",
+      "thickness_back": "Back panel: the chosen HDF is {{actual}} mm, the setting {{expected}} mm",
+      "thickness_facade": "Doors: the chosen sheet is {{actual}} mm, the setting {{expected}} mm"
+    },
+    "view3d": "3D view",
+    "print_title": "Cut list: {{name}}",
+    "mm": "mm",
+    "not_saved_invalid": "Not saved: fix the errors",
+    "nest": {
+      "sheets_used": "{{n}} sheets, {{p}}% used",
+      "summary": "{{name}} {{t}} mm: {{n}} sheets, {{p}}% used",
+      "sheet_label": "Sheet {{i}} / {{n}} · {{p}}%",
+      "show_cuts": "Show the cut order",
+      "unplaced_title": "Parts that fit no sheet",
+      "unplaced_reason": "does not fit the sheet",
+      "offcut": "offcut {{l}}×{{w}}",
+      "empty": "No parts to lay out",
+      "parts_on_sheet": "Parts on the sheet",
+      "cut_order": "Cut order",
+      "cut_line": "{{n}}. {{dir}}, {{len}} mm, {{off}} mm from the piece edge",
+      "dir_along": "along",
+      "dir_across": "across"
+    },
+    "kerf": "Saw kerf, mm",
+    "trim": "Sheet edge trim, mm",
+    "add": {
+      "base": "+ Base",
+      "wall": "+ Wall",
+      "tall": "+ Tall"
+    },
+    "type": {
+      "base": "base",
+      "wall": "wall",
+      "tall": "tall"
+    },
+    "doors": "Doors",
+    "doors_auto": "Auto",
+    "facade": "Doors",
+    "facade_kind": "Door type",
+    "facade_kinds": {
+      "ldsp": "LDSP (cut in-house)",
+      "mdf": "MDF (ordered)",
+      "none": "None"
+    },
+    "facade_material": "Door material",
+    "facade_thickness": "Door thickness",
+    "facade_gap": "Gap, mm",
+    "facade_order": "MDF door order",
+    "facade_total": "Total: {{m2}} m²",
+    "export_facade_csv": "Door order (CSV)",
+    "drawers": "Drawers",
+    "drill": {
+      "holes": "Holes",
+      "empty": "No parts to drill",
+      "count": "{{n}} holes",
+      "front_edge": "↓ front (lower) edge",
+      "kind": "Kind",
+      "face": "Face",
+      "depth": "Depth",
+      "through": "through",
+      "assembly": "{{label}}: assembly",
+      "view_front": "Front view",
+      "view_side": "Side view",
+      "kinds": {
+        "confirmat": "Confirmat",
+        "confirmat_edge": "Confirmat (edge)",
+        "shelf_pin": "Shelf pin",
+        "hinge_cup": "Hinge cup",
+        "hinge_plate": "Hinge plate",
+        "slide": "Slide"
+      },
+      "end_bottom": "↓ bottom",
+      "end_top": "↑ top",
+      "mdf_hinge_note": "The facade shop drills the hinge cups (Ø35): 22.5 mm from the edge, 100 mm from the ends.",
+      "from_left": "From left edge, mm",
+      "from_front": "From front edge, mm"
+    },
+    "ai": {
+      "label": "Add with AI",
+      "placeholder": "E.g.: a 2400 mm kitchen, two 600 base cabinets, an 800 with 3 drawers in the middle, wall cabinets above, a tall one at the end",
+      "ask": "Get a proposal",
+      "thinking": "Thinking…",
+      "add": "Add",
+      "replace": "Replace",
+      "dropped": "Left out",
+      "over_limit": "That would be more than {{max}} cabinets: replace, or remove some first"
+    },
+    "remove_confirm": "Remove cabinet {{label}}?",
+    "pane": {
+      "params": "Settings",
+      "result": "Result"
+    },
+    "position_x": "Position (from left), mm",
+    "relayout": "Re-arrange",
+    "relayout_hint": "Base and tall cabinets in a row, wall cabinets over the base ones",
+    "position_short": "at {{x}}",
+    "view_hide": "Hide 3D",
+    "view_show": "Show 3D",
+    "labels": {
+      "button": "Labels",
+      "a4": "A4 sheet (3×8, 70×37 mm)",
+      "roll": "Roll 58×40 mm"
+    }
   }
 }

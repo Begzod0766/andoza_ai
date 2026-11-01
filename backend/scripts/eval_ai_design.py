@@ -7,12 +7,14 @@ the designer and the `has_model=true` catalog see them), user and rooms (each wi
 `room_type`), asks for a design in each scenario `--repeats` times, prints a report and removes
 everything it made.
 
-Three scenario sets (`--only id,id` narrows one to those scenario ids):
+Four scenario sets (`--only id,id` narrows one to those scenario ids):
   style   the style evaluation of docs/research/2026-10-26-ai-design-eval.md: 13 prompts in a
           living room 4.5x3.2, bedroom 4x3.5, kids' room 3.5x3 and small room 3x2.6
   robust  odd requests: vague, contradictory, English, Russian, prompt injection, over the limit,
           kitchen, bathroom, an L-shaped and a scanned room
   phase2  four requests rechecking beds and wardrobes in the bedrooms and the dark style
+  template five requests naming no style, in a living room, bedroom, study and kitchen: each starts
+          from its room type's plan
 
 The app runs in this process (not over the network) so the run can see the model's own summary
 before `reconcile_summary` replaces it: each run records `raw_summary`, `summary_kept` and
@@ -114,6 +116,9 @@ CAT = [
     ("shkaf", Y, 80, 30, 120, "Bolalar kitob javoni", []),
     ("stol", Y, 120, 60, 75, "Yozuv stoli Nord", ["skandinav"]),
     ("stul", Y, 50, 50, 90, "Ish stuli", []),
+    # a study's always-offered pieces (#70) under their plain names, filed under the bedroom
+    ("stol", Y, 120, 60, 75, "Ish stoli", []),
+    ("shkaf", Y, 80, 30, 180, "Kitob javoni", []),
     ("lampa", Y, 35, 35, 150, "Torsher lampa", []),
 ]
 
@@ -150,6 +155,8 @@ ROOMS = {
                  "walls": [W("A", 2.4, [win(1.0, .5)]), W("B", 2, [door(.25)]), W("C", 2.4), W("D", 2)]},
     "kitchen": {"name": "Oshxona 3.5x3", "room_type": "oshxona",
                 "walls": [W("A", 3.5, [win(1.2, .5)]), W("B", 3, [door(.8)]), W("C", 3.5), W("D", 3)]},
+    "study": {"name": "Kabinet 3.5x3", "room_type": "kabinet",
+              "walls": [W("A", 3.5, [win(1.2, .5)]), W("B", 3, [door(.8)]), W("C", 3.5), W("D", 3)]},
     "bath": {"name": "Hammom 2.2x1.8", "room_type": "hammom",
              "walls": [W("A", 2.2), W("B", 1.8, [door(.5)]), W("C", 2.2, [win(.6, .5, 1.4, .6)]), W("D", 1.8)]},
     "lshape": {"name": "L shakl mehmonxona", "room_type": M,
@@ -199,6 +206,14 @@ SCENARIOS = {
         ("qorongi", "living45", "Qorong'i, dramatik"),
         ("qorongi_kichik", "small", "Qorong'i, sokin yotoqxona"),
     ],
+    # requests naming no style, which start from the room type's plan (#68)
+    "template": [
+        ("shinam_mehmon", "living45", "Shinam mehmonxona"),
+        ("iliq", "living45", "Iliq ranglar"),
+        ("shinam_yotoq", "bedroom43", "Shinam yotoqxona"),
+        ("sokin_kabinet", "study", "Sokin kabinet"),
+        ("yorqin_oshxona", "kitchen", "Yorqin oshxona"),
+    ],
 }
 
 # What reconcile_summary saw and decided, for the request running in this context.
@@ -206,9 +221,10 @@ _capture: contextvars.ContextVar[dict | None] = contextvars.ContextVar("eval_cap
 _reconcile = ai_designer.reconcile_summary
 
 
-def _recording_reconcile(plan, catalog_names=None):
+def _recording_reconcile(plan, *args, **kwargs):
+    # Everything reconcile_summary takes is passed on, so a new argument never breaks the harness.
     raw = plan.summary
-    problems = _reconcile(plan, catalog_names)
+    problems = _reconcile(plan, *args, **kwargs)
     rec = _capture.get()
     if rec is not None:
         rec.update(raw_summary=raw, summary_kept=not problems, summary_problems=problems)
@@ -350,4 +366,5 @@ async def main():
         print(f"\nplans written to {args.out}")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

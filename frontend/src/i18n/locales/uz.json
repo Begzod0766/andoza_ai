@@ -269,6 +269,11 @@
       "toxtatish": "— to'xtatish"
     },
     "lib": {
+      "presetRoom": {
+        "adapted": "{{style}} uslubi {{room}} uchun moslandi.",
+        "floor": "Pol: namlikka chidamli kafel.",
+        "bathroom": "Devorlar bo'yalgan, asosiy chiroq shiftda."
+      },
       "preset": {
         "neoklassika": {
           "label": "Neoklassika",
@@ -864,7 +869,11 @@
       "wallpaper_needed": "Kerakli oboy",
       "calculating": "Hisoblanmoqda...",
       "rolls_one": "{{count}} rulon",
-      "rolls_other": "{{count}} rulon"
+      "rolls_other": "{{count}} rulon",
+      "shop_board": "Gipsokarton",
+      "shop_profile": "Karkas profili",
+      "shop_strip": "LED lenta",
+      "shop_pick_note": "Do'kondan tanlangan mahsulot smetaga aniq narx bilan kiradi."
     },
     "mebel": {
       "drop_here": "Rasmni qo'yib yuboring",
@@ -892,6 +901,8 @@
       "texture_failed": "Teksturani qo'yib bo'lmadi",
       "all": "Barchasi",
       "mine": "Mening",
+      "placed_from_link": "{{name}} xonaga qo'yildi",
+      "place_link_failed": "Mahsulotni xonaga qo'yib bo'lmadi: u endi sotuvda yo'q",
       "models": "3D Modellar",
       "parts_count_one": "{{count}} ta qism.",
       "parts_count_other": "{{count}} ta qism.",
@@ -1156,7 +1167,24 @@
     "smeta_placeholder": "Masalan: Laminat o'rniga arzonroq variant bormi?",
     "tavsiya_1": "Arzonroq alternativ bormi?",
     "tavsiya_2": "Eng qimmat qism nima?",
-    "tavsiya_3": "Bu narx qanday hisoblandi?"
+    "tavsiya_3": "Bu narx qanday hisoblandi?",
+    "barcha_xonalarga": "Barcha xonalarga qo'llash",
+    "barcha_xonalarga_izoh": "Shu dizayn uyning boshqa xonalariga ham qo'yiladi. Har bir xona o'z turiga mos mebel oladi, siz qo'ygan mebel joyida qoladi.",
+    "xona_taxmin": "(taxmin)",
+    "xona_mebel_yoq": "mebel topilmadi",
+    "xona_chizilmagan": "chizilmagan xona, o'tkazib yuboriladi",
+    "xona_hisoblanmadi": "dizaynni moslab bo'lmadi, o'tkazib yuboriladi",
+    "qollanmoqda": "Qo'llanmoqda…",
+    "xonalarga_qollandi_one": "{{count}} ta xonaga qo'llandi.",
+    "xonalarga_qollandi_other": "{{count}} ta xonaga qo'llandi.",
+    "xonalar_otkazildi": "O'tkazib yuborildi: {{list}}.",
+    "xona_sabab": "{{name}} ({{reason}})",
+    "rooms_changed": "boshqa oynada o'zgartirilgan",
+    "rooms_failed": "saqlab bo'lmadi",
+    "xonalar_qaytarildi_one": "{{count}} ta xona qaytarildi.",
+    "xonalar_qaytarildi_other": "{{count}} ta xona qaytarildi.",
+    "xonalar_qaytarilmadi": "Qaytarilmadi: {{list}}.",
+    "xonalar_xato": "Boshqa xonalarga qo'llab bo'lmadi. Qayta urinib ko'ring."
   },
   "photoModel": {
     "tugma": "Rasmdan 3D model",
@@ -1169,6 +1197,9 @@
     "xato": "Model yaratilmadi"
   },
   "render": {
+    "yangi": "Yangi render",
+    "kamera_kerak": "360 kamerani tanlang — yangi render shu kameradan olinadi",
+    "renderlarim": "Renderlarim",
     "nomi": "Render",
     "sarlavha": "Realistik render",
     "izoh": "Xonaning hozirgi ko'rinishidan realistik rasm yaratadi. Bir necha soniya davom etadi.",
@@ -1258,7 +1289,9 @@
     "ochirib_bolmadi": "Hisobni o'chirib bo'lmadi. Qayta urinib ko'ring.",
     "qaytarib_bolmaydi": "Bu amalni qaytarib bo'lmaydi",
     "ochirish_matn": "Hisobingiz va barcha ma'lumotlaringiz butunlay o'chiriladi: loyihalar, rasmlar, buyurtmalar hamda do'kon yoki usta profili (agar bo'lsa). Ularni qayta tiklab bo'lmaydi.",
-    "parol_placeholder": "Hisobingiz parolini kiriting"
+    "parol_placeholder": "Hisobingiz parolini kiriting",
+    "mebel": "Mebel ishlab chiqarish",
+    "mebel_izoh": "Ustaxonalar uchun: shkaf detallari, kromka va narx"
   },
   "layout": {
     "uy": "Uy",
@@ -1859,7 +1892,12 @@
         "gips": "Gips",
         "sement": "Sement",
         "santexnika": "Santexnika",
-        "elektr_mat": "Elektr"
+        "elektr_mat": "Elektr",
+        "ldsp": "LDSP",
+        "mdf": "MDF",
+        "hdf": "HDF",
+        "kromka": "Kromka",
+        "furnitura": "Mebel furniturasi"
       },
       "unit": {
         "litr": "litr",
@@ -2131,7 +2169,12 @@
         "eshik": "Eshik",
         "deraza": "Deraza",
         "dekorativ": "Dekorativ",
-        "gips": "Gips va suvoq"
+        "gips": "Gips va suvoq",
+        "ldsp": "LDSP",
+        "mdf": "MDF",
+        "hdf": "HDF",
+        "kromka": "Kromka",
+        "furnitura": "Mebel furniturasi"
       },
       "subtitle": "Mebel va materiallar: narxlar do'konlar bo'yicha.",
       "search_ph": "Qidirish…",
@@ -2246,12 +2289,286 @@
       "balkon": "Balkon"
     },
     "type_guess": "Taxmin: {{type}}",
-    "type_save_failed": "Xona turini saqlab bo'lmadi"
+    "type_save_failed": "Xona turini saqlab bo'lmadi",
+    "type_guess_mark": "(taxmin)",
+    "type_choose": "Xona turini tanlang"
   },
   "models": {
     "front_label": "Old tomon",
     "front_auto": "Old tomon: avtomatik aniqlandi ({{deg}}°)",
     "front_none": "Old tomon aniqlanmadi: kerak bo'lsa o'zingiz tanlang",
     "front_option": "{{deg}}° burish"
+  },
+  "mebel": {
+    "title": "Mebel ishlab chiqarish",
+    "subtitle": "Shkaf o'lchamidan detallar, kromka va narx",
+    "new_project": "Yangi loyiha",
+    "default_name": "Oshxona",
+    "empty": "Hali loyiha yo'q. Birinchisini yarating.",
+    "load_failed": "Loyihalarni yuklab bo'lmadi. Internetni tekshirib, qayta urinib ko'ring.",
+    "retry": "Qayta urinish",
+    "updated": "O'zgartirilgan: {{date}}",
+    "delete": "O'chirish",
+    "delete_confirm": "\"{{name}}\" loyihasini o'chirasizmi?",
+    "back_to_list": "Loyihalar",
+    "saving": "Saqlanmoqda…",
+    "saved": "Saqlandi",
+    "save_failed": "Saqlanmadi",
+    "project_name": "Loyiha nomi",
+    "settings": "Konstruksiya",
+    "board_thickness": "LDSP qalinligi",
+    "board_material": "LDSP",
+    "back_material": "Orqa devor (HDF)",
+    "back_kind": "Orqa devor",
+    "back": {
+      "hdf_nailed": "HDF, mixlanadi",
+      "hdf_groove": "HDF, pazda",
+      "none": "Yo'q"
+    },
+    "bottom_joint": "Taglik",
+    "joint": {
+      "between_sides": "Yonlar orasida",
+      "under_sides": "Yonlar ostida"
+    },
+    "edge_visible": "Ko'rinadigan kromka",
+    "edge_hidden": "Ko'rinmas kromka",
+    "edge_material": "Kromka materiali",
+    "premilled": "Kromkadan oldin frezalanadi (kesishda ayirmaslik)",
+    "sheet_size": "List o'lchami",
+    "no_material": "Tanlanmagan",
+    "cabinets": "Shkaflar",
+    "add_cabinet": "Shkaf qo'shish",
+    "duplicate": "Nusxa",
+    "remove": "Olib tashlash",
+    "width": "Eni, mm",
+    "height": "Balandligi, mm",
+    "depth": "Chuqurligi, mm",
+    "shelves": "Polkalar",
+    "tab": {
+      "parts": "Detallar",
+      "edges": "Kromka",
+      "bom": "Materiallar va narx",
+      "warnings": "Ogohlantirishlar",
+      "nesting": "Raskroy",
+      "drilling": "Teshiklar"
+    },
+    "show_cut": "Kesish o'lchami",
+    "show_finished": "Yakuniy o'lcham",
+    "col": {
+      "id": "ID",
+      "part": "Detal",
+      "material": "Material",
+      "thickness": "Qalinlik",
+      "length": "Uzunlik",
+      "width": "Eni",
+      "qty": "Soni",
+      "grain": "Tekstura",
+      "edges": "Kromka (L1 L2 W1 W2)",
+      "band": "Kromka",
+      "meters": "Metr",
+      "with_waste": "Zapas bilan",
+      "unit_price": "Narxi",
+      "total": "Summa"
+    },
+    "grain": {
+      "length": "Uzunlik bo'ylab",
+      "width": "Eni bo'ylab",
+      "none": "Yo'q"
+    },
+    "part": {
+      "side_left": "Chap yon",
+      "side_right": "O'ng yon",
+      "bottom": "Taglik",
+      "rail_front": "Old planka",
+      "rail_back": "Orqa planka",
+      "shelf": "Polka",
+      "back": "Orqa devor",
+      "top": "Tepa panel",
+      "door": "Fasad",
+      "drawer_front": "Tortma fasadi",
+      "drawer_side": "Tortma yoni",
+      "drawer_end": "Tortma old/orqa",
+      "drawer_bottom": "Tortma tagi"
+    },
+    "material": {
+      "board": "LDSP",
+      "back": "HDF",
+      "facade": "Fasad LDSP"
+    },
+    "area": "{{m2}} m²",
+    "bom": {
+      "board": "LDSP {{t}} mm",
+      "back": "HDF {{t}} mm",
+      "edge": "Kromka {{t}}×{{w}} mm",
+      "leg": "Oyoqcha",
+      "confirmat": "Konfirmat",
+      "shelfPin": "Polkoderjatel",
+      "nail": "HDF mixi",
+      "cut": "Kesish xizmati",
+      "banding": "Kromkalash {{t}} mm",
+      "markup": "Ustama {{p}}%",
+      "facade": "Fasad LDSP {{t}} mm",
+      "facade_mdf": "MDF fasad",
+      "hinge": "Petlya",
+      "handle": "Ruchka",
+      "hanger": "Osish ilgagi",
+      "slide": "Yo'naltiruvchi {{l}} mm (juft)"
+    },
+    "unit": {
+      "sheet": "list",
+      "m": "m",
+      "dona": "dona",
+      "m2": "m²",
+      "percent": "%"
+    },
+    "unpriced": "narxsiz",
+    "total": "Jami",
+    "total_unpriced": "Jami (narxsiz qatorlarsiz)",
+    "price_book": "Narx daftari",
+    "price_book_hint": "Bu narxlar barcha loyihalaringizda ishlatiladi. Bo'sh qoldirilgan narx do'kon katalogidan olinadi.",
+    "pb": {
+      "materials": "Materiallar (1 list / 1 m uchun)",
+      "cut_per_sheet": "Kesish, 1 list",
+      "banding": "Kromkalash, 1 m ({{t}} mm)",
+      "hardware": "Furnitura, 1 dona",
+      "markup": "Ustama, %",
+      "slide": "Yo'naltiruvchi, 1 juft",
+      "sheets": "Listlar (material tanlanmaganda)",
+      "board": "LDSP {{t}} mm, 1 list",
+      "back": "HDF, 1 list",
+      "mdf_m2": "MDF fasad, 1 m²"
+    },
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "export": "Eksport",
+    "export_csv": "Cut list (CSV, Excel)",
+    "export_pdf": "PDF (chop etish)",
+    "no_warnings": "Ogohlantirish yo'q",
+    "errors_title": "Hisoblab bo'lmadi: o'lchamlarni tuzating",
+    "error": {
+      "width_range": "Eni {{min}}–{{max}} mm bo'lishi kerak",
+      "height_range": "Balandligi {{min}}–{{max}} mm bo'lishi kerak",
+      "depth_range": "Chuqurligi {{min}}–{{max}} mm bo'lishi kerak",
+      "shelves_range": "Polkalar {{min}}–{{max}} ta bo'lishi kerak",
+      "inner_width": "Shkaf juda tor: ichki eni qolmaydi",
+      "shelf_depth": "Polka uchun chuqurlik qolmaydi",
+      "too_many_cabinets": "Bir loyihada ko'pi bilan {{max}} ta shkaf",
+      "whole_mm": "O'lchamlar butun millimetrda bo'lishi kerak",
+      "sheet_size": "List o'lchami kamida {{min}} mm bo'lishi kerak",
+      "settings_invalid": "Konstruksiya sozlamalarida bo'sh yoki manfiy qiymat bor",
+      "doors_range": "Eshiklar {{min}}–{{max}} ta bo'lishi kerak",
+      "drawers_range": "Tortmalar {{min}}–{{max}} ta bo'lishi kerak",
+      "drawers_type": "Tortma faqat pastki shkafda bo'ladi",
+      "drawer_low": "Tortma juda past: qutisi kamida {{min}} mm bo'lishi kerak",
+      "drawer_shallow": "Shkaf tortma uchun juda sayoz (yo'naltiruvchi kamida {{min}} mm)",
+      "position_range": "Joyi 0 yoki undan katta bo'lishi kerak"
+    },
+    "warning": {
+      "shelf_sag": "{{length}} mm uzun {{t}} mm polka egilishi mumkin",
+      "part_exceeds_sheet": "{{length}}×{{width}} mm detal listga sig'maydi",
+      "unpriced": "Ba'zi qatorlarning narxi yo'q: narx daftariga yoki katalogga qo'shing",
+      "thickness_board": "LDSP: tanlangan list {{actual}} mm, sozlamada {{expected}} mm",
+      "thickness_back": "Orqa devor: tanlangan HDF {{actual}} mm, sozlamada {{expected}} mm",
+      "thickness_facade": "Fasad: tanlangan list {{actual}} mm, sozlamada {{expected}} mm"
+    },
+    "view3d": "3D ko'rinish",
+    "print_title": "Cut list: {{name}}",
+    "mm": "mm",
+    "not_saved_invalid": "Saqlanmadi: xatolarni tuzating",
+    "nest": {
+      "sheets_used": "{{n}} list, foydalanish {{p}}%",
+      "summary": "{{name}} {{t}} mm: {{n}} list, foydalanish {{p}}%",
+      "sheet_label": "List {{i}} / {{n}} · {{p}}%",
+      "show_cuts": "Kesish tartibini ko'rsatish",
+      "unplaced_title": "Listga sig'magan detallar",
+      "unplaced_reason": "listga sig'maydi",
+      "offcut": "qoldiq {{l}}×{{w}}",
+      "empty": "Raskroy uchun detal yo'q",
+      "parts_on_sheet": "Listdagi detallar",
+      "cut_order": "Kesish tartibi",
+      "cut_line": "{{n}}. {{dir}}, {{len}} mm, bo'lak qirrasidan {{off}} mm",
+      "dir_along": "bo'ylama",
+      "dir_across": "ko'ndalang"
+    },
+    "kerf": "Arra kesimi, mm",
+    "trim": "Chekka qoldiq, mm",
+    "add": {
+      "base": "+ Pastki",
+      "wall": "+ Devor",
+      "tall": "+ Baland"
+    },
+    "type": {
+      "base": "pastki",
+      "wall": "devor",
+      "tall": "baland"
+    },
+    "doors": "Eshiklar",
+    "doors_auto": "Avto",
+    "facade": "Fasad",
+    "facade_kind": "Fasad turi",
+    "facade_kinds": {
+      "ldsp": "LDSP (o'zimiz kesamiz)",
+      "mdf": "MDF (buyurtma)",
+      "none": "Yo'q"
+    },
+    "facade_material": "Fasad materiali",
+    "facade_thickness": "Fasad qalinligi",
+    "facade_gap": "Tirqish, mm",
+    "facade_order": "MDF fasad buyurtmasi",
+    "facade_total": "Jami: {{m2}} m²",
+    "export_facade_csv": "Fasad buyurtmasi (CSV)",
+    "drawers": "Tortmalar",
+    "drill": {
+      "holes": "Teshiklar",
+      "empty": "Teshik ochiladigan detal yo'q",
+      "count": "{{n}} teshik",
+      "front_edge": "↓ old (pastki) qirra",
+      "kind": "Turi",
+      "face": "Yuza",
+      "depth": "Chuqurlik",
+      "through": "o'tadi",
+      "assembly": "{{label}}: yig'ish chizmasi",
+      "view_front": "Old ko'rinish",
+      "view_side": "Yon ko'rinish",
+      "kinds": {
+        "confirmat": "Konfirmat",
+        "confirmat_edge": "Konfirmat (qirra)",
+        "shelf_pin": "Polkoderjatel",
+        "hinge_cup": "Petlya kosasi",
+        "hinge_plate": "Petlya plankasi",
+        "slide": "Yo'naltiruvchi"
+      },
+      "end_bottom": "↓ past",
+      "end_top": "↑ yuqori",
+      "mdf_hinge_note": "Petlya kosalari (Ø35) fasad sexida ochiladi: qirradan 22.5 mm, uchlaridan 100 mm.",
+      "from_left": "Chap qirradan, mm",
+      "from_front": "Old qirradan, mm"
+    },
+    "ai": {
+      "label": "AI bilan qo'shish",
+      "placeholder": "Masalan: 2400 mm oshxona, 600 lik 2 ta pastki, o'rtada 3 tortmali 800 lik, ustida devor shkaflari, chetida penal",
+      "ask": "Taklif olish",
+      "thinking": "O'ylayapti…",
+      "add": "Qo'shish",
+      "replace": "Almashtirish",
+      "dropped": "Qo'shilmadi",
+      "over_limit": "Qo'shsangiz {{max}} tadan oshadi: almashtiring yoki bir qismini o'chiring"
+    },
+    "remove_confirm": "{{label}} shkafini olib tashlaysizmi?",
+    "pane": {
+      "params": "Sozlamalar",
+      "result": "Natija"
+    },
+    "position_x": "Joyi (chapdan), mm",
+    "relayout": "Qayta joylashtirish",
+    "relayout_hint": "Pastki shkaflar va penallar ketma-ket, devor shkaflari pastki shkaflar ustida",
+    "position_short": "joyi {{x}}",
+    "view_hide": "3D'ni yashirish",
+    "view_show": "3D'ni ko'rsatish",
+    "labels": {
+      "button": "Yorliqlar",
+      "a4": "A4 varaq (3×8, 70×37 mm)",
+      "roll": "Rulon 58×40 mm"
+    }
   }
 }

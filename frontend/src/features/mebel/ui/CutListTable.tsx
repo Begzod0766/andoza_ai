@@ -1,0 +1,69 @@
+import { useTranslation } from "react-i18next";
+import type { CutGroup } from "@/features/mebel/engine";
+import { edgesSummary, formatMm, groupName } from "./format";
+
+/**
+ * The grouped cut list: one row per set of identically cut parts. `showCut`
+ * switches between the size the saw cuts and the finished, banded size.
+ * Clicking a row selects its first part (and the 3D view highlights it).
+ */
+export function CutListTable({
+  groups, showCut, selectedPartId, onSelect, materialName,
+}: {
+  groups: CutGroup[]
+  showCut: boolean
+  selectedPartId: string | null
+  onSelect(partId: string): void
+  materialName?: (g: CutGroup) => string
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="overflow-x-auto lg:overflow-visible">
+      <table aria-label={t("mebel.tab.parts")} className="w-full text-left text-sm sm:min-w-[640px]">
+        <thead className="sticky top-0 z-10 bg-white text-xs text-neutral-500">
+          <tr>
+            <th className="hidden sm:table-cell print:table-cell px-2 py-2 font-medium">{t("mebel.col.id")}</th>
+            <th className="px-2 py-2 font-medium">{t("mebel.col.part")}</th>
+            <th className="hidden sm:table-cell print:table-cell px-2 py-2 font-medium">{t("mebel.col.material")}</th>
+            <th className="hidden sm:table-cell print:table-cell px-2 py-2 text-right font-medium">{t("mebel.col.thickness")}</th>
+            <th className="px-2 py-2 text-right font-medium">{t("mebel.col.length")}</th>
+            <th className="px-2 py-2 text-right font-medium">{t("mebel.col.width")}</th>
+            <th className="px-2 py-2 text-right font-medium">{t("mebel.col.qty")}</th>
+            <th className="hidden sm:table-cell print:table-cell px-2 py-2 font-medium">{t("mebel.col.grain")}</th>
+            <th className="px-2 py-2 font-medium">{t("mebel.col.edges")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => {
+            const size = showCut ? g.cut : g.finished;
+            const selected = selectedPartId != null && g.partIds.includes(selectedPartId);
+            return (
+              <tr
+                key={g.key}
+                aria-selected={selected}
+                onClick={() => onSelect(g.partIds[0])}
+                className={`cursor-pointer border-t border-neutral-100 ${selected ? "bg-blue-50" : "hover:bg-neutral-50"}`}
+              >
+                <td className="hidden sm:table-cell print:table-cell px-2 py-2 text-xs text-neutral-500">{g.partIds.join(", ")}</td>
+                <td className="px-2 py-2 font-medium text-neutral-900">{groupName(g)}</td>
+                {(() => {
+                  const name = materialName ? materialName(g) : t(`mebel.material.${g.material}`);
+                  // catalogue names run long: cut short on screen so the sizes stay in view;
+                  // on a phone the id, material, thickness and grain columns give way to the sizes
+                  return <td data-testid="material-cell" title={name}
+                    className="hidden sm:table-cell print:table-cell max-w-[9rem] truncate px-2 py-2 print:max-w-none print:whitespace-normal">{name}</td>;
+                })()}
+                <td className="hidden sm:table-cell print:table-cell px-2 py-2 text-right tabular-nums">{g.thickness}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{formatMm(size.length)}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{formatMm(size.width)}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{g.qty}</td>
+                <td className="hidden sm:table-cell print:table-cell px-2 py-2">{t(`mebel.grain.${g.grain}`)}</td>
+                <td className="px-2 py-2 tabular-nums">{edgesSummary(g.edges)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}

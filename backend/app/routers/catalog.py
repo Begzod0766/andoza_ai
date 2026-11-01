@@ -49,11 +49,12 @@ async def list_materials(
     category: str | None = Query(default=None),
     store: UUID | None = Query(default=None),
     q: str | None = Query(default=None, description="Search by name_uz substring"),
+    smeta_key: str | None = Query(default=None, max_length=40, description="Products that price this estimate line"),
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
 ) -> PaginatedMaterials:
     # v2: entries cached before store_name was added would lack it for the TTL.
-    cache_key = f"materials:v2:{category}:{store}:{q}:{page}:{per_page}"
+    cache_key = f"materials:v2:{category}:{store}:{q}:{smeta_key}:{page}:{per_page}"
     cached = await cache_get(cache_key)
     if cached is not None:
         return PaginatedMaterials.model_validate(cached)
@@ -68,6 +69,9 @@ async def list_materials(
     if store:
         query = query.where(Material.store_id == store)
         count_query = count_query.where(Material.store_id == store)
+    if smeta_key:
+        query = query.where(Material.smeta_key == smeta_key)
+        count_query = count_query.where(Material.smeta_key == smeta_key)
     if q:
         query = query.where(Material.name_uz.ilike(f"%{q}%"))
         count_query = count_query.where(Material.name_uz.ilike(f"%{q}%"))
@@ -168,6 +172,7 @@ async def list_furniture(
                     "(usable everywhere) are always included",
     ),
     q: str | None = Query(default=None, max_length=100, description="Search by name_uz substring"),
+    store: UUID | None = Query(default=None, description="Only this shop's models"),
     has_model: bool = Query(
         default=False,
         description="Only models with a 3-D file: what the studio can place. The shop "
@@ -183,8 +188,8 @@ async def list_furniture(
     # plain-http request could pin http:// URLs on an https site and bring the
     # mixed-content breakage back for the TTL window.
     cache_key = (
-        f"furniture:v2:{request_base_url(request)}:"
-        f"{category}:{room_type}:{q}:{int(has_model)}:{page}:{per_page}"
+        f"furniture:v3:{request_base_url(request)}:"
+        f"{category}:{room_type}:{q}:{store}:{int(has_model)}:{page}:{per_page}"
     )
     cached = await cache_get(cache_key)
     if cached is not None:
@@ -208,6 +213,9 @@ async def list_furniture(
         room_filter = Furniture.room_type.is_(None) | (Furniture.room_type == room_type)
         query = query.where(room_filter)
         count_query = count_query.where(room_filter)
+    if store:
+        query = query.where(Furniture.store_id == store)
+        count_query = count_query.where(Furniture.store_id == store)
     if has_model:
         query = query.where(Furniture.glb_key.is_not(None))
         count_query = count_query.where(Furniture.glb_key.is_not(None))
@@ -235,6 +243,22 @@ async def list_furniture(
     return payload
 
 
+@router.get(
+    "/furniture/{furniture_id}",
+    response_model=FurnitureOut,
+    summary="One live furniture item, e.g. the model the studio was asked to place",
+)
+async def get_furniture(furniture_id: UUID, request: Request, db: DbSession) -> FurnitureOut:
+    item = (await db.execute(
+        select(Furniture)
+        .options(selectinload(Furniture.store))
+        .where(Furniture.id == furniture_id, Furniture.is_active.is_(True), in_open_shop(Furniture))
+    )).scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Mahsulot topilmadi")
+    return _furniture_out(request, item)
+
+
 # ---------------------------------------------------------------------------
 # Stores
 # ---------------------------------------------------------------------------
@@ -260,6 +284,21 @@ async def list_stores(db: DbSession) -> list[StoreOut]:
         ttl=_CATALOG_CACHE_TTL,
     )
     return payload
+
+
+@router.get(
+    "/stores/{store_id}",
+    response_model=StoreOut,
+    summary="One open shop: its public page in the app",
+)
+async def get_store(store_id: UUID, db: DbSession) -> StoreOut:
+    # is_active is false for a pending, rejected or switched-off shop.
+    store = (await db.execute(
+        select(Store).where(Store.id == store_id, Store.is_active.is_(True))
+    )).scalar_one_or_none()
+    if store is None:
+        raise HTTPException(status_code=404, detail="Do'kon topilmadi")
+    return StoreOut.model_validate(store)
 
 
 # ---------------------------------------------------------------------------

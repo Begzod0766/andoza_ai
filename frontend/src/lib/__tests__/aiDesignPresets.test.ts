@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import i18n from '@/i18n'
+import { describe, it, expect, afterEach } from 'vitest'
+import i18n, { applyLanguage, type Language } from '@/i18n'
 import type { CatalogFurniture } from '@/lib/api'
 import { FLOOR_PATTERN_DEFS } from '@/lib/floorGeometry'
 import { LIGHT_TYPES } from '@/lib/lightCatalog'
@@ -89,8 +89,8 @@ describe('design presets', () => {
   it("a children's room and a study take the catalog's bedroom and living-room pieces, as the AI designer does", () => {
     const rugs = [item('kitchen-rug', 'Gilam', 'gilam', 'oshxona'), item('bed-rug', 'Gilam', 'gilam', 'yotoqxona')]
     expect(presetPlan('dark', rugs, 'bolalar')!.furniture.map((f) => f.id)).toEqual(['bed-rug'])
-    expect(presetPlan('minimalist', CATALOG, 'kabinet')!.furniture.map((f) => f.id))
-      .toEqual(presetPlan('minimalist', CATALOG, 'mehmonxona')!.furniture.map((f) => f.id))
+    const arms = [item('bedroom-arm', 'Kreslo', 'kreslo', 'yotoqxona'), item('living-arm', 'Kreslo', 'kreslo', 'mehmonxona')]
+    expect(presetPlan('minimalist', arms, 'kabinet')!.furniture.map((f) => f.id)).toEqual(['living-arm'])
   })
 
   it('leaves out a kind the catalog has nothing for, instead of guessing, and works with no catalog at all', () => {
@@ -216,9 +216,14 @@ describe('design presets', () => {
     }
   })
 
-  it.each(DESIGN_PRESETS.map((p) => p.id))('%s in a kitchen still takes the coffee table over the kitchen one for its coffee table', (id) => {
+  it.each(DESIGN_PRESETS.map((p) => p.id))('%s in a living room still takes the coffee table over a kitchen one for its coffee table', (id) => {
+    const cat = [item('kitchen-table', 'Oshxona stoli', 'stol', 'mehmonxona'), item('coffee', 'Kofe stoli', 'stol', 'oshxona')]
+    expect(presetPlan(id, cat, 'mehmonxona')!.furniture.map((f) => [f.id, f.role])).toEqual([['coffee', 'coffee_table']])
+  })
+
+  it.each(DESIGN_PRESETS.map((p) => p.id))('%s in a kitchen takes the dining table, not the coffee table', (id) => {
     const cat = [item('coffee', 'Kofe stoli', 'stol', 'mehmonxona'), item('kitchen-table', 'Oshxona stoli', 'stol', 'oshxona')]
-    expect(presetPlan(id, cat, 'oshxona')!.furniture.map((f) => [f.id, f.role])).toEqual([['coffee', 'coffee_table']])
+    expect(presetPlan(id, cat, 'oshxona')!.furniture.map((f) => [f.id, f.role])).toEqual([['kitchen-table', 'dining_table']])
   })
 
   it('with nothing of its style, a piece of another style still fills the room', () => {
@@ -345,6 +350,123 @@ describe('design presets', () => {
     })
   })
 
+  describe('a kitchen, a study, a balcony and a bathroom get their own sets', () => {
+    const ROOMS = [
+      item('sofa', "Uch o'rinli divan", 'divan', 'mehmonxona'),
+      item('coffee', 'Kofe stoli', 'stol', 'mehmonxona'),
+      item('tv', 'Televizor tumbasi', 'tumba', 'mehmonxona'),
+      item('rug', 'Gilam', 'gilam'),
+      item('armchair', 'Kreslo', 'kreslo', 'mehmonxona'),
+      item('dining', 'Oshxona stoli', 'stol', 'oshxona'),
+      item('chair', 'Oshxona stuli', 'stul', 'oshxona'),
+      item('kitchen-cabinet', 'Oshxona shkafi', 'shkaf', 'oshxona'),
+      item('desk', 'Yozuv stoli', 'stol'),
+      item('desk-chair', 'Ish stuli', 'stul'),
+      item('books', 'Kitob javoni', 'shkaf'),
+      item('bath-cabinet', 'Vanna shkafi', 'shkaf', 'hammom'),
+    ]
+    const TILE = { type: 'tile', pattern: null, tint: null }
+    const LIVING_ROLES = ['sofa', 'coffee_table', 'tv_unit', 'armchair', 'rug']
+    const plan = (id: string, roomType: string | undefined, cat = ROOMS) => presetPlan(id, cat, roomType)!
+    const pairs = (id: string, roomType: string | undefined, cat = ROOMS) => plan(id, roomType, cat).furniture.map((f) => [f.id, f.role])
+    const presets = DESIGN_PRESETS.map((p) => p.id)
+
+    it.each(presets)('%s in a kitchen: a dining table, its chairs and a kitchen cabinet, no sofa or coffee table, on tile', (id) => {
+      // Chairs share one plan line: the layout seats as many as the table takes.
+      expect(pairs(id, 'oshxona')).toEqual([['dining', 'dining_table'], ['chair', 'dining_chair'], ['kitchen-cabinet', 'shelf']])
+      expect(plan(id, 'oshxona').floor).toEqual(TILE)
+      // No kitchen cabinet in the catalog: none is guessed (a bookcase or a bath cabinet is not one).
+      expect(pairs(id, 'oshxona', ROOMS.filter((c) => c.id !== 'kitchen-cabinet'))).toEqual([['dining', 'dining_table'], ['chair', 'dining_chair']])
+    })
+
+    it.each(presets)('%s in a study: a desk, a desk chair, a bookcase and an armchair', (id) => {
+      expect(pairs(id, 'kabinet')).toEqual([['desk', 'desk'], ['desk-chair', 'desk_chair'], ['books', 'shelf'], ['armchair', 'armchair']])
+      expect(plan(id, 'kabinet').floor).toEqual(DESIGN_PRESETS.find((p) => p.id === id)!.floor)
+    })
+
+    it.each(presets)('%s: an office chair is never the armchair in a study', (id) => {
+      const cat = [item('desk', 'Yozuv stoli', 'stol'), item('pc-chair', 'Kreslo-kompyuter', 'kreslo'), item('office', 'Office chair', 'stul')]
+      expect(pairs(id, 'kabinet', cat)).toEqual([['desk', 'desk'], ['pc-chair', 'desk_chair']])
+    })
+
+    it.each(presets)('%s on a balcony: a small table and two seats', (id) => {
+      expect(pairs(id, 'balkon')).toEqual([['coffee', 'coffee_table'], ['armchair', 'armchair'], ['chair', 'armchair']])
+      expect(plan(id, 'balkon').floor).toEqual(DESIGN_PRESETS.find((p) => p.id === id)!.floor)
+    })
+
+    it.each(presets)('%s in a bathroom: no living-room furniture, a tile floor, a bath cabinet when the catalog has one', (id) => {
+      expect(pairs(id, 'hammom')).toEqual([['bath-cabinet', 'shelf']])
+      expect(plan(id, 'hammom').floor).toEqual(TILE)
+      expect(pairs(id, 'hammom', ROOMS.filter((c) => c.id !== 'bath-cabinet'))).toEqual([])
+    })
+
+    it.each(presets)('%s in a bathroom: painted walls, no chandelier, pendant or floor lamp, and a ceiling light', (id) => {
+      const preset = DESIGN_PRESETS.find((p) => p.id === id)!
+      const bath = plan(id, 'hammom')
+      const main = preset.walls.main!
+      // A wallpaper wall becomes paint in its own base colour; a painted one is as it was.
+      expect(bath.walls.main).toEqual(main.type === 'oboy' ? { type: 'paint', color: main.base_color } : main)
+      const types = bath.lights.map((l) => l.type)
+      for (const banned of ['chandelier', 'pendant', 'floor_lamp']) expect(types, banned).not.toContain(banned)
+      const mountOf = (type: string) => LIGHT_TYPES.find((t) => t.id === type)!.mount
+      expect(types.some((t) => ['ceiling', 'recessed', 'track'].includes(mountOf(t)))).toBe(true)
+      // The centre still has a light, and a wall lamp is only ever the moisture-proof bath light.
+      expect(bath.lights.some((l) => l.zone === 'center')).toBe(true)
+      expect(bath.lights.filter((l) => mountOf(l.type) === 'wall').every((l) => l.type === 'bath')).toBe(true)
+    })
+
+    it('a bathroom: a centre chandelier gives way to the preset\'s other ceiling light, else a downlight; one bra becomes the bath light', () => {
+      // neoklassika: chandelier and two bras.
+      expect(plan('neoklassika', 'hammom').lights).toEqual([{ type: 'downlight', zone: 'center' }, { type: 'bath', zone: 'wall_B' }])
+      // dark: chandelier, a floor lamp and an LED line on wall C.
+      expect(plan('dark', 'hammom').lights).toEqual([{ type: 'led_linear', zone: 'center' }, { type: 'led_linear', zone: 'wall_C' }])
+      // loft: a track in the centre stays, its floor lamp goes.
+      expect(plan('loft', 'hammom').lights).toEqual([{ type: 'track', zone: 'center' }, { type: 'spotlight', zone: 'wall_C' }])
+    })
+
+    it.each(presets)('%s in a kitchen keeps its walls and lights', (id) => {
+      const preset = DESIGN_PRESETS.find((p) => p.id === id)!
+      expect(plan(id, 'oshxona').walls.main).toEqual(preset.walls.main)
+      expect(plan(id, 'oshxona').lights.map((l) => l.type)).toEqual(preset.lights.map((l) => l.type))
+    })
+
+    it.each(presets)('%s in a living room, a bedroom, a children\'s room or an unknown room is as before', (id) => {
+      const preset = DESIGN_PRESETS.find((p) => p.id === id)!
+      for (const roomType of ['mehmonxona', 'yotoqxona', 'bolalar', undefined]) {
+        expect(plan(id, roomType).floor, String(roomType)).toEqual(preset.floor)
+      }
+      for (const roomType of ['mehmonxona', undefined]) {
+        const roles = plan(id, roomType).furniture.map((f) => f.role)
+        expect(roles, String(roomType)).toContain('sofa')
+        expect(roles.filter((r) => !LIVING_ROLES.includes(r!) && r !== 'wardrobe' && r !== 'shelf'), String(roomType)).toEqual([])
+      }
+      // The bedroom set (this catalog has no bed, nightstand or wardrobe): no kitchen or study piece comes in.
+      expect(pairs(id, 'yotoqxona')).toEqual([['rug', 'rug']])
+      expect(pairs(id, 'bolalar')).toEqual([['rug', 'rug'], ['desk', 'desk']])
+    })
+
+    it('a kitchen takes a table that seats four over a larger one of its style, and the larger one when it is all there is', () => {
+      const big = { ...item('big', 'Ovqat stoli', 'stol', 'oshxona'), footprint_w: 180, footprint_d: 90, styles: ['hitech'] }
+      const four = { ...item('four', 'Ovqat stoli', 'stol', 'oshxona'), footprint_w: 120, footprint_d: 80 }
+      expect(plan('hitech', 'oshxona', [big, four]).furniture.map((f) => f.id)).toEqual(['four'])
+      expect(plan('hitech', 'oshxona', [big]).furniture.map((f) => f.id)).toEqual(['big'])
+    })
+
+    it("a balcony prefers pieces made for a balcony, and takes another room's when there are none", () => {
+      const cat = [item('living-arm', 'Kreslo', 'kreslo', 'mehmonxona'), item('balcony-arm', 'Kreslo', 'kreslo', 'balkon'), item('coffee', 'Kofe stoli', 'stol', 'mehmonxona')]
+      expect(plan('loft', 'balkon', cat).furniture.map((f) => f.id)).toEqual(['coffee', 'balcony-arm', 'living-arm'])
+    })
+
+    it.each(presets)('%s: a side table is never the dining table in a kitchen', (id) => {
+      expect(pairs(id, 'oshxona', [item('side', 'Yon stolcha', 'stol', 'oshxona')])).toEqual([])
+    })
+
+    it('a bedside or a writing table is never the small table on a balcony; a side table is', () => {
+      const cat = [item('night', 'Tumbochka', 'boshqa'), item('desk', 'Yozuv stoli', 'stol'), item('side', 'Yon stolcha', 'stol')]
+      expect(pairs('loft', 'balkon', cat)).toEqual([['side', 'coffee_table']])
+    })
+  })
+
   describe('kind role and pick order', () => {
     const roleOf = (plan: ReturnType<typeof presetPlan>, id: string) => plan!.furniture.find((f) => f.id === id)?.role
     const tvPreset = DESIGN_PRESETS.find((p) => p.furniture.some((w) => w.kind === 'tumba'))!.id
@@ -368,6 +490,65 @@ describe('design presets', () => {
     it('a lone dining table becomes the coffee table', () => {
       expect(roleOf(presetPlan(tablePreset, [item('ovqat', 'Ovqat stoli', 'stol')]), 'ovqat')).toBe('coffee_table')
     })
+  })
+})
+
+describe("a ready-made style's summary matches the room it is applied to", () => {
+  afterEach(() => applyLanguage('uz'))
+  const LANGS: Language[] = ['uz', 'ru', 'en']
+  const cases = LANGS.flatMap((lang) => DESIGN_PRESETS.map((p) => [lang, p.id] as const))
+  const FLOOR_WORDS = /parket|laminat|beton|yog'och pol|паркет|ламинат|бетон|деревянн\S* пол|parquet|laminate|concrete|wood floor|herringbone|yelkan|ёлочк/i
+  const BATH_WORDS = /oboy|qandil|torsher|osma chiroq|обо[ия]|люстр|торшер|подвесн|wallpaper|chandelier|floor lamp|pendant/i
+
+  it.each(cases)('%s %s in a kitchen: no wood or concrete floor, and the tile sentence', (lang, id) => {
+    applyLanguage(lang)
+    const summary = presetPlan(id, [], 'oshxona')!.summary
+    expect(summary).not.toMatch(FLOOR_WORDS)
+    expect(summary).toContain(i18n.t('studio.lib.presetRoom.floor'))
+    expect(summary).not.toContain(i18n.t('studio.lib.presetRoom.bathroom'))
+  })
+
+  it.each(cases)('%s %s in a bathroom: no wood floor, wallpaper, chandelier or floor lamp; the tile and the bathroom sentences', (lang, id) => {
+    applyLanguage(lang)
+    const summary = presetPlan(id, [], 'hammom')!.summary
+    expect(summary).not.toMatch(FLOOR_WORDS)
+    expect(summary).not.toMatch(BATH_WORDS)
+    expect(summary).toContain(i18n.t('studio.lib.presetRoom.floor'))
+    expect(summary).toContain(i18n.t('studio.lib.presetRoom.bathroom'))
+  })
+
+  it.each(cases)('%s %s in a living room, a bedroom or a study keeps its own summary', (lang, id) => {
+    applyLanguage(lang)
+    const preset = DESIGN_PRESETS.find((p) => p.id === id)!
+    for (const room of ['mehmonxona', 'yotoqxona', 'kabinet', undefined]) {
+      expect(presetPlan(id, [], room)!.summary, String(room)).toBe(i18n.t(preset.summaryKey))
+    }
+  })
+
+  it.each(LANGS)('%s: a summary left with none of its own sentences starts by naming the style and the room', (lang) => {
+    applyLanguage(lang)
+    const adapted = {
+      uz: 'Neoklassika uslubi hammom uchun moslandi.',
+      ru: 'Стиль «Неоклассика» адаптирован для комнаты: ванная.',
+      en: 'The Neoclassical style, adapted for the bathroom.',
+    }[lang]
+    expect(presetPlan('neoklassika', [], 'hammom')!.summary).toBe(
+      `${adapted} ${i18n.t('studio.lib.presetRoom.floor')} ${i18n.t('studio.lib.presetRoom.bathroom')}`,
+    )
+  })
+
+  it.each(LANGS)('%s: a summary that keeps a sentence of its own gets no adapted sentence', (lang) => {
+    applyLanguage(lang)
+    const summary = presetPlan('dark', [], 'hammom')!.summary
+    const label = i18n.t(DESIGN_PRESETS.find((p) => p.id === 'dark')!.labelKey)
+    expect(summary.startsWith(i18n.t('studio.lib.preset.dark.summary').split(/(?<=[.!?…])\s+/u)[1])).toBe(true)
+    expect(summary).not.toContain(label)
+  })
+
+  it('a kitchen keeps the sentences that do not name the floor', () => {
+    // dark: "Dark grey walls and dark parquet ... Low, warm light keeps that mood."
+    applyLanguage('en')
+    expect(presetPlan('dark', [], 'oshxona')!.summary).toBe('Low, warm light keeps that mood. Floor: moisture-resistant tile.')
   })
 })
 
@@ -415,5 +596,15 @@ describe('shared presets json', () => {
     const f = resolve(__dirname, '../data/design_presets.json')
     const b = resolve(__dirname, '../../../../backend/app/data/design_presets.json')
     expect(readFileSync(f)).toEqual(readFileSync(b))
+  })
+})
+
+describe("a rug fits the room's sides whichever is the shorter", () => {
+  // An L-shaped room's area over its first-wall side can come out shorter than that side: 4 m2 over 3 m.
+  const rug = (id: string, w: number, d: number, styles: string[]): CatalogFurniture =>
+    ({ ...item(id, 'Gilam', 'gilam'), footprint_w: w, footprint_d: d, styles })
+  it("the style's rug that fits is taken over a smaller unstyled one", () => {
+    const cat = [rug('mine', 60, 100, ['milliy']), rug('any', 50, 50, [])]
+    expect(presetPlan('milliy', cat, 'mehmonxona', undefined, { area: 4, minSide: 3 })!.furniture.map((f) => f.id)).toEqual(['mine'])
   })
 })

@@ -24,6 +24,22 @@ describe('AppShell phone bottom bar', () => {
   })
 })
 
+describe('AppShell desktop sidebar', () => {
+  it('links the furniture workshop after the four tabs', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/projects']}>
+          <AppShell />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const rail = screen.getByRole('complementary', { name: 'Asosiy navigatsiya' })
+    const links = within(rail).getAllByRole('link').map((a) => a.getAttribute('href'))
+    expect(links).toEqual(['/projects', '/dokon', '/ustalar', '/profile', '/mebel'])
+    expect(within(rail).getByRole('link', { name: 'Mebel ishlab chiqarish' })).toBeTruthy()
+  })
+})
+
 function mountShell() {
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -62,5 +78,22 @@ describe('AppShell new-project sheet', () => {
     ;(window as unknown as Record<string, unknown>).Capacitor = { Plugins: { RoomScanPlugin: {} } }
     mountShell()
     expect(screen.getByText('LiDAR skaner')).toBeTruthy()
+  })
+})
+
+describe('AppShell inside the native app (?app=1)', () => {
+  afterEach(() => sessionStorage.clear())
+
+  it('draws no web navigation: the app has its own', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/mebel?app=1']}>
+          <AppShell />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(screen.queryByRole('navigation', { name: 'Asosiy navigatsiya' })).toBeNull()
+    expect(screen.queryByRole('complementary', { name: 'Asosiy navigatsiya' })).toBeNull()
+    expect(screen.getByRole('main').className).not.toContain('pb-[94px]')
   })
 })

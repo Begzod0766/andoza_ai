@@ -155,7 +155,16 @@ def _colour_of_things_problems(text: str, plan: Any) -> list[str]:
 
 
 # A reply that goes on in English (the model sometimes translates itself) is not what the user reads.
-_ENGLISH = re.compile(r"\b(the|is|are|with|and|includes?|floor|walls?|furniture|lighting)\b")
+# Whole words only, an apostrophe being part of one: Uzbek "to'q" or "an'anaviy" is not English "to" or "an".
+_EN_START = r"(?<![\w'])"
+_EN_END = r"(?![\w'])"
+_ENGLISH = re.compile(_EN_START + r"(the|is|are|with|and|includes?|floor|walls?|furniture|lighting)" + _EN_END)
+# English words an Uzbek sentence never uses (it says dizayn, uslub, oboy...): a translated tail such
+# as "This design embraces a classic style with..." holds few of the words above but many of these.
+_ENGLISH_ONLY = re.compile(
+    _EN_START + r"(this|that|a|an|of|to|in|on|for|design|style|room|wallpaper|featuring|embraces?|accent|"
+    r"tone|golden|warm|cozy|cosy|modern|classic|elegant|space|creates?|adds?)" + _EN_END
+)
 
 
 # The studio's own ids for laying patterns: they are not words a person would read.
@@ -188,7 +197,8 @@ def _language_problems(text: str, plan: Any, catalog_names: list[str] | None = N
         return ["matnda ichki nom bor (mebel belgisi)"]
     if _TRIM_WORDS.search(text) or any(re.search(rf"\b{_id_pattern(i)}\b", text) for i in _plan_trim_ids(plan)):
         return ["matnda ichki nom bor (shift yoki plintus profili)"]
-    return ["matn o'zbekcha emas"] if len(_ENGLISH.findall(text)) >= 3 else []
+    english = len(_ENGLISH.findall(text)) + len(_ENGLISH_ONLY.findall(text))
+    return ["matn o'zbekcha emas"] if english >= 3 else []
 
 
 # ── Furniture ────────────────────────────────────────────────────────────────
@@ -432,6 +442,9 @@ def colour_name(hex_color: str) -> str:
         base = "jigarrang"
     elif 15 <= h < 50 and s < 0.45 and l >= 0.7:
         base = "bej"
+    elif 8 <= h < 50 and s < 0.35:
+        # A muted warm tone (greyish beige, tan) is not orange.
+        base = "bej" if l >= 0.6 else "jigarrang"
     elif h < 15 or h >= 345:
         base = "qizil"
     elif h < 35:
@@ -562,8 +575,49 @@ def _starts_sentence(m: re.Match[str]) -> bool:
     return not before or before[-1] in ".!?"
 
 
-def _localise(text: str) -> str:
-    """The studio's ids the model sometimes copies into its prose, said in Uzbek instead."""
+_HEX_IN_BRACKETS = re.compile(r"\s*\(#[0-9a-fA-F]{6}\)")
+_HEX = re.compile(r"#[0-9a-fA-F]{6}\b")
+
+
+# The menu's piece labels ("F2"), optionally followed by the kind the name already says ("F2 divan").
+_LABEL_REF = re.compile(r"\b(F\d+)\b((?:\s+(?!F\d+\b)[\w'ʻʼ‘’]+){0,3})")
+# A wall by the id the plan uses ("wall_A") and trade words the model leaves in English.
+_WALL_ID = re.compile(r"\bwall_([A-Za-z]\w*)\b")
+_CORNER_ID = re.compile(r"\bcorner_([A-Za-z]\w*?)_([A-Za-z]\w*)\b(?:\s+(dagi|da|ga|dan)\b)?")
+_CENTER_ID = re.compile(r"\bcenter(dagi|da|ga|dan)?\b", re.I)
+# The flush ceiling light by its id ("markaziy ceiling"); ceiling trim words are still a leak after it.
+_CEILING_LIGHT = re.compile(r"\bceiling\b(?!\s+(?:trim|border|design))", re.I)
+_TRADE_WORDS = {"paint": "bo'yoq", "accent": "aksent", "wallpaper": "oboy"}
+
+
+def _label_said(m: re.Match[str], labels: dict[str, str]) -> str:
+    name = labels.get(m.group(1))
+    if not name:
+        return m.group(0)
+    # "F3 TV tumba" for "ZZ TV tumba Paris" is said once: the words after the label that the name
+    # already holds (its kind, one or several words) go; the first word that is not the name's stays.
+    name_words = [w.lower() for w in name.split() if len(w) >= 2]
+    after = (m.group(2) or "").split()
+    while after and any(nw.startswith(after[0].lower()[:4]) for nw in name_words if len(after[0]) >= 2):
+        after.pop(0)
+    rest = (" " + " ".join(after)) if after else ""
+    return name + rest
+
+
+def _localise(text: str, labels: dict[str, str] | None = None) -> str:
+    """The studio's ids the model sometimes copies into its prose, said in Uzbek instead: piece labels
+    by the piece's name (*labels*, label -> name), a wall id as "A devor", trade words in Uzbek."""
+    if labels:
+        text = _LABEL_REF.sub(lambda m: _label_said(m, labels), text)
+    text = _WALL_ID.sub(lambda m: f"{m.group(1)} devor", text)
+    text = _CORNER_ID.sub(lambda m: f"{m.group(1)}-{m.group(2)} burchak{m.group(3) or ''}", text)
+    text = _CENTER_ID.sub(lambda m: f"markaz{m.group(1) or ''}", text)
+    text = _CEILING_LIGHT.sub("shift chirog'i", text)
+    for raw, uz in _TRADE_WORDS.items():
+        text = re.sub(rf"\b{raw}\b", uz, text, flags=re.I)
+    # A colour code is for the studio, not the reader: dropped after a named colour, named when alone.
+    text = _HEX_IN_BRACKETS.sub("", text)
+    text = _HEX.sub(lambda m: colour_name(m.group()), text)
     for raw, uz in {**_LAYING_NAMES, **_FLOOR_SAID}.items():
         def floor_said(m: re.Match[str], uz: str = uz) -> str:
             return uz[0].upper() + uz[1:] if _starts_sentence(m) else uz
@@ -593,15 +647,17 @@ _POINTS_BACK = re.compile(r"(?:ular\w*|bular\w*|bu elementlar\w*|ushbu mebel\w*)
 
 def reconcile_summary(
     plan: Any, catalog_names: list[str] | None = None, piece_styles: dict[str, list[str]] | None = None,
+    labels: dict[str, str] | None = None,
 ) -> list[str]:
     """Make ``plan.summary`` say only what the plan holds. Returns what was wrong with the model's
     wording: empty when it was kept, at most without its English or id-bearing sentences; the problems
     when a false sentence was dropped from it or the whole was written from the plan instead.
-    *catalog_names* are the shop's own piece names, *piece_styles* their catalog styles by name."""
+    *catalog_names* are the shop's own piece names, *piece_styles* their catalog styles by name,
+    *labels* the menu's label for each piece ("F2" -> its name), said by name where the model used them."""
     def problems_of(text: str) -> list[str]:
         return summary_problems(text, plan, catalog_names, piece_styles)
 
-    localised = _localise(plan.summary or "")
+    localised = _localise(plan.summary or "", labels)
     uzbek = _uzbek_sentences(localised, plan, catalog_names)
     if len(uzbek.split()) < 2:
         # Nothing, or a lone word ("Iliq."), is left to read: say why the whole text was not kept.

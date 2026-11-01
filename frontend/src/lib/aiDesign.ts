@@ -1,8 +1,8 @@
 import { nanoid } from 'nanoid'
-import type { AiDesignPlan } from '@/lib/api'
+import type { AiDesignPlan, Room } from '@/lib/api'
 import type { CatalogFurniture } from '@/lib/api'
 import { useRoomStore } from '@/store/roomStore'
-import type { DesignState, PlacedFurniture, PlacedLight } from '@/store/roomStore'
+import type { DesignState, PlacedFurniture, PlacedLight, RoomGeometry } from '@/store/roomStore'
 import { FLOOR_PATTERN_DEFS } from '@/lib/floorGeometry'
 import type { FloorPatternId } from '@/lib/floorGeometry'
 import { lightType } from '@/lib/lightCatalog'
@@ -12,6 +12,7 @@ import type { Piece } from '@/lib/furnitureGroups'
 import { layoutFurniture } from '@/lib/furnitureLayout'
 import { WARDROBE_NAME, inferRole, isRole, type FurnitureRole } from '@/lib/furnitureRole'
 import { catalogRoomType } from '@/lib/roomType'
+import { withFlatOpenings } from '@/lib/layoutOpenings'
 
 /** Which parts of a plan to apply. Everything is on by default; the reader may switch parts off. */
 export interface DesignParts { walls: boolean; floor: boolean; lights: boolean; furniture: boolean }
@@ -46,7 +47,11 @@ export interface AppliedCounts { walls: boolean; floor: boolean; lights: number;
   /** What was put in the room, by name (a stand-in by its own), with how many: chairs round a table count each. */
   placed: Array<{ name: string; count: number }>
   /** The pieces that did not fit and were swapped for a smaller one of their kind, each swap once, with how many. */
-  swapped: Array<{ from: string; to: string; count: number }> }
+  swapped: Array<{ from: string; to: string; count: number }>
+  /** The plan's lights that were put in the room, in its order (`lights` of them). */
+  placedLights: AiDesignPlan['lights']
+  /** The lights left out, by type, with how many: a floor lamp with nowhere clear to stand. */
+  droppedLights: Array<{ type: string; count: number }> }
 
 const FALLBACK_SIZE = { w: 0.9, d: 0.7 }
 
@@ -83,8 +88,11 @@ function sizeOf(item: CatalogFurniture | undefined): { w: number; d: number; tal
   return item?.footprint_w && item.footprint_d ? { w: item.footprint_w / 100, d: item.footprint_d / 100, tall } : { ...FALLBACK_SIZE, tall }
 }
 
-/** The main pieces that, when they do not fit, are tried again as a smaller one of their kind. */
-const SWAP_ROLES: FurnitureRole[] = ['bed', 'wardrobe', 'sofa']
+/**
+ * The pieces that, when they do not fit, are tried again as a smaller one of their kind: the main ones,
+ * and a rug too big for the room (it lies under the rest, so a smaller one moves nothing else).
+ */
+const SWAP_ROLES: FurnitureRole[] = ['bed', 'wardrobe', 'sofa', 'rug']
 /** How many smaller pieces are tried for each one left out: each try lays out the whole room again. */
 const SWAP_TRIES = 5
 
@@ -126,7 +134,7 @@ function smallerOfKind(piece: Piece, catalog: CatalogFurniture[], roomType?: str
 }
 
 /**
- * The layout, with each main piece it left out (a bed, wardrobe or sofa too big for the room)
+ * The layout, with each main piece it left out (a bed, wardrobe, sofa or rug too big for the room)
  * swapped for a smaller one of its kind from the catalog: the first that is placed with the room's
  * pieces worth more overall (`weight`: the room's main piece outweighs all the rest, and in a bedroom a
  * wardrobe outweighs a nightstand) is kept. A piece with no such stand-in stays left out.
@@ -155,44 +163,60 @@ function layoutWithSwaps(
   return { ...best, swapped }
 }
 
+/** A room's design, its lights and its furniture: what a design replaces. */
+export interface RoomDesign {
+  designState: DesignState
+  furniture: PlacedFurniture[]
+  lights: PlacedLight[]
+}
+
 /**
- * Puts the chosen parts of a plan into the room, on top of what is there: the wall finish and the
- * floor are replaced, and an earlier design's lights and furniture are replaced: the user's own
- * stay, and new pieces avoid them. Furniture is laid out in groups (`layoutFurniture`), the room's
- * main group, from `roomType`, first. Returns what was applied; `restoreDesign(snapshot)` undoes it.
+ * Puts the chosen parts of a plan into a room, on top of what is there, and gives back the room it
+ * makes, with what was applied; it changes neither `prev` nor the store, so a room that is not open
+ * can be designed too. The wall finish and the floor are replaced, and an earlier design's lights and
+ * furniture are replaced: the user's own stay, and new pieces avoid them. Furniture is laid out in
+ * groups (`layoutFurniture`), the room's main group, from `roomType`, first; the lights after it, so a
+ * floor lamp keeps off the furniture.
  */
-export function applyDesignPlan(plan: AiDesignPlan, parts: DesignParts, catalog: CatalogFurniture[], roomType?: string): AppliedCounts {
-  const store = useRoomStore.getState()
-  const applied: AppliedCounts = { walls: false, floor: false, lights: 0, furniture: 0, skipped: 0, dropped: [], placed: [], swapped: [] }
+export function designRoomState(
+  prev: RoomDesign, geometry: RoomGeometry, plan: AiDesignPlan, parts: DesignParts, catalog: CatalogFurniture[], roomType?: string,
+): RoomDesign & { applied: AppliedCounts } {
+  const applied: AppliedCounts = { walls: false, floor: false, lights: 0, furniture: 0, skipped: 0, dropped: [], placed: [], swapped: [], placedLights: [], droppedLights: [] }
+  let designState = prev.designState
+  let furniture = prev.furniture
+  let lights = prev.lights
 
   if (parts.walls && plan.walls.main) {
     const main = plan.walls.main
-    store.setWallCovering(
-      'ALL',
-      main.type === 'paint'
+    // A finish for every wall clears the walls' own ones (as the store's setWallCovering('ALL') does).
+    const wallCoverings: DesignState['wallCoverings'] = {
+      ALL: main.type === 'paint'
         ? { kind: 'paint', color: main.color }
         : { kind: 'oboy', patternId: main.pattern, baseColor: main.base_color, accentColor: main.accent_color },
-    )
-    if (plan.walls.accent) store.setWallCovering(plan.walls.accent.wall, { kind: 'paint', color: plan.walls.accent.color })
+    }
+    if (plan.walls.accent) wallCoverings[plan.walls.accent.wall] = { kind: 'paint', color: plan.walls.accent.color }
+    designState = { ...designState, wallCoverings }
     if (plan.trim) {
       // Only the parts the plan names: an AI plan may leave out the ceiling or the skirting.
       const { skirting, cornice } = plan.trim
       let { ceiling } = plan.trim
       // An AI plan keeping the room's ceiling design sends no settings: the user's own stay.
-      const current = useRoomStore.getState().designState.ceiling
+      const current = designState.ceiling
       if (ceiling && !ceiling.settings && current?.design === ceiling.design) ceiling = current
-      store.setDesignState({
+      designState = {
+        ...designState,
         ...(ceiling && { ceiling }),
         ...(skirting && { skirting }),
         ...(cornice !== undefined && { cornice }),
-      })
+      }
     }
     applied.walls = true
   }
 
   if (parts.floor && plan.floor) {
     const known = FLOOR_PATTERN_DEFS.some((d) => d.id === plan.floor!.pattern)
-    store.setDesignState({
+    designState = {
+      ...designState,
       floorType: plan.floor.type as DesignState['floorType'],
       floorConfigured: true,
       floorTexture: null,
@@ -200,19 +224,18 @@ export function applyDesignPlan(plan: AiDesignPlan, parts: DesignParts, catalog:
         known && plan.floor.pattern
           ? { id: plan.floor.pattern as FloorPatternId, settings: plan.floor.tint ? { baseColor: plan.floor.tint } : {} }
           : null,
-    })
+    }
     applied.floor = true
   }
 
-  const geometry = useRoomStore.getState().geometry
   const model = roomModel(geometry)
+  const byId = new Map(catalog.map((c) => [c.id, c]))
 
   if (parts.furniture) {
     // An earlier design's pieces go before the new ones are placed, so they neither stay nor
     // crowd the new ones out; the user's own stay, and the new ones avoid them.
-    for (const f of useRoomStore.getState().furniture) if (f.fromDesign) store.removeFurniture(f.id)
-    const byId = new Map(catalog.map((c) => [c.id, c]))
-    const taken: Rect[] = useRoomStore.getState().furniture.map((f) => {
+    const kept = furniture.filter((f) => !f.fromDesign)
+    const taken: Rect[] = kept.map((f) => {
       const size = sizeOf(byId.get(f.furniture_id))
       return { x: f.x / 1000, z: f.y / 1000, w: size.w, d: size.d, rotation: f.rotation }
     })
@@ -221,12 +244,16 @@ export function applyDesignPlan(plan: AiDesignPlan, parts: DesignParts, catalog:
       return { id: p.id, name: p.name, role: roleOf(p, item), ...sizeOf(item) }
     })
     const { placed, dropped, swapped } = layoutWithSwaps(pieces, catalog, roomType, (ps) => layoutFurniture(ps, model, roomType, taken))
-    // Each placed piece is its own entry, chairs round a table too (they share one plan line).
-    for (const { piece, rect } of placed) {
-      store.placeFurniture({
+    // Each placed piece is its own entry, chairs round a table too (they share one plan line). Each
+    // carries its catalog name and price, as the store's placeFurniture snapshots them: the estimate
+    // reads only the room's own saved state.
+    furniture = [...kept, ...placed.map(({ piece, rect }) => {
+      const entry = byId.get(piece.id)
+      const f: PlacedFurniture = {
         id: nanoid(), furniture_id: piece.id, x: rect.x * 1000, y: rect.z * 1000, rotation: rect.rotation, fromDesign: true,
-      })
-    }
+      }
+      return entry ? { ...f, name: entry.name_uz, unitPriceUzs: entry.price_uzs ?? undefined } : f
+    })]
     applied.furniture = placed.length
     // A swap's stand-in is placed, so whatever is left out is a piece of the plan's own.
     applied.dropped = dropped.map((d) => ({ ...d, role: pieces.find((p) => p.name === d.name)?.role ?? 'decor' }))
@@ -240,10 +267,9 @@ export function applyDesignPlan(plan: AiDesignPlan, parts: DesignParts, catalog:
   // After the furniture, so a floor lamp can keep off it: the design's pieces and the user's own.
   if (parts.lights) {
     // An earlier design's lights go; the user's own stay (and new ones are added beside them).
-    for (const l of useRoomStore.getState().lights) if (l.fromDesign) store.removeLight(l.id)
-    const byId = new Map(catalog.map((c) => [c.id, c]))
+    lights = lights.filter((l) => !l.fromDesign)
     // A rug lies under things, and a piece hung on the wall is above them: a lamp may stand there.
-    const solid: Rect[] = useRoomStore.getState().furniture.flatMap((f) => {
+    const solid: Rect[] = furniture.flatMap((f) => {
       const item = byId.get(f.furniture_id)
       if (item && (item.placement === 'devor' || RUG_CATEGORY.test(item.category) || inferRole(item.category, item.name_uz) === 'rug')) return []
       const size = sizeOf(item)
@@ -259,13 +285,49 @@ export function applyDesignPlan(plan: AiDesignPlan, parts: DesignParts, catalog:
       if (type.mount === 'floor' && model.walls.length) {
         const at = { x: (spot.xMm - model.offsetMm.x) / 1000, z: (spot.zMm - model.offsetMm.z) / 1000 }
         const moved = floorLampSpot(at, type.sizeM, light.zone, model, solid)
+        // Nowhere clear of the furniture, the doors and the walls: the lamp is left out, and said to be.
+        if (!moved) {
+          const left = applied.droppedLights.find((d) => d.type === type.id)
+          if (left) left.count++
+          else applied.droppedLights.push({ type: type.id, count: 1 })
+          continue
+        }
         spot = { xMm: Math.round(moved.x * 1000 + model.offsetMm.x), zMm: Math.round(moved.z * 1000 + model.offsetMm.z) }
         // The next floor lamp keeps off this one (two in one corner would share its spot).
         solid.push({ x: moved.x, z: moved.z, w: type.sizeM.w, d: type.sizeM.d, rotation: 0 })
       }
-      store.addLight({ id: nanoid(), type: type.id as LightTypeId, ...spot, fromDesign: true })
+      lights = [...lights, { id: nanoid(), type: type.id as LightTypeId, ...spot, fromDesign: true }]
+      applied.placedLights.push(light)
       applied.lights++
     }
   }
+  return { designState, furniture, lights, applied }
+}
+
+/** Do two lists hold the very same items, in the same order? */
+function sameItems<T>(a: T[], b: T[]): boolean {
+  return a.length === b.length && a.every((x, i) => x === b[i])
+}
+
+/**
+ * Puts the chosen parts of a plan into the open room (`designRoomState` on the store's room, written
+ * back in one step, so it is one step to undo). Returns what was applied; `restoreDesign(snapshot)`
+ * undoes it.
+ *
+ * `flat` is the apartment's rooms (the studio's `['apt-rooms']`) and the open room's id: a door its
+ * neighbour stores in the wall they share is laid out around too (`withFlatOpenings`). Only the
+ * layout sees it; the store's geometry is not changed.
+ */
+export function applyDesignPlan(
+  plan: AiDesignPlan, parts: DesignParts, catalog: CatalogFurniture[], roomType?: string,
+  flat?: { roomId: string; rooms: readonly Room[] },
+): AppliedCounts {
+  const store = useRoomStore.getState()
+  const prev: RoomDesign = { designState: store.designState, furniture: store.furniture, lights: store.lights }
+  const geometry = flat ? withFlatOpenings(store.geometry, flat.roomId, flat.rooms, store.layoutPos) : store.geometry
+  const { applied, ...next } = designRoomState(prev, geometry, plan, parts, catalog, roomType)
+  const changed = next.designState !== prev.designState
+    || !sameItems(next.furniture, prev.furniture) || !sameItems(next.lights, prev.lights)
+  if (changed) useRoomStore.setState({ ...next, isDirty: true })
   return applied
 }
