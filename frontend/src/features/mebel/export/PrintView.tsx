@@ -111,7 +111,7 @@ export function PrintView({
       {/* Drilling: a page per drilled part, then each cabinet's assembly drawing. */}
       {result.parts.filter((p) => (p.holes ?? []).length > 0).map((p) => (
         <section key={p.id} data-testid="print-part" style={{ breakBefore: "page" }} className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">{`${p.id} — ${partName(p.role)}`}</h2>
+          <h2 className="text-lg font-bold">{`${p.id} — ${partName(p.role, p.name)}`}</h2>
           <PartDrawing part={p} print />
           <HoleTable part={p} print />
         </section>

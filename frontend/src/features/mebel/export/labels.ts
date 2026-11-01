@@ -6,6 +6,8 @@ export type LabelFormat = "a4" | "roll";
 export interface PartLabel {
   partId: string
   role: Part["role"]
+  /** A free part's own name. */
+  name?: string
   cabinet: string
   material: string
   length: number
@@ -31,6 +33,7 @@ export function partLabels(
     .map((p) => ({
       partId: p.id,
       role: p.role,
+      name: p.name,
       cabinet: opts.labelOf(p.cabinetId),
       material: opts.materialName(p),
       length: p.finished.length,

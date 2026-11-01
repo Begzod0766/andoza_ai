@@ -506,4 +506,70 @@ describe('MebelProjectPage labels', () => {
     expect(await screen.findByRole('tab', { name: t('mebel.tab.drilling'), selected: true })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: `M1-02 — ${t('mebel.drill.holes')}` })).toBeInTheDocument()
   })
+
+})
+
+describe('MebelProjectPage free parts', () => {
+  const addFree = () => fireEvent.click(screen.getByRole('button', { name: t('mebel.free.add') }))
+  const field = (label: string) => within(screen.getByTestId('free-D1')).getByLabelText(label) as HTMLInputElement
+
+  it('+ Detal adds D1, editable, and it shows in the cut list', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.change(field(t('mebel.free.name')), { target: { value: 'Sokol' } })
+    fireEvent.change(field(t('mebel.free.length')), { target: { value: '2400' } })
+    fireEvent.change(field(t('mebel.free.width')), { target: { value: '100' } })
+    fireEvent.change(field(t('mebel.free.qty')), { target: { value: '2' } })
+    const row = within(partsTable()).getAllByRole('row').find(r => r.textContent?.includes('Sokol'))!
+    expect(row).toBeTruthy()
+    expect(row.textContent).toContain('2400')
+  })
+
+  it('band buttons cycle none → visible → hidden', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    const l1 = within(screen.getByTestId('free-D1')).getByRole('button', { name: /^L1/ })
+    expect(l1.textContent).toContain('—')
+    fireEvent.click(l1)
+    expect(l1.textContent).toContain('2')
+    fireEvent.click(l1)
+    expect(l1.textContent).toContain('0.4')
+    fireEvent.click(l1)
+    expect(l1.textContent).toContain('—')
+  })
+
+  it('a free-part error marks its field and row', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.change(field(t('mebel.free.length')), { target: { value: '5' } })
+    expect(within(screen.getByTestId('free-D1')).getByText(t('mebel.error.free_size', { min: 10, max: 3000 }))).toBeInTheDocument()
+    expect(within(screen.getByTestId('free-D1')).getByTestId('free-error-dot')).toBeInTheDocument()
+  })
+
+  it('the last cabinet can go once a free part exists', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    const removeCabinet = () => within(screen.getByTestId('cabinet-M1')).queryByRole('button', { name: t('mebel.remove') })
+    expect(removeCabinet()).toBeNull()
+    addFree()
+    fireEvent.click(removeCabinet()!)
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: t('mebel.remove') }))
+    await waitFor(() => expect(screen.queryByTestId('cabinet-M1')).toBeNull())
+    expect(screen.getByRole('table', { name: t('mebel.tab.parts') })).toBeInTheDocument()
+  })
+
+  it('removing a free part asks first', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    addFree()
+    fireEvent.click(within(screen.getByTestId('free-D1')).getByRole('button', { name: t('mebel.remove') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText(t('mebel.free.remove_confirm', { label: 'D1' }))).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: t('common.bekor') }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByTestId('free-D1')).toBeInTheDocument()
+  })
 })

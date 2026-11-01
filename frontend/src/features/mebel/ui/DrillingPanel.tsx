@@ -24,7 +24,7 @@ export function DrillingPanel({
             <li key={p.id}>
               <button type="button" onClick={() => setChosen(p.id)}
                 className={`w-full rounded-xl px-3 py-2 text-left text-sm ${p.id === part.id ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"}`}>
-                {`${p.id} · ${partName(p.role)} · ${t("mebel.drill.count", { n: p.holes!.length })}`}
+                {`${p.id} · ${partName(p.role, p.name)} · ${t("mebel.drill.count", { n: p.holes!.length })}`}
               </button>
             </li>
           ))}

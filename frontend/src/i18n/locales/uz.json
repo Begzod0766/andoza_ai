@@ -2575,6 +2575,25 @@
       "button": "Yorliqlar",
       "a4": "A4 varaq (3×8, 70×37 mm)",
       "roll": "Rulon 58×40 mm"
+    },
+    "free": {
+      "title": "Erkin detallar",
+      "add": "+ Detal",
+      "empty": "Shkafsiz detallar: stoleshnitsa, sokol, alohida panel…",
+      "name": "Nomi",
+      "length": "Uzunlik, mm",
+      "width": "Eni, mm",
+      "qty": "Soni",
+      "pieces": "{{n}} dona",
+      "material": "Material",
+      "materials": {
+        "board": "LDSP",
+        "back": "HDF",
+        "facade": "Fasad LDSP"
+      },
+      "grain": "Tekstura",
+      "edges": "Kromka (L1 L2 W1 W2)",
+      "remove_confirm": "{{label}} detalini olib tashlaysizmi?"
     }
   }
 }
