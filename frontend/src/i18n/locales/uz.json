@@ -2611,7 +2611,8 @@
       "empty": "Omborda qoldiq yo'q",
       "group": "{{m}} {{t}} mm",
       "by_hand": "qo'lda",
-      "delete_confirm": "{{l}} × {{w}} qoldig'ini o'chirasizmi?"
+      "delete_confirm": "{{l}} × {{w}} qoldig'ini o'chirasizmi?",
+      "length_grain": "Uzunlik (tola bo'yicha), mm"
     }
   }
 }

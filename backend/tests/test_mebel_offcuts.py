@@ -58,7 +58,7 @@ def test_cut_moves_used_out_and_produced_in(client):
     user = _user()
     project = _project(user.id)
     used = _offcut(user.id)
-    db = _db(_Result(one=project), _Result(many=[used]))
+    db = _db(_Result(one=project), _Result(many=[used]), _Result(one=1))
     _as(user, db)
     r = client.post(f"/api/v1/mebel/projects/{project.id}/cut",
                     json={"used": [str(used.id)], "produced": [_body(length=1200, width=400), _body(material="back", thickness=4)]})
@@ -93,3 +93,19 @@ def test_offcuts_survive_their_project():
     fk = next(iter(MebelOffcut.__table__.c.source_project_id.foreign_keys))
     assert fk.ondelete == "SET NULL"
     assert "cut_at" in FurnitureProject.__table__.c
+
+
+def test_cut_keeps_the_store_within_500(client):
+    user = _user()
+    project = _project(user.id)
+    # 498 held: of three produced pieces only the two largest fit
+    db = _db(_Result(one=project), _Result(one=498))
+    _as(user, db)
+    r = client.post(f"/api/v1/mebel/projects/{project.id}/cut",
+                    json={"used": [], "produced": [_body(length=300, width=300), _body(length=1200, width=800), _body(length=900, width=600)]})
+    assert r.status_code == 200, r.text
+    assert sorted(c.args[0].length for c in db.add.call_args_list) == [900, 1200]
+
+
+def test_offcuts_are_indexed_by_their_source():
+    assert any(ix.columns.keys() == ["source_project_id"] for ix in MebelOffcut.__table__.indexes)

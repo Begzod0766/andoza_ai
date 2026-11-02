@@ -670,4 +670,23 @@ describe('MebelProjectPage offcut stock', () => {
     fireEvent.change(screen.getAllByLabelText(t('mebel.width'))[0], { target: { value: '50' } })
     expect(screen.getByRole('button', { name: t('mebel.offcuts.cut') })).toBeDisabled()
   })
+
+  it('a cut project lays out without the store, so it shows what was sawn', async () => {
+    const project = newProject('Oshxona'); project.defaults.useOffcuts = true
+    vi.mocked(api.getMebelProject).mockResolvedValue({ id: 'p1', name: 'Oshxona', data: project, cut_at: '2026-11-02T10:00:00Z' })
+    vi.mocked(api.listOffcuts).mockResolvedValue(STOCK)
+    mount()
+    await screen.findByTestId('cut-at')
+    fireEvent.click(screen.getByRole('tab', { name: t('mebel.tab.nesting') }))
+    expect(screen.queryByText(t('mebel.offcuts.bin', { l: 2000, w: 1200 }), { exact: false })).toBeNull()
+  })
+
+  it('Kesildi is disabled while a part fits no sheet', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.free.add') }))
+    fireEvent.change(within(screen.getByTestId('free-D1')).getByLabelText(t('mebel.free.length')), { target: { value: '3000' } })
+    fireEvent.change(within(screen.getByTestId('free-D1')).getByLabelText(t('mebel.free.width')), { target: { value: '2500' } })
+    expect(screen.getByRole('button', { name: t('mebel.offcuts.cut') })).toBeDisabled()
+  })
 })

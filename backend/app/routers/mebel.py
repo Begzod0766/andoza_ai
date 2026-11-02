@@ -133,7 +133,14 @@ async def cut_project(project_id: uuid_module.UUID, body: CutIn, current_user: C
     """All or nothing: the offcuts the layout cut from must all still be the caller's
     (another job may have used one since the layout was drawn), else 409 and nothing
     changes. Then they leave, the layout's offcuts arrive, and the job is marked cut."""
-    project = await _own_project(db, current_user, project_id)
+    # the project row is locked too, so two "Kesildi" at once cannot both pass the check
+    project = (await db.execute(
+        select(FurnitureProject)
+        .where(FurnitureProject.id == project_id, FurnitureProject.user_id == current_user.id)
+        .with_for_update()
+    )).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loyiha topilmadi")
     if project.cut_at is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Loyiha allaqachon kesilgan")
     wanted = set(body.used)
@@ -146,9 +153,15 @@ async def cut_project(project_id: uuid_module.UUID, body: CutIn, current_user: C
         )).scalars().all())
         if len(used) != len(wanted):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Qoldiqlar o'zgargan — raskroyni yangilang")
+    held = (await db.execute(
+        select(func.count()).select_from(MebelOffcut).where(MebelOffcut.user_id == current_user.id)
+    )).scalar_one_or_none() or 0
+    # the store stays within its cap: past it, the smallest new pieces are not kept
+    room = max(0, MAX_OFFCUTS - (held - len(used)))
+    kept = sorted(body.produced, key=lambda p: p.length * p.width, reverse=True)[:room]
     for row in used:
         await db.delete(row)
-    for piece in body.produced:
+    for piece in kept:
         db.add(_offcut(current_user.id, piece, source=project.id))
     project.cut_at = datetime.now(timezone.utc)
     await db.flush()

@@ -30,6 +30,6 @@ class MebelOffcut(Base):
     length: Mapped[int] = mapped_column(Integer, nullable=False)
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     source_project_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("furniture_projects.id", ondelete="SET NULL"), nullable=True,
+        UUID(as_uuid=True), ForeignKey("furniture_projects.id", ondelete="SET NULL"), nullable=True, index=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

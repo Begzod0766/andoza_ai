@@ -145,7 +145,11 @@ export function nestSheets(
           const bb = best ? best.sheets.filter((x) => !x.stockId) : []
           if (!best || run.unplaced.length < best.unplaced.length
             || (run.unplaced.length === best.unplaced.length && rb.length < bb.length)
-            || (run.unplaced.length === best.unplaced.length && rb.length === bb.length && rb.length > 0
+            // fewer stock pieces opened keeps the store from breaking up
+            || (run.unplaced.length === best.unplaced.length && rb.length === bb.length
+              && run.sheets.length - rb.length < best.sheets.length - bb.length)
+            || (run.unplaced.length === best.unplaced.length && rb.length === bb.length
+              && run.sheets.length - rb.length === best.sheets.length - bb.length && rb.length > 0
               && rb[rb.length - 1].area < bb[bb.length - 1].area)) {
             best = run
           }

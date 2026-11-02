@@ -60,7 +60,7 @@ describe('MebelOffcutsPage', () => {
     vi.mocked(api.addOffcut).mockResolvedValue(off({}))
     mount()
     await screen.findByText(t('mebel.offcuts.empty'))
-    fireEvent.change(screen.getByLabelText(t('mebel.free.length')), { target: { value: '1000' } })
+    fireEvent.change(screen.getByLabelText(t('mebel.offcuts.length_grain')), { target: { value: '1000' } })
     fireEvent.change(screen.getByLabelText(t('mebel.free.width')), { target: { value: '450' } })
     fireEvent.click(screen.getByRole('button', { name: t('mebel.offcuts.add') }))
     await waitFor(() => expect(api.addOffcut).toHaveBeenCalledWith({ material: 'board', materialId: null, thickness: 18, length: 1000, width: 450 }))
@@ -74,5 +74,16 @@ describe('MebelOffcutsPage', () => {
     const dialog = await screen.findByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: t('mebel.delete') }))
     await waitFor(() => expect(api.deleteOffcut).toHaveBeenCalledWith('o1'))
+  })
+
+  it('thickness is picked from the board sizes, and a fraction is not accepted', async () => {
+    vi.mocked(api.listOffcuts).mockResolvedValue([])
+    mount()
+    await screen.findByText(t('mebel.offcuts.empty'))
+    const thick = screen.getByLabelText(t('mebel.offcuts.thickness')) as HTMLSelectElement
+    expect([...thick.options].map(o => o.value)).toEqual(['16', '18'])
+    fireEvent.change(screen.getByLabelText(t('mebel.offcuts.length_grain')), { target: { value: '719.6' } })
+    fireEvent.change(screen.getByLabelText(t('mebel.free.width')), { target: { value: '450' } })
+    expect(screen.getByRole('button', { name: t('mebel.offcuts.add') })).toBeDisabled()
   })
 })

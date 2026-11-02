@@ -2611,7 +2611,8 @@
       "empty": "No offcuts in the store",
       "group": "{{m}} {{t}} mm",
       "by_hand": "by hand",
-      "delete_confirm": "Delete the {{l}} × {{w}} offcut?"
+      "delete_confirm": "Delete the {{l}} × {{w}} offcut?",
+      "length_grain": "Length (along the grain), mm"
     }
   }
 }

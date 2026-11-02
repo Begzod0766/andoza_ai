@@ -48,8 +48,7 @@ export default function MebelProjectPage() {
   const confirm = useConfirm();
   const [cutting, setCutting] = useState(false);
   const [cutError, setCutError] = useState("");
-  const [cutAtLocal, setCutAtLocal] = useState<string | null>(null);
-  const cutAt = cutAtLocal ?? m.cutAt;
+  const cutAt = m.cutAt;
   // A label's QR code opens ?part=<id>: show that part's drilling map.
   const [search] = useSearchParams();
   const linkedPart = search.get("part");
@@ -115,7 +114,7 @@ export default function MebelProjectPage() {
     setCutError("");
     try {
       const saved = await cutMebelProject(id, { used, produced });
-      setCutAtLocal(saved.cut_at ?? new Date().toISOString());
+      m.markCutLocally(saved.cut_at ?? new Date().toISOString());
     } catch (e) {
       setCutError(errorMessage(e));
     } finally {
@@ -169,7 +168,7 @@ export default function MebelProjectPage() {
             {t("mebel.offcuts.cut_at", { date: new Date(cutAt).toLocaleDateString(intlLocale()) })}
           </span>
         ) : (
-          <button type="button" onClick={() => void markCut()} disabled={failed || cutting}
+          <button type="button" onClick={() => void markCut()} disabled={failed || cutting || !m.offcutsReady || result.nesting.some((n) => n.unplaced.length > 0)}
             className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
             {t("mebel.offcuts.cut")}
           </button>

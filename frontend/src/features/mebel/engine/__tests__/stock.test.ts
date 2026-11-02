@@ -70,4 +70,19 @@ describe('offcut stock in the cutting layout', () => {
       expect(r.nesting.some(n => n.material === o.material && n.thickness === o.thickness && n.materialId === o.materialId)).toBe(true)
     }
   })
+
+  it('produced offcuts are whole millimetres (cut sizes carry 0.4 bands)', () => {
+    const r = run(fourCabinets(), [stock()])
+    for (const o of producedOffcuts(r.nesting)) {
+      expect(Number.isInteger(o.length) && Number.isInteger(o.width)).toBe(true)
+      expect(Math.min(o.length, o.width)).toBeGreaterThanOrEqual(200)
+    }
+  })
+
+  it('opens as few stock pieces as it can', () => {
+    // one big piece can take everything the two small ones would
+    const pieces = [stock({ id: 'big', length: 2780, width: 2050 }), stock({ id: 's1', length: 800, width: 600 }), stock({ id: 's2', length: 800, width: 600 })]
+    const p = newProject('x'); p.defaults.useOffcuts = true
+    expect(usedStockIds(run(p, pieces).nesting)).toEqual(['big'])
+  })
 })

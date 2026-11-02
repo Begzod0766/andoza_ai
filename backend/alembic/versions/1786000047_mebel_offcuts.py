@@ -33,10 +33,13 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_mebel_offcuts_user_id", "mebel_offcuts", ["user_id"])
+    # ON DELETE SET NULL looks rows up by their source
+    op.create_index("ix_mebel_offcuts_source_project_id", "mebel_offcuts", ["source_project_id"])
     op.add_column("furniture_projects", sa.Column("cut_at", sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade() -> None:
     op.drop_column("furniture_projects", "cut_at")
+    op.drop_index("ix_mebel_offcuts_source_project_id", table_name="mebel_offcuts")
     op.drop_index("ix_mebel_offcuts_user_id", table_name="mebel_offcuts")
     op.drop_table("mebel_offcuts")

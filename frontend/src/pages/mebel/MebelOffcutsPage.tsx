@@ -10,6 +10,8 @@ import type { TKey } from "@/i18n";
 
 const field = "w-full rounded-xl border border-line bg-card px-3 py-2 text-sm text-ink";
 const MATERIALS = ["board", "back", "facade"] as const;
+/** The thicknesses a board of each kind comes in: a stock piece matches its board exactly. */
+const THICKNESS = { board: [16, 18], back: [3, 4], facade: [16, 18, 19] } as const;
 /** A catalogue item as the project page names it: "name · store". */
 const itemName = (m: Material) => (m.store_name ? `${m.name_uz} · ${m.store_name}` : m.name_uz);
 
@@ -40,7 +42,8 @@ export default function MebelOffcutsPage() {
     const key = `${o.material}|${o.thickness}`;
     groups.set(key, [...(groups.get(key) ?? []), o]);
   }
-  const valid = draft.length >= 200 && draft.length <= 5000 && draft.width >= 200 && draft.width <= 5000 && draft.thickness >= 1;
+  const side = (v: number) => Number.isInteger(v) && v >= 200 && v <= 5000;
+  const valid = side(draft.length) && side(draft.width) && (THICKNESS[draft.material] as readonly number[]).includes(draft.thickness);
 
   async function onDelete(o: MebelOffcut) {
     if (!(await confirm({ title: t("mebel.offcuts.delete_confirm", { l: o.length, w: o.width }), destructive: true, confirmLabel: t("mebel.delete") }))) return;
@@ -71,10 +74,20 @@ export default function MebelOffcutsPage() {
               {catalogFor(draft.material).map((m) => <option key={m.id} value={m.id}>{itemName(m)}</option>)}
             </select>
           </label>
-          {([["thickness", "mebel.offcuts.thickness"], ["length", "mebel.free.length"], ["width", "mebel.free.width"]] as const).map(([k, label]) => (
+          <label className="flex flex-col gap-1 text-xs text-ink-muted">
+            {t("mebel.offcuts.thickness")}
+            <select className={field} value={draft.thickness}
+              onChange={(e) => setDraft((d) => ({ ...d, thickness: Number(e.target.value) }))}>
+              {[...new Set([...THICKNESS.board, ...THICKNESS.facade])].filter((v) => (THICKNESS[draft.material] as readonly number[]).includes(v)).map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+          {/* a stock piece is never turned: its length runs with the grain */}
+          {([["length", "mebel.offcuts.length_grain"], ["width", "mebel.free.width"]] as const).map(([k, label]) => (
             <label key={k} className="flex flex-col gap-1 text-xs text-ink-muted">
               {t(label)}
-              <input type="number" inputMode="numeric" className={field} value={draft[k] || ""}
+              <input type="number" inputMode="numeric" step={1} className={field} value={draft[k] || ""}
                 onChange={(e) => setDraft((d) => ({ ...d, [k]: Number(e.target.value) || 0 }))} />
             </label>
           ))}

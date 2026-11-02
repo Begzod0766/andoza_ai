@@ -22,10 +22,15 @@ export function useMebelProject(id: string) {
   const projectQuery = useQuery({ queryKey: ["mebel", "project", id], queryFn: () => getMebelProject(id) });
   const priceBookQuery = useQuery({ queryKey: ["mebel", "price-book"], queryFn: getPriceBook });
   // the workshop's offcut store, used by the layout when the project says so
-  const offcutsQuery = useQuery({ queryKey: ["mebel", "offcuts"], queryFn: listOffcuts });
+  // The layout must not drift between printing and "Kesildi": the store is read
+  // once, not refetched on focus. A cut project lays out without it, so the page
+  // keeps showing what was sawn rather than nesting onto its own leftovers.
+  const offcutsQuery = useQuery({ queryKey: ["mebel", "offcuts"], queryFn: listOffcuts, staleTime: Infinity, refetchOnWindowFocus: false });
+  const [cutAtLocal, setCutAtLocal] = useState<string | null>(null);
+  const cutAt = cutAtLocal ?? projectQuery.data?.cut_at ?? null;
   const stock = useMemo<StockPiece[]>(
-    () => (offcutsQuery.data ?? []).map(({ id, material, materialId, thickness, length, width }) => ({ id, material, materialId, thickness, length, width })),
-    [offcutsQuery.data],
+    () => (cutAt ? [] : (offcutsQuery.data ?? []).map(({ id, material, materialId, thickness, length, width }) => ({ id, material, materialId, thickness, length, width }))),
+    [offcutsQuery.data, cutAt],
   );
   const catalogQueries = useQueries({
     queries: CATALOG_CATEGORIES.map((category) => ({
@@ -125,7 +130,9 @@ export function useMebelProject(id: string) {
     setSelectedPartId,
     offcutCount: stock.length,
     refetchOffcuts: offcutsQuery.refetch,
-    cutAt: projectQuery.data?.cut_at ?? null,
+    cutAt,
+    markCutLocally: setCutAtLocal,
+    offcutsReady: offcutsQuery.isSuccess,
     isLoading: projectQuery.isLoading,
     isError: projectQuery.isError,
   };
