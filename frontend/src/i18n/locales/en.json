@@ -2695,6 +2695,7 @@
       "warnings": "Warnings: {{n}}"
     },
     "view3d_height": "3D view height",
-    "cut_group_qty": "{{n}} pcs"
+    "cut_group_qty": "{{n}} pcs",
+    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}"
   }
 }

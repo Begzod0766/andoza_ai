@@ -2,6 +2,18 @@ import { useEffect } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import type { Part } from "@/features/mebel/engine";
+import { useThemeStore } from "@/store/themeStore";
+import type { AppTheme } from "@/store/themeStore";
+
+/**
+ * The scene's backdrop and grid for the app theme. The backdrop is painted behind a transparent
+ * canvas, so the PDF's snapshot of the view stays on white paper in either theme.
+ */
+export function sceneColors(theme: AppTheme): { background: string; grid: [string, string] } {
+  return theme === "night"
+    ? { background: "#1b1a2b", grid: ["#3d3c4e", "#2f2e3f"] }
+    : { background: "#ffffff", grid: ["#d4d4d4", "#e5e5e5"] };
+}
 
 export const COLORS = { board: "#d9c3a0", back: "#f2efe9", facade: "#b9a07a", selected: "#3b82f6" } as const;
 
@@ -84,7 +96,9 @@ export function CabinetView({
   parts, selectedPartId, onSelect, wallLift,
 }: { parts: Part[]; selectedPartId: string | null; onSelect(id: string): void; wallLift?: (cabinetId: string) => number }) {
   const specs = meshSpecs(parts, selectedPartId, { center: true, wallLift });
+  const scene = sceneColors(useThemeStore((s) => s.theme));
   return (
+    <div className="h-full w-full" style={{ background: scene.background }}>
     <Canvas camera={{ position: [1.2, 1.2, 2.4], fov: 40 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
       <FitView specs={specs} />
       <ambientLight intensity={0.7} />
@@ -99,8 +113,9 @@ export function CabinetView({
           <meshStandardMaterial color={s.color} />
         </mesh>
       ))}
-      <gridHelper args={[6, 12, "#d4d4d4", "#e5e5e5"]} />
+      <gridHelper key={scene.background} args={[6, 12, scene.grid[0], scene.grid[1]]} />
       <OrbitControls makeDefault />
     </Canvas>
+    </div>
   );
 }

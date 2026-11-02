@@ -89,7 +89,7 @@ export function ParamsPanel({
   return (
     <div className="flex flex-col gap-5">
       {/* Set once per project, then folded away so the cabinets get the room. */}
-      <details data-testid="section-settings" className="group rounded-2xl border border-neutral-200 p-3">
+      <details data-testid="section-settings" className="group rounded-2xl border border-line p-3">
         <summary className={summary}>{t("mebel.settings")}<Chevron /></summary>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Select id="mebel-t" label={t("mebel.board_thickness")} value={d.board.thickness}
@@ -124,19 +124,19 @@ export function ParamsPanel({
           <NumField id="mebel-trim" label={t("mebel.trim")} value={d.trim ?? 10}
             onChange={(v) => setDefaults((x) => ({ ...x, trim: v }))} />
         </div>
-        <label className="mt-3 flex items-center gap-2 text-sm text-neutral-700">
+        <label className="mt-3 flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" checked={d.edge.premilled}
             onChange={(e) => setDefaults((x) => ({ ...x, edge: { ...x.edge, premilled: e.target.checked } }))} />
           {t("mebel.premilled")}
         </label>
-        <label className="mt-2 flex items-center gap-2 text-sm text-neutral-700">
+        <label className="mt-2 flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" checked={!!d.useOffcuts}
             onChange={(e) => setDefaults((x) => ({ ...x, useOffcuts: e.target.checked }))} />
           {t("mebel.offcuts.use", { n: offcutCount })}
         </label>
       </details>
 
-      <details data-testid="section-facade" className="group rounded-2xl border border-neutral-200 p-3">
+      <details data-testid="section-facade" className="group rounded-2xl border border-line p-3">
         <summary className={summary}>{t("mebel.facade")}<Chevron /></summary>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Select id="mebel-facade-kind" label={t("mebel.facade_kind")} value={d.facade?.kind ?? "none"}
@@ -161,19 +161,19 @@ export function ParamsPanel({
 
       <section className="flex flex-col gap-2">
         {/* stays in view while the list scrolls */}
-        <div className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 bg-white px-1 py-2">
+        <div className="sticky top-0 z-10 -mx-1 flex flex-col gap-2 bg-card px-1 py-2">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-neutral-900">{t("mebel.cabinets")}</h2>
+            <h2 className="text-sm font-bold text-ink">{t("mebel.cabinets")}</h2>
             <button type="button" onClick={() => update((p) => ({ ...p, cabinets: relayout(p.cabinets) }))}
               title={t("mebel.relayout_hint")}
-              className="whitespace-nowrap text-xs font-semibold text-neutral-600 hover:text-neutral-900">
+              className="whitespace-nowrap text-xs font-semibold text-ink-muted hover:text-ink">
               {t("mebel.relayout")}
             </button>
           </div>
           <div className="grid grid-cols-3 gap-1" role="group" aria-label={t("mebel.add_cabinet")}>
             {(["base", "wall", "tall"] as const).map((type) => (
               <button key={type} type="button" onClick={() => addCabinet(type)}
-                className="whitespace-nowrap rounded-full bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                className="whitespace-nowrap rounded-full bg-[#5B84F5]/15 px-2 py-1.5 text-xs font-semibold text-[#5B84F5] hover:bg-blue-100">
                 {t(`mebel.add.${type}`)}
               </button>
             ))}
@@ -185,13 +185,13 @@ export function ParamsPanel({
           const open = openId === c.id || hasError;
           return (
           <details key={c.id} data-testid={`cabinet-${c.label}`} open={open}
-            className={`group rounded-2xl border ${open ? "border-blue-200 bg-blue-50/30" : "border-neutral-200"}`}>
+            className={`group rounded-2xl border ${open ? "border-blue-200 bg-[#5B84F5]/15/30" : "border-line"}`}>
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm"
               onClick={(e) => { e.preventDefault(); setOpenId(openId === c.id ? null : c.id); }}>
               {hasError && <span data-testid="cabinet-error-dot" className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}
-              <span className="font-bold text-neutral-900">{c.label}</span>
-              <span className="text-neutral-500">· {t(`mebel.type.${c.type ?? "base"}`)}</span>
-              <span className="ml-auto truncate tabular-nums text-xs text-neutral-500">
+              <span className="font-bold text-ink">{c.label}</span>
+              <span className="text-ink-muted">· {t(`mebel.type.${c.type ?? "base"}`)}</span>
+              <span className="ml-auto truncate tabular-nums text-xs text-ink-muted">
                 {`${c.width}×${c.height}×${c.depth} · ${t("mebel.position_short", { x: c.position.x })}`}
               </span>
               <Chevron />
@@ -218,12 +218,12 @@ export function ParamsPanel({
                 onChange={(v) => setCabinet(c.id, { doors: v === "auto" ? undefined : (Number(v) as 0 | 1 | 2) })} />
             </div>
             <div className="flex gap-2 px-3 pb-3">
-              <button type="button" onClick={() => duplicate(c)} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900">
+              <button type="button" onClick={() => duplicate(c)} className="text-xs font-semibold text-ink-muted hover:text-ink">
                 {t("mebel.duplicate")}
               </button>
               {/* the last cabinet may go once a free part keeps the project from being empty */}
               {(project.cabinets.length > 1 || (project.freeParts ?? []).length > 0) && (
-                <button type="button" onClick={() => void remove(c.id, c.label)} className="text-xs font-semibold text-red-600">
+                <button type="button" onClick={() => void remove(c.id, c.label)} className="text-xs font-semibold text-red-500">
                   {t("mebel.remove")}
                 </button>
               )}

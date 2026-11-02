@@ -2759,6 +2759,7 @@
       "warnings": "Предупреждения: {{n}}"
     },
     "view3d_height": "Высота 3D",
-    "cut_group_qty": "{{n}} шт."
+    "cut_group_qty": "{{n}} шт.",
+    "cut_group": "{{name}} · {{thickness}} мм · {{qty}}"
   }
 }

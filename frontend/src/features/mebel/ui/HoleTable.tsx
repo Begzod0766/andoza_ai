@@ -11,7 +11,7 @@ export function HoleTable({ part, print = false }: { part: Part; print?: boolean
   const cell = print ? "border border-black px-2 py-1" : "px-2 py-1.5";
   return (
     <table aria-label={t("mebel.drill.holes")} className="w-full text-left text-sm">
-      <thead className="text-xs text-neutral-500">
+      <thead className="text-xs text-ink-muted">
         <tr>
           <th className={cell}>{t("mebel.drill.kind")}</th>
           <th className={cell}>{t("mebel.drill.face")}</th>
@@ -23,7 +23,7 @@ export function HoleTable({ part, print = false }: { part: Part; print?: boolean
       </thead>
       <tbody>
         {(part.holes ?? []).map((h) => ({ h, at: holeAt(part, h) })).map(({ h, at }, i) => (
-          <tr key={i} className={print ? "" : "border-t border-neutral-100"}>
+          <tr key={i} className={print ? "" : "border-t border-line"}>
             <td className={cell}>{t(`mebel.drill.kinds.${h.kind}` as TKey)}</td>
             <td className={cell}>{h.face}</td>
             <td className={`${cell} text-right tabular-nums`}>{formatBand(at.x)}</td>

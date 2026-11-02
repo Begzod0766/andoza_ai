@@ -38,7 +38,7 @@ export function CutListTable({
   return (
     <div className="overflow-x-auto lg:overflow-visible">
       <table aria-label={t("mebel.tab.parts")} className="w-full text-left text-sm sm:min-w-[640px]">
-        <thead className="sticky top-0 z-10 bg-white text-xs text-neutral-500">
+        <thead className="sticky top-0 z-10 bg-card text-xs text-ink-muted">
           <tr>
             <th className="hidden sm:table-cell print:table-cell px-2 py-2 font-medium">{t("mebel.col.id")}</th>
             <th className="px-2 py-2 font-medium">{t("mebel.col.part")}</th>
@@ -57,7 +57,11 @@ export function CutListTable({
             {grouped && (
               <tr data-group={section.key} className="print:hidden">
                 <th colSpan={9} scope="colgroup" className="bg-card-soft px-2 py-1.5 text-left text-xs font-bold text-ink">
-                  {`${nameOf(section.groups[0])} · ${section.groups[0].thickness} mm · ${t("mebel.cut_group_qty", { n: section.groups.reduce((n, g) => n + g.qty, 0) })}`}
+                  {t("mebel.cut_group", {
+                    name: nameOf(section.groups[0]),
+                    thickness: section.groups[0].thickness,
+                    qty: t("mebel.cut_group_qty", { n: section.groups.reduce((n, g) => n + g.qty, 0) }),
+                  })}
                 </th>
               </tr>
             )}
@@ -70,10 +74,10 @@ export function CutListTable({
                 data-key={g.key}
                 aria-selected={selected}
                 onClick={() => onSelect(g.partIds[0])}
-                className={`cursor-pointer border-t border-neutral-100 ${selected ? "bg-blue-50" : "hover:bg-neutral-50"}`}
+                className={`cursor-pointer border-t border-line ${selected ? "bg-[#5B84F5]/15" : "hover:bg-card-soft"}`}
               >
-                <td className="hidden sm:table-cell print:table-cell px-2 py-2 text-xs text-neutral-500">{g.partIds.join(", ")}</td>
-                <td className="px-2 py-2 font-medium text-neutral-900">{groupName(g)}</td>
+                <td className="hidden sm:table-cell print:table-cell px-2 py-2 text-xs text-ink-muted">{g.partIds.join(", ")}</td>
+                <td className="px-2 py-2 font-medium text-ink">{groupName(g)}</td>
                 {(() => {
                   const name = nameOf(g);
                   // catalogue names run long: cut short on screen so the sizes stay in view;

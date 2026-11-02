@@ -2695,6 +2695,7 @@
       "warnings": "Ogohlantirishlar: {{n}}"
     },
     "view3d_height": "3D balandligi",
-    "cut_group_qty": "{{n}} dona"
+    "cut_group_qty": "{{n}} dona",
+    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}"
   }
 }
