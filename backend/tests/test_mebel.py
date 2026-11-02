@@ -106,6 +106,25 @@ def test_create_and_list_own_projects(client):
     assert "data" not in r.json()[0]  # the list is light; the editor fetches one project
 
 
+def test_list_reports_counts_and_cut_at(client):
+    user = _user()
+    cut = datetime(2026, 11, 2, 18, 0, tzinfo=timezone.utc)
+    data = _data()
+    data["cabinets"] = data["cabinets"] * 2
+    data["freeParts"] = [{"id": "d1"}]
+    _as(user, _db(_Result(many=[_project(user.id, data=data, cut_at=cut)])))
+    body = client.get("/api/v1/mebel/projects").json()[0]
+    assert body["cabinets"] == 2 and body["free_parts"] == 1
+    assert body["cut_at"].startswith("2026-11-02T18:00")
+
+
+def test_list_handles_old_data(client):
+    user = _user()
+    _as(user, _db(_Result(many=[_project(user.id, data={"schemaVersion": 1, "name": "x"})])))
+    body = client.get("/api/v1/mebel/projects").json()[0]
+    assert body["cabinets"] == 0 and body["free_parts"] == 0 and body["cut_at"] is None
+
+
 def test_get_foreign_project_is_404(client):
     user = _user()
     foreign = _project(uuid.uuid4())
