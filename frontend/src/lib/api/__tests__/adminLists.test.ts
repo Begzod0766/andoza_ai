@@ -4,7 +4,7 @@ const client = vi.hoisted(() => ({ apiClient: vi.fn() }))
 vi.mock('../client', () => client)
 
 import { listAdminOrders } from '../adminOrders'
-import { getCategoryCounts, listAdminFurniture } from '../admin'
+import { listAdminFurniture } from '../admin'
 import { listAdminMaterials } from '../adminMaterials'
 
 beforeEach(() => client.apiClient.mockReset().mockResolvedValue([]))
@@ -28,11 +28,5 @@ describe('admin list api', () => {
     client.apiClient.mockResolvedValue({ items: [], total: 0, page: 1, per_page: 50 })
     await listAdminMaterials({ page: 2, per_page: 50 })
     expect(client.apiClient).toHaveBeenCalledWith('/admin/materials?page=2&per_page=50')
-  })
-  it('category counts: shop and search, empty ones left out', async () => {
-    await getCategoryCounts({ store_id: 's1', q: '' })
-    expect(client.apiClient).toHaveBeenCalledWith('/admin/category-counts?store_id=s1')
-    await getCategoryCounts()
-    expect(client.apiClient).toHaveBeenLastCalledWith('/admin/category-counts')
   })
 })

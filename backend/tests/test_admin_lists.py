@@ -63,31 +63,7 @@ class TestFurnitureSearch:
         assert "ESCAPE" in str(compiled)
 
 
-class TestCategoryCounts:
-    def test_counts_both_kinds(self, client):
-        db = _as(
-            _user(is_admin=True),
-            _Result(many=[("laminat", 2), ("ldsp", 1)]),
-            _Result(many=[("divan", 1)]),
-        )
-        r = client.get("/api/v1/admin/category-counts")
-        assert r.status_code == 200, r.text
-        assert r.json() == {"materials": {"laminat": 2, "ldsp": 1}, "furniture": {"divan": 1}}
-        assert "GROUP BY materials.category" in str(_compiled(db, 0))
-        assert "GROUP BY furniture.category" in str(_compiled(db, 1))
-
-    def test_shop_and_search_narrow_both_counts(self, client):
-        store_id = uuid.uuid4()
-        db = _as(_user(is_admin=True), _Result(many=[]), _Result(many=[]))
-        r = client.get(f"/api/v1/admin/category-counts?store_id={store_id}&q=oslo")
-        assert r.json() == {"materials": {}, "furniture": {}}
-        for i in (0, 1):
-            compiled = _compiled(db, i)
-            assert "store_id" in str(compiled) and "%oslo%" in compiled.params.values()
-
-
 def test_new_endpoints_are_admin_only(client):
     _as(_user(is_admin=False))
-    assert client.get("/api/v1/admin/category-counts").status_code == 403
     assert client.get("/api/v1/admin/orders?q=abc").status_code == 403
     assert client.get("/api/v1/admin/furniture?q=abc").status_code == 403

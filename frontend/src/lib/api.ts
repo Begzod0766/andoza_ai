@@ -29,3 +29,4 @@ export * from "./api/userModels";
 export * from "./api/mebel";
 export * from "./api/admin";
 export * from "./api/adminMaterials";
+export * from "./api/adminProducts";
