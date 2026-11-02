@@ -34,7 +34,7 @@ describe('AdminOrders', () => {
     expect(await screen.findByText(/Mebel Plus/)).toBeInTheDocument()
     expect(screen.getByText('Chilonzor 5')).toBeInTheDocument()
     expect(screen.getByText(/Divan/)).toBeInTheDocument()
-    expect(api.listAdminOrders).toHaveBeenCalledWith(undefined, 1)
+    expect(api.listAdminOrders).toHaveBeenCalledWith({ status: undefined, page: 1 })
   })
 
   it('says when an order belongs to no shop, since only an administrator can act on it', async () => {
@@ -48,7 +48,7 @@ describe('AdminOrders', () => {
     mount()
     await screen.findByText('Buyurtma topilmadi.')
     fireEvent.click(screen.getByRole('button', { name: 'Yo\'lda' }))
-    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith('on_the_way', 1))
+    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith({ status: 'on_the_way', page: 1 }))
   })
 
   it('marks exactly one stage chip as chosen, and Hammasi goes back to every order', async () => {
@@ -61,9 +61,9 @@ describe('AdminOrders', () => {
     expect(chip('Yetkazildi')).toHaveAttribute('aria-pressed', 'true')
     expect(chip('Hammasi')).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getAllByRole('button', { pressed: true })).toHaveLength(1)
-    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith('delivered', 1))
+    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith({ status: 'delivered', page: 1 }))
     fireEvent.click(chip('Hammasi'))
-    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith(undefined, 1))
+    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith({ status: undefined, page: 1 }))
   })
 
   it('moves an order to its next stage', async () => {
@@ -114,7 +114,7 @@ describe('AdminOrders: many orders', () => {
     api.listAdminOrders.mockResolvedValueOnce(many(50)).mockResolvedValueOnce(many(3, 50))
     mount()
     fireEvent.click(await screen.findByRole('button', { name: 'Yana yuklash' }))
-    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith(undefined, 2))
+    await waitFor(() => expect(api.listAdminOrders).toHaveBeenLastCalledWith({ status: undefined, page: 2 }))
     await waitFor(() => expect(screen.getByText('Buyurtmalar (53)')).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Yana yuklash' })).toBeNull() // the second page was short
   })

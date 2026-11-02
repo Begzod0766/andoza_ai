@@ -117,7 +117,7 @@ export function AdminOrders({ onError }: { onError: (message: FormError) => void
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
   const orders = useInfiniteQuery({
     queryKey: [...KEY, filter],
-    queryFn: ({ pageParam }) => listAdminOrders(filter === "all" ? undefined : filter, pageParam),
+    queryFn: ({ pageParam }) => listAdminOrders({ status: filter === "all" ? undefined : filter, page: pageParam }),
     initialPageParam: 1,
     getNextPageParam: nextOrdersPage,
     refetchInterval: 30_000,
