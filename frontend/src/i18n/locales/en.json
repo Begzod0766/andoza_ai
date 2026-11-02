@@ -1973,7 +1973,49 @@
       "placement": "Placement in the room",
       "placement_short": "Placement",
       "not_selected": "— not selected —",
-      "title": "Shop management"
+      "title": "Shop management",
+      "tabs": {
+        "label": "Sections",
+        "orders": "Orders",
+        "products": "Products",
+        "stores": "Shops",
+        "moderation": "Moderation"
+      },
+      "orders": {
+        "period": "Period",
+        "today": "Today",
+        "week": "7 days",
+        "month": "30 days",
+        "all_time": "All time",
+        "all_stores": "All shops",
+        "search": "Number or phone",
+        "col_no": "No.",
+        "col_store": "Shop",
+        "col_phone": "Phone",
+        "col_date": "Date",
+        "col_items": "Items",
+        "col_sum": "Total",
+        "col_status": "Status",
+        "more": "Show more"
+      },
+      "products": {
+        "kind": "Kind",
+        "kind_all": "All",
+        "kind_materials": "Materials",
+        "kind_furniture": "Furniture",
+        "status": "Status",
+        "status_all": "All",
+        "status_active": "Active",
+        "status_hidden": "Hidden",
+        "all_categories": "All categories",
+        "categories": "Categories",
+        "search": "Search by name",
+        "empty": "No products found",
+        "material": "Material",
+        "model": "3D model",
+        "more": "Show more"
+      },
+      "stores_search": "Shop or district"
     },
     "order": {
       "status": {

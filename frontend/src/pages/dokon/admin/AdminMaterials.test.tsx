@@ -3,7 +3,6 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AdminMaterials } from './AdminMaterials'
 import { applyLanguage } from '@/i18n'
-import AdminCatalogPanel from '../AdminCatalogPanel'
 
 const api = vi.hoisted(() => ({
   listAdminMaterials: vi.fn(), updateAdminMaterial: vi.fn(), listAdminStores: vi.fn(), createAdminMaterial: vi.fn(),
@@ -21,10 +20,6 @@ vi.mock('@/lib/api', async () => {
     listAdminStores: (...a: unknown[]) => api.listAdminStores(...a),
   }
 })
-vi.mock('./ModerationQueue', () => ({ ModerationQueue: () => null }))
-vi.mock('./AdminOrders', () => ({ AdminOrders: () => null }))
-vi.mock('./CatalogOverview', () => ({ CatalogOverview: () => null }))
-vi.mock('./StoreProfile', () => ({ StoreProfile: () => null }))
 
 const material = (over: Record<string, unknown> = {}) => ({
   id: 'm1', store_id: 's1', store_name: 'Qurilish Mart', category: 'gips', name_uz: 'Gips suvoq',
@@ -183,14 +178,6 @@ describe('AdminMaterials dialog', () => {
     await waitFor(() => expect(screen.queryByLabelText('Nomi')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Tahrirlash' }))
     expect(await screen.findByLabelText('Nomi')).toHaveValue('Gips suvoq')
-  })
-})
-
-describe('AdminCatalogPanel', () => {
-  it('shows the Materiallar section when no shop is selected', async () => {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    render(<QueryClientProvider client={qc}><AdminCatalogPanel /></QueryClientProvider>)
-    expect(await screen.findByRole('heading', { name: /^Materiallar/ })).toBeInTheDocument()
   })
 })
 

@@ -1973,7 +1973,49 @@
       "placement": "Xonada joylashuvi",
       "placement_short": "Joylashuvi",
       "not_selected": "— tanlanmagan —",
-      "title": "Do'kon boshqaruvi"
+      "title": "Do'kon boshqaruvi",
+      "tabs": {
+        "label": "Bo'limlar",
+        "orders": "Buyurtmalar",
+        "products": "Tovarlar",
+        "stores": "Do'konlar",
+        "moderation": "Moderatsiya"
+      },
+      "orders": {
+        "period": "Davr",
+        "today": "Bugun",
+        "week": "7 kun",
+        "month": "30 kun",
+        "all_time": "Hammasi",
+        "all_stores": "Hamma do'konlar",
+        "search": "Raqam yoki telefon",
+        "col_no": "№",
+        "col_store": "Do'kon",
+        "col_phone": "Telefon",
+        "col_date": "Sana",
+        "col_items": "Tovarlar",
+        "col_sum": "Summa",
+        "col_status": "Holat",
+        "more": "Ko'proq ko'rsatish"
+      },
+      "products": {
+        "kind": "Turi",
+        "kind_all": "Hammasi",
+        "kind_materials": "Materiallar",
+        "kind_furniture": "Mebel",
+        "status": "Holat",
+        "status_all": "Hammasi",
+        "status_active": "Faol",
+        "status_hidden": "Yashirin",
+        "all_categories": "Hamma kategoriyalar",
+        "categories": "Kategoriyalar",
+        "search": "Nomi bo'yicha qidirish",
+        "empty": "Tovar topilmadi",
+        "material": "Material",
+        "model": "3D model",
+        "more": "Ko'proq ko'rsatish"
+      },
+      "stores_search": "Do'kon yoki tuman"
     },
     "order": {
       "status": {
