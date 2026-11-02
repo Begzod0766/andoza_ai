@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs ON THE SERVER. Invoked by the GitHub Actions deploy workflow (and can be
-# run by hand). Pulls the latest master and rebuilds the production stack.
+# run by hand). Pulls the latest master and starts the production stack from
+# the images CI built (IMAGE_TAG), or builds them here when run by hand.
 #
 # backend/.env and frontend/.env are gitignored, so `git reset --hard` leaves
 # them untouched — they live only on the server.
@@ -34,15 +35,33 @@ exec </dev/null
 
 APP_DIR="${APP_DIR:-/opt/andoza_ai}"
 COMPOSE_FILE="docker-compose.prod.yml"
+# Set by the deploy workflow: the commit whose images it built and pushed to
+# ghcr.io. Empty when this script is run by hand — then it builds here.
+IMAGE_TAG="${IMAGE_TAG:-}"
 
 cd "$APP_DIR"
 
 echo "==> Fetching latest master"
 git fetch --all --prune
-git reset --hard origin/master
+# The commit the images were built from, so compose files and seeds match them.
+git reset --hard "${IMAGE_TAG:-origin/master}"
 
-echo "==> Building & starting containers"
-docker compose -f "$COMPOSE_FILE" up -d --build
+# The images are built on GitHub's x86_64 runners; anything else builds here.
+if [ -n "$IMAGE_TAG" ] && [ "$(uname -m)" = "x86_64" ]; then
+  echo "==> Pulling pre-built images (${IMAGE_TAG})"
+  export IMAGE_TAG
+  # A failed pull stops here with the old containers still serving.
+  docker compose -f "$COMPOSE_FILE" -f docker-compose.images.yml \
+    pull api worker styles-worker converter beat frontend
+  echo "==> Starting containers"
+  docker compose -f "$COMPOSE_FILE" -f docker-compose.images.yml up -d --no-build
+else
+  if [ -n "$IMAGE_TAG" ]; then
+    echo "!! $(uname -m) server: the pre-built images are x86_64 — building here instead"
+  fi
+  echo "==> Building & starting containers"
+  docker compose -f "$COMPOSE_FILE" up -d --build
+fi
 
 # A failed seed is NOT fatal — a bad seed must not take the site down halfway
 # through a rollout — but it must be impossible to miss in the Actions log.
