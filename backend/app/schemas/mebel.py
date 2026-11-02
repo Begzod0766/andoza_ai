@@ -124,6 +124,40 @@ class ProjectOut(ProjectSummary):
     data: dict
     schema_version: int
     created_at: datetime
+    cut_at: datetime | None = None
+
+
+MAX_OFFCUTS = 500
+
+
+class OffcutIn(BaseModel):
+    """An offcut entered by hand or left by a job's layout: a sawn board rectangle."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    material: Literal["board", "back", "facade"]
+    material_id: str | None = Field(default=None, alias="materialId", max_length=64)
+    thickness: int = Field(ge=1, le=50)
+    length: int = Field(ge=200, le=5000)
+    width: int = Field(ge=200, le=5000)
+
+
+class OffcutOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, serialize_by_alias=True)
+
+    id: uuid.UUID
+    material: str
+    material_id: str | None = Field(default=None, serialization_alias="materialId")
+    thickness: int
+    length: int
+    width: int
+    source_project_id: uuid.UUID | None = None
+    created_at: datetime
+
+
+class CutIn(BaseModel):
+    """What "Kesildi" moves: the store offcuts the layout cut from, and the offcuts it leaves."""
+    used: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_OFFCUTS)
+    produced: list[OffcutIn] = Field(default_factory=list, max_length=MAX_OFFCUTS)
 
 
 class PriceBookData(BaseModel):
