@@ -221,3 +221,32 @@ describe('ProductsTab — one category', () => {
     expect(prices[1]).toHaveClass('hidden', 'md:block')
   })
 })
+
+describe('ProductsTab — review fixes', () => {
+  it('a row menu is not clipped: the panels holding rows do not hide overflow', async () => {
+    mount()
+    const block = await screen.findByRole('region', { name: /Divan/ })
+    let el: HTMLElement | null = block
+    while (el && el !== document.body) {
+      expect(el).not.toHaveClass('overflow-hidden')
+      el = el.parentElement
+    }
+  })
+
+  it('a page left empty (its last item hidden) moves back to the last page that has rows', async () => {
+    api.listAdminProducts.mockImplementation(async ({ page: n }: { page: number }) =>
+      n === 1
+        ? { items: [product({ id: 'a', name: 'First page row' })], total: 26 }
+        : { items: [product({ id: 'b', name: 'Second page row' })], total: 26 })
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    fireEvent.click(await screen.findByRole('button', { name: '2' }))
+    await screen.findByText('Second page row')
+    // The one row on page 2 is hidden: the total drops to 25 and page 2 comes back empty.
+    api.listAdminProducts.mockImplementation(async ({ page: n }: { page: number }) =>
+      n === 1 ? { items: [product({ id: 'a', name: 'First page row' })], total: 25 } : { items: [], total: 25 })
+    await qc.invalidateQueries({ queryKey: ['admin'] })
+    expect(await screen.findByText('First page row')).toBeInTheDocument()
+    expect(api.listAdminProducts).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }))
+  })
+})

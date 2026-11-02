@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -123,6 +123,14 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
   const filterBy = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
   const choose = (next: Category | null) => { setCategory(next); setPage(1); };
   const listTop = useRef<HTMLDivElement>(null);
+  // A page can empty under the admin (its last row hidden, a model deleted): step back to the
+  // last page that still has rows, rather than an empty list with no pager.
+  const listed = list.data;
+  useEffect(() => {
+    if (listed && listed.items.length === 0 && listed.total > 0 && page > 1) {
+      setPage(Math.max(1, Math.ceil(listed.total / PER_PAGE)));
+    }
+  }, [listed, page]);
   const goTo = (n: number) => {
     setPage(n);
     listTop.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
@@ -234,7 +242,7 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
               <Panel className="px-4 py-6 text-center text-sm text-ink-muted">{t("dokon.admin.products.empty")}</Panel>
             ) : (
               blocks.map((b) => (
-                <Panel key={`${b.kind}:${b.category}`} className="overflow-hidden p-0">
+                <Panel key={`${b.kind}:${b.category}`} className="p-0">
                   <section aria-label={b.label}>
                     <h3 className="flex items-center gap-2 border-b border-line px-4 py-2 text-xs font-bold uppercase tracking-wide text-ink-muted">
                       <span className="min-w-0 flex-1 truncate">{b.label}</span>
@@ -262,7 +270,7 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
           ) : !list.data || list.data.items.length === 0 ? (
             <Panel className="px-4 py-6 text-center text-sm text-ink-muted">{t("dokon.admin.products.empty")}</Panel>
           ) : (
-            <Panel className="overflow-hidden p-0">
+            <Panel className="p-0">
               <section aria-label={kindLabel(category.kind, category.id, t)}>
                 <h3 className="flex items-center gap-2 border-b border-line px-4 py-2 text-xs font-bold uppercase tracking-wide text-ink-muted">
                   <span className="min-w-0 flex-1 truncate">{kindLabel(category.kind, category.id, t)}</span>
