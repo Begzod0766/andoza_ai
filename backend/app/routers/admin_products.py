@@ -118,22 +118,20 @@ async def products_overview(
     status: ProductStatus | None = None,
 ) -> ProductsOverview:
     sub = _products(kind, store_id, q, status)
-    totals = (await db.execute(
-        select(sub.c.kind, sub.c.category, func.count())
-        .group_by(sub.c.kind, sub.c.category)
-        .order_by(sub.c.kind, sub.c.category)
-    )).all()
-    rank = func.row_number().over(partition_by=(sub.c.kind, sub.c.category), order_by=_order(sub)).label("rn")
-    ranked = select(sub, rank).subquery("ranked")
+    per_category = (sub.c.kind, sub.c.category)
+    rank = func.row_number().over(partition_by=per_category, order_by=_order(sub)).label("rn")
+    # The category's total rides on each row, so totals and rows come from one snapshot.
+    cat_total = func.count().over(partition_by=per_category).label("cat_total")
+    ranked = select(sub, rank, cat_total).subquery("ranked")
     rows = (await db.execute(
         select(ranked).where(ranked.c.rn <= PREVIEW_ROWS).order_by(ranked.c.kind, ranked.c.category, ranked.c.rn)
     )).all()
 
-    items: dict[tuple[str, str], list[AdminProductOut]] = {}
+    blocks: dict[tuple[str, str], ProductCategoryBlock] = {}
     for r in rows:
-        items.setdefault((r.kind, r.category), []).append(_out(r, request))
-    blocks = [
-        ProductCategoryBlock(kind=k, category=c, total=n, items=items.get((k, c), []))
-        for k, c, n in totals
-    ]
-    return ProductsOverview(total=sum(b.total for b in blocks), categories=blocks)
+        block = blocks.setdefault(
+            (r.kind, r.category), ProductCategoryBlock(kind=r.kind, category=r.category, total=r.cat_total, items=[]),
+        )
+        block.items.append(_out(r, request))
+    categories = list(blocks.values())
+    return ProductsOverview(total=sum(b.total for b in categories), categories=categories)

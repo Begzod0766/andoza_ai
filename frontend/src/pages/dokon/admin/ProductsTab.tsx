@@ -39,6 +39,9 @@ const STATUSES: Array<{ value: StatusFilter; labelKey: TKey }> = [
   { value: "hidden", labelKey: "dokon.admin.products.status_hidden" },
 ];
 
+const sameCategory = (a: Category | null | undefined, b: Category | null) =>
+  !!a && !!b && a.kind === b.kind && a.id === b.id;
+
 const kindLabel = (kind: ProductKind, category: string, t: TFunction) =>
   kind === "materials" ? optionLabel(MATERIAL_CATEGORIES, category, t) : categoryLabel(category, t);
 
@@ -96,7 +99,10 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
     queryKey: ["admin", "products", "list", filters, category, page],
     queryFn: () => listAdminProducts({ ...filters, kind: category!.kind, category: category!.id, page, perPage: PER_PAGE }),
     enabled: category !== null,
-    placeholderData: keepPreviousData,
+    // Paging within one category keeps the old page up while the next loads; another category
+    // shows its own loading state instead of the previous category's rows.
+    placeholderData: (previous, previousQuery) =>
+      sameCategory(previousQuery?.queryKey[4] as Category | null, category) ? previous : undefined,
   });
 
   const refresh = () => {
@@ -113,6 +119,7 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
     mutationFn: async (p: AdminProduct): Promise<{ material: AdminMaterial } | { model: AdminFurniture }> =>
       p.kind === "materials" ? { material: await getAdminMaterial(p.id) } : { model: await getAdminFurniture(p.id) },
     onSuccess: (r) => {
+      onError(null);
       if ("material" in r) setEditingMaterial(r.material);
       else setEditingModel(r.model);
     },
@@ -121,8 +128,9 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
 
   // Any filter or category change starts again from the first page.
   const filterBy = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
-  const choose = (next: Category | null) => { setCategory(next); setPage(1); };
   const listTop = useRef<HTMLDivElement>(null);
+  const toListTop = () => listTop.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  const choose = (next: Category | null) => { setCategory(next); setPage(1); toListTop(); };
   // A page can empty under the admin (its last row hidden, a model deleted): step back to the
   // last page that still has rows, rather than an empty list with no pager.
   const listed = list.data;
@@ -131,20 +139,24 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
       setPage(Math.max(1, Math.ceil(listed.total / PER_PAGE)));
     }
   }, [listed, page]);
-  const goTo = (n: number) => {
-    setPage(n);
-    listTop.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
-  };
+  const goTo = (n: number) => { setPage(n); toListTop(); };
 
   const blocks = (overview.data?.categories ?? [])
     .map((c) => ({ ...c, label: kindLabel(c.kind, c.category, t) }))
     .sort((a, b) => a.label.localeCompare(b.label) || a.kind.localeCompare(b.kind));
   const needle = categorySearch.trim().toLocaleLowerCase();
-  const sideBlocks = needle ? blocks.filter((b) => b.label.toLocaleLowerCase().includes(needle)) : blocks;
+  const isChosen = (b: { kind: ProductKind; category: string }) => sameCategory({ kind: b.kind, id: b.category }, category);
+  const sideBlocks = needle ? blocks.filter((b) => isChosen(b) || b.label.toLocaleLowerCase().includes(needle)) : [...blocks];
+  if (category && !blocks.some(isChosen)) {
+    sideBlocks.push({
+      kind: category.kind, category: category.id, total: list.data?.total ?? 0, items: [],
+      label: kindLabel(category.kind, category.id, t),
+    });
+  }
   const total = overview.data?.total ?? 0;
   const busyId = toggle.isPending ? toggle.variables?.id : open.isPending ? open.variables?.id : undefined;
   const row = (p: AdminProduct) => (
-    <ProductRow key={`${p.kind}:${p.id}`} product={p} busy={busyId === p.id} onOpen={(x) => open.mutate(x)} onToggle={(x) => toggle.mutate(x)} />
+    <ProductRow key={`${p.kind}:${p.id}`} product={p} busy={busyId === p.id} onOpen={(x) => { if (!open.isPending) open.mutate(x); }} onToggle={(x) => toggle.mutate(x)} />
   );
 
   return (
@@ -245,6 +257,7 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
                 <Panel key={`${b.kind}:${b.category}`} className="p-0">
                   <section aria-label={b.label}>
                     <h3 className="flex items-center gap-2 border-b border-line px-4 py-2 text-xs font-bold uppercase tracking-wide text-ink-muted">
+                      {kind === "all" && <KindIcon kind={b.kind} className="shrink-0" />}
                       <span className="min-w-0 flex-1 truncate">{b.label}</span>
                       <span>{b.total}</span>
                     </h3>
