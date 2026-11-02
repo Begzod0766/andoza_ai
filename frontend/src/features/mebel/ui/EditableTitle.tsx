@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -8,8 +8,12 @@ import { useTranslation } from "react-i18next";
 export function EditableTitle({ name, onRename }: { name: string; onRename: (name: string) => void }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<string | null>(null);
+  // Enter or Escape ends the edit; the blur the browser fires as the field goes must not end it again.
+  const done = useRef(false);
 
   const finish = (keep: boolean) => {
+    if (done.current) return;
+    done.current = true;
     const next = draft?.trim() ?? "";
     if (keep && next && next !== name) onRename(next);
     setDraft(null);
@@ -34,7 +38,7 @@ export function EditableTitle({ name, onRename }: { name: string; onRename: (nam
   }
   return (
     <h1 aria-label={name} className="min-w-0 flex-1 truncate text-base font-bold text-ink">
-      <button type="button" onClick={() => setDraft(name)} aria-label={t("mebel.header.rename", { name })}
+      <button type="button" onClick={() => { done.current = false; setDraft(name); }} aria-label={t("mebel.header.rename", { name })}
         className="max-w-full truncate rounded-lg px-1 text-left hover:bg-ink/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5B84F5]/70">
         <span aria-hidden="true">{name}</span>
       </button>

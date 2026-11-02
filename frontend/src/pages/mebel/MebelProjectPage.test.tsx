@@ -785,3 +785,30 @@ describe('MebelProjectPage 3D divider and warnings', () => {
     expect(Number(badge.textContent)).toBeGreaterThan(0)
   })
 })
+
+describe('MebelProjectPage review fixes', () => {
+  it('the printout keeps day ink whatever the theme', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.export_pdf'))
+    const root = await screen.findByTestId('mebel-print')
+    expect(root.style.getPropertyValue('--ink')).toBe('17 24 39')
+    expect(root.style.getPropertyValue('--ink-muted')).toBe('107 114 128')
+    expect(root.style.getPropertyValue('--card')).toBe('255 255 255')
+  })
+
+  it('text with no colour of its own takes the theme ink, in the editor and the price book', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    expect(screen.getByTestId('mebel-editor')).toHaveClass('text-ink')
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.price_book') }))
+    expect(await screen.findByRole('dialog')).toHaveClass('text-ink')
+  })
+
+  it('a direct link puts the chosen theme on <html>', async () => {
+    document.documentElement.removeAttribute('data-app-theme')
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    expect(document.documentElement.getAttribute('data-app-theme')).toMatch(/^(day|night)$/)
+  })
+})

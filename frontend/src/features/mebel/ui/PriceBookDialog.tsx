@@ -6,7 +6,7 @@ import { savePriceBook } from "@/lib/api";
 import type { CatalogPrices, PriceBook } from "@/features/mebel/engine";
 import { formatUZS } from "@/lib/utils";
 
-const field = "w-32 rounded-xl border border-line px-3 py-1.5 text-right text-sm tabular-nums";
+const field = "w-32 rounded-xl border border-line bg-card px-3 py-1.5 text-right text-sm text-ink tabular-nums";
 const EMPTY_SHEETS: NonNullable<PriceBook["sheets"]> = { board16: null, board18: null, back: null, mdfM2: null };
 const num = (v: string): number | null => (v.trim() === "" ? null : Math.max(0, Number(v) || 0));
 
@@ -51,7 +51,7 @@ export function PriceBookDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 z-[80] max-h-[90vh] overflow-y-auto rounded-t-3xl bg-card p-6 sm:inset-0 sm:m-auto sm:h-fit sm:w-[min(92vw,520px)] sm:rounded-3xl">
+        <Dialog.Content className="fixed inset-x-0 bottom-0 z-[80] max-h-[90vh] overflow-y-auto rounded-t-3xl bg-card p-6 text-ink sm:inset-0 sm:m-auto sm:h-fit sm:w-[min(92vw,520px)] sm:rounded-3xl">
           <Dialog.Title className="text-lg font-bold">{t("mebel.price_book")}</Dialog.Title>
           <Dialog.Description className="mt-1 text-sm text-ink-muted">{t("mebel.price_book_hint")}</Dialog.Description>
 

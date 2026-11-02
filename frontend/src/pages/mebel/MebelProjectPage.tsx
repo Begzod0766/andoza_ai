@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { intlLocale, type TKey } from "@/i18n";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMebelProject } from "@/features/mebel/useMebelProject";
+import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 import { ParamsPanel } from "@/features/mebel/ui/ParamsPanel";
 import { AiSuggest } from "@/features/mebel/ui/AiSuggest";
 import { CutListTable } from "@/features/mebel/ui/CutListTable";
@@ -41,6 +42,8 @@ export default function MebelProjectPage() {
   const { t } = useTranslation();
   const { id = "" } = useParams();
   const m = useMebelProject(id);
+  // A full-screen page outside AppShell: it puts the chosen theme on <html> itself.
+  useAppThemeAttribute();
   const [tab, setTab] = useState<Tab>("parts");
   const [pane, setPane] = useState<"params" | "result">("params");
   const [show3d, setShow3d] = useState(true);
@@ -143,7 +146,7 @@ export default function MebelProjectPage() {
     <>
     {/* On a wide screen the page itself does not scroll: the settings and the result
         each scroll in their own column, under a header that stays put. */}
-    <div className="flex min-h-screen flex-col bg-card-soft print:hidden lg:h-screen lg:overflow-hidden">
+    <div data-testid="mebel-editor" className="flex min-h-screen flex-col bg-card-soft text-ink print:hidden lg:h-screen lg:overflow-hidden">
       <header className="flex flex-wrap items-center gap-2 border-b border-line bg-card px-4 py-3">
         <Link to="/mebel" className="shrink-0 text-sm font-semibold text-[#5B84F5]">← {t("mebel.back_to_list")}</Link>
         <EditableTitle name={project.name} onRename={(name) => m.setProject((p) => ({ ...p, name }))} />
