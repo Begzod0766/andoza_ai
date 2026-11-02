@@ -2667,6 +2667,35 @@
       "by_hand": "qo'lda",
       "delete_confirm": "{{l}} × {{w}} qoldig'ini o'chirasizmi?",
       "length_grain": "Uzunlik (tola bo'yicha), mm"
-    }
+    },
+    "list": {
+      "cabinets": "{{n}} shkaf",
+      "free_parts": "{{n}} erkin detal",
+      "empty_project": "Bo'sh",
+      "cut": "Kesildi {{date}}",
+      "updated": "Yangilangan: {{date}}",
+      "copy": "Nusxa olish",
+      "delete": "O'chirish",
+      "copy_name": "{{name}} (nusxa)",
+      "copy_failed": "Nusxa olib bo'lmadi",
+      "actions": "Amallar"
+    },
+    "header": {
+      "export": "Eksport",
+      "rename": "Nomini o'zgartirish: {{name}}",
+      "cut_irreversible": "Bu amalni ortga qaytarib bo'lmaydi."
+    },
+    "summary": {
+      "label": "Loyiha xulosasi",
+      "sheets": "{{n}} plita",
+      "offcuts": "{{n}} qoldiq",
+      "edge": "{{m}} m kromka",
+      "parts": "{{n}} detal",
+      "price_label": "Narx",
+      "warnings": "Ogohlantirishlar: {{n}}"
+    },
+    "view3d_height": "3D balandligi",
+    "cut_group_qty": "{{n}} dona",
+    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}"
   }
 }

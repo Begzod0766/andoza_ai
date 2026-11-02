@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createMebelProject, deleteMebelProject, listMebelProjects } from "@/lib/api";
+import { createMebelProject, deleteMebelProject, getMebelProject, listMebelProjects, type MebelProjectSummary } from "@/lib/api";
 import { newProject } from "@/features/mebel/engine";
 import { Button } from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import { intlLocale } from "@/i18n";
+import { ProjectCard } from "@/features/mebel/ui/ProjectCard";
 
 /** /mebel: a furniture workshop's cabinet projects. */
 export default function MebelListPage() {
@@ -33,8 +34,23 @@ export default function MebelListPage() {
     },
   });
 
+  const [copyFailed, setCopyFailed] = useState(false);
+  const copy = useMutation({
+    mutationFn: async (p: MebelProjectSummary) => {
+      const source = await getMebelProject(p.id);
+      const name = t("mebel.list.copy_name", { name: p.name });
+      return createMebelProject(name, { ...source.data, name });
+    },
+    onMutate: () => setCopyFailed(false),
+    onSuccess: (p) => {
+      void queryClient.invalidateQueries({ queryKey: ["mebel", "projects"] });
+      navigate(`/mebel/${p.id}`);
+    },
+    onError: () => setCopyFailed(true),
+  });
+
   const remove = useMutation({
-    mutationFn: deleteMebelProject,
+    mutationFn: (id: string) => deleteMebelProject(id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["mebel", "projects"] }),
   });
 
@@ -60,6 +76,8 @@ export default function MebelListPage() {
         </div>
       </div>
 
+      {copyFailed && <p role="alert" className="mb-3 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">{t("mebel.list.copy_failed")}</p>}
+
       {isLoading ? (
         <div className="h-24 animate-pulse rounded-2xl bg-card-soft" />
       ) : isError ? (
@@ -74,21 +92,7 @@ export default function MebelListPage() {
       ) : (
         <ul className="flex flex-col gap-2">
           {projects.map((p) => (
-            <li key={p.id} className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line">
-              <Link to={`/mebel/${p.id}`} className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-ink">{p.name}</p>
-                <p className="text-xs text-ink-muted">
-                  {t("mebel.updated", { date: new Date(p.updated_at).toLocaleString(intlLocale()) })}
-                </p>
-              </Link>
-              <button
-                type="button"
-                onClick={() => void onDelete(p.id, p.name)}
-                className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10"
-              >
-                {t("mebel.delete")}
-              </button>
-            </li>
+            <ProjectCard key={p.id} project={p} onCopy={(x) => copy.mutate(x)} onDelete={(x) => void onDelete(x.id, x.name)} />
           ))}
         </ul>
       )}

@@ -8,6 +8,10 @@ export interface MebelProjectSummary {
   id: string;
   name: string;
   updated_at: string;
+  /** Counted from the stored project, so two of one name can be told apart. */
+  cabinets?: number;
+  free_parts?: number;
+  cut_at?: string | null;
 }
 
 export interface MebelProject {

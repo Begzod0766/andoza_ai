@@ -1,3 +1,4 @@
+import type React from "react";
 import { useTranslation } from "react-i18next";
 import type { Result } from "@/features/mebel/engine";
 import { CutListTable } from "@/features/mebel/ui/CutListTable";
@@ -17,6 +18,15 @@ const PRINT_PAGE_CSS = "@page { size: A4 landscape; margin: 10mm }";
  * What the PDF holds: the browser's print dialog saves this as a PDF. Hidden
  * on screen, the only thing shown when printing (the page hides the rest).
  */
+/**
+ * The day theme's tokens, for paper: the tables the printout shares with the editor colour their
+ * text with theme tokens, and a night theme must not print light ink on white.
+ */
+export const PRINT_TOKENS = {
+  "--card": "255 255 255", "--card-soft": "244 241 251", "--ink": "17 24 39",
+  "--ink-muted": "107 114 128", "--line": "232 228 244",
+} as React.CSSProperties;
+
 export function PrintView({
   name, result, snapshot, trim, materialName, labelOf = (id: string) => id, cabinets = [],
 }: {
@@ -34,11 +44,11 @@ export function PrintView({
 }) {
   const { t } = useTranslation();
   return (
-    <div data-testid="mebel-print" aria-hidden="true" className="hidden flex-col gap-6 p-6 text-black print:flex">
+    <div data-testid="mebel-print" aria-hidden="true" className="hidden flex-col gap-6 p-6 text-black print:flex" style={PRINT_TOKENS}>
       <style>{PRINT_PAGE_CSS}</style>
       <h1 className="text-xl font-bold">{t("mebel.print_title", { name })}</h1>
       {snapshot && <img src={snapshot} alt="" className="max-h-[80mm] self-start" />}
-      <CutListTable groups={result.groups} showCut selectedPartId={null} onSelect={() => {}}
+      <CutListTable groups={result.groups} showCut grouped={false} selectedPartId={null} onSelect={() => {}}
         materialName={(g) => materialName(g.materialId) ?? t(`mebel.material.${g.material}`)} />
       <EdgeTable totals={result.edgeTotals} materialName={materialName} />
       <BomPanel bom={result.bom} total={result.total} hasUnpriced={result.hasUnpriced} nesting={result.nesting}

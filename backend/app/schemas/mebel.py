@@ -118,13 +118,30 @@ class ProjectSummary(BaseModel):
     id: uuid.UUID
     name: str
     updated_at: datetime
+    # What tells two projects of the same name apart on the list: counted from the stored JSON.
+    cabinets: int = 0
+    free_parts: int = 0
+    cut_at: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _count(cls, value):
+        data = getattr(value, "data", None)
+        if isinstance(data, dict):
+            return {
+                "id": value.id, "name": value.name, "updated_at": value.updated_at,
+                "cabinets": len(data.get("cabinets") or []),
+                "free_parts": len(data.get("freeParts") or []),
+                "cut_at": getattr(value, "cut_at", None),
+                **{k: getattr(value, k) for k in ("data", "schema_version", "created_at") if hasattr(value, k)},
+            }
+        return value
 
 
 class ProjectOut(ProjectSummary):
     data: dict
     schema_version: int
     created_at: datetime
-    cut_at: datetime | None = None
 
 
 MAX_OFFCUTS = 500

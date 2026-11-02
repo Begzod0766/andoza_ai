@@ -66,7 +66,7 @@ export function AiSuggest({
 
   return (
     // folded until wanted: one line at the top of the panel
-    <details data-testid="section-ai" className="group rounded-2xl bg-blue-50/60 p-3">
+    <details data-testid="section-ai" className="group rounded-2xl bg-[#5B84F5]/15/60 p-3">
       <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-blue-800">
         {`✦ ${t("mebel.ai.label")}`}
         <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 transition-transform group-open:rotate-180">
@@ -77,14 +77,14 @@ export function AiSuggest({
       <label htmlFor="mebel-ai" className="sr-only">{t("mebel.ai.label")}</label>
       <textarea id="mebel-ai" value={text} maxLength={1000} rows={3} onChange={(e) => setText(e.target.value)}
         placeholder={t("mebel.ai.placeholder")}
-        className="w-full resize-none rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm" />
+        className="w-full resize-none rounded-xl border border-line bg-card px-3 py-2 text-sm" />
       <button type="button" onClick={() => void ask()} disabled={busy || !text.trim()}
         className="self-start rounded-full bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
         {busy ? t("mebel.ai.thinking") : t("mebel.ai.ask")}
       </button>
-      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
       {proposal && (
-        <div className="flex flex-col gap-2 rounded-xl bg-white p-3 text-sm">
+        <div className="flex flex-col gap-2 rounded-xl bg-card p-3 text-sm">
           {proposal.cabinets.length > 0 && (
             <ul className="flex flex-col gap-1">
               {proposal.cabinets.map((c, i) => (
@@ -97,16 +97,16 @@ export function AiSuggest({
             </ul>
           )}
           {proposal.questions.map((q, i) => <p key={i} className="text-xs text-amber-800">{q}</p>)}
-          {(proposal.warnings ?? []).map((w, i) => <p key={`w${i}`} className="text-xs font-semibold text-red-600">{w}</p>)}
-          {tooMany && <p className="text-xs text-red-600">{t("mebel.ai.over_limit", { max: MAX_CABINETS })}</p>}
+          {(proposal.warnings ?? []).map((w, i) => <p key={`w${i}`} className="text-xs font-semibold text-red-500">{w}</p>)}
+          {tooMany && <p className="text-xs text-red-500">{t("mebel.ai.over_limit", { max: MAX_CABINETS })}</p>}
           {proposal.dropped.length > 0 && (
-            <p className="text-xs text-neutral-500">{`${t("mebel.ai.dropped")}: ${proposal.dropped.join("; ")}`}</p>
+            <p className="text-xs text-ink-muted">{`${t("mebel.ai.dropped")}: ${proposal.dropped.join("; ")}`}</p>
           )}
           <div className="flex gap-2">
             <button type="button" onClick={() => apply("add")} disabled={empty || tooMany}
-              className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">{t("mebel.ai.add")}</button>
+              className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">{t("mebel.ai.add")}</button>
             <button type="button" onClick={() => apply("replace")} disabled={empty}
-              className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700 disabled:opacity-40">{t("mebel.ai.replace")}</button>
+              className="rounded-full bg-card-soft px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-40">{t("mebel.ai.replace")}</button>
           </div>
         </div>
       )}

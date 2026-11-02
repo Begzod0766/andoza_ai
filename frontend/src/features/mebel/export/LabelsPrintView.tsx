@@ -1,3 +1,4 @@
+import { PRINT_TOKENS } from "./PrintView";
 import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import { partName } from "@/features/mebel/ui/format";
@@ -48,7 +49,7 @@ export function LabelsPrintView({ projectName, labels, format }: { projectName: 
   return (
     <div data-testid="mebel-labels" aria-hidden="true"
       className={`hidden text-black ${format === "a4" ? "print:grid" : "print:block"}`}
-      style={format === "a4" ? { gridTemplateColumns: `repeat(3, ${w}mm)`, gridAutoRows: `${h}mm` } : undefined}>
+      style={{ ...PRINT_TOKENS, ...(format === "a4" ? { gridTemplateColumns: `repeat(3, ${w}mm)`, gridAutoRows: `${h}mm` } : {}) }}>
       <style>{PAGE_CSS[format]}</style>
       {labels.map((l) => (
         <div key={l.partId} data-testid="label"

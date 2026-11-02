@@ -2731,6 +2731,35 @@
       "by_hand": "вручную",
       "delete_confirm": "Удалить остаток {{l}} × {{w}}?",
       "length_grain": "Длина (по текстуре), мм"
-    }
+    },
+    "list": {
+      "cabinets": "Шкафов: {{n}}",
+      "free_parts": "Свободных деталей: {{n}}",
+      "empty_project": "Пусто",
+      "cut": "Раскроено {{date}}",
+      "updated": "Обновлено: {{date}}",
+      "copy": "Сделать копию",
+      "delete": "Удалить",
+      "copy_name": "{{name}} (копия)",
+      "copy_failed": "Не удалось сделать копию",
+      "actions": "Действия"
+    },
+    "header": {
+      "export": "Экспорт",
+      "rename": "Переименовать: {{name}}",
+      "cut_irreversible": "Это действие нельзя отменить."
+    },
+    "summary": {
+      "label": "Сводка проекта",
+      "sheets": "{{n}} лист.",
+      "offcuts": "{{n}} обрезк.",
+      "edge": "{{m}} м кромки",
+      "parts": "{{n}} дет.",
+      "price_label": "Цена",
+      "warnings": "Предупреждения: {{n}}"
+    },
+    "view3d_height": "Высота 3D",
+    "cut_group_qty": "{{n}} шт.",
+    "cut_group": "{{name}} · {{thickness}} мм · {{qty}}"
   }
 }

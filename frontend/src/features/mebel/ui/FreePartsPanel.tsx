@@ -48,35 +48,35 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
       <summary className={`${summary} py-2`}>
         {t("mebel.free.title")}
         <button type="button" onClick={(e) => { e.preventDefault(); add(); }}
-          className="ml-auto mr-2 rounded-full bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+          className="ml-auto mr-2 rounded-full bg-[#5B84F5]/15 px-2.5 py-1.5 text-xs font-semibold text-[#5B84F5] hover:bg-blue-100">
           {t("mebel.free.add")}
         </button>
       </summary>
       <div className="flex flex-col gap-2">
-        {parts.length === 0 && <p className="text-xs text-neutral-500">{t("mebel.free.empty")}</p>}
+        {parts.length === 0 && <p className="text-xs text-ink-muted">{t("mebel.free.empty")}</p>}
         {parts.map((f) => {
           const hasError = errors.some((e) => e.cabinetId === f.id);
           const open = openId === f.id || hasError;
           const sizeError = errorFor(f.id, "size");
           return (
             <details key={f.id} data-testid={`free-${f.label}`} open={open}
-              className={`group rounded-2xl border ${open ? "border-blue-200 bg-blue-50/30" : "border-neutral-200"}`}>
+              className={`group rounded-2xl border ${open ? "border-blue-200 bg-[#5B84F5]/15/30" : "border-line"}`}>
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm"
                 onClick={(e) => { e.preventDefault(); setOpenId(openId === f.id ? null : f.id); }}>
                 {hasError && <span data-testid="free-error-dot" className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}
-                <span className="font-bold text-neutral-900">{f.label}</span>
-                <span className="min-w-0 truncate text-neutral-500">· {f.name}</span>
-                <span className="ml-auto shrink-0 tabular-nums text-xs text-neutral-500">
+                <span className="font-bold text-ink">{f.label}</span>
+                <span className="min-w-0 truncate text-ink-muted">· {f.name}</span>
+                <span className="ml-auto shrink-0 tabular-nums text-xs text-ink-muted">
                   {`${f.length}×${f.width} · ${t("mebel.free.pieces", { n: f.qty })}`}
                 </span>
                 <Chevron />
               </summary>
               <div className="grid grid-cols-2 gap-3 px-3 pb-3">
                 <div className="col-span-2 flex flex-col gap-1">
-                  <label htmlFor={`${f.id}-name`} className="text-xs text-neutral-500">{t("mebel.free.name")}</label>
+                  <label htmlFor={`${f.id}-name`} className="text-xs text-ink-muted">{t("mebel.free.name")}</label>
                   <input id={`${f.id}-name`} value={f.name} maxLength={60} className={field}
                     onChange={(e) => setPart(f.id, { name: e.target.value })} />
-                  {errorFor(f.id, "name") && <p className="text-xs text-red-600">{errorFor(f.id, "name")}</p>}
+                  {errorFor(f.id, "name") && <p className="text-xs text-red-500">{errorFor(f.id, "name")}</p>}
                 </div>
                 <NumField id={`${f.id}-len`} label={t("mebel.free.length")} value={f.length}
                   error={sizeError && !(f.length >= 10 && f.length <= 3000 && Number.isInteger(f.length)) ? sizeError : undefined}
@@ -93,14 +93,14 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
                   options={(["length", "none"] as const).map((v) => ({ value: v, label: t(`mebel.grain.${v}`) }))}
                   onChange={(v) => setPart(f.id, { grain: v })} />
                 <div className="col-span-2 flex flex-col gap-1">
-                  <span className="text-xs text-neutral-500">{t("mebel.free.edges")}</span>
+                  <span className="text-xs text-ink-muted">{t("mebel.free.edges")}</span>
                   <div className="grid grid-cols-4 gap-1">
                     {(["L1", "L2", "W1", "W2"] as const).map((side) => {
                       const b = f.edges[side];
                       return (
                         <button key={side} type="button" aria-pressed={b != null}
                           onClick={() => setPart(f.id, { edges: { ...f.edges, [side]: NEXT_BAND[b ?? "none"] } })}
-                          className={`rounded-lg px-2 py-1.5 text-xs font-semibold tabular-nums ${b ? "bg-blue-600 text-white" : "bg-neutral-100 text-neutral-600"}`}>
+                          className={`rounded-lg px-2 py-1.5 text-xs font-semibold tabular-nums ${b ? "bg-blue-600 text-white" : "bg-card-soft text-ink-muted"}`}>
                           {`${side} ${formatBand(bandThickness(b))}`}
                         </button>
                       );
@@ -109,12 +109,12 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
                 </div>
               </div>
               <div className="flex gap-2 px-3 pb-3">
-                <button type="button" onClick={() => add(f)} className="text-xs font-semibold text-neutral-600 hover:text-neutral-900">
+                <button type="button" onClick={() => add(f)} className="text-xs font-semibold text-ink-muted hover:text-ink">
                   {t("mebel.duplicate")}
                 </button>
                 {/* a project with no cabinet keeps at least one part */}
                 {(project.cabinets.length > 0 || parts.length > 1) && (
-                  <button type="button" onClick={() => void remove(f)} className="text-xs font-semibold text-red-600">
+                  <button type="button" onClick={() => void remove(f)} className="text-xs font-semibold text-red-500">
                     {t("mebel.remove")}
                   </button>
                 )}

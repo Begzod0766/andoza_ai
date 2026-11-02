@@ -2,7 +2,7 @@ import { Box, Layers, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MATERIAL_UNITS, type AdminProduct } from "@/lib/api";
 import { cn, formatUZS } from "@/lib/utils";
-import { ActionMenu } from "./ActionMenu";
+import { ActionMenu } from "@/components/ui/ActionMenu";
 import { optionLabel } from "./materialLabels";
 
 /** The kind of a product as a small icon (box = 3D model, layers = material), with its name for screen readers. */
