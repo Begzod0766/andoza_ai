@@ -109,7 +109,7 @@ All endpoints below are admin only (`AdminUser`).
 
 **Row** (an `li` holding one button for the whole row, plus a menu button)
 
-- Thumbnail 44 px, or a category-letter placeholder when there is no image. A small kind badge (box = model, layers = material) sits in the corner.
+- Thumbnail 44 px, or the product name's first letter when there is no image (it tells rows apart; a category letter would be the same on every row of a block). A small kind badge (box = model, layers = material) sits in the corner.
 - Name, up to 2 lines. The shop goes on the second line, muted.
 - Price, right-aligned in a fixed-width column (`md` and up). Materials show `/ unit`. Furniture without a price shows "—".
 - A "Yashirin" pill, shown only for hidden products.

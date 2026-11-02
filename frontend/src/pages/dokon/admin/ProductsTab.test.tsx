@@ -250,3 +250,69 @@ describe('ProductsTab — review fixes', () => {
     expect(api.listAdminProducts).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }))
   })
 })
+
+describe('ProductsTab — minor fixes', () => {
+  it('another category shows its own loading state, not the previous category\'s rows', async () => {
+    api.listAdminProducts.mockImplementation(async ({ category }: { category: string }) =>
+      category === 'laminat' ? { items: [product({ id: 'a', name: 'Laminat row' })], total: 12 } : new Promise(() => {}))
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    await screen.findByText('Laminat row')
+    fireEvent.click(within(side()).getByRole('button', { name: /Divan/ }))
+    await waitFor(() => expect(screen.queryByText('Laminat row')).toBeNull())
+  })
+
+  it('a second row click while one is opening is ignored, so only one dialog opens', async () => {
+    let finish!: (v: unknown) => void
+    api.getAdminMaterial.mockImplementation(() => new Promise((r) => { finish = r }))
+    mount()
+    await screen.findByText('Laminat 1')
+    fireEvent.click(within(row('Laminat 1')).getByRole('button', { name: /Laminat 1/ }))
+    await waitFor(() => expect(api.getAdminMaterial).toHaveBeenCalled())
+    fireEvent.click(within(row('Divan Oslo')).getByRole('button', { name: /Divan Oslo/ }))
+    finish({ id: 'm1', name_uz: 'full m1' })
+    expect(await screen.findByText('material-dialog:full m1')).toBeInTheDocument()
+    expect(api.getAdminFurniture).not.toHaveBeenCalled()
+    expect(screen.queryByText(/model-dialog/)).toBeNull()
+  })
+
+  it('a failed open is reported, and a later successful open clears the report', async () => {
+    api.getAdminMaterial.mockRejectedValueOnce(new Error('boom'))
+    const { onError } = mount()
+    await screen.findByText('Laminat 1')
+    fireEvent.click(within(row('Laminat 1')).getByRole('button', { name: /Laminat 1/ }))
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.anything()))
+    expect(onError).not.toHaveBeenLastCalledWith(null)
+    fireEvent.click(within(row('Laminat 2')).getByRole('button', { name: /Laminat 2/ }))
+    await screen.findByText('material-dialog:full m2')
+    expect(onError).toHaveBeenLastCalledWith(null)
+  })
+
+  it('choosing a category scrolls the list top into view', async () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    expect(scroll).toHaveBeenCalled()
+  })
+
+  it('with every kind showing, block headings carry the kind icon', async () => {
+    mount()
+    const heading = within(await screen.findByRole('region', { name: /Divan/ })).getByRole('heading')
+    expect(heading.querySelector('[aria-label="3D model"]')).not.toBeNull()
+    fireEvent.click(within(screen.getByRole('group', { name: 'Turi' })).getByRole('button', { name: 'Mebel' }))
+    await waitFor(() => expect(within(screen.getByRole('region', { name: /Divan/ })).getByRole('heading').querySelector('[aria-label]')).toBeNull())
+  })
+
+  it('the chosen category stays in the side column, chosen, when a search or filter would drop it', async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    fireEvent.change(screen.getByLabelText('Kategoriya qidirish'), { target: { value: 'div' } })
+    const laminat = within(side()).getByRole('button', { name: /Laminat/ })
+    expect(laminat).toHaveAttribute('aria-pressed', 'true')
+    api.getProductsOverview.mockResolvedValue({ total: 1, categories: [overview().categories[1]] })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Holat' })).getByRole('button', { name: 'Yashirin' }))
+    await waitFor(() => expect(api.getProductsOverview).toHaveBeenLastCalledWith({ status: 'hidden' }))
+    expect(within(side()).getByRole('button', { name: /Laminat/ })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
