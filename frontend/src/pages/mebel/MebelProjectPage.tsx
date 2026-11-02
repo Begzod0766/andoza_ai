@@ -25,6 +25,11 @@ import { LabelsPrintView } from "@/features/mebel/export/LabelsPrintView";
 import { partLabels, type LabelFormat } from "@/features/mebel/export/labels";
 import { groupName } from "@/features/mebel/ui/format";
 import { ERROR_FIELD } from "@/features/mebel/ui/ParamsPanel";
+import { EditableTitle } from "@/features/mebel/ui/EditableTitle";
+import { SummaryBar } from "@/features/mebel/ui/SummaryBar";
+import { summarize } from "@/features/mebel/ui/summary";
+import { ActionMenu } from "@/components/ui/ActionMenu";
+import { ChevronDown, Settings } from "lucide-react";
 import { FREE_ERROR_FIELD } from "@/features/mebel/ui/FreePartsPanel";
 
 type Tab = "parts" | "nesting" | "drilling" | "edges" | "bom" | "warnings";
@@ -44,7 +49,6 @@ export default function MebelProjectPage() {
   const viewRef = useRef<HTMLDivElement>(null);
   // What the next print holds: the PDF, or a sheet of part labels.
   const [printing, setPrinting] = useState<"pdf" | LabelFormat>("pdf");
-  const [labelsMenu, setLabelsMenu] = useState(false);
   const confirm = useConfirm();
   const [cutting, setCutting] = useState(false);
   const [cutError, setCutError] = useState("");
@@ -109,7 +113,11 @@ export default function MebelProjectPage() {
   const markCut = async () => {
     const used = usedStockIds(result.nesting);
     const produced = producedOffcuts(result.nesting);
-    if (!(await confirm({ title: t("mebel.offcuts.cut_confirm", { used: used.length, made: produced.length }), confirmLabel: t("mebel.offcuts.cut") }))) return;
+    if (!(await confirm({
+      title: t("mebel.offcuts.cut_confirm", { used: used.length, made: produced.length }),
+      description: t("mebel.header.cut_irreversible"),
+      confirmLabel: t("mebel.offcuts.cut"),
+    }))) return;
     setCutting(true);
     setCutError("");
     try {
@@ -123,7 +131,6 @@ export default function MebelProjectPage() {
     }
   };
   const printLabels = (format: LabelFormat) => {
-    setLabelsMenu(false);
     flushSync(() => setPrinting(format));
     window.print();
   };
@@ -133,52 +140,42 @@ export default function MebelProjectPage() {
     {/* On a wide screen the page itself does not scroll: the settings and the result
         each scroll in their own column, under a header that stays put. */}
     <div className="flex min-h-screen flex-col bg-neutral-50 print:hidden lg:h-screen lg:overflow-hidden">
-      <header className="flex flex-wrap items-center gap-3 border-b border-neutral-200 bg-white px-4 py-3">
-        <Link to="/mebel" className="text-sm font-semibold text-blue-700">← {t("mebel.back_to_list")}</Link>
-        <h1 className="min-w-0 flex-1 truncate text-base font-bold text-neutral-900">{project.name}</h1>
-        <span className={`text-xs ${m.saveState === "error" || m.saveState === "invalid" ? "text-red-600" : "text-neutral-500"}`} role="status">
+      <header className="flex flex-wrap items-center gap-2 border-b border-line bg-card px-4 py-3">
+        <Link to="/mebel" className="shrink-0 text-sm font-semibold text-[#5B84F5]">← {t("mebel.back_to_list")}</Link>
+        <EditableTitle name={project.name} onRename={(name) => m.setProject((p) => ({ ...p, name }))} />
+        <span className={`text-xs ${m.saveState === "error" || m.saveState === "invalid" ? "text-red-500" : "text-ink-muted"}`} role="status">
           {t(({ saving: "mebel.saving", error: "mebel.save_failed", invalid: "mebel.not_saved_invalid", saved: "mebel.saved" } as const)[m.saveState])}
         </span>
-        <button type="button" onClick={() => setPriceBookOpen(true)}
-          className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200">
-          {t("mebel.price_book")}
+        <button type="button" onClick={() => setPriceBookOpen(true)} aria-label={t("mebel.price_book")} title={t("mebel.price_book")}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-ink-muted hover:bg-ink/10 hover:text-ink">
+          <Settings size={18} aria-hidden="true" />
         </button>
-        <button type="button" onClick={exportCsv} disabled={failed}
-          className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 disabled:opacity-50">
-          {t("mebel.export_csv")}
-        </button>
-        <div className="relative">
-          <button type="button" onClick={() => setLabelsMenu((v) => !v)} disabled={failed} aria-expanded={labelsMenu}
-            className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200 disabled:opacity-50">
-            {t("mebel.labels.button")}
-          </button>
-          {labelsMenu && (
-            <div className="absolute right-0 top-full z-30 mt-1 flex w-56 flex-col rounded-xl bg-white p-1 shadow-lg ring-1 ring-neutral-200">
-              {(["a4", "roll"] as const).map((f) => (
-                <button key={f} type="button" onClick={() => printLabels(f)}
-                  className="rounded-lg px-3 py-2 text-left text-sm hover:bg-neutral-100">
-                  {t(`mebel.labels.${f}`)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
         {cutAt ? (
-          <span data-testid="cut-at" className="text-xs font-semibold text-emerald-700">
+          <span data-testid="cut-at" className="text-xs font-semibold text-emerald-500">
             {t("mebel.offcuts.cut_at", { date: new Date(cutAt).toLocaleDateString(intlLocale()) })}
           </span>
         ) : (
           <button type="button" onClick={() => void markCut()} disabled={failed || cutting || !m.offcutsReady || result.nesting.some((n) => n.unplaced.length > 0)}
-            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+            className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ink/10 disabled:opacity-50">
             {t("mebel.offcuts.cut")}
           </button>
         )}
-        {cutError && <span role="alert" className="text-xs text-red-600">{cutError}</span>}
-        <button type="button" onClick={exportPdf} disabled={failed}
-          className="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-          {t("mebel.export_pdf")}
-        </button>
+        {cutError && <span role="alert" className="text-xs text-red-500">{cutError}</span>}
+        {!failed && (
+          <ActionMenu
+            label={t("mebel.header.export")}
+            trigger={<><span>{t("mebel.header.export")}</span><ChevronDown size={14} aria-hidden="true" /></>}
+            triggerClassName="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#5B84F5] px-4 text-sm font-semibold text-white hover:bg-[#4a73e4]"
+            actions={[
+              { label: t("mebel.export_pdf"), onSelect: exportPdf },
+              { label: t("mebel.export_csv"), onSelect: exportCsv },
+              { label: t("mebel.labels.a4"), onSelect: () => printLabels("a4") },
+              { label: t("mebel.labels.roll"), onSelect: () => printLabels("roll") },
+            ]}
+          />
+        )}
       </header>
+      {!failed && <SummaryBar summary={summarize(result)} priceReady={m.priceBookReady} onOpen={(k) => { setTab(k); setPane("result"); }} />}
 
       {/* On a phone the settings and the result take turns; a wide screen shows both. */}
       <div className="flex gap-1 px-4 pt-3 lg:hidden">

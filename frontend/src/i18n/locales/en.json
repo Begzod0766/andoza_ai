@@ -2679,6 +2679,20 @@
       "copy_name": "{{name}} (copy)",
       "copy_failed": "Could not duplicate",
       "actions": "Actions"
+    },
+    "header": {
+      "export": "Export",
+      "rename": "Rename: {{name}}",
+      "cut_irreversible": "This cannot be undone."
+    },
+    "summary": {
+      "label": "Project summary",
+      "sheets": "{{n}} sheets",
+      "offcuts": "{{n}} offcuts",
+      "edge": "{{m}} m banding",
+      "parts": "{{n}} parts",
+      "price_label": "Price",
+      "warnings": "Warnings: {{n}}"
     }
   }
 }

@@ -49,6 +49,12 @@ function mount() {
   )
 }
 
+/** Runs one entry of the header's export menu. */
+async function exportItem(name: string) {
+  fireEvent.click(await screen.findByRole('button', { name: t('mebel.header.export') }))
+  fireEvent.click(screen.getByRole('menuitem', { name }))
+}
+
 const partsTable = () => screen.getByRole('table', { name: t('mebel.tab.parts') })
 const rowOf = (name: string) => within(partsTable()).getAllByRole('row').find(r => r.textContent?.includes(name))!
 
@@ -152,7 +158,7 @@ describe('MebelProjectPage export', () => {
     const csv = await import('@/features/mebel/export/csv')
     const spy = vi.mocked(csv.downloadCsv)
     mount()
-    fireEvent.click(await screen.findByRole('button', { name: t('mebel.export_csv') }))
+    await exportItem(t('mebel.export_csv'))
     expect(spy).toHaveBeenCalledTimes(1)
     const [name, body] = spy.mock.calls[0]
     expect(name).toBe('Oshxona')
@@ -163,7 +169,7 @@ describe('MebelProjectPage export', () => {
   it('PDF opens the print dialog with the printable cut list', async () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
     mount()
-    fireEvent.click(await screen.findByRole('button', { name: t('mebel.export_pdf') }))
+    await exportItem(t('mebel.export_pdf'))
     await act(async () => { await new Promise(r => setTimeout(r, 20)) })
     expect(print).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('mebel-print')).toHaveTextContent(t('mebel.print_title', { name: 'Oshxona' }))
@@ -484,8 +490,7 @@ describe('MebelProjectPage labels', () => {
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
     mount()
     await screen.findByRole('table', { name: t('mebel.tab.parts') })
-    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.button') }))
-    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.a4') }))
+    await exportItem(t('mebel.labels.a4'))
     expect(print).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('mebel-labels')).toBeInTheDocument()
     expect(screen.queryByTestId('mebel-print')).toBeNull()
@@ -617,8 +622,7 @@ describe('MebelProjectPage free part links', () => {
     )
     expect(await screen.findByRole('tab', { name: t('mebel.tab.parts'), selected: true })).toBeInTheDocument()
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
-    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.button') }))
-    fireEvent.click(screen.getByRole('button', { name: t('mebel.labels.a4') }))
+    await exportItem(t('mebel.labels.a4'))
     const label = screen.getAllByTestId('label').find(l => l.textContent?.includes('D1-1'))!
     expect(label.textContent).toContain('D1 · Oshxona')
     print.mockRestore()
@@ -688,5 +692,75 @@ describe('MebelProjectPage offcut stock', () => {
     fireEvent.change(within(screen.getByTestId('free-D1')).getByLabelText(t('mebel.free.length')), { target: { value: '3000' } })
     fireEvent.change(within(screen.getByTestId('free-D1')).getByLabelText(t('mebel.free.width')), { target: { value: '2500' } })
     expect(screen.getByRole('button', { name: t('mebel.offcuts.cut') })).toBeDisabled()
+  })
+})
+
+describe('MebelProjectPage header and summary', () => {
+  it('the title edits in place: Enter saves, Escape restores, an empty name is refused', async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: t('mebel.header.rename', { name: 'Oshxona' }) }))
+    const field = screen.getByRole('textbox', { name: t('mebel.project_name') })
+    fireEvent.change(field, { target: { value: 'Oshxona Chilonzor' } })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(screen.getByRole('heading', { name: 'Oshxona Chilonzor' })).toBeInTheDocument()
+    await waitFor(() => expect(api.saveMebelProject).toHaveBeenLastCalledWith('p1', 'Oshxona Chilonzor', expect.anything()), { timeout: 3000 })
+
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.header.rename', { name: 'Oshxona Chilonzor' }) }))
+    fireEvent.change(screen.getByRole('textbox', { name: t('mebel.project_name') }), { target: { value: 'Boshqa' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: t('mebel.project_name') }), { key: 'Escape' })
+    expect(screen.getByRole('heading', { name: 'Oshxona Chilonzor' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.header.rename', { name: 'Oshxona Chilonzor' }) }))
+    fireEvent.change(screen.getByRole('textbox', { name: t('mebel.project_name') }), { target: { value: '   ' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: t('mebel.project_name') }), { key: 'Enter' })
+    expect(screen.getByRole('heading', { name: 'Oshxona Chilonzor' })).toBeInTheDocument()
+  })
+
+  it('the left panel no longer has a project-name field', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    expect(screen.queryByRole('textbox', { name: t('mebel.project_name') })).toBeNull()
+  })
+
+  it('the export menu holds PDF, the CSV and both label sheets', async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: t('mebel.header.export') }))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual([
+      t('mebel.export_pdf'), t('mebel.export_csv'), t('mebel.labels.a4'), t('mebel.labels.roll'),
+    ])
+  })
+
+  it('Kesildi asks first; cancel sends nothing and keeps the button', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    await waitFor(() => expect(screen.getByRole('button', { name: t('mebel.offcuts.cut') })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.offcuts.cut') }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(t('mebel.header.cut_irreversible'))
+    fireEvent.click(within(dialog).getByRole('button', { name: t('common.bekor') }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(api.cutMebelProject).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: t('mebel.offcuts.cut') })).toBeInTheDocument()
+  })
+
+  it('the summary bar shows sheets, banding, parts and price, and each part opens its tab', async () => {
+    mount()
+    const bar = await screen.findByRole('group', { name: t('mebel.summary.label') })
+    expect(bar).toHaveTextContent(/\d+ plita/)
+    expect(bar).toHaveTextContent(/m kromka/)
+    expect(bar).toHaveTextContent(/\d+ detal/)
+    fireEvent.click(within(bar).getByRole('button', { name: /plita/ }))
+    expect(screen.getByRole('tab', { name: t('mebel.tab.nesting'), selected: true })).toBeInTheDocument()
+    fireEvent.click(within(bar).getByRole('button', { name: /kromka/ }))
+    expect(screen.getByRole('tab', { name: t('mebel.tab.edges'), selected: true })).toBeInTheDocument()
+    fireEvent.click(within(bar).getByRole('button', { name: /detal/ }))
+    expect(screen.getByRole('tab', { name: t('mebel.tab.parts'), selected: true })).toBeInTheDocument()
+  })
+
+  it('the price reads — while the price book is loading', async () => {
+    vi.mocked(api.getPriceBook).mockReturnValue(new Promise(() => {}))
+    mount()
+    const bar = await screen.findByRole('group', { name: t('mebel.summary.label') })
+    expect(within(bar).getByRole('button', { name: new RegExp(t('mebel.summary.price_label')) })).toHaveTextContent('—')
   })
 })

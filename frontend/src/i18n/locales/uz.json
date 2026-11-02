@@ -2679,6 +2679,20 @@
       "copy_name": "{{name}} (nusxa)",
       "copy_failed": "Nusxa olib bo'lmadi",
       "actions": "Amallar"
+    },
+    "header": {
+      "export": "Eksport",
+      "rename": "Nomini o'zgartirish: {{name}}",
+      "cut_irreversible": "Bu amalni ortga qaytarib bo'lmaydi."
+    },
+    "summary": {
+      "label": "Loyiha xulosasi",
+      "sheets": "{{n}} plita",
+      "offcuts": "{{n}} qoldiq",
+      "edge": "{{m}} m kromka",
+      "parts": "{{n}} detal",
+      "price_label": "Narx",
+      "warnings": "Ogohlantirishlar: {{n}}"
     }
   }
 }

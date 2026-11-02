@@ -4,7 +4,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import type { TKey } from "@/i18n";
 import { newCabinet } from "@/features/mebel/engine";
 import { nextX, relayout } from "./layout";
-import { Chevron, NumField, Select, field, summary } from "./fields";
+import { Chevron, NumField, Select, summary } from "./fields";
 import { FreePartsPanel } from "./FreePartsPanel";
 import type { CabinetSpec, ConstructionDefaults, EdgeBandRef, FurnitureProject, Warning } from "@/features/mebel/engine";
 
@@ -88,12 +88,6 @@ export function ParamsPanel({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="mebel-name" className="text-xs text-neutral-500">{t("mebel.project_name")}</label>
-        <input id="mebel-name" value={project.name} maxLength={120} className={field}
-          onChange={(e) => update((p) => ({ ...p, name: e.target.value }))} />
-      </div>
-
       {/* Set once per project, then folded away so the cabinets get the room. */}
       <details data-testid="section-settings" className="group rounded-2xl border border-neutral-200 p-3">
         <summary className={summary}>{t("mebel.settings")}<Chevron /></summary>
