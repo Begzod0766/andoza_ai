@@ -120,6 +120,7 @@ export async function listAdminFurniture(params: {
   category?: string;
   room_type?: string;
   q?: string;
+  page?: number;
 } = {}): Promise<AdminFurniture[]> {
   const query = new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined)) as Record<string, string>,

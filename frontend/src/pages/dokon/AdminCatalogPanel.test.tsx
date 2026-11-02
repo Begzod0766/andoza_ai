@@ -12,7 +12,7 @@ vi.mock('@/lib/api', () => ({
 // The tabs' own contents are tested on their own; here only which one shows.
 vi.mock('./admin/ModerationQueue', () => ({ ModerationQueue: () => <p>moderation-panel</p> }))
 vi.mock('./admin/AdminOrders', () => ({ AdminOrders: () => <p>orders-panel</p> }))
-vi.mock('./admin/AdminMaterials', () => ({ AdminMaterials: () => <p>products-panel</p> }))
+vi.mock('./admin/ProductsTab', () => ({ ProductsTab: () => <p>products-panel</p> }))
 vi.mock('./admin/CatalogOverview', () => ({ CatalogOverview: () => <p>stores-panel</p> }))
 vi.mock('./admin/StoreProfile', () => ({ StoreProfile: () => <p>store-profile</p> }))
 

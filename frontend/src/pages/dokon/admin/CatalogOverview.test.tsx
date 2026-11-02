@@ -79,3 +79,20 @@ describe('CatalogOverview — AI style pass', () => {
     await waitFor(() => expect(screen.queryByText(/navbatga qo/)).not.toBeInTheDocument())
   })
 })
+
+describe('CatalogOverview — shop search', () => {
+  it('narrows the shop grid by name or district', async () => {
+    api.listAdminStores.mockResolvedValue([
+      { id: 's1', name: 'Mebel Plus', district: 'Chilonzor', is_active: true },
+      { id: 's2', name: 'Ideal', district: 'Yunusobod', is_active: true },
+    ])
+    renderIt()
+    expect(await screen.findByText('Mebel Plus')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Do'kon yoki tuman"), { target: { value: 'yunus' } })
+    expect(screen.queryByText('Mebel Plus')).toBeNull()
+    expect(screen.getByText('Ideal')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("Do'kon yoki tuman"), { target: { value: 'plus' } })
+    expect(screen.getByText('Mebel Plus')).toBeInTheDocument()
+    expect(screen.queryByText('Ideal')).toBeNull()
+  })
+})

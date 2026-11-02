@@ -9,7 +9,7 @@ import { CatalogOverview } from "./admin/CatalogOverview";
 import { StoreProfile } from "./admin/StoreProfile";
 import { ModerationQueue } from "./admin/ModerationQueue";
 import { AdminOrders } from "./admin/AdminOrders";
-import { AdminMaterials } from "./admin/AdminMaterials";
+import { ProductsTab } from "./admin/ProductsTab";
 import { type FormError, formErrorText } from "@/lib/formError";
 
 type Tab = "orders" | "products" | "stores" | "moderation";
@@ -94,7 +94,7 @@ export default function AdminCatalogPanel() {
 
       <div role="tabpanel">
         {tab === "orders" && <AdminOrders onError={setError} />}
-        {tab === "products" && <AdminMaterials onError={setError} />}
+        {tab === "products" && <ProductsTab onError={setError} />}
         {tab === "stores" && (selectedStore ? (
           <StoreProfile
             store={selectedStore}

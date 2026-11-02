@@ -5,6 +5,7 @@ vi.mock('../client', () => client)
 
 import { listAdminOrders } from '../adminOrders'
 import { getCategoryCounts, listAdminFurniture } from '../admin'
+import { listAdminMaterials } from '../adminMaterials'
 
 beforeEach(() => client.apiClient.mockReset().mockResolvedValue([]))
 
@@ -22,6 +23,11 @@ describe('admin list api', () => {
   it('furniture: passes the search', async () => {
     await listAdminFurniture({ category: 'divan', q: 'oslo' })
     expect(client.apiClient).toHaveBeenCalledWith('/admin/furniture?category=divan&q=oslo')
+  })
+  it('materials: a page size reaches the server', async () => {
+    client.apiClient.mockResolvedValue({ items: [], total: 0, page: 1, per_page: 50 })
+    await listAdminMaterials({ page: 2, per_page: 50 })
+    expect(client.apiClient).toHaveBeenCalledWith('/admin/materials?page=2&per_page=50')
   })
   it('category counts: shop and search, empty ones left out', async () => {
     await getCategoryCounts({ store_id: 's1', q: '' })
