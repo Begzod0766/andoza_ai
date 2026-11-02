@@ -2667,6 +2667,18 @@
       "by_hand": "by hand",
       "delete_confirm": "Delete the {{l}} × {{w}} offcut?",
       "length_grain": "Length (along the grain), mm"
+    },
+    "list": {
+      "cabinets": "{{n}} cabinets",
+      "free_parts": "{{n}} free parts",
+      "empty_project": "Empty",
+      "cut": "Cut {{date}}",
+      "updated": "Updated: {{date}}",
+      "copy": "Duplicate",
+      "delete": "Delete",
+      "copy_name": "{{name}} (copy)",
+      "copy_failed": "Could not duplicate",
+      "actions": "Actions"
     }
   }
 }

@@ -9,7 +9,7 @@ import { ConfirmProvider } from '@/components/ui/ConfirmDialog'
 
 vi.mock('@/lib/api', async () => {
   const actual = await vi.importActual<typeof api>('@/lib/api')
-  return { ...actual, listMebelProjects: vi.fn(), createMebelProject: vi.fn() }
+  return { ...actual, listMebelProjects: vi.fn(), createMebelProject: vi.fn(), getMebelProject: vi.fn(), deleteMebelProject: vi.fn() }
 })
 
 function Opened() {
@@ -97,5 +97,72 @@ describe('MebelListPage', () => {
     vi.mocked(api.listMebelProjects).mockResolvedValue([])
     mount()
     expect(await screen.findByRole('link', { name: i18n.t('mebel.offcuts.title') })).toHaveAttribute('href', '/mebel/qoldiqlar')
+  })
+
+  const summary = (over: Record<string, unknown> = {}) => ({
+    id: 'p1', name: 'Oshxona', updated_at: '2026-11-02T17:51:41Z', cabinets: 6, free_parts: 2, cut_at: null, ...over,
+  })
+  const card = () => screen.getByText('Oshxona').closest('li') as HTMLElement
+
+  it('a card counts cabinets and free parts, leaves out zeros, and says Bo\'sh when both are 0', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([
+      summary(), summary({ id: 'p2', name: 'Shkaf', free_parts: 0 }), summary({ id: 'p3', name: 'Yangi', cabinets: 0, free_parts: 0 }),
+    ] as never)
+    mount()
+    expect(await screen.findByText('6 shkaf · 2 erkin detal')).toBeInTheDocument()
+    expect(screen.getByText('6 shkaf')).toBeInTheDocument()
+    expect(screen.getByText("Bo'sh")).toBeInTheDocument()
+  })
+
+  it('a cut project carries Kesildi with its date; the updated date has no seconds', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary({ cut_at: '2026-11-02T18:00:00Z' })] as never)
+    mount()
+    await screen.findByText('Oshxona')
+    expect(card().textContent).toMatch(/Kesildi \S+/)
+    expect(card().textContent).not.toMatch(/\d{1,2}:\d{2}:\d{2}/)
+  })
+
+  it('the whole card opens the project; the ⋯ menu does not', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary()] as never)
+    mount()
+    await screen.findByText('Oshxona')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mebel.list.actions') }))
+    expect(screen.queryByText('opened p1')).toBeNull()
+    expect(screen.getByRole('link', { name: /Oshxona/ })).toHaveAttribute('href', '/mebel/p1')
+  })
+
+  it('Nusxa olish copies the project under "(nusxa)" and opens the copy', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary()] as never)
+    vi.mocked(api.getMebelProject).mockResolvedValue({ id: 'p1', name: 'Oshxona', data: { cabinets: [1, 2] } } as never)
+    vi.mocked(api.createMebelProject).mockResolvedValue({ id: 'copy1', name: 'x', data: {} } as never)
+    mount()
+    await screen.findByText('Oshxona')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mebel.list.actions') }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Nusxa olish' }))
+    await waitFor(() => expect(screen.getByText('opened copy1')).toBeInTheDocument())
+    expect(vi.mocked(api.createMebelProject)).toHaveBeenCalledWith('Oshxona (nusxa)', expect.objectContaining({ cabinets: [1, 2], name: 'Oshxona (nusxa)' }))
+  })
+
+  it('a copy that cannot load the source says so and creates nothing', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary()] as never)
+    vi.mocked(api.getMebelProject).mockRejectedValue(new Error('Failed to fetch'))
+    mount()
+    await screen.findByText('Oshxona')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mebel.list.actions') }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Nusxa olish' }))
+    expect(await screen.findByText("Nusxa olib bo'lmadi")).toBeInTheDocument()
+    expect(vi.mocked(api.createMebelProject)).not.toHaveBeenCalled()
+  })
+
+  it("O'chirish asks first and deletes only on yes", async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary()] as never)
+    vi.mocked(api.deleteMebelProject).mockResolvedValue(undefined)
+    mount()
+    await screen.findByText('Oshxona')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mebel.list.actions') }))
+    fireEvent.click(screen.getByRole('menuitem', { name: "O'chirish" }))
+    expect(vi.mocked(api.deleteMebelProject)).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('button', { name: i18n.t('mebel.delete') }))
+    await waitFor(() => expect(vi.mocked(api.deleteMebelProject)).toHaveBeenCalledWith('p1'))
   })
 })

@@ -2667,6 +2667,18 @@
       "by_hand": "qo'lda",
       "delete_confirm": "{{l}} × {{w}} qoldig'ini o'chirasizmi?",
       "length_grain": "Uzunlik (tola bo'yicha), mm"
+    },
+    "list": {
+      "cabinets": "{{n}} shkaf",
+      "free_parts": "{{n}} erkin detal",
+      "empty_project": "Bo'sh",
+      "cut": "Kesildi {{date}}",
+      "updated": "Yangilangan: {{date}}",
+      "copy": "Nusxa olish",
+      "delete": "O'chirish",
+      "copy_name": "{{name}} (nusxa)",
+      "copy_failed": "Nusxa olib bo'lmadi",
+      "actions": "Amallar"
     }
   }
 }

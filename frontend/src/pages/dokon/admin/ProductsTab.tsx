@@ -11,7 +11,7 @@ import {
 import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/utils";
 import { Panel } from "@/components/ui/Panel";
-import { ActionMenu } from "./ActionMenu";
+import { ActionMenu } from "@/components/ui/ActionMenu";
 import { FilterChip } from "./FilterChip";
 import { KindIcon, ProductRow } from "./ProductRow";
 import { Pager } from "./Pager";
