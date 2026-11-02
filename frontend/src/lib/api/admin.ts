@@ -132,19 +132,6 @@ export async function getAdminFurniture(id: string): Promise<AdminFurniture> {
   return apiClient<AdminFurniture>(`/admin/furniture/${encodeURIComponent(id)}`);
 }
 
-/** How many materials and 3D models each category holds, for the admin product list. */
-export interface CategoryCounts {
-  materials: Record<string, number>;
-  furniture: Record<string, number>;
-}
-
-export async function getCategoryCounts(params: { store_id?: string; q?: string } = {}): Promise<CategoryCounts> {
-  const query = new URLSearchParams(
-    Object.fromEntries(Object.entries(params).filter(([, v]) => v)) as Record<string, string>,
-  ).toString();
-  return apiClient<CategoryCounts>(`/admin/category-counts${query ? `?${query}` : ""}`);
-}
-
 /** Upload a .glb model into the shop catalog, tagged with the type of
  * furniture and the room it belongs in. */
 export async function uploadAdminFurniture(input: UploadAdminFurnitureInput): Promise<AdminFurniture> {

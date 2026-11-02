@@ -2014,7 +2014,18 @@
         "material": "Material",
         "model": "3D model",
         "more": "Show more",
-        "add_model": "Add a 3D model"
+        "add_model": "Add a 3D model",
+        "title": "Products ({{n}})",
+        "add": "Add",
+        "add_material": "Material",
+        "add_model_item": "3D model",
+        "category_search": "Search categories",
+        "see_all": "See all ({{n}})",
+        "actions": "Actions",
+        "pages": "Pages",
+        "prev_page": "Previous page",
+        "next_page": "Next page",
+        "load_failed": "Could not open"
       },
       "stores_search": "Shop or district"
     },

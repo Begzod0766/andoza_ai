@@ -2014,7 +2014,18 @@
         "material": "Material",
         "model": "3D model",
         "more": "Ko'proq ko'rsatish",
-        "add_model": "3D model qo'shish"
+        "add_model": "3D model qo'shish",
+        "title": "Tovarlar ({{n}})",
+        "add": "Qo'shish",
+        "add_material": "Material",
+        "add_model_item": "3D model",
+        "category_search": "Kategoriya qidirish",
+        "see_all": "Barchasini ko'rish ({{n}})",
+        "actions": "Amallar",
+        "pages": "Sahifalar",
+        "prev_page": "Oldingi sahifa",
+        "next_page": "Keyingi sahifa",
+        "load_failed": "Ochib bo'lmadi"
       },
       "stores_search": "Do'kon yoki tuman"
     },
