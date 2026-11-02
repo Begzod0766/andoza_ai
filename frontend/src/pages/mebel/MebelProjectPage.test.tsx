@@ -19,6 +19,8 @@ vi.mock('@/lib/api', async () => {
     savePriceBook: vi.fn(),
     getMaterials: vi.fn(),
     getCatalogMaterials: vi.fn(),
+    listOffcuts: vi.fn(),
+    cutMebelProject: vi.fn(),
   }
 })
 vi.mock('@/features/mebel/export/csv', async () => {
@@ -59,6 +61,7 @@ beforeEach(() => {
   vi.mocked(api.getPriceBook).mockResolvedValue(EMPTY_PRICE_BOOK)
   vi.mocked(api.getMaterials).mockResolvedValue([])
   vi.mocked(api.getCatalogMaterials).mockResolvedValue([])
+  vi.mocked(api.listOffcuts).mockResolvedValue([])
 })
 afterEach(() => vi.useRealTimers())
 
@@ -619,5 +622,52 @@ describe('MebelProjectPage free part links', () => {
     const label = screen.getAllByTestId('label').find(l => l.textContent?.includes('D1-1'))!
     expect(label.textContent).toContain('D1 · Oshxona')
     print.mockRestore()
+  })
+})
+
+describe('MebelProjectPage offcut stock', () => {
+  const STOCK = [{ id: 'o1', material: 'board' as const, materialId: null, thickness: 18, length: 2000, width: 1200, source_project_id: null, created_at: '2026-11-01T10:00:00Z' }]
+  const useStock = async () => {
+    vi.mocked(api.listOffcuts).mockResolvedValue(STOCK)
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    fireEvent.click(await screen.findByLabelText(t('mebel.offcuts.use', { n: 1 })))
+  }
+
+  it('the checkbox uses the store: a sheet becomes "Qoldiq · 2000×1200"', async () => {
+    await useStock()
+    fireEvent.click(screen.getByRole('tab', { name: t('mebel.tab.nesting') }))
+    expect(screen.getAllByText(t('mebel.offcuts.bin', { l: 2000, w: 1200 }), { exact: false }).length).toBeGreaterThan(0)
+  })
+
+  it('Kesildi sends the used and produced offcuts, then shows the date', async () => {
+    vi.mocked(api.cutMebelProject).mockImplementation(async (id) => ({ id, name: 'Oshxona', data: newProject('Oshxona'), cut_at: '2026-11-02T10:00:00Z' }))
+    await useStock()
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.offcuts.cut') }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: t('mebel.offcuts.cut') }))
+    await waitFor(() => expect(api.cutMebelProject).toHaveBeenCalled())
+    const [id, body] = vi.mocked(api.cutMebelProject).mock.calls[0]
+    expect(id).toBe('p1')
+    expect(body.used).toEqual(['o1'])
+    expect(body.produced.every(o => o.length >= 200 && o.width >= 200)).toBe(true)
+    expect(await screen.findByTestId('cut-at')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: t('mebel.offcuts.cut') })).toBeNull()
+  })
+
+  it('a 409 on Kesildi shows its message and refetches the store', async () => {
+    vi.mocked(api.cutMebelProject).mockRejectedValue(new Error(JSON.stringify({ detail: "Qoldiqlar o'zgargan — raskroyni yangilang" })))
+    await useStock()
+    const calls = vi.mocked(api.listOffcuts).mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.offcuts.cut') }))
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: t('mebel.offcuts.cut') }))
+    expect(await screen.findByText("Qoldiqlar o'zgargan — raskroyni yangilang")).toBeInTheDocument()
+    await waitFor(() => expect(vi.mocked(api.listOffcuts).mock.calls.length).toBeGreaterThan(calls))
+  })
+
+  it('Kesildi is disabled while the layout has errors', async () => {
+    mount()
+    await screen.findByRole('table', { name: t('mebel.tab.parts') })
+    fireEvent.change(screen.getAllByLabelText(t('mebel.width'))[0], { target: { value: '50' } })
+    expect(screen.getByRole('button', { name: t('mebel.offcuts.cut') })).toBeDisabled()
   })
 })

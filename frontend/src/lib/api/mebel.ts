@@ -14,6 +14,23 @@ export interface MebelProject {
   id: string;
   name: string;
   data: FurnitureProject;
+  /** "Kesildi": when the job was cut and its offcuts moved through the store. */
+  cut_at?: string | null;
+}
+
+/** An offcut entered by hand or left by a job's layout. */
+export interface OffcutIn {
+  material: "board" | "back" | "facade";
+  materialId: string | null;
+  thickness: number;
+  length: number;
+  width: number;
+}
+
+export interface MebelOffcut extends OffcutIn {
+  id: string;
+  source_project_id: string | null;
+  created_at: string;
 }
 
 const CATALOG_PAGE = 100; // the server's largest page
@@ -92,4 +109,21 @@ export interface MebelSuggestion {
 
 export function suggestMebelCabinets(text: string): Promise<MebelSuggestion> {
   return apiClient<MebelSuggestion>("/mebel/ai/suggest", { method: "POST", body: JSON.stringify({ text }) });
+}
+
+export function listOffcuts(): Promise<MebelOffcut[]> {
+  return apiClient<MebelOffcut[]>("/mebel/offcuts");
+}
+
+export function addOffcut(body: OffcutIn): Promise<MebelOffcut> {
+  return apiClient<MebelOffcut>("/mebel/offcuts", { method: "POST", body: JSON.stringify(body) });
+}
+
+export async function deleteOffcut(id: string): Promise<void> {
+  await apiClient<void>(`/mebel/offcuts/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+/** "Kesildi": the store offcuts the layout used leave, the offcuts it leaves arrive. */
+export function cutMebelProject(id: string, body: { used: string[]; produced: OffcutIn[] }): Promise<MebelProject> {
+  return apiClient<MebelProject>(`/mebel/projects/${encodeURIComponent(id)}/cut`, { method: "POST", body: JSON.stringify(body) });
 }

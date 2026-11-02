@@ -2595,6 +2595,13 @@
       "grain": "Grain",
       "edges": "Bands (L1 L2 W1 W2)",
       "remove_confirm": "Remove part {{label}}?"
+    },
+    "offcuts": {
+      "use": "Use offcuts ({{n}} in the store)",
+      "bin": "Offcut · {{l}}×{{w}}",
+      "cut": "Cut done",
+      "cut_confirm": "{{used}} offcuts leave the store, {{made}} new ones are added",
+      "cut_at": "Cut: {{date}}"
     }
   }
 }

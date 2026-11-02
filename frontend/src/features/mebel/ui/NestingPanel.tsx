@@ -39,7 +39,7 @@ export function NestingPanel({
             )}
             <div className="grid gap-3 md:grid-cols-2">
               {n.sheets.map((s, i) => {
-                const label = t("mebel.nest.sheet_label", { i: i + 1, n: n.sheets.length, p: Math.round(s.utilization * 100) });
+                const label = `${s.stockId ? `${t("mebel.offcuts.bin", { l: s.size.length, w: s.size.width })} · ` : ""}${t("mebel.nest.sheet_label", { i: i + 1, n: n.sheets.length, p: Math.round(s.utilization * 100) })}`;
                 return (
                   <figure key={i} className="rounded-2xl border border-neutral-200 p-2">
                     <figcaption className="mb-1 text-xs text-neutral-500">{label}</figcaption>

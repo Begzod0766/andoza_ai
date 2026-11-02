@@ -38,11 +38,13 @@ function MaterialSelect({
 
 /** Project settings (construction defaults) and the cabinets with their sizes. */
 export function ParamsPanel({
-  project, update, errors, catalog, focusCabinetId = null,
+  project, update, errors, catalog, focusCabinetId = null, offcutCount = 0,
 }: {
   project: FurnitureProject; update: Update; errors: Warning[]; catalog: CatalogOptions
   /** The cabinet of the part selected in the 3D view or a table: its row opens. */
   focusCabinetId?: string | null
+  /** Offcuts in the workshop's store. */
+  offcutCount?: number
 }) {
   const { t } = useTranslation();
   // One cabinet row open at a time; a new one opens as it is added.
@@ -132,6 +134,11 @@ export function ParamsPanel({
           <input type="checkbox" checked={d.edge.premilled}
             onChange={(e) => setDefaults((x) => ({ ...x, edge: { ...x.edge, premilled: e.target.checked } }))} />
           {t("mebel.premilled")}
+        </label>
+        <label className="mt-2 flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" checked={!!d.useOffcuts}
+            onChange={(e) => setDefaults((x) => ({ ...x, useOffcuts: e.target.checked }))} />
+          {t("mebel.offcuts.use", { n: offcutCount })}
         </label>
       </details>
 

@@ -2595,6 +2595,13 @@
       "grain": "Tekstura",
       "edges": "Kromka (L1 L2 W1 W2)",
       "remove_confirm": "{{label}} detalini olib tashlaysizmi?"
+    },
+    "offcuts": {
+      "use": "Qoldiqlardan foydalanish (omborda {{n}} ta)",
+      "bin": "Qoldiq · {{l}}×{{w}}",
+      "cut": "Kesildi",
+      "cut_confirm": "{{used}} ta qoldiq ombordan chiqadi, {{made}} ta yangi qoldiq qo'shiladi",
+      "cut_at": "Kesilgan: {{date}}"
     }
   }
 }
