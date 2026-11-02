@@ -117,13 +117,11 @@ class TestList:
 
 
 class TestOverview:
-    def test_groups_five_per_category(self, client):
-        rows = [_row(name=f"L{i}") for i in range(5)] + [_row("furniture", category="divan", name="Divan")]
-        db = _as(
-            _user(),
-            _Result(many=[("furniture", "divan", 1), ("materials", "laminat", 12)]),
-            _Result(many=rows),
-        )
+    def test_groups_five_per_category_in_one_query(self, client):
+        # Totals ride on the rows (count over the category), so totals and rows come from one snapshot.
+        # In the query's order: kind, then category.
+        rows = [_row("furniture", category="divan", name="Divan", cat_total=1)] + [_row(name=f"L{i}", cat_total=12) for i in range(5)]
+        db = _as(_user(), _Result(many=rows))
         r = client.get(f"{URL}/overview?q=a")
         assert r.status_code == 200, r.text
         body = r.json()
@@ -131,13 +129,13 @@ class TestOverview:
         assert [(c["kind"], c["category"], c["total"], len(c["items"])) for c in body["categories"]] == [
             ("furniture", "divan", 1, 1), ("materials", "laminat", 12, 5),
         ]
-        sql = str(_sql(db, 1))
-        assert "row_number() OVER (PARTITION BY" in sql
-        assert 5 in _sql(db, 1).params.values()
-        assert "GROUP BY" in str(_sql(db, 0))
+        assert db.execute.call_count == 1
+        sql = str(_sql(db, 0))
+        assert "row_number() OVER (PARTITION BY" in sql and "count(*) OVER (PARTITION BY" in sql
+        assert 5 in _sql(db, 0).params.values()
 
     def test_nothing_matches(self, client):
-        _as(_user(), _Result(many=[]), _Result(many=[]))
+        _as(_user(), _Result(many=[]))
         assert client.get(f"{URL}/overview").json() == {"total": 0, "categories": []}
 
 
