@@ -22,7 +22,6 @@ from app.services.model_yaw import apply_model_yaw
 from app.services.model_optimize_queue import enqueue_optimize_after_commit
 from app.database import run_after_commit
 from app.models.furniture import Furniture
-from app.models.material import Material
 from app.models.store import Store
 from app.models.usta import Usta
 from app.schemas.admin_catalog import (
@@ -439,27 +438,6 @@ def _furniture_filters(store_id: uuid_module.UUID | None, q: str | None) -> list
     return filters
 
 
-@router.get("/category-counts", summary="Products per category, for the admin product list")
-async def category_counts(
-    admin: AdminUser,
-    db: DbSession,
-    store_id: uuid_module.UUID | None = None,
-    q: str | None = None,
-) -> dict[str, dict[str, int]]:
-    material_filters = []
-    if store_id is not None:
-        material_filters.append(Material.store_id == store_id)
-    if q:
-        material_filters.append(_name_like(Material.name_uz, q))
-    materials = (await db.execute(
-        select(Material.category, func.count()).where(*material_filters).group_by(Material.category)
-    )).all()
-    furniture = (await db.execute(
-        select(Furniture.category, func.count()).where(*_furniture_filters(store_id, q)).group_by(Furniture.category)
-    )).all()
-    return {"materials": dict(materials), "furniture": dict(furniture)}
-
-
 # One AI style pass at a time: pressing the button again before the queue drains would
 # pay for every unstyled model a second time (the AI is called before the conditional
 # write). The lock expires on its own; it is stretched to the batch so it outlives the
@@ -521,6 +499,25 @@ async def classify_unstyled_furniture(admin: AdminUser, db: DbSession) -> dict[s
         raise
     logger.info("furniture_style_backfill_queued", count=len(ids), admin_id=str(admin.id))
     return {"queued": len(ids)}
+
+
+@router.get(
+    "/furniture/{furniture_id}",
+    response_model=FurnitureAdminOut,
+    summary="One 3D model (admin only)",
+)
+async def get_furniture(
+    furniture_id: uuid_module.UUID,
+    request: Request,
+    admin: AdminUser,
+    db: DbSession,
+) -> FurnitureAdminOut:
+    furniture = (await db.execute(
+        select(Furniture).options(selectinload(Furniture.store)).where(Furniture.id == furniture_id)
+    )).scalar_one_or_none()
+    if furniture is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model topilmadi")
+    return _furniture_out(furniture, request, furniture.store.name if furniture.store else None)
 
 
 @router.patch(
