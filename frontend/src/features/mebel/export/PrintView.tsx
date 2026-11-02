@@ -64,7 +64,7 @@ export function PrintView({
       {result.nesting.flatMap((n) => {
         const board = materialName(n.materialId) ?? t(`mebel.material.${n.material}`);
         return n.sheets.map((s, i) => {
-          const label = t("mebel.nest.sheet_label", { i: i + 1, n: n.sheets.length, p: Math.round(s.utilization * 100) });
+          const label = `${s.stockId ? `${t("mebel.offcuts.bin", { l: s.size.length, w: s.size.width })} · ` : ""}${t("mebel.nest.sheet_label", { i: i + 1, n: n.sheets.length, p: Math.round(s.utilization * 100) })}`;
           return (
             <section key={`${n.material}|${n.materialId}|${n.thickness}|${i}`} data-testid="print-sheet"
               style={{ breakBefore: "page" }} className="flex flex-col gap-3">

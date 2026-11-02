@@ -2595,6 +2595,24 @@
       "grain": "Grain",
       "edges": "Bands (L1 L2 W1 W2)",
       "remove_confirm": "Remove part {{label}}?"
+    },
+    "offcuts": {
+      "use": "Use offcuts ({{n}} in the store)",
+      "bin": "Offcut · {{l}}×{{w}}",
+      "cut": "Cut done",
+      "cut_confirm": "{{used}} offcuts leave the store, {{made}} new ones are added",
+      "cut_at": "Cut: {{date}}",
+      "title": "Offcut store",
+      "subtitle": "Pieces left from cutting: the next jobs' layouts use them first",
+      "add_title": "Add an offcut",
+      "add": "Add",
+      "thickness": "Thickness, mm",
+      "size_hint": "Each side 200–5000 mm",
+      "empty": "No offcuts in the store",
+      "group": "{{m}} {{t}} mm",
+      "by_hand": "by hand",
+      "delete_confirm": "Delete the {{l}} × {{w}} offcut?",
+      "length_grain": "Length (along the grain), mm"
     }
   }
 }

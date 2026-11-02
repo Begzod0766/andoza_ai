@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { TKey } from "@/i18n";
+import { intlLocale, type TKey } from "@/i18n";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMebelProject } from "@/features/mebel/useMebelProject";
 import { ParamsPanel } from "@/features/mebel/ui/ParamsPanel";
@@ -17,6 +17,9 @@ import { DrillingPanel } from "@/features/mebel/ui/DrillingPanel";
 import { FacadeOrder } from "@/features/mebel/ui/FacadeOrder";
 import { facadeOrderCsv } from "@/features/mebel/export/facadeCsv";
 import { cutListCsv, downloadCsv } from "@/features/mebel/export/csv";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { cutMebelProject, errorMessage } from "@/lib/api";
+import { producedOffcuts, usedStockIds } from "@/features/mebel/engine";
 import { PrintView } from "@/features/mebel/export/PrintView";
 import { LabelsPrintView } from "@/features/mebel/export/LabelsPrintView";
 import { partLabels, type LabelFormat } from "@/features/mebel/export/labels";
@@ -42,6 +45,10 @@ export default function MebelProjectPage() {
   // What the next print holds: the PDF, or a sheet of part labels.
   const [printing, setPrinting] = useState<"pdf" | LabelFormat>("pdf");
   const [labelsMenu, setLabelsMenu] = useState(false);
+  const confirm = useConfirm();
+  const [cutting, setCutting] = useState(false);
+  const [cutError, setCutError] = useState("");
+  const cutAt = m.cutAt;
   // A label's QR code opens ?part=<id>: show that part's drilling map.
   const [search] = useSearchParams();
   const linkedPart = search.get("part");
@@ -98,6 +105,23 @@ export default function MebelProjectPage() {
     flushSync(() => { setSnapshot(image); setPrinting("pdf"); });
     window.print();
   };
+  // "Kesildi": the offcuts this layout cut from leave the store, the ones it leaves arrive
+  const markCut = async () => {
+    const used = usedStockIds(result.nesting);
+    const produced = producedOffcuts(result.nesting);
+    if (!(await confirm({ title: t("mebel.offcuts.cut_confirm", { used: used.length, made: produced.length }), confirmLabel: t("mebel.offcuts.cut") }))) return;
+    setCutting(true);
+    setCutError("");
+    try {
+      const saved = await cutMebelProject(id, { used, produced });
+      m.markCutLocally(saved.cut_at ?? new Date().toISOString());
+    } catch (e) {
+      setCutError(errorMessage(e));
+    } finally {
+      setCutting(false);
+      void m.refetchOffcuts();
+    }
+  };
   const printLabels = (format: LabelFormat) => {
     setLabelsMenu(false);
     flushSync(() => setPrinting(format));
@@ -139,6 +163,17 @@ export default function MebelProjectPage() {
             </div>
           )}
         </div>
+        {cutAt ? (
+          <span data-testid="cut-at" className="text-xs font-semibold text-emerald-700">
+            {t("mebel.offcuts.cut_at", { date: new Date(cutAt).toLocaleDateString(intlLocale()) })}
+          </span>
+        ) : (
+          <button type="button" onClick={() => void markCut()} disabled={failed || cutting || !m.offcutsReady || result.nesting.some((n) => n.unplaced.length > 0)}
+            className="rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+            {t("mebel.offcuts.cut")}
+          </button>
+        )}
+        {cutError && <span role="alert" className="text-xs text-red-600">{cutError}</span>}
         <button type="button" onClick={exportPdf} disabled={failed}
           className="rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
           {t("mebel.export_pdf")}
@@ -160,7 +195,7 @@ export default function MebelProjectPage() {
           className={`${pane === "params" ? "" : "hidden "}scroll-visible rounded-2xl bg-white p-4 shadow-sm lg:block lg:min-h-0 lg:overflow-y-auto`}>
           <AiSuggest update={m.setProject} cabinetCount={project.cabinets.length} />
           <div className="h-3" />
-          <ParamsPanel project={project} update={m.setProject} errors={result.errors} catalog={m.options}
+          <ParamsPanel project={project} update={m.setProject} errors={result.errors} catalog={m.options} offcutCount={m.offcutCount}
             focusCabinetId={result.parts.find((p) => p.id === m.selectedPartId)?.cabinetId ?? null} />
         </aside>
 

@@ -14,8 +14,9 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.api.v1.deps import CurrentUser, DbSession
 from app.models.furniture_project import FurnitureProject
 from app.models.price_book import PriceBook
+from app.models.mebel_offcut import MebelOffcut
 from app.config import settings
-from app.schemas.mebel import PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, SuggestIn
+from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, SuggestIn
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/mebel", tags=["mebel"])
@@ -87,6 +88,84 @@ async def delete_project(project_id: uuid_module.UUID, current_user: CurrentUser
     row = await _own_project(db, current_user, project_id)
     await db.delete(row)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/offcuts", response_model=list[OffcutOut], summary="The caller's offcut stock, newest first")
+async def list_offcuts(current_user: CurrentUser, db: DbSession) -> list[MebelOffcut]:
+    rows = await db.execute(
+        select(MebelOffcut).where(MebelOffcut.user_id == current_user.id).order_by(MebelOffcut.created_at.desc())
+    )
+    return list(rows.scalars().all())
+
+
+def _offcut(user_id, body: OffcutIn, source=None) -> MebelOffcut:
+    return MebelOffcut(user_id=user_id, material=body.material, material_id=body.material_id, thickness=body.thickness,
+                       length=body.length, width=body.width, source_project_id=source)
+
+
+@router.post("/offcuts", response_model=OffcutOut, status_code=status.HTTP_201_CREATED, summary="Add an offcut by hand")
+async def add_offcut(body: OffcutIn, current_user: CurrentUser, db: DbSession) -> MebelOffcut:
+    held = (await db.execute(
+        select(func.count()).select_from(MebelOffcut).where(MebelOffcut.user_id == current_user.id)
+    )).scalar_one_or_none() or 0
+    if held >= MAX_OFFCUTS:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Omborda ko'pi bilan 500 ta qoldiq")
+    row = _offcut(current_user.id, body)
+    db.add(row)
+    await db.flush()
+    await db.refresh(row)
+    return row
+
+
+@router.delete("/offcuts/{offcut_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove an offcut")
+async def delete_offcut(offcut_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> Response:
+    row = (await db.execute(
+        select(MebelOffcut).where(MebelOffcut.id == offcut_id, MebelOffcut.user_id == current_user.id)
+    )).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Qoldiq topilmadi")
+    await db.delete(row)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/projects/{project_id}/cut", response_model=ProjectOut, summary="Kesildi: move the job's offcuts through the store")
+async def cut_project(project_id: uuid_module.UUID, body: CutIn, current_user: CurrentUser, db: DbSession) -> FurnitureProject:
+    """All or nothing: the offcuts the layout cut from must all still be the caller's
+    (another job may have used one since the layout was drawn), else 409 and nothing
+    changes. Then they leave, the layout's offcuts arrive, and the job is marked cut."""
+    # the project row is locked too, so two "Kesildi" at once cannot both pass the check
+    project = (await db.execute(
+        select(FurnitureProject)
+        .where(FurnitureProject.id == project_id, FurnitureProject.user_id == current_user.id)
+        .with_for_update()
+    )).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loyiha topilmadi")
+    if project.cut_at is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Loyiha allaqachon kesilgan")
+    wanted = set(body.used)
+    used: list[MebelOffcut] = []
+    if wanted:
+        used = list((await db.execute(
+            select(MebelOffcut)
+            .where(MebelOffcut.id.in_(wanted), MebelOffcut.user_id == current_user.id)
+            .with_for_update()
+        )).scalars().all())
+        if len(used) != len(wanted):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Qoldiqlar o'zgargan — raskroyni yangilang")
+    held = (await db.execute(
+        select(func.count()).select_from(MebelOffcut).where(MebelOffcut.user_id == current_user.id)
+    )).scalar_one_or_none() or 0
+    # the store stays within its cap: past it, the smallest new pieces are not kept
+    room = max(0, MAX_OFFCUTS - (held - len(used)))
+    kept = sorted(body.produced, key=lambda p: p.length * p.width, reverse=True)[:room]
+    for row in used:
+        await db.delete(row)
+    for piece in kept:
+        db.add(_offcut(current_user.id, piece, source=project.id))
+    project.cut_at = datetime.now(timezone.utc)
+    await db.flush()
+    return project
 
 
 @router.get("/price-book", response_model=dict, summary="The caller's price book ({} when none yet)")

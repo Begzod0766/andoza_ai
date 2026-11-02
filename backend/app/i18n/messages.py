@@ -151,6 +151,10 @@ MESSAGES: dict[str, dict[str, str]] = _table(
     # --- AI and Pinterest ----------------------------------------------
     ("AI xususiyatlari hozircha yoqilmagan.", "Функции ИИ пока не включены.", "AI features are not enabled yet."),
     ("Bugungi AI limiti tugadi", "Дневной лимит ИИ исчерпан", "Today's AI limit is used up"),
+    ("Loyiha allaqachon kesilgan", "Проект уже раскроен", "The project is already cut"),
+    ("Qoldiqlar o'zgargan — raskroyni yangilang", "Остатки изменились — обновите раскрой", "The offcuts have changed — refresh the cutting layout"),
+    ("Qoldiq topilmadi", "Остаток не найден", "Offcut not found"),
+    ("Omborda ko'pi bilan 500 ta qoldiq", "На складе не больше 500 остатков", "At most 500 offcuts in the store"),
     ("AI javob bermadi, qayta urinib ko'ring", "ИИ не ответил, попробуйте ещё раз", "The AI did not answer, try again"),
     ("AI hozir o'chirilgan", "ИИ сейчас отключён", "AI is switched off right now"),
     ("AI hozir javob bermadi. Birozdan keyin qayta urinib ko'ring.", "ИИ сейчас не ответил. Повторите попытку чуть позже.", "The AI did not respond. Please try again in a little while."),

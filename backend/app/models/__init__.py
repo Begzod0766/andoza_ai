@@ -34,6 +34,7 @@ from app.models.content_report import ContentReport  # noqa: F401
 from app.models.seed_marker import SeedMarker  # noqa: F401
 from app.models.furniture_project import FurnitureProject  # noqa: F401
 from app.models.price_book import PriceBook  # noqa: F401
+from app.models.mebel_offcut import MebelOffcut  # noqa: F401
 
 __all__ = [
     "User",

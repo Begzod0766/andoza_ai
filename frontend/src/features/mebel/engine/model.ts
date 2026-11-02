@@ -41,6 +41,8 @@ export interface ConstructionDefaults {
   kerf: number
   /** Factory edge cut off each side of a sheet, mm. */
   trim: number
+  /** Fill pieces from the workshop's offcut store before whole sheets. Old projects: off. */
+  useOffcuts?: boolean
   /** Doors: LDSP cut in the workshop, MDF ordered from a facade shop, or none. */
   facade: { kind: 'ldsp' | 'mdf' | 'none'; materialId: string | null; thickness: 16 | 18 | 19; gap: number }
 }
@@ -169,7 +171,21 @@ export interface NestCut {
   direction: 'along' | 'across'; offset: number
 }
 export interface NestRect { x: number; y: number; length: number; width: number }
-export interface NestedSheet { placements: NestPlacement[]; cuts: NestCut[]; offcuts: NestRect[]; utilization: number }
+/** A piece from the offcut store: a sawn rectangle of one board. */
+export interface StockPiece {
+  id: string
+  material: 'board' | 'back' | 'facade'
+  materialId: string | null
+  thickness: number
+  length: number
+  width: number
+}
+/** One bin of the layout: a whole sheet, or a stock piece (`stockId`, no trim). `size` is the bin's. */
+export interface NestedSheet {
+  placements: NestPlacement[]; cuts: NestCut[]; offcuts: NestRect[]; utilization: number
+  size: { length: number; width: number }
+  stockId?: string
+}
 /** The cutting layout of one board (material + materialId + thickness). */
 export interface NestResult {
   material: 'board' | 'back' | 'facade'

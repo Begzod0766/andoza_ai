@@ -91,6 +91,7 @@ const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
 const DeleteAccountPage = lazy(() => import("@/pages/DeleteAccountPage"));
 const MebelListPage = lazy(() => import("@/pages/mebel/MebelListPage"));
+const MebelOffcutsPage = lazy(() => import("@/pages/mebel/MebelOffcutsPage"));
 const MebelProjectPage = lazy(() => import("@/pages/mebel/MebelProjectPage"));
 
 // ---------- Routes ----------
@@ -153,6 +154,10 @@ const routes: RouteObject[] = [
       {
         path: "/mebel",
         element: withSuspense(<RequireAuth><MebelListPage /></RequireAuth>),
+      },
+      {
+        path: "/mebel/qoldiqlar",
+        element: withSuspense(<RequireAuth><MebelOffcutsPage /></RequireAuth>),
       },
     ],
   },

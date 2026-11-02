@@ -92,4 +92,10 @@ describe('MebelListPage', () => {
     await waitFor(() => expect(vi.mocked(api.createMebelProject)).toHaveBeenCalled())
     expect(vi.mocked(api.createMebelProject).mock.calls[0][0]).toBe(`${base} 3`)
   })
+
+  it('links to the offcut store', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([])
+    mount()
+    expect(await screen.findByRole('link', { name: i18n.t('mebel.offcuts.title') })).toHaveAttribute('href', '/mebel/qoldiqlar')
+  })
 })

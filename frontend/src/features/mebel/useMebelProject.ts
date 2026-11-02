@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { getCatalogMaterials, getMebelProject, getPriceBook, saveMebelProject } from "@/lib/api";
+import { getCatalogMaterials, getMebelProject, getPriceBook, listOffcuts, saveMebelProject } from "@/lib/api";
 import { computeProject, EMPTY_PRICE_BOOK, normalizeProject } from "@/features/mebel/engine";
-import type { CatalogPrices, FurnitureProject, Result } from "@/features/mebel/engine";
+import type { CatalogPrices, FurnitureProject, Result, StockPiece } from "@/features/mebel/engine";
 import type { CatalogOptions } from "./ui/ParamsPanel";
 
 const SAVE_DELAY_MS = 1000;
@@ -21,6 +21,17 @@ export type SaveState = "saved" | "saving" | "error" | "invalid";
 export function useMebelProject(id: string) {
   const projectQuery = useQuery({ queryKey: ["mebel", "project", id], queryFn: () => getMebelProject(id) });
   const priceBookQuery = useQuery({ queryKey: ["mebel", "price-book"], queryFn: getPriceBook });
+  // the workshop's offcut store, used by the layout when the project says so
+  // The layout must not drift between printing and "Kesildi": the store is read
+  // once, not refetched on focus. A cut project lays out without it, so the page
+  // keeps showing what was sawn rather than nesting onto its own leftovers.
+  const offcutsQuery = useQuery({ queryKey: ["mebel", "offcuts"], queryFn: listOffcuts, staleTime: Infinity, refetchOnWindowFocus: false });
+  const [cutAtLocal, setCutAtLocal] = useState<string | null>(null);
+  const cutAt = cutAtLocal ?? projectQuery.data?.cut_at ?? null;
+  const stock = useMemo<StockPiece[]>(
+    () => (cutAt ? [] : (offcutsQuery.data ?? []).map(({ id, material, materialId, thickness, length, width }) => ({ id, material, materialId, thickness, length, width }))),
+    [offcutsQuery.data, cutAt],
+  );
   const catalogQueries = useQueries({
     queries: CATALOG_CATEGORIES.map((category) => ({
       queryKey: ["mebel", "catalog", category],
@@ -66,8 +77,8 @@ export function useMebelProject(id: string) {
 
   const priceBook = priceBookQuery.data ?? EMPTY_PRICE_BOOK;
   const result: Result | null = useMemo(
-    () => (project ? computeProject(project, priceBook, catalog) : null),
-    [project, priceBook, catalog],
+    () => (project ? computeProject(project, priceBook, catalog, stock) : null),
+    [project, priceBook, catalog, stock],
   );
 
   const flush = useRef(() => {});
@@ -117,6 +128,11 @@ export function useMebelProject(id: string) {
     saveState,
     selectedPartId,
     setSelectedPartId,
+    offcutCount: stock.length,
+    refetchOffcuts: offcutsQuery.refetch,
+    cutAt,
+    markCutLocally: setCutAtLocal,
+    offcutsReady: offcutsQuery.isSuccess,
     isLoading: projectQuery.isLoading,
     isError: projectQuery.isError,
   };
