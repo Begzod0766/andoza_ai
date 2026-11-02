@@ -350,7 +350,7 @@ export function AppShell() {
       {!embedded && <DesktopSidebar onNew={() => setSheetOpen(true)} />}
 
       {/* Content shifts right on desktop */}
-      <div className={`flex-1 flex flex-col min-h-screen ${embedded ? '' : 'lg:ml-[92px]'}`}>
+      <div className={`flex-1 min-w-0 flex flex-col min-h-screen ${embedded ? '' : 'lg:ml-[92px]'}`}>
         <main className={`flex-1 ${embedded ? '' : 'pb-[94px] lg:pb-0'}`}>
           <Outlet />
         </main>

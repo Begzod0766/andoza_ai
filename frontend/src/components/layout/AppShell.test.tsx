@@ -97,3 +97,16 @@ describe('AppShell inside the native app (?app=1)', () => {
     expect(screen.getByRole('main').className).not.toContain('pb-[94px]')
   })
 })
+
+describe('AppShell content column', () => {
+  it('may shrink below its content, so a wide strip (tabs, chips) scrolls instead of widening the page', () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/projects']}>
+          <AppShell />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(screen.getByRole('main').parentElement).toHaveClass('min-w-0')
+  })
+})
