@@ -10,25 +10,107 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+# Images are built here and pushed to ghcr.io; the server only pulls them.
+# Building on the VPS meant apt-get and npm over its slow uplink, and on
+# 2026-11-02 four deploys in a row died there (docker-compose.images.yml).
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BACKEND_IMAGE: ghcr.io/begzod10/andoza_ai-backend
+  FRONTEND_IMAGE: ghcr.io/begzod10/andoza_ai-frontend
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy over SSH
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # One image for api, worker, styles-worker, converter and beat.
+      - name: Backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.BACKEND_IMAGE }}:latest
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          # Vite inlines it at build time. Relative, as in docker-compose.prod.yml:
+          # the site calls the API on whichever host served it.
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL || '/api/v1' }}
+          tags: |
+            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.FRONTEND_IMAGE }}:latest
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH setup
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # Keepalives: a long, quiet image pull must not be dropped as idle.
+          printf '%s\n' 'Host *' \
+            '  IdentityFile ~/.ssh/id_deploy' \
+            '  IdentitiesOnly yes' \
+            '  ServerAliveInterval 30' \
+            '  ServerAliveCountMax 10' > ~/.ssh/config
 
+      # The job's own token, valid only while this run lasts; logged out below.
+      - name: Registry login on the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          echo "$GHCR_TOKEN" | ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+            "docker login ghcr.io -u '$GHCR_USER' --password-stdin"
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
           # Copy the script over and run it as a FILE — never
           # `bash -s < deploy/remote-deploy.sh`. Piped that way the script IS
           # the remote bash's stdin, so the first `docker compose exec` inside
@@ -36,10 +118,15 @@ jobs:
           # truncates silently with exit 0. `ssh -n` additionally gives the
           # remote an empty stdin, so no command over there can consume the
           # deploy itself no matter what gets added to the script later.
-          scp -i ~/.ssh/id_deploy -o IdentitiesOnly=yes \
-              deploy/remote-deploy.sh \
+          scp deploy/remote-deploy.sh \
               "$DEPLOY_USER@$DEPLOY_HOST:/tmp/andoza-remote-deploy.sh"
-          ssh -n -i ~/.ssh/id_deploy -o IdentitiesOnly=yes \
-              "$DEPLOY_USER@$DEPLOY_HOST" \
-              "APP_DIR='$DEPLOY_PATH' bash /tmp/andoza-remote-deploy.sh; \
+          ssh -n "$DEPLOY_USER@$DEPLOY_HOST" \
+              "APP_DIR='$DEPLOY_PATH' IMAGE_TAG='$IMAGE_TAG' bash /tmp/andoza-remote-deploy.sh; \
                rc=\$?; rm -f /tmp/andoza-remote-deploy.sh; exit \$rc"
+
+      - name: Registry logout on the server
+        if: always()
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: ssh -n "$DEPLOY_USER@$DEPLOY_HOST" "docker logout ghcr.io" || true
