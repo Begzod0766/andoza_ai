@@ -781,7 +781,7 @@ describe('MebelProjectPage 3D divider and warnings', () => {
     mount()
     const tab = await screen.findByRole('tab', { name: new RegExp(t('mebel.tab.warnings')) })
     const badge = within(tab).getByTestId('warnings-count')
-    expect(badge.className).toMatch(/amber/)
+    expect(badge.className).toMatch(/\bbg-warn\//)
     expect(Number(badge.textContent)).toBeGreaterThan(0)
   })
 })

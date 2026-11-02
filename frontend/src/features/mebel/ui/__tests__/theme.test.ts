@@ -10,6 +10,7 @@ const PAPER = new Set(['SheetDrawing.tsx', 'PartDrawing.tsx', 'AssemblyDrawing.t
 const FILES = [
   join(SRC, 'pages/mebel/MebelProjectPage.tsx'),
   join(SRC, 'pages/mebel/MebelOffcutsPage.tsx'),
+  join(SRC, 'pages/mebel/MebelListPage.tsx'),
   ...readdirSync(UI).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx') && !PAPER.has(f)).map((f) => join(UI, f)),
 ]
 const LIGHT = /(?<![\w:-])(?:hover:|focus:|disabled:|group-hover:)?(bg-white|bg-neutral-\d+|text-neutral-\d+|border-neutral-\d+|ring-neutral-\d+|divide-neutral-\d+)\b/g
@@ -24,6 +25,19 @@ describe('mebel editor theme', () => {
         if (hits.length) offenders.push(`${file.replace(SRC, '')}:${i + 1} ${hits.join(' ')}`)
       })
     }
+    expect(offenders).toEqual([])
+  })
+
+  it('no colour class with two opacities (a class Tailwind silently drops)', () => {
+    const offenders = FILES.flatMap((file) => readFileSync(file, 'utf8').split('\n')
+      .map((line, i) => (/\/\d+\/\d+\b/.test(line) ? `${file.replace(SRC, '')}:${i + 1}` : null)).filter(Boolean))
+    expect(offenders).toEqual([])
+  })
+
+  it('status text uses the themed accent / warn / ok colours, not fixed shades that fade at night or by day', () => {
+    const RAW = /(?<![\w:-])(?:hover:)?(?:text-(?:amber|emerald|blue)-\d+|bg-amber-50|border-blue-\d+|text-\[#5B84F5\])\b/g
+    const offenders = FILES.flatMap((file) => readFileSync(file, 'utf8').split('\n')
+      .flatMap((line, i) => [...line.matchAll(RAW)].map((m) => `${file.replace(SRC, '')}:${i + 1} ${m[0]}`)))
     expect(offenders).toEqual([])
   })
 

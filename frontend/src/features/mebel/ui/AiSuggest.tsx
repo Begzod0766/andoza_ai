@@ -66,8 +66,8 @@ export function AiSuggest({
 
   return (
     // folded until wanted: one line at the top of the panel
-    <details data-testid="section-ai" className="group rounded-2xl bg-[#5B84F5]/15/60 p-3">
-      <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-blue-800">
+    <details data-testid="section-ai" className="group rounded-2xl bg-accent/10 p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-accent">
         {`✦ ${t("mebel.ai.label")}`}
         <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 transition-transform group-open:rotate-180">
           <path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -96,7 +96,7 @@ export function AiSuggest({
               ))}
             </ul>
           )}
-          {proposal.questions.map((q, i) => <p key={i} className="text-xs text-amber-800">{q}</p>)}
+          {proposal.questions.map((q, i) => <p key={i} className="text-xs text-warn">{q}</p>)}
           {(proposal.warnings ?? []).map((w, i) => <p key={`w${i}`} className="text-xs font-semibold text-red-500">{w}</p>)}
           {tooMany && <p className="text-xs text-red-500">{t("mebel.ai.over_limit", { max: MAX_CABINETS })}</p>}
           {proposal.dropped.length > 0 && (

@@ -8,7 +8,7 @@ export function WarningsList({ warnings, labelOf }: { warnings: Warning[]; label
   return (
     <ul className="flex flex-col gap-2">
       {warnings.map((w, i) => (
-        <li key={i} className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <li key={i} className="rounded-xl bg-warn/10 px-3 py-2 text-sm text-ink">
           {labelOf(w.cabinetId) ? <span className="mr-1 font-semibold">{labelOf(w.cabinetId)}:</span> : null}
           {t(`mebel.warning.${w.code}` as TKey, w.params)}
         </li>

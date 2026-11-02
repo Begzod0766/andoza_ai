@@ -2,8 +2,22 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 
 const STEP = 24;
 
-/** A height kept in localStorage; a storage that is missing or throws just keeps the default. */
-export function useStoredHeight(key: string, fallback: number): [number, (h: number) => void] {
+/** The window's height, kept current when the window is resized or the phone turned. */
+export function useViewportHeight(): number {
+  const [height, setHeight] = useState(() => window.innerHeight);
+  useEffect(() => {
+    const onResize = () => setHeight(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return height;
+}
+
+/**
+ * A height kept in localStorage: `set` changes it on screen, `save` remembers it. A storage that is
+ * missing or throws just keeps the default.
+ */
+export function useStoredHeight(key: string, fallback: number): [number, (h: number) => void, (h: number) => void] {
   const [height, setHeight] = useState(() => {
     try {
       const stored = Number(localStorage.getItem(key));
@@ -12,35 +26,47 @@ export function useStoredHeight(key: string, fallback: number): [number, (h: num
       return fallback;
     }
   });
-  const set = (h: number) => {
+  const save = (h: number) => {
     setHeight(h);
     try { localStorage.setItem(key, String(h)); } catch { /* the height just isn't remembered */ }
   };
-  return [height, set];
+  return [height, setHeight, save];
 }
 
 /**
  * The bar under the 3D view: drag it (mouse or touch) or use the arrow keys to give the view
  * more or less of the screen, within [min, max].
  */
-export function ResizableSplit({ height, onHeight, min, max, label }: {
+export function ResizableSplit({ height, onHeight, onCommit, min, max, label }: {
   height: number;
+  /** Every step of a drag. */
   onHeight: (h: number) => void;
+  /** Where a drag ends, and each arrow-key step: the height worth remembering. */
+  onCommit?: (h: number) => void;
   min: number;
   max: number;
   label: string;
 }) {
   const clamp = (h: number) => Math.min(max, Math.max(min, Math.round(h)));
-  const drag = useRef<{ startY: number; startH: number } | null>(null);
-  const latest = useRef({ onHeight, clamp });
-  latest.current = { onHeight, clamp };
+  const drag = useRef<{ startY: number; startH: number; last: number } | null>(null);
+  const latest = useRef({ onHeight, onCommit, clamp });
+  latest.current = { onHeight, onCommit, clamp };
 
   useEffect(() => {
+    const up = () => {
+      if (!drag.current) return;
+      const last = drag.current.last;
+      drag.current = null;
+      latest.current.onCommit?.(last);
+    };
     const move = (e: globalThis.PointerEvent) => {
       if (!drag.current) return;
-      latest.current.onHeight(latest.current.clamp(drag.current.startH + e.clientY - drag.current.startY));
+      // Released outside the window: no pointerup came, but no button is held any more.
+      if (e.buttons === 0) { up(); return; }
+      const h = latest.current.clamp(drag.current.startH + e.clientY - drag.current.startY);
+      drag.current.last = h;
+      latest.current.onHeight(h);
     };
-    const up = () => { drag.current = null; };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -53,11 +79,15 @@ export function ResizableSplit({ height, onHeight, min, max, label }: {
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    drag.current = { startY: e.clientY, startH: height };
+    drag.current = { startY: e.clientY, startH: height, last: height };
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); onHeight(clamp(height + STEP)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); onHeight(clamp(height - STEP)); }
+    const step = e.key === "ArrowDown" ? STEP : e.key === "ArrowUp" ? -STEP : 0;
+    if (!step) return;
+    e.preventDefault();
+    const h = clamp(height + step);
+    onHeight(h);
+    onCommit?.(h);
   };
 
   return (

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import MebelListPage from './MebelListPage'
@@ -164,5 +164,61 @@ describe('MebelListPage', () => {
     expect(vi.mocked(api.deleteMebelProject)).not.toHaveBeenCalled()
     fireEvent.click(await screen.findByRole('button', { name: i18n.t('mebel.delete') }))
     await waitFor(() => expect(vi.mocked(api.deleteMebelProject)).toHaveBeenCalledWith('p1'))
+  })
+
+  it('the header buttons wrap on a phone instead of widening the page', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([])
+    mount()
+    const offcuts = await screen.findByRole('link', { name: i18n.t('mebel.offcuts.title') })
+    const header = offcuts.parentElement!.parentElement!
+    expect(header).toHaveClass('flex-wrap')
+    expect(offcuts.parentElement).not.toHaveClass('shrink-0')
+  })
+
+  it('copying a copy does not stack the suffix, numbers a taken name, and fits 120 characters', async () => {
+    const long = 'L'.repeat(118)
+    vi.mocked(api.listMebelProjects).mockResolvedValue([
+      summary({ id: 'p1', name: 'Oshxona (nusxa)' }), summary({ id: 'p2', name: 'Oshxona (nusxa) 2' }), summary({ id: 'p3', name: long }),
+    ] as never)
+    vi.mocked(api.getMebelProject).mockImplementation(async (id: string) => ({ id, name: 'x', data: {} }) as never)
+    vi.mocked(api.createMebelProject).mockResolvedValue({ id: 'c', name: 'x', data: {} } as never)
+    mount()
+    await screen.findByText('Oshxona (nusxa)')
+    const copyOf = async (name: string) => {
+      fireEvent.click(within(screen.getByText(name).closest('li') as HTMLElement).getByRole('button', { name: i18n.t('mebel.list.actions') }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Nusxa olish' }))
+      await waitFor(() => expect(vi.mocked(api.createMebelProject)).toHaveBeenCalled())
+      const made = vi.mocked(api.createMebelProject).mock.calls.at(-1)![0]
+      vi.mocked(api.createMebelProject).mockClear()
+      return made
+    }
+    expect(await copyOf('Oshxona (nusxa)')).toBe('Oshxona (nusxa) 3')
+  })
+
+  it('a long name still makes a copy within 120 characters', async () => {
+    const long = 'L'.repeat(118)
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary({ id: 'p3', name: long })] as never)
+    vi.mocked(api.getMebelProject).mockResolvedValue({ id: 'p3', name: long, data: {} } as never)
+    vi.mocked(api.createMebelProject).mockResolvedValue({ id: 'c', name: 'x', data: {} } as never)
+    mount()
+    await screen.findByText(long)
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('mebel.list.actions') }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Nusxa olish' }))
+    await waitFor(() => expect(vi.mocked(api.createMebelProject)).toHaveBeenCalled())
+    const made = vi.mocked(api.createMebelProject).mock.calls[0][0]
+    expect(made.length).toBeLessThanOrEqual(120)
+    expect(made.endsWith(' (nusxa)')).toBe(true)
+  })
+
+  it('a second copy while one is under way is ignored', async () => {
+    vi.mocked(api.listMebelProjects).mockResolvedValue([summary()] as never)
+    vi.mocked(api.getMebelProject).mockReturnValue(new Promise(() => {}))
+    mount()
+    await screen.findByText('Oshxona')
+    for (let i = 0; i < 2; i++) {
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('mebel.list.actions') }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Nusxa olish' }))
+    }
+    await waitFor(() => expect(vi.mocked(api.getMebelProject)).toHaveBeenCalledTimes(1))
   })
 })

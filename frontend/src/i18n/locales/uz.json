@@ -2669,8 +2669,6 @@
       "length_grain": "Uzunlik (tola bo'yicha), mm"
     },
     "list": {
-      "cabinets": "{{n}} shkaf",
-      "free_parts": "{{n}} erkin detal",
       "empty_project": "Bo'sh",
       "cut": "Kesildi {{date}}",
       "updated": "Yangilangan: {{date}}",
@@ -2678,7 +2676,11 @@
       "delete": "O'chirish",
       "copy_name": "{{name}} (nusxa)",
       "copy_failed": "Nusxa olib bo'lmadi",
-      "actions": "Amallar"
+      "actions": "Amallar",
+      "cabinets_one": "{{count}} shkaf",
+      "cabinets_other": "{{count}} shkaf",
+      "free_parts_one": "{{count}} erkin detal",
+      "free_parts_other": "{{count}} erkin detal"
     },
     "header": {
       "export": "Eksport",
@@ -2687,12 +2689,15 @@
     },
     "summary": {
       "label": "Loyiha xulosasi",
-      "sheets": "{{n}} plita",
-      "offcuts": "{{n}} qoldiq",
       "edge": "{{m}} m kromka",
-      "parts": "{{n}} detal",
       "price_label": "Narx",
-      "warnings": "Ogohlantirishlar: {{n}}"
+      "warnings": "Ogohlantirishlar: {{n}}",
+      "sheets_one": "{{count}} plita",
+      "sheets_other": "{{count}} plita",
+      "offcuts_one": "{{count}} qoldiq",
+      "offcuts_other": "{{count}} qoldiq",
+      "parts_one": "{{count}} detal",
+      "parts_other": "{{count}} detal"
     },
     "view3d_height": "3D balandligi",
     "cut_group_qty": "{{n}} dona",

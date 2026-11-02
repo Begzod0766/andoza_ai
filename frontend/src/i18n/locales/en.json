@@ -2669,8 +2669,6 @@
       "length_grain": "Length (along the grain), mm"
     },
     "list": {
-      "cabinets": "{{n}} cabinets",
-      "free_parts": "{{n}} free parts",
       "empty_project": "Empty",
       "cut": "Cut {{date}}",
       "updated": "Updated: {{date}}",
@@ -2678,7 +2676,11 @@
       "delete": "Delete",
       "copy_name": "{{name}} (copy)",
       "copy_failed": "Could not duplicate",
-      "actions": "Actions"
+      "actions": "Actions",
+      "cabinets_one": "{{count}} cabinet",
+      "cabinets_other": "{{count}} cabinets",
+      "free_parts_one": "{{count}} free part",
+      "free_parts_other": "{{count}} free parts"
     },
     "header": {
       "export": "Export",
@@ -2687,12 +2689,15 @@
     },
     "summary": {
       "label": "Project summary",
-      "sheets": "{{n}} sheets",
-      "offcuts": "{{n}} offcuts",
       "edge": "{{m}} m banding",
-      "parts": "{{n}} parts",
       "price_label": "Price",
-      "warnings": "Warnings: {{n}}"
+      "warnings": "Warnings: {{n}}",
+      "sheets_one": "{{count}} sheet",
+      "sheets_other": "{{count}} sheets",
+      "offcuts_one": "{{count}} offcut",
+      "offcuts_other": "{{count}} offcuts",
+      "parts_one": "{{count}} part",
+      "parts_other": "{{count}} parts"
     },
     "view3d_height": "3D view height",
     "cut_group_qty": "{{n}} pcs",

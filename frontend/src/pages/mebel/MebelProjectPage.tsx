@@ -30,7 +30,7 @@ import { EditableTitle } from "@/features/mebel/ui/EditableTitle";
 import { SummaryBar } from "@/features/mebel/ui/SummaryBar";
 import { summarize } from "@/features/mebel/ui/summary";
 import { ActionMenu } from "@/components/ui/ActionMenu";
-import { ResizableSplit, useStoredHeight } from "@/features/mebel/ui/ResizableSplit";
+import { ResizableSplit, useStoredHeight, useViewportHeight } from "@/features/mebel/ui/ResizableSplit";
 import { ChevronDown, Settings } from "lucide-react";
 import { FREE_ERROR_FIELD } from "@/features/mebel/ui/FreePartsPanel";
 
@@ -48,8 +48,9 @@ export default function MebelProjectPage() {
   const [pane, setPane] = useState<"params" | "result">("params");
   const [show3d, setShow3d] = useState(true);
   // The 3D view's height: dragged by the bar under it, remembered on this device.
-  const maxView = Math.round(window.innerHeight * 0.7);
-  const [viewHeight, setViewHeight] = useStoredHeight("mebel.view3dHeight", Math.round(window.innerHeight * 0.34));
+  const viewport = useViewportHeight();
+  const maxView = Math.round(viewport * 0.7);
+  const [viewHeight, setViewHeight, saveViewHeight] = useStoredHeight("mebel.view3dHeight", Math.round(viewport * 0.34));
   const [showCut, setShowCut] = useState(true);
   const [priceBookOpen, setPriceBookOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<string | null>(null);
@@ -148,7 +149,7 @@ export default function MebelProjectPage() {
         each scroll in their own column, under a header that stays put. */}
     <div data-testid="mebel-editor" className="flex min-h-screen flex-col bg-card-soft text-ink print:hidden lg:h-screen lg:overflow-hidden">
       <header className="flex flex-wrap items-center gap-2 border-b border-line bg-card px-4 py-3">
-        <Link to="/mebel" className="shrink-0 text-sm font-semibold text-[#5B84F5]">← {t("mebel.back_to_list")}</Link>
+        <Link to="/mebel" className="shrink-0 text-sm font-semibold text-accent">← {t("mebel.back_to_list")}</Link>
         <EditableTitle name={project.name} onRename={(name) => m.setProject((p) => ({ ...p, name }))} />
         <span className={`text-xs ${m.saveState === "error" || m.saveState === "invalid" ? "text-red-500" : "text-ink-muted"}`} role="status">
           {t(({ saving: "mebel.saving", error: "mebel.save_failed", invalid: "mebel.not_saved_invalid", saved: "mebel.saved" } as const)[m.saveState])}
@@ -158,7 +159,7 @@ export default function MebelProjectPage() {
           <Settings size={18} aria-hidden="true" />
         </button>
         {cutAt ? (
-          <span data-testid="cut-at" className="text-xs font-semibold text-emerald-500">
+          <span data-testid="cut-at" className="text-xs font-semibold text-ok">
             {t("mebel.offcuts.cut_at", { date: new Date(cutAt).toLocaleDateString(intlLocale()) })}
           </span>
         ) : (
@@ -215,7 +216,7 @@ export default function MebelProjectPage() {
                 {t("mebel.view_hide")}
               </button>
             </div>
-            <ResizableSplit height={Math.min(maxView, Math.max(160, viewHeight))} onHeight={setViewHeight} min={160} max={maxView}
+            <ResizableSplit height={Math.min(maxView, Math.max(160, viewHeight))} onHeight={setViewHeight} onCommit={saveViewHeight} min={160} max={maxView}
               label={t("mebel.view3d_height")} />
             </>
           ) : (
@@ -241,7 +242,7 @@ export default function MebelProjectPage() {
                       className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${tab === k ? "bg-ink text-card" : "text-ink-muted hover:bg-card-soft"}`}>
                       {t(`mebel.tab.${k}`)}
                       {k === "warnings" && result.warnings.length > 0 && (
-                        <span data-testid="warnings-count" className="ml-1.5 rounded-full bg-amber-500/20 px-1.5 text-[11px] font-bold text-amber-500">
+                        <span data-testid="warnings-count" className="ml-1.5 rounded-full bg-warn/15 px-1.5 text-[11px] font-bold text-warn">
                           {result.warnings.length}
                         </span>
                       )}
@@ -254,11 +255,11 @@ export default function MebelProjectPage() {
                   <>
                     <div className="mb-2 flex gap-1">
                       <button type="button" aria-pressed={showCut} onClick={() => setShowCut(true)}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${showCut ? "bg-[#5B84F5]/15 text-[#5B84F5]" : "text-ink-muted"}`}>
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${showCut ? "bg-accent/15 text-accent" : "text-ink-muted"}`}>
                         {t("mebel.show_cut")}
                       </button>
                       <button type="button" aria-pressed={!showCut} onClick={() => setShowCut(false)}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${!showCut ? "bg-[#5B84F5]/15 text-[#5B84F5]" : "text-ink-muted"}`}>
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${!showCut ? "bg-accent/15 text-accent" : "text-ink-muted"}`}>
                         {t("mebel.show_finished")}
                       </button>
                     </div>

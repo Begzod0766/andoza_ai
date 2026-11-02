@@ -173,7 +173,7 @@ export function ParamsPanel({
           <div className="grid grid-cols-3 gap-1" role="group" aria-label={t("mebel.add_cabinet")}>
             {(["base", "wall", "tall"] as const).map((type) => (
               <button key={type} type="button" onClick={() => addCabinet(type)}
-                className="whitespace-nowrap rounded-full bg-[#5B84F5]/15 px-2 py-1.5 text-xs font-semibold text-[#5B84F5] hover:bg-blue-100">
+                className="whitespace-nowrap rounded-full bg-accent/15 px-2 py-1.5 text-xs font-semibold text-accent hover:bg-accent/25">
                 {t(`mebel.add.${type}`)}
               </button>
             ))}
@@ -185,7 +185,7 @@ export function ParamsPanel({
           const open = openId === c.id || hasError;
           return (
           <details key={c.id} data-testid={`cabinet-${c.label}`} open={open}
-            className={`group rounded-2xl border ${open ? "border-blue-200 bg-[#5B84F5]/15/30" : "border-line"}`}>
+            className={`group rounded-2xl border ${open ? "border-accent/40 bg-accent/10" : "border-line"}`}>
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm"
               onClick={(e) => { e.preventDefault(); setOpenId(openId === c.id ? null : c.id); }}>
               {hasError && <span data-testid="cabinet-error-dot" className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}

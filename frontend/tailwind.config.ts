@@ -58,6 +58,9 @@ const config: Config = {
         line: "rgb(var(--line) / <alpha-value>)",
         // Blue text and links on a card: dark blue by day, a light blue by night, where the brand blue would vanish.
         accent: "rgb(var(--accent) / <alpha-value>)",
+        // Warnings and done-states on a card: amber / green dark by day, light by night.
+        warn: "rgb(var(--warn) / <alpha-value>)",
+        ok: "rgb(var(--ok) / <alpha-value>)",
         // Semantic UI colors
         surface: "#FFFFFF",
         paper: "#F9F9F9",

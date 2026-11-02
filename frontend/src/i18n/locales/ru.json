@@ -2733,8 +2733,6 @@
       "length_grain": "Длина (по текстуре), мм"
     },
     "list": {
-      "cabinets": "Шкафов: {{n}}",
-      "free_parts": "Свободных деталей: {{n}}",
       "empty_project": "Пусто",
       "cut": "Раскроено {{date}}",
       "updated": "Обновлено: {{date}}",
@@ -2742,7 +2740,15 @@
       "delete": "Удалить",
       "copy_name": "{{name}} (копия)",
       "copy_failed": "Не удалось сделать копию",
-      "actions": "Действия"
+      "actions": "Действия",
+      "cabinets_one": "{{count}} шкаф",
+      "cabinets_few": "{{count}} шкафа",
+      "cabinets_many": "{{count}} шкафов",
+      "cabinets_other": "{{count}} шкафов",
+      "free_parts_one": "{{count}} свободная деталь",
+      "free_parts_few": "{{count}} свободные детали",
+      "free_parts_many": "{{count}} свободных деталей",
+      "free_parts_other": "{{count}} свободных деталей"
     },
     "header": {
       "export": "Экспорт",
@@ -2751,12 +2757,21 @@
     },
     "summary": {
       "label": "Сводка проекта",
-      "sheets": "{{n}} лист.",
-      "offcuts": "{{n}} обрезк.",
       "edge": "{{m}} м кромки",
-      "parts": "{{n}} дет.",
       "price_label": "Цена",
-      "warnings": "Предупреждения: {{n}}"
+      "warnings": "Предупреждения: {{n}}",
+      "sheets_one": "{{count}} лист",
+      "sheets_few": "{{count}} листа",
+      "sheets_many": "{{count}} листов",
+      "sheets_other": "{{count}} листов",
+      "offcuts_one": "{{count}} обрезок",
+      "offcuts_few": "{{count}} обрезка",
+      "offcuts_many": "{{count}} обрезков",
+      "offcuts_other": "{{count}} обрезков",
+      "parts_one": "{{count}} деталь",
+      "parts_few": "{{count}} детали",
+      "parts_many": "{{count}} деталей",
+      "parts_other": "{{count}} деталей"
     },
     "view3d_height": "Высота 3D",
     "cut_group_qty": "{{n}} шт.",
