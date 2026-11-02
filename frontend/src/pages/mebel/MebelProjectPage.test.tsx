@@ -764,3 +764,22 @@ describe('MebelProjectPage header and summary', () => {
     expect(within(bar).getByRole('button', { name: new RegExp(t('mebel.summary.price_label')) })).toHaveTextContent('—')
   })
 })
+
+describe('MebelProjectPage 3D divider and warnings', () => {
+  it('the 3D view has a divider below it', async () => {
+    mount()
+    expect(await screen.findByRole('separator', { name: t('mebel.view3d_height') })).toBeInTheDocument()
+  })
+
+  it('the Warnings tab carries an amber count when there are warnings', async () => {
+    const project = newProject('Oshxona')
+    project.cabinets[0].id = 'c1'
+    project.cabinets[0].width = 1200 // a wide cabinet warns
+    vi.mocked(api.getMebelProject).mockResolvedValue({ id: 'p1', name: 'Oshxona', data: project })
+    mount()
+    const tab = await screen.findByRole('tab', { name: new RegExp(t('mebel.tab.warnings')) })
+    const badge = within(tab).getByTestId('warnings-count')
+    expect(badge.className).toMatch(/amber/)
+    expect(Number(badge.textContent)).toBeGreaterThan(0)
+  })
+})

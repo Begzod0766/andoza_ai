@@ -2693,6 +2693,7 @@
       "parts": "{{n}} detal",
       "price_label": "Narx",
       "warnings": "Ogohlantirishlar: {{n}}"
-    }
+    },
+    "view3d_height": "3D balandligi"
   }
 }

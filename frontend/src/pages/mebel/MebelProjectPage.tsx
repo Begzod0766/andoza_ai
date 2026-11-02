@@ -29,6 +29,7 @@ import { EditableTitle } from "@/features/mebel/ui/EditableTitle";
 import { SummaryBar } from "@/features/mebel/ui/SummaryBar";
 import { summarize } from "@/features/mebel/ui/summary";
 import { ActionMenu } from "@/components/ui/ActionMenu";
+import { ResizableSplit, useStoredHeight } from "@/features/mebel/ui/ResizableSplit";
 import { ChevronDown, Settings } from "lucide-react";
 import { FREE_ERROR_FIELD } from "@/features/mebel/ui/FreePartsPanel";
 
@@ -43,6 +44,9 @@ export default function MebelProjectPage() {
   const [tab, setTab] = useState<Tab>("parts");
   const [pane, setPane] = useState<"params" | "result">("params");
   const [show3d, setShow3d] = useState(true);
+  // The 3D view's height: dragged by the bar under it, remembered on this device.
+  const maxView = Math.round(window.innerHeight * 0.7);
+  const [viewHeight, setViewHeight] = useStoredHeight("mebel.view3dHeight", Math.round(window.innerHeight * 0.34));
   const [showCut, setShowCut] = useState(true);
   const [priceBookOpen, setPriceBookOpen] = useState(false);
   const [snapshot, setSnapshot] = useState<string | null>(null);
@@ -198,7 +202,9 @@ export default function MebelProjectPage() {
 
         <main data-testid="mebel-result" className={`${pane === "result" ? "flex" : "hidden"} min-w-0 flex-col gap-3 lg:flex lg:min-h-0`}>
           {show3d ? (
-            <div ref={viewRef} className="relative h-[34vh] min-h-[220px] shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm" aria-label={t("mebel.view3d")}>
+            <>
+            <div ref={viewRef} style={{ height: Math.min(maxView, Math.max(160, viewHeight)) }}
+              className="relative shrink-0 overflow-hidden rounded-2xl bg-white shadow-sm" aria-label={t("mebel.view3d")}>
               <CabinetView parts={result.parts} selectedPartId={m.selectedPartId} onSelect={m.setSelectedPartId} wallLift={wallLift} />
               {/* on the view itself, so the tabs keep the whole row */}
               <button type="button" onClick={() => setShow3d(false)}
@@ -206,6 +212,9 @@ export default function MebelProjectPage() {
                 {t("mebel.view_hide")}
               </button>
             </div>
+            <ResizableSplit height={Math.min(maxView, Math.max(160, viewHeight))} onHeight={setViewHeight} min={160} max={maxView}
+              label={t("mebel.view3d_height")} />
+            </>
           ) : (
             <button type="button" onClick={() => setShow3d(true)}
               className="self-end rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-100">
@@ -227,7 +236,12 @@ export default function MebelProjectPage() {
                   {TABS.map((k) => (
                     <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
                       className={`whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${tab === k ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}>
-                      {t(`mebel.tab.${k}`)}{k === "warnings" && result.warnings.length > 0 ? ` (${result.warnings.length})` : ""}
+                      {t(`mebel.tab.${k}`)}
+                      {k === "warnings" && result.warnings.length > 0 && (
+                        <span data-testid="warnings-count" className="ml-1.5 rounded-full bg-amber-500/20 px-1.5 text-[11px] font-bold text-amber-500">
+                          {result.warnings.length}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

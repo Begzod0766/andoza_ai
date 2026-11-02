@@ -2693,6 +2693,7 @@
       "parts": "{{n}} parts",
       "price_label": "Price",
       "warnings": "Warnings: {{n}}"
-    }
+    },
+    "view3d_height": "3D view height"
   }
 }
