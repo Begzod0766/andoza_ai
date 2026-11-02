@@ -70,6 +70,10 @@ export async function listAdminMaterials(
   return apiClient<AdminMaterialsPage>(`/admin/materials${s ? `?${s}` : ""}`);
 }
 
+export async function getAdminMaterial(id: string): Promise<AdminMaterial> {
+  return apiClient<AdminMaterial>(`/admin/materials/${encodeURIComponent(id)}`);
+}
+
 export async function createAdminMaterial(input: MaterialInput): Promise<AdminMaterial> {
   return apiClient<AdminMaterial>("/admin/materials", {
     method: "POST",

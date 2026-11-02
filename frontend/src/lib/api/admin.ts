@@ -128,6 +128,10 @@ export async function listAdminFurniture(params: {
   return apiClient<AdminFurniture[]>(`/admin/furniture${query ? `?${query}` : ""}`);
 }
 
+export async function getAdminFurniture(id: string): Promise<AdminFurniture> {
+  return apiClient<AdminFurniture>(`/admin/furniture/${encodeURIComponent(id)}`);
+}
+
 /** How many materials and 3D models each category holds, for the admin product list. */
 export interface CategoryCounts {
   materials: Record<string, number>;
