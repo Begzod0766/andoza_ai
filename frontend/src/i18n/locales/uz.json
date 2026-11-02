@@ -2601,7 +2601,17 @@
       "bin": "Qoldiq · {{l}}×{{w}}",
       "cut": "Kesildi",
       "cut_confirm": "{{used}} ta qoldiq ombordan chiqadi, {{made}} ta yangi qoldiq qo'shiladi",
-      "cut_at": "Kesilgan: {{date}}"
+      "cut_at": "Kesilgan: {{date}}",
+      "title": "Qoldiqlar ombori",
+      "subtitle": "Kesishdan qolgan bo'laklar: keyingi buyurtmalarda raskroy avval shulardan foydalanadi",
+      "add_title": "Qoldiq qo'shish",
+      "add": "Qo'shish",
+      "thickness": "Qalinlik, mm",
+      "size_hint": "Har tomoni 200–5000 mm",
+      "empty": "Omborda qoldiq yo'q",
+      "group": "{{m}} {{t}} mm",
+      "by_hand": "qo'lda",
+      "delete_confirm": "{{l}} × {{w}} qoldig'ini o'chirasizmi?"
     }
   }
 }

@@ -50,9 +50,14 @@ export default function MebelListPage() {
           <h1 className="text-2xl font-bold text-ink">{t("mebel.title")}</h1>
           <p className="mt-1 text-sm text-ink-muted">{t("mebel.subtitle")}</p>
         </div>
-        <Button onClick={() => create.mutate()} loading={create.isPending}>
-          {t("mebel.new_project")}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link to="/mebel/qoldiqlar" className="rounded-full bg-card-soft px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line hover:bg-card">
+            {t("mebel.offcuts.title")}
+          </Link>
+          <Button onClick={() => create.mutate()} loading={create.isPending}>
+            {t("mebel.new_project")}
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
