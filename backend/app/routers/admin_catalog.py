@@ -22,6 +22,7 @@ from app.services.model_yaw import apply_model_yaw
 from app.services.model_optimize_queue import enqueue_optimize_after_commit
 from app.database import run_after_commit
 from app.models.furniture import Furniture
+from app.models.material import Material
 from app.models.store import Store
 from app.models.usta import Usta
 from app.schemas.admin_catalog import (
@@ -405,12 +406,11 @@ async def list_furniture_admin(
     store_id: uuid_module.UUID | None = None,
     category: str | None = None,
     room_type: str | None = None,
+    q: str | None = None,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
 ) -> list[FurnitureAdminOut]:
-    query = select(Furniture).options(selectinload(Furniture.store))
-    if store_id is not None:
-        query = query.where(Furniture.store_id == store_id)
+    query = select(Furniture).options(selectinload(Furniture.store)).where(*_furniture_filters(store_id, q))
     if category is not None:
         query = query.where(Furniture.category == category)
     if room_type is not None:
@@ -422,6 +422,42 @@ async def list_furniture_admin(
     )
     items = result.scalars().all()
     return [_furniture_out(f, request, f.store.name if f.store else None) for f in items]
+
+
+def _name_like(column, q: str):
+    # % and _ in the search are letters, not wildcards.
+    literal = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return column.ilike(f"%{literal}%", escape="\\")
+
+
+def _furniture_filters(store_id: uuid_module.UUID | None, q: str | None) -> list:
+    filters = []
+    if store_id is not None:
+        filters.append(Furniture.store_id == store_id)
+    if q:
+        filters.append(_name_like(Furniture.name_uz, q))
+    return filters
+
+
+@router.get("/category-counts", summary="Products per category, for the admin product list")
+async def category_counts(
+    admin: AdminUser,
+    db: DbSession,
+    store_id: uuid_module.UUID | None = None,
+    q: str | None = None,
+) -> dict[str, dict[str, int]]:
+    material_filters = []
+    if store_id is not None:
+        material_filters.append(Material.store_id == store_id)
+    if q:
+        material_filters.append(_name_like(Material.name_uz, q))
+    materials = (await db.execute(
+        select(Material.category, func.count()).where(*material_filters).group_by(Material.category)
+    )).all()
+    furniture = (await db.execute(
+        select(Furniture.category, func.count()).where(*_furniture_filters(store_id, q)).group_by(Furniture.category)
+    )).all()
+    return {"materials": dict(materials), "furniture": dict(furniture)}
 
 
 # One AI style pass at a time: pressing the button again before the queue drains would

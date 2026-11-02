@@ -6,11 +6,13 @@ what a shop got wrong. The same status rules apply, with the widest cancellation
 """
 from __future__ import annotations
 
+import re
 import uuid
+from datetime import datetime
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import String, cast, false, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.deps import AdminUser, DbSession
@@ -36,11 +38,25 @@ def _out(order: Order, store_name: str | None) -> AdminOrderOut:
     )
 
 
+def _search(q: str):
+    """An order number (the start of its id) or phone digits; anything else matches nothing."""
+    matches = []
+    if re.fullmatch(r"[0-9a-fA-F-]{1,36}", q):
+        matches.append(cast(Order.id, String).ilike(f"{q.lower()}%"))
+    digits = re.sub(r"\D", "", q)
+    if digits:
+        matches.append(Order.phone.ilike(f"%{digits}%"))
+    return or_(*matches) if matches else false()
+
+
 @router.get("", response_model=list[AdminOrderOut], summary="All orders, newest first")
 async def list_orders(
     admin: AdminUser,
     db: DbSession,
     status_filter: str | None = Query(default=None, alias="status"),
+    store_id: uuid.UUID | None = None,
+    since: datetime | None = None,
+    q: str | None = None,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=100),
 ) -> list[AdminOrderOut]:
@@ -56,6 +72,12 @@ async def list_orders(
     )
     if status_filter is not None:
         query = query.where(Order.status == status_filter)
+    if store_id is not None:
+        query = query.where(Order.store_id == store_id)
+    if since is not None:
+        query = query.where(Order.created_at >= since)
+    if q and q.strip():
+        query = query.where(_search(q.strip()))
     rows = (await db.execute(query)).all()
     return [_out(order, store_name) for order, store_name in rows]
 
