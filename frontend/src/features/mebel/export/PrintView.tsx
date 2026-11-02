@@ -38,7 +38,7 @@ export function PrintView({
       <style>{PRINT_PAGE_CSS}</style>
       <h1 className="text-xl font-bold">{t("mebel.print_title", { name })}</h1>
       {snapshot && <img src={snapshot} alt="" className="max-h-[80mm] self-start" />}
-      <CutListTable groups={result.groups} showCut selectedPartId={null} onSelect={() => {}}
+      <CutListTable groups={result.groups} showCut grouped={false} selectedPartId={null} onSelect={() => {}}
         materialName={(g) => materialName(g.materialId) ?? t(`mebel.material.${g.material}`)} />
       <EdgeTable totals={result.edgeTotals} materialName={materialName} />
       <BomPanel bom={result.bom} total={result.total} hasUnpriced={result.hasUnpriced} nesting={result.nesting}

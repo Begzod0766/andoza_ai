@@ -2694,6 +2694,7 @@
       "price_label": "Narx",
       "warnings": "Ogohlantirishlar: {{n}}"
     },
-    "view3d_height": "3D balandligi"
+    "view3d_height": "3D balandligi",
+    "cut_group_qty": "{{n}} dona"
   }
 }

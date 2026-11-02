@@ -394,9 +394,11 @@ describe('MebelProjectPage drawer fixes', () => {
     mount()
     const table = await screen.findByRole('table', { name: t('mebel.tab.parts') })
     const header = (name: string) => within(table).getByRole('columnheader', { name })
-    for (const name of [t('mebel.col.id'), t('mebel.col.material'), t('mebel.col.grain')]) {
+    for (const name of [t('mebel.col.id'), t('mebel.col.grain')]) {
       expect(header(name).className).toContain('hidden sm:table-cell print:table-cell')
     }
+    // the material and thickness sit in each group's header row on screen, and print as columns
+    expect(header(t('mebel.col.material')).className).toContain('hidden print:table-cell')
     for (const name of [t('mebel.col.part'), t('mebel.col.length'), t('mebel.col.width'), t('mebel.col.qty')]) {
       expect(header(name).className).not.toContain('hidden')
     }
@@ -423,7 +425,7 @@ describe('MebelProjectPage drawer fixes', () => {
   it('on a phone the thickness column gives way too', async () => {
     mount()
     const table = await screen.findByRole('table', { name: t('mebel.tab.parts') })
-    expect(within(table).getByRole('columnheader', { name: t('mebel.col.thickness') }).className).toContain('hidden sm:table-cell')
+    expect(within(table).getByRole('columnheader', { name: t('mebel.col.thickness') }).className).toContain('hidden print:table-cell')
   })
 
 })

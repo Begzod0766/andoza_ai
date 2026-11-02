@@ -2758,6 +2758,7 @@
       "price_label": "Цена",
       "warnings": "Предупреждения: {{n}}"
     },
-    "view3d_height": "Высота 3D"
+    "view3d_height": "Высота 3D",
+    "cut_group_qty": "{{n}} шт."
   }
 }
