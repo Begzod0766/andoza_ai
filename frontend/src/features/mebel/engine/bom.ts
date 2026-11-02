@@ -72,7 +72,8 @@ export function buildBom(input: {
   const lines: BomLine[] = []
   // Whole sheets, as the nesting lays them out.
   for (const n of nesting) {
-    lines.push(line(n.material, `${n.material}_${n.thickness}`, n.materialId, n.sheets.length, 'sheet', priceOf(n.materialId) ?? sheetPrice(n)))
+    // offcut stock is free: only whole sheets are bought
+    lines.push(line(n.material, `${n.material}_${n.thickness}`, n.materialId, n.sheets.filter((x) => !x.stockId).length, 'sheet', priceOf(n.materialId) ?? sheetPrice(n)))
   }
   // MDF doors: the facade shop prices them by the square metre.
   const mdf = new Map<string | null, number>()

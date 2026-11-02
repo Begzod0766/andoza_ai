@@ -10,7 +10,7 @@ import { freePartParts } from './rules/freeParts'
 import { partWarnings, validateCabinets } from './validate'
 import { thicknessWarnings } from './materials'
 import { DEFAULTS } from './model'
-import type { ConstructionDefaults, FurnitureProject, PriceBook, Result, Warning } from './model'
+import type { ConstructionDefaults, FurnitureProject, PriceBook, Result, StockPiece, Warning } from './model'
 
 export * from './model'
 export { buildBom, EMPTY_PRICE_BOOK, HARDWARE_KEYS, hardwareCounts, type CatalogPrices } from './bom'
@@ -18,6 +18,7 @@ export { doorCount, type FacadeOrderLine } from './rules/doors'
 export { cutSize, round01 } from './edges'
 export { edgeTotals, groupParts } from './cutlist'
 export { nestSheets } from './nest'
+export { producedOffcuts, usedStockIds } from './offcuts'
 export { baseCabinetParts, resolveDefaults } from './rules/baseCabinet'
 export { LIMITS, LIMITS_BY_TYPE, partWarnings } from './validate'
 export { cabinetParts } from './rules'
@@ -50,7 +51,7 @@ const EMPTY: Omit<Result, 'errors'> = {
  * placement, the grouped cut list, band metres, the sheet estimate and the
  * priced BOM. Pure: no I/O, the same input always gives the same result.
  */
-export function computeProject(project: FurnitureProject, prices: PriceBook, catalog: CatalogPrices): Result {
+export function computeProject(project: FurnitureProject, prices: PriceBook, catalog: CatalogPrices, stock: StockPiece[] = []): Result {
   const p = normalizeProject(project)
   const byId = new Map<string, ConstructionDefaults>(p.cabinets.map(c => [c.id, resolveDefaults(p, c)]))
   const settings = (id: string) => byId.get(id) ?? p.defaults
@@ -77,7 +78,7 @@ export function computeProject(project: FurnitureProject, prices: PriceBook, cat
     (part, side) => (side.band === 'visible' ? settings(part.cabinetId).edge.visible : settings(part.cabinetId).edge.hidden),
     p.defaults,
   )
-  const nesting = nestSheets(groups, p.defaults.sheet, { kerf: p.defaults.kerf, trim: p.defaults.trim })
+  const nesting = nestSheets(groups, p.defaults.sheet, { kerf: p.defaults.kerf, trim: p.defaults.trim }, p.defaults.useOffcuts ? stock : [])
   const hardware = p.cabinets.reduce<HardwareCounts>((sum, c) => {
     const h = hardwareCounts(c, settings(c.id))
     return Object.fromEntries(HARDWARE_KEYS.map((k) => [k, sum[k] + h[k]])) as HardwareCounts
