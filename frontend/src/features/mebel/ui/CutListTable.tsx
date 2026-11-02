@@ -74,7 +74,7 @@ export function CutListTable({
                 data-key={g.key}
                 aria-selected={selected}
                 onClick={() => onSelect(g.partIds[0])}
-                className={`cursor-pointer border-t border-line ${selected ? "bg-[#5B84F5]/15" : "hover:bg-card-soft"}`}
+                className={`cursor-pointer border-t border-line ${selected ? "bg-accent/15" : "hover:bg-card-soft"}`}
               >
                 <td className="hidden sm:table-cell print:table-cell px-2 py-2 text-xs text-ink-muted">{g.partIds.join(", ")}</td>
                 <td className="px-2 py-2 font-medium text-ink">{groupName(g)}</td>

@@ -48,7 +48,7 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
       <summary className={`${summary} py-2`}>
         {t("mebel.free.title")}
         <button type="button" onClick={(e) => { e.preventDefault(); add(); }}
-          className="ml-auto mr-2 rounded-full bg-[#5B84F5]/15 px-2.5 py-1.5 text-xs font-semibold text-[#5B84F5] hover:bg-blue-100">
+          className="ml-auto mr-2 rounded-full bg-accent/15 px-2.5 py-1.5 text-xs font-semibold text-accent hover:bg-accent/25">
           {t("mebel.free.add")}
         </button>
       </summary>
@@ -60,7 +60,7 @@ export function FreePartsPanel({ project, update, errors }: { project: Furniture
           const sizeError = errorFor(f.id, "size");
           return (
             <details key={f.id} data-testid={`free-${f.label}`} open={open}
-              className={`group rounded-2xl border ${open ? "border-blue-200 bg-[#5B84F5]/15/30" : "border-line"}`}>
+              className={`group rounded-2xl border ${open ? "border-accent/40 bg-accent/10" : "border-line"}`}>
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm"
                 onClick={(e) => { e.preventDefault(); setOpenId(openId === f.id ? null : f.id); }}>
                 {hasError && <span data-testid="free-error-dot" className="h-2 w-2 shrink-0 rounded-full bg-red-500" />}

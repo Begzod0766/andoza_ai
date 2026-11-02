@@ -40,10 +40,10 @@ export function BomPanel({
               <td className="px-2 py-2 text-right tabular-nums">
                 {l.qty} {t(`mebel.unit.${l.unit}`)}
               </td>
-              <td className={`px-2 py-2 text-right tabular-nums ${l.unitPrice == null ? "text-amber-700" : ""}`}>
+              <td className={`px-2 py-2 text-right tabular-nums ${l.unitPrice == null ? "text-warn" : ""}`}>
                 {l.unit === "percent" ? "" : formatMoney(l.unitPrice)}
               </td>
-              <td className={`px-2 py-2 text-right font-medium tabular-nums ${l.total == null ? "text-amber-700" : ""}`}>
+              <td className={`px-2 py-2 text-right font-medium tabular-nums ${l.total == null ? "text-warn" : ""}`}>
                 {formatMoney(l.total)}
               </td>
             </tr>

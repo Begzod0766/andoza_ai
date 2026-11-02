@@ -20,8 +20,8 @@ export function ProjectCard({ project: p, onCopy, onDelete }: {
 }) {
   const { t } = useTranslation();
   const counts = [
-    p.cabinets ? t("mebel.list.cabinets", { n: p.cabinets }) : null,
-    p.free_parts ? t("mebel.list.free_parts", { n: p.free_parts }) : null,
+    p.cabinets ? t("mebel.list.cabinets", { count: p.cabinets }) : null,
+    p.free_parts ? t("mebel.list.free_parts", { count: p.free_parts }) : null,
   ].filter(Boolean).join(" · ");
 
   return (
@@ -33,7 +33,7 @@ export function ProjectCard({ project: p, onCopy, onDelete }: {
         <span className="flex flex-wrap items-center gap-2">
           <span className="truncate font-semibold text-ink">{p.name}</span>
           {p.cut_at && (
-            <span className="whitespace-nowrap rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
+            <span className="whitespace-nowrap rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-bold text-ok">
               {t("mebel.list.cut", { date: new Date(p.cut_at).toLocaleDateString(intlLocale()) })}
             </span>
           )}

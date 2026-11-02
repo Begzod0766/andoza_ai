@@ -166,6 +166,8 @@
     --ink-muted: 107 114 128;
     --line: 232 228 244;
     --accent: 30 64 175;
+    --warn: 180 83 9;
+    --ok: 4 120 87;
     --card-shadow: 0 10px 30px -14px rgba(60, 40, 120, 0.22);
   }
   :root[data-app-theme='night'] {
@@ -175,6 +177,8 @@
     --ink-muted: 176 170 202;
     --line: 66 62 98;
     --accent: 143 176 255;
+    --warn: 251 191 36;
+    --ok: 52 211 153;
     --card-shadow: 0 14px 34px -16px rgba(0, 0, 0, 0.6);
   }
   :root[data-app-theme='night'] { --color-app-bg: #1d1a2e; }

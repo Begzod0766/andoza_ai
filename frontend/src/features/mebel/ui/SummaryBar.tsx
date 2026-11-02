@@ -1,6 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatUZS } from "@/lib/utils";
+import { intlLocale } from "@/i18n";
 import type { ProjectSummaryNumbers } from "./summary";
 
 export type SummaryTab = "nesting" | "edges" | "parts" | "bom" | "warnings";
@@ -18,8 +19,8 @@ export function SummaryBar({ summary: s, priceReady, onOpen }: {
 }) {
   const { t } = useTranslation();
   const sheets = s.offcuts > 0
-    ? `${t("mebel.summary.sheets", { n: s.sheets })} + ${t("mebel.summary.offcuts", { n: s.offcuts })}`
-    : t("mebel.summary.sheets", { n: s.sheets });
+    ? `${t("mebel.summary.sheets", { count: s.sheets })} + ${t("mebel.summary.offcuts", { count: s.offcuts })}`
+    : t("mebel.summary.sheets", { count: s.sheets });
   const price = priceReady && s.total != null ? formatUZS(s.total) : "—";
   const dot = <span className="text-ink-muted" aria-hidden="true">·</span>;
 
@@ -29,17 +30,17 @@ export function SummaryBar({ summary: s, priceReady, onOpen }: {
       <button type="button" className={segment} onClick={() => onOpen("nesting")}>{sheets}</button>
       {dot}
       <button type="button" className={segment} onClick={() => onOpen("edges")}>
-        {t("mebel.summary.edge", { m: s.edgeMeters.toLocaleString(undefined, { maximumFractionDigits: 1 }) })}
+        {t("mebel.summary.edge", { m: s.edgeMeters.toLocaleString(intlLocale(), { maximumFractionDigits: 1 }) })}
       </button>
       {dot}
-      <button type="button" className={segment} onClick={() => onOpen("parts")}>{t("mebel.summary.parts", { n: s.parts })}</button>
+      <button type="button" className={segment} onClick={() => onOpen("parts")}>{t("mebel.summary.parts", { count: s.parts })}</button>
       {dot}
       <button type="button" className={segment} aria-label={`${t("mebel.summary.price_label")}: ${price}`} onClick={() => onOpen("bom")}>{price}</button>
       {s.warnings > 0 && (
         <>
           {dot}
           <button type="button" onClick={() => onOpen("warnings")} aria-label={t("mebel.summary.warnings", { n: s.warnings })}
-            className={`${segment} inline-flex items-center gap-1 text-amber-500`}>
+            className={`${segment} inline-flex items-center gap-1 text-warn`}>
             <AlertTriangle size={14} aria-hidden="true" />{s.warnings}
           </button>
         </>

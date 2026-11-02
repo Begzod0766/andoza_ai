@@ -380,3 +380,14 @@ def test_at_most_1000_free_pieces(client):
     assert _post(client, data).status_code == 422
     data["freeParts"] = data["freeParts"][:10]
     assert _post(client, data).status_code == 201
+
+
+def test_summary_counts_from_a_dict_and_keeps_every_out_field():
+    from app.schemas.mebel import ProjectOut, ProjectSummary
+    now = datetime.now(timezone.utc)
+    row = dict(id=uuid.uuid4(), name="x", updated_at=now, created_at=now, schema_version=1, cut_at=None,
+               data={"cabinets": [1, 2, 3], "freeParts": [1]})
+    s = ProjectSummary.model_validate(row)
+    assert (s.cabinets, s.free_parts) == (3, 1)
+    out = ProjectOut.model_validate(row)
+    assert out.data == row["data"] and out.schema_version == 1 and out.cabinets == 3

@@ -126,16 +126,13 @@ class ProjectSummary(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _count(cls, value):
-        data = getattr(value, "data", None)
-        if isinstance(data, dict):
-            return {
-                "id": value.id, "name": value.name, "updated_at": value.updated_at,
-                "cabinets": len(data.get("cabinets") or []),
-                "free_parts": len(data.get("freeParts") or []),
-                "cut_at": getattr(value, "cut_at", None),
-                **{k: getattr(value, k) for k in ("data", "schema_version", "created_at") if hasattr(value, k)},
-            }
-        return value
+        # From an ORM row or a dict alike: every declared field as given, the counts from `data`.
+        get = value.get if isinstance(value, dict) else (lambda k, d=None: getattr(value, k, d))
+        data = get("data")
+        if not isinstance(data, dict):
+            return value
+        fields = {k: get(k) for k in cls.model_fields if k not in ("cabinets", "free_parts") and get(k) is not None}
+        return {**fields, "cabinets": len(data.get("cabinets") or []), "free_parts": len(data.get("freeParts") or [])}
 
 
 class ProjectOut(ProjectSummary):
