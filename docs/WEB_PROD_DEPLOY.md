@@ -110,7 +110,7 @@ git push origin master
 GitHub Actions `deploy.yml` builds the two images on GitHub — `backend` (api,
 worker, styles-worker, converter, beat) and `frontend` (with `VITE_API_URL`,
 repo variable, default `/api/v1`) — and pushes them to
-`ghcr.io/begzod10/andoza_ai-{backend,frontend}:<commit>`. It then SSHes into the
+`ghcr.io/<repository owner>/andoza_ai-{backend,frontend}:<commit>`. It then SSHes into the
 VPS, logs Docker into ghcr.io with the run's own token, and runs
 `deploy/remote-deploy.sh` with `IMAGE_TAG=<commit>`: the checkout is reset to that
 commit, `docker compose -f docker-compose.prod.yml -f docker-compose.images.yml
