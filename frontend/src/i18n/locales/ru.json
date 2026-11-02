@@ -2027,7 +2027,50 @@
       "placement": "Расположение в комнате",
       "placement_short": "Расположение",
       "not_selected": "— не выбран —",
-      "title": "Управление магазином"
+      "title": "Управление магазином",
+      "tabs": {
+        "label": "Разделы",
+        "orders": "Заказы",
+        "products": "Товары",
+        "stores": "Магазины",
+        "moderation": "Модерация"
+      },
+      "orders": {
+        "period": "Период",
+        "today": "Сегодня",
+        "week": "7 дней",
+        "month": "30 дней",
+        "all_time": "Всё время",
+        "all_stores": "Все магазины",
+        "search": "Номер или телефон",
+        "col_no": "№",
+        "col_store": "Магазин",
+        "col_phone": "Телефон",
+        "col_date": "Дата",
+        "col_items": "Товары",
+        "col_sum": "Сумма",
+        "col_status": "Статус",
+        "more": "Показать ещё"
+      },
+      "products": {
+        "kind": "Тип",
+        "kind_all": "Все",
+        "kind_materials": "Материалы",
+        "kind_furniture": "Мебель",
+        "status": "Статус",
+        "status_all": "Все",
+        "status_active": "Активные",
+        "status_hidden": "Скрытые",
+        "all_categories": "Все категории",
+        "categories": "Категории",
+        "search": "Поиск по названию",
+        "empty": "Товары не найдены",
+        "material": "Материал",
+        "model": "3D-модель",
+        "more": "Показать ещё",
+        "add_model": "Добавить 3D-модель"
+      },
+      "stores_search": "Магазин или район"
     },
     "order": {
       "status": {

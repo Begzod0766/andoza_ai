@@ -43,6 +43,7 @@ export function CatalogOverview({
   const [showAddModel, setShowAddModel] = useState(false);
   const [editingModel, setEditingModel] = useState<AdminFurniture | null>(null);
   const [filters, setFilters] = useState(EMPTY_MODEL_FILTERS);
+  const [storeSearch, setStoreSearch] = useState("");
 
   const { data: stores = [] } = useQuery<AdminStore[]>({
     queryKey: ["admin", "stores"],
@@ -63,6 +64,10 @@ export function CatalogOverview({
   }
   const unassignedModels = models.filter((m) => !m.store_id);
   const filteredUnassignedModels = filterModels(unassignedModels, filters);
+  const needle = storeSearch.trim().toLocaleLowerCase();
+  const shownStores = needle
+    ? stores.filter((s) => `${s.name} ${s.district ?? ""}`.toLocaleLowerCase().includes(needle))
+    : stores;
   const activeStoreCount = stores.filter((s) => s.is_active).length;
 
   const classifyMutation = useMutation({
@@ -149,11 +154,21 @@ export function CatalogOverview({
             </Button>
           </div>
 
-          {stores.length === 0 ? (
+          {stores.length > 0 && (
+            <input
+              type="search"
+              value={storeSearch}
+              onChange={(e) => setStoreSearch(e.target.value)}
+              placeholder={t("dokon.admin.stores_search")}
+              aria-label={t("dokon.admin.stores_search")}
+              className="h-9 w-full rounded-xl border border-line bg-card-soft px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-[#5B84F5]/70"
+            />
+          )}
+          {shownStores.length === 0 ? (
             <Card className="text-center text-sm text-ink-muted py-8">{t("dokon.overview.no_stores")}</Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {stores.map((store) => (
+              {shownStores.map((store) => (
                 <StoreCard
                   key={store.id}
                   store={store}

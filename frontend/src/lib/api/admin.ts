@@ -119,11 +119,26 @@ export async function listAdminFurniture(params: {
   store_id?: string;
   category?: string;
   room_type?: string;
+  q?: string;
+  page?: number;
 } = {}): Promise<AdminFurniture[]> {
   const query = new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined)) as Record<string, string>,
   ).toString();
   return apiClient<AdminFurniture[]>(`/admin/furniture${query ? `?${query}` : ""}`);
+}
+
+/** How many materials and 3D models each category holds, for the admin product list. */
+export interface CategoryCounts {
+  materials: Record<string, number>;
+  furniture: Record<string, number>;
+}
+
+export async function getCategoryCounts(params: { store_id?: string; q?: string } = {}): Promise<CategoryCounts> {
+  const query = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v)) as Record<string, string>,
+  ).toString();
+  return apiClient<CategoryCounts>(`/admin/category-counts${query ? `?${query}` : ""}`);
 }
 
 /** Upload a .glb model into the shop catalog, tagged with the type of

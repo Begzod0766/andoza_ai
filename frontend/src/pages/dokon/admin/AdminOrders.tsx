@@ -1,11 +1,12 @@
-import { useState } from "react";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ReceiptText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TKey } from "@/i18n";
-import { listAdminOrders, setAdminOrderStatus, type AdminOrder } from "@/lib/api";
+import { listAdminOrders, listAdminStores, setAdminOrderStatus, type AdminOrder } from "@/lib/api";
+import { useDebounce } from "@/hooks/useDebounce";
 import type { OrderStatus } from "@/lib/api/orders";
-import { formatUZS } from "@/lib/utils";
+import { formatUZS, formatUZSCompact } from "@/lib/utils";
 import {
   ADMIN_CAN_CANCEL, NEXT_ORDER_ACTION, ORDER_STATUS_KEYS, ORDER_STATUS_STYLES, cancelledByLabel, formatWhen, nextOrdersPage, orderStatusLabel, paymentLabel,
 } from "@/lib/orderStatus";
@@ -26,7 +27,7 @@ const FILTERS: Array<{ value: OrderStatus | "all"; labelKey: TKey }> = [
   { value: "cancelled", labelKey: ORDER_STATUS_KEYS.cancelled },
 ];
 
-function Row({ order, busy, onAdvance, onCancel }: {
+function Details({ order, busy, onAdvance, onCancel }: {
   order: AdminOrder; busy: boolean; onAdvance: (o: AdminOrder) => void; onCancel: (o: AdminOrder, reason: string) => void;
 }) {
   const { t } = useTranslation();
@@ -37,22 +38,8 @@ function Row({ order, busy, onAdvance, onCancel }: {
   const [reason, setReason] = useState("");
 
   return (
-    <Panel className="flex min-w-0 flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold text-ink">
-            № {order.id.slice(0, 8).toUpperCase()} · {order.store_name ?? order.dealer_name}
-          </p>
-          <p className="text-xs text-ink-muted">
-            {formatWhen(order.created_at)}
-            {!order.store_id && ` · ${t("dokon.order.no_store_note")}`}
-          </p>
-        </div>
-        <span className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${ORDER_STATUS_STYLES[status] ?? ORDER_STATUS_STYLES.accepted}`}>
-          {orderStatusLabel(order.status, t)}
-        </span>
-      </div>
-
+    <div className="flex min-w-0 flex-col gap-3 border-t border-line bg-card-soft/60 px-4 py-4">
+      {!order.store_id && <p className="text-xs text-ink-muted">{t("dokon.order.no_store_note")}</p>}
       <div className="grid gap-2 sm:grid-cols-2">
         {order.delivery_address && <Tile className="px-3.5 py-2.5"><p className="text-[11px] text-ink-muted">{t("common.manzil")}</p><p className="text-sm font-bold text-ink">{order.delivery_address}</p></Tile>}
         {order.phone && <Tile className="px-3.5 py-2.5"><p className="text-[11px] text-ink-muted">{t("common.telefon")}</p><p className="text-sm font-bold text-ink">{order.phone}</p></Tile>}
@@ -106,22 +93,64 @@ function Row({ order, busy, onAdvance, onCancel }: {
           {canCancel && <Button size="sm" variant="soft" onClick={() => setCancelling(true)}>{t("dokon.order.cancel_btn")}</Button>}
         </div>
       )}
-    </Panel>
+    </div>
   );
 }
 
-/** Every order in the system, for the administrators: filter by stage, move one on or cancel it. */
+
+type Period = "today" | "week" | "month" | "all";
+const PERIODS: Array<{ value: Period; labelKey: TKey }> = [
+  { value: "today", labelKey: "dokon.admin.orders.today" },
+  { value: "week", labelKey: "dokon.admin.orders.week" },
+  { value: "month", labelKey: "dokon.admin.orders.month" },
+  { value: "all", labelKey: "dokon.admin.orders.all_time" },
+];
+
+/** The start of the period, as the server wants it: today from local midnight, else so many days back. */
+function periodStart(period: Period): string | undefined {
+  if (period === "all") return undefined;
+  const d = new Date();
+  if (period === "today") d.setHours(0, 0, 0, 0);
+  else d.setDate(d.getDate() - (period === "week" ? 7 : 30));
+  return d.toISOString();
+}
+
+const COLUMNS: Array<{ key: TKey; phone: boolean }> = [
+  { key: "dokon.admin.orders.col_no", phone: true },
+  { key: "dokon.admin.orders.col_store", phone: true },
+  { key: "dokon.admin.orders.col_phone", phone: false },
+  { key: "dokon.admin.orders.col_date", phone: false },
+  { key: "dokon.admin.orders.col_items", phone: false },
+  { key: "dokon.admin.orders.col_sum", phone: true },
+  { key: "dokon.admin.orders.col_status", phone: true },
+];
+// №, shop, a short sum and status on a phone (and small tablets); every column from md up.
+const GRID = "grid grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] md:grid-cols-[5.5rem_minmax(0,1.3fr)_minmax(0,1fr)_7.5rem_4.5rem_7.5rem_7.5rem] items-center gap-x-2 md:gap-x-3";
+const WIDE_ONLY = "hidden md:block";
+
+/** Every order in the system, for the administrators: a table filtered by stage, shop, period and
+ *  number or phone. A row opens to show the delivery details and lines, and to move or cancel it. */
 export function AdminOrders({ onError }: { onError: (message: FormError) => void }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<OrderStatus | "all">("all");
+  const [storeId, setStoreId] = useState("");
+  const [period, setPeriod] = useState<Period>("all");
+  const [since, setSince] = useState<string | undefined>(undefined);
+  const [search, setSearch] = useState("");
+  const q = useDebounce(search.trim(), 300);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const stores = useQuery({ queryKey: ["admin", "stores"], queryFn: listAdminStores, staleTime: 60_000 });
+  const filters = { status: filter === "all" ? undefined : filter, store_id: storeId || undefined, since, q: q || undefined };
   const orders = useInfiniteQuery({
-    queryKey: [...KEY, filter],
-    queryFn: ({ pageParam }) => listAdminOrders(filter === "all" ? undefined : filter, pageParam),
+    queryKey: [...KEY, filters],
+    queryFn: ({ pageParam }) => listAdminOrders({ ...filters, page: pageParam }),
     initialPageParam: 1,
     getNextPageParam: nextOrdersPage,
     refetchInterval: 30_000,
   });
+  // A new filter starts with every row closed.
+  useEffect(() => setOpenId(null), [filter, storeId, since, q]);
 
   const done = () => {
     onError(null);
@@ -150,15 +179,43 @@ export function AdminOrders({ onError }: { onError: (message: FormError) => void
 
   return (
     <section className="space-y-3" aria-label={t("dokon.order.title")}>
-      <Panel className="flex flex-wrap items-center gap-3 px-4 py-3">
-        <IconBubble tone="orange" className="h-10 w-10 rounded-2xl"><ReceiptText size={18} aria-hidden="true" /></IconBubble>
-        <h2 className="text-base font-extrabold text-ink">{orders.data ? t("dokon.order.title_count", { n: `${list.length}${orders.hasNextPage ? "+" : ""}` }) : t("dokon.order.title")}</h2>
+      <Panel className="flex flex-col gap-3 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <IconBubble tone="orange" className="h-10 w-10 rounded-2xl"><ReceiptText size={18} aria-hidden="true" /></IconBubble>
+          <h2 className="text-base font-extrabold text-ink">{orders.data ? t("dokon.order.title_count", { n: `${list.length}${orders.hasNextPage ? "+" : ""}` }) : t("dokon.order.title")}</h2>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("dokon.admin.orders.search")}
+            aria-label={t("dokon.admin.orders.search")}
+            className="ml-auto h-9 w-full rounded-xl border border-line bg-card-soft px-3 text-sm text-ink sm:w-56 focus:outline-none focus:ring-2 focus:ring-[#5B84F5]/70"
+          />
+        </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("dokon.order.by_status")}>
           {FILTERS.map((f) => (
             <FilterChip key={f.value} pressed={filter === f.value} onClick={() => setFilter(f.value)}>
               {t(f.labelKey)}
             </FilterChip>
           ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={storeId}
+            onChange={(e) => setStoreId(e.target.value)}
+            aria-label={t("dokon.admin.dokon")}
+            className="h-8 rounded-full border border-line bg-card-soft px-3 text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-[#5B84F5]/70"
+          >
+            <option value="">{t("dokon.admin.orders.all_stores")}</option>
+            {(stores.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("dokon.admin.orders.period")}>
+            {PERIODS.map((p) => (
+              <FilterChip key={p.value} pressed={period === p.value} onClick={() => { setPeriod(p.value); setSince(periodStart(p.value)); }}>
+                {t(p.labelKey)}
+              </FilterChip>
+            ))}
+          </div>
         </div>
       </Panel>
 
@@ -169,18 +226,56 @@ export function AdminOrders({ onError }: { onError: (message: FormError) => void
       ) : list.length === 0 ? (
         <Panel className="px-4 py-6 text-center text-sm text-ink-muted">{t("dokon.order.not_found")}</Panel>
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {list.map((o) => (
-            <Row key={o.id} order={o} busy={busyId === o.id} onAdvance={(x) => advance.mutate(x)} onCancel={(x, reason) => cancel.mutate({ order: x, reason })} />
-          ))}
+        <Panel className="overflow-hidden p-0" role="table" aria-label={t("dokon.order.title")}>
+          <div role="rowgroup">
+            <div role="row" className={`${GRID} border-b border-line px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-ink-muted`}>
+              {COLUMNS.map((c) => (
+                <span key={c.key} role="columnheader" className={c.phone ? undefined : WIDE_ONLY}>{t(c.key)}</span>
+              ))}
+            </div>
+          </div>
+          <div role="rowgroup">
+            {list.map((o) => {
+              const open = openId === o.id;
+              const status = o.status as OrderStatus;
+              return (
+                <div key={o.id} role="row" className="border-b border-line last:border-b-0">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => setOpenId(open ? null : o.id)}
+                    className={`${GRID} w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#5B84F5]/70 ${open ? "bg-ink/5" : ""}`}
+                  >
+                    <span role="cell" className="font-mono text-[11px] font-bold text-ink md:text-xs">{o.id.slice(0, 8).toUpperCase()}</span>
+                    <span role="cell" className="truncate font-semibold text-ink">{o.store_name ?? o.dealer_name}</span>
+                    <span role="cell" className={`${WIDE_ONLY} truncate text-ink-muted`}>{o.phone ?? "—"}</span>
+                    <span role="cell" className={`${WIDE_ONLY} text-xs text-ink-muted`}>{formatWhen(o.created_at)}</span>
+                    <span role="cell" className={`${WIDE_ONLY} text-ink-muted`}>{o.lines.length}</span>
+                    <span role="cell" className="whitespace-nowrap text-right font-bold text-ink md:text-left">
+                      <span className="md:hidden">{formatUZSCompact(o.total_uzs)}</span>
+                      <span className="hidden md:inline">{formatUZS(o.total_uzs)}</span>
+                    </span>
+                    <span role="cell">
+                      <span className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${ORDER_STATUS_STYLES[status] ?? ORDER_STATUS_STYLES.accepted}`}>
+                        {orderStatusLabel(o.status, t)}
+                      </span>
+                    </span>
+                  </button>
+                  {open && (
+                    <Details order={o} busy={busyId === o.id} onAdvance={(x) => advance.mutate(x)} onCancel={(x, reason) => cancel.mutate({ order: x, reason })} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
           {orders.hasNextPage && (
-            <div className="lg:col-span-2">
+            <div className="p-3">
               <Button variant="soft" className="w-full" loading={orders.isFetchingNextPage} onClick={() => void orders.fetchNextPage()}>
-                {t("common.yana_yuklash")}
+                {t("dokon.admin.orders.more")}
               </Button>
             </div>
           )}
-        </div>
+        </Panel>
       )}
     </section>
   );
