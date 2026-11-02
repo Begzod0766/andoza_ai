@@ -128,6 +128,16 @@ describe('ProductsTab', () => {
     await waitFor(() => expect(api.updateAdminMaterial).toHaveBeenCalledWith('m1', { is_active: false }))
   })
 
+  it('on a phone the row buttons are icons, so the name keeps its room', async () => {
+    mount()
+    await screen.findByText('Laminat dub')
+    const row = screen.getByText('Laminat dub').closest('li') as HTMLElement
+    for (const name of ['Tahrirlash', 'Yashirish']) {
+      expect(within(row).getByRole('button', { name })).toBeInTheDocument()
+      expect(within(row).getByText(name)).toHaveClass('hidden', 'sm:inline')
+    }
+  })
+
   it('with nothing to show: only "Hamma kategoriyalar" and an empty note', async () => {
     api.getCategoryCounts.mockResolvedValue({ materials: {}, furniture: {} })
     api.listAdminMaterials.mockResolvedValue(page([]))

@@ -6,7 +6,7 @@ import type { TKey } from "@/i18n";
 import { listAdminOrders, listAdminStores, setAdminOrderStatus, type AdminOrder } from "@/lib/api";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { OrderStatus } from "@/lib/api/orders";
-import { formatUZS } from "@/lib/utils";
+import { formatUZS, formatUZSCompact } from "@/lib/utils";
 import {
   ADMIN_CAN_CANCEL, NEXT_ORDER_ACTION, ORDER_STATUS_KEYS, ORDER_STATUS_STYLES, cancelledByLabel, formatWhen, nextOrdersPage, orderStatusLabel, paymentLabel,
 } from "@/lib/orderStatus";
@@ -124,9 +124,9 @@ const COLUMNS: Array<{ key: TKey; phone: boolean }> = [
   { key: "dokon.admin.orders.col_sum", phone: true },
   { key: "dokon.admin.orders.col_status", phone: true },
 ];
-// №, shop, sum and status on a phone; every column from sm up.
-const GRID = "grid grid-cols-[5.5rem_minmax(0,1fr)_auto_auto] sm:grid-cols-[5.5rem_minmax(0,1.3fr)_minmax(0,1fr)_7.5rem_4.5rem_7rem_7.5rem] items-center gap-x-3";
-const WIDE_ONLY = "hidden sm:block";
+// №, shop, a short sum and status on a phone (and small tablets); every column from md up.
+const GRID = "grid grid-cols-[4.5rem_minmax(0,1fr)_auto_auto] md:grid-cols-[5.5rem_minmax(0,1.3fr)_minmax(0,1fr)_7.5rem_4.5rem_7.5rem_7.5rem] items-center gap-x-2 md:gap-x-3";
+const WIDE_ONLY = "hidden md:block";
 
 /** Every order in the system, for the administrators: a table filtered by stage, shop, period and
  *  number or phone. A row opens to show the delivery details and lines, and to move or cancel it. */
@@ -246,12 +246,15 @@ export function AdminOrders({ onError }: { onError: (message: FormError) => void
                     onClick={() => setOpenId(open ? null : o.id)}
                     className={`${GRID} w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-ink/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#5B84F5]/70 ${open ? "bg-ink/5" : ""}`}
                   >
-                    <span role="cell" className="font-mono text-xs font-bold text-ink">{o.id.slice(0, 8).toUpperCase()}</span>
+                    <span role="cell" className="font-mono text-[11px] font-bold text-ink md:text-xs">{o.id.slice(0, 8).toUpperCase()}</span>
                     <span role="cell" className="truncate font-semibold text-ink">{o.store_name ?? o.dealer_name}</span>
                     <span role="cell" className={`${WIDE_ONLY} truncate text-ink-muted`}>{o.phone ?? "—"}</span>
                     <span role="cell" className={`${WIDE_ONLY} text-xs text-ink-muted`}>{formatWhen(o.created_at)}</span>
                     <span role="cell" className={`${WIDE_ONLY} text-ink-muted`}>{o.lines.length}</span>
-                    <span role="cell" className="whitespace-nowrap text-right font-bold text-ink sm:text-left">{formatUZS(o.total_uzs)}</span>
+                    <span role="cell" className="whitespace-nowrap text-right font-bold text-ink md:text-left">
+                      <span className="md:hidden">{formatUZSCompact(o.total_uzs)}</span>
+                      <span className="hidden md:inline">{formatUZS(o.total_uzs)}</span>
+                    </span>
                     <span role="cell">
                       <span className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${ORDER_STATUS_STYLES[status] ?? ORDER_STATUS_STYLES.accepted}`}>
                         {orderStatusLabel(o.status, t)}

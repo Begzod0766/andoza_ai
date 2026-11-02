@@ -71,8 +71,9 @@ function ProductRow({ product: p, busy, onEdit, onToggle }: {
       )}>
         {t(p.active ? "dokon.admin.products.status_active" : "dokon.admin.products.status_hidden")}
       </span>
-      <Button size="sm" variant="soft" leftIcon={<Pencil size={14} aria-hidden="true" />} onClick={() => onEdit(p)}>
-        {t("dokon.admin.tahrirlash")}
+      {/* Icons only on a phone: two labelled buttons left the name no room at 375px. */}
+      <Button size="sm" variant="soft" aria-label={t("dokon.admin.tahrirlash")} leftIcon={<Pencil size={14} aria-hidden="true" />} onClick={() => onEdit(p)}>
+        <span className="hidden sm:inline">{t("dokon.admin.tahrirlash")}</span>
       </Button>
       {/* A model is hidden from its edit dialog; a material's dialog has no switch, so it is here. */}
       {p.kind === "materials" && (
@@ -80,10 +81,11 @@ function ProductRow({ product: p, busy, onEdit, onToggle }: {
           size="sm"
           variant="soft"
           loading={busy}
+          aria-label={p.active ? t("dokon.admin.mat.hide") : t("dokon.admin.mat.show")}
           leftIcon={p.active ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
           onClick={() => onToggle(p.item)}
         >
-          {p.active ? t("dokon.admin.mat.hide") : t("dokon.admin.mat.show")}
+          <span className="hidden sm:inline">{p.active ? t("dokon.admin.mat.hide") : t("dokon.admin.mat.show")}</span>
         </Button>
       )}
     </li>

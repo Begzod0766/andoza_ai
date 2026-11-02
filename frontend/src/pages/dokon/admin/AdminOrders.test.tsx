@@ -147,6 +147,15 @@ describe('AdminOrders', () => {
     expect(screen.queryByText('Chilonzor 5')).toBeNull()
   })
 
+  it('a phone row shows a short sum, and the wide columns wait for md', async () => {
+    api.listAdminOrders.mockResolvedValue([order()])
+    mount()
+    const row = await screen.findByRole('button', { name: /AAAABBBB/ })
+    expect(within(row).getByText("4.5 mln so'm")).toHaveClass('md:hidden')
+    expect(within(row).getByText('4 500 000 soʻm')).toHaveClass('hidden', 'md:inline')
+    expect(within(row).getByText('+998 90 123 45 67')).toHaveClass('hidden', 'md:block')
+  })
+
   it('closes the open row when a filter drops its order', async () => {
     api.listAdminOrders.mockResolvedValueOnce([order()]).mockResolvedValue([])
     mount()
