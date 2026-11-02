@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +14,7 @@ import { Panel } from "@/components/ui/Panel";
 import { ActionMenu } from "./ActionMenu";
 import { FilterChip } from "./FilterChip";
 import { KindIcon, ProductRow } from "./ProductRow";
+import { Pager } from "./Pager";
 import { MaterialFormDialog } from "./MaterialFormDialog";
 import { ModelEditDialog } from "./ModelEditDialog";
 import { ModelFormDialog } from "./ModelFormDialog";
@@ -24,6 +25,8 @@ import { requestError, type FormError } from "@/lib/formError";
 type KindFilter = ProductKind | "all";
 type StatusFilter = "all" | "active" | "hidden";
 type Category = { kind: ProductKind; id: string };
+
+const PER_PAGE = 25;
 
 const KINDS: Array<{ value: KindFilter; labelKey: TKey }> = [
   { value: "all", labelKey: "dokon.admin.products.kind_all" },
@@ -91,7 +94,7 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
   });
   const list = useQuery({
     queryKey: ["admin", "products", "list", filters, category, page],
-    queryFn: () => listAdminProducts({ ...filters, kind: category!.kind, category: category!.id, page }),
+    queryFn: () => listAdminProducts({ ...filters, kind: category!.kind, category: category!.id, page, perPage: PER_PAGE }),
     enabled: category !== null,
     placeholderData: keepPreviousData,
   });
@@ -119,6 +122,11 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
   // Any filter or category change starts again from the first page.
   const filterBy = <T,>(set: (v: T) => void) => (v: T) => { set(v); setPage(1); };
   const choose = (next: Category | null) => { setCategory(next); setPage(1); };
+  const listTop = useRef<HTMLDivElement>(null);
+  const goTo = (n: number) => {
+    setPage(n);
+    listTop.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  };
 
   const blocks = (overview.data?.categories ?? [])
     .map((c) => ({ ...c, label: kindLabel(c.kind, c.category, t) }))
@@ -216,7 +224,7 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
           </nav>
         </div>
 
-        <div className="min-w-0 space-y-3">
+        <div ref={listTop} className="min-w-0 scroll-mt-4 space-y-3">
           {category === null ? (
             overview.isLoading ? (
               <div className="h-40 animate-pulse rounded-3xl bg-card" />
@@ -262,6 +270,9 @@ export function ProductsTab({ onError }: { onError: (message: FormError) => void
                 </h3>
                 <ul className={cn("divide-y divide-line transition-opacity", list.isPlaceholderData && "opacity-60")}>{list.data.items.map(row)}</ul>
               </section>
+              <div className="border-t border-line px-4 py-3 empty:hidden">
+                <Pager page={page} pages={Math.ceil(list.data.total / PER_PAGE)} onPage={goTo} />
+              </div>
             </Panel>
           )}
         </div>

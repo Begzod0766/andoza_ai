@@ -171,3 +171,53 @@ describe('ProductsTab — rows', () => {
     expect(within(side()).getAllByRole('button')).toHaveLength(1)
   })
 })
+
+describe('ProductsTab — one category', () => {
+  const page = (n: number, total = 60) => ({
+    items: Array.from({ length: 2 }, (_, i) => product({ id: `p${n}-${i}`, name: `Page ${n} item ${i}` })),
+    total,
+  })
+
+  it('lists 25 a page and the pager loads page 2', async () => {
+    api.listAdminProducts.mockImplementation(async ({ page: n }: { page: number }) => page(n))
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    expect(await screen.findByText('Page 1 item 0')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '2' }))
+    expect(await screen.findByText('Page 2 item 0')).toBeInTheDocument()
+    expect(api.listAdminProducts).toHaveBeenLastCalledWith(expect.objectContaining({ category: 'laminat', page: 2 }))
+    expect(screen.getByRole('navigation', { name: 'Sahifalar' }).textContent).toBe('123')
+  })
+
+  it('a filter change or another category goes back to page 1', async () => {
+    api.listAdminProducts.mockImplementation(async ({ page: n }: { page: number }) => page(n))
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    fireEvent.click(await screen.findByRole('button', { name: '3' }))
+    await screen.findByText('Page 3 item 0')
+    fireEvent.click(within(screen.getByRole('group', { name: 'Holat' })).getByRole('button', { name: 'Faol' }))
+    await waitFor(() => expect(api.listAdminProducts).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'active', page: 1 })))
+    fireEvent.click(await screen.findByRole('button', { name: '3' }))
+    await screen.findByText('Page 3 item 0')
+    fireEvent.click(within(side()).getByRole('button', { name: /Divan/ }))
+    await waitFor(() => expect(api.listAdminProducts).toHaveBeenLastCalledWith(expect.objectContaining({ category: 'divan', page: 1 })))
+  })
+
+  it('Hamma kategoriyalar returns to the blocks', async () => {
+    api.listAdminProducts.mockResolvedValue(page(1))
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" }))
+    await screen.findByText('Page 1 item 0')
+    fireEvent.click(within(side()).getAllByRole('button')[0])
+    expect(await screen.findByRole('button', { name: "Barchasini ko'rish (12)" })).toBeInTheDocument()
+  })
+
+  it('on a phone the price sits under the name, from md in its own column', async () => {
+    mount()
+    await screen.findByText('Laminat 1')
+    const prices = within(row('Laminat 1')).getAllByText(/120/)
+    expect(prices).toHaveLength(2)
+    expect(prices[0]).toHaveClass('md:hidden')
+    expect(prices[1]).toHaveClass('hidden', 'md:block')
+  })
+})
