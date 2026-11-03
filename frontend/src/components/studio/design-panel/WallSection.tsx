@@ -379,7 +379,7 @@ export function WallSection({
 
       {/* Oboy smeta */}
       {hasOboy && (
-        <section className="p-3 bg-amber-50 border border-amber-200 rounded-card">
+        <section className="p-3 bg-warn/10 border border-warn/30 rounded-card">
           <h4 className="text-xs font-semibold text-warn mb-1">{t("studio.dp.wallpaper_needed")}</h4>
           {previewLoading ? (
             <p className="text-sm text-warn">{t("studio.dp.calculating")}</p>

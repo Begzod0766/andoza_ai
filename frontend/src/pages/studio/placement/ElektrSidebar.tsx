@@ -3,6 +3,7 @@ import { formatDecimal } from '@/lib/utils'
 import type { ElectricalType, PlacedElectrical } from '@/store/roomStore'
 import { CATALOG, electricalLabel } from './constants'
 import { ElectricalIcon } from './icons'
+import { wallNumber } from '@/lib/wallLabel'
 
 // ─── Sidebar: Elektr panel ─────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ export function ElektrSidebar({
               return (
                 <div key={el.id} className="flex items-center gap-2 text-xs py-1 border-b border-gray-50">
                   <span className="flex-1 text-gray-700">
-                    {t('studio.placement.elektr.devor_royxat', { name: electricalLabel(cat.type), wall: el.wallId })}
+                    {t('studio.placement.elektr.devor_royxat', { name: electricalLabel(cat.type), wall: wallNumber(el.wallId) })}
                   </span>
                   <span className="text-gray-400">{formatDecimal(el.heightMm / 1000, 1)}{t('common.m')}</span>
                   <button

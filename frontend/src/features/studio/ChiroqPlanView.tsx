@@ -22,6 +22,7 @@ import { PlanFurnitureLayer } from './PlanFurniture'
 import type { Hull } from '@/lib/modelFootprint'
 import { LightSymbol } from '@/lib/catalogIcons'
 import { lightType, kelvinToHex, type LightType, type LightTypeId } from '@/lib/lightCatalog'
+import { wallNumber } from '@/lib/wallLabel'
 import {
   isAbcdRoom, nearestEdge, offsetPolygon, planPolygon, pointAtWallPosition, pointInPolygon,
   svgPoints, wallPositionAt, type PlanPolygon,
@@ -379,7 +380,7 @@ export function ChiroqPlanView({
               const mz = (e.z1 + e.z2) / 2
               return (
                 <text key={e.id} x={mx - e.nx * (T + 330)} y={mz - e.nz * (T + 330)} fontSize={190} fontWeight={600}>
-                  {e.id} · {formatDecimal(e.len / 1000, 1)} m
+                  {wallNumber(e.id)} · {formatDecimal(e.len / 1000, 1)} m
                 </text>
               )
             })}

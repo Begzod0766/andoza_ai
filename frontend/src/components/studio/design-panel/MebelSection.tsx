@@ -53,7 +53,7 @@ function PartRow({ mat, busy, onFiles, onPick }: {
         {isOver ? t('studio.mebel.drop_here') : mat.name}
       </span>
       {!mat.hasUVs && (
-        <span className="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded shrink-0" title={t('studio.mebel.no_uv_title')}>{t('studio.mebel.no_uv')}</span>
+        <span className="text-[9px] font-bold text-red-500 bg-red-500/10 px-1 rounded shrink-0" title={t('studio.mebel.no_uv_title')}>{t('studio.mebel.no_uv')}</span>
       )}
       <span
         className={`text-[10px] shrink-0 ${mat.hasMap && !mat.textured ? 'text-warn' : 'text-ink-muted'}`}
@@ -144,10 +144,10 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
           isOver ? <ImagePlus size={34} strokeWidth={1.5} className="text-ink-muted" aria-hidden="true" /> : <FurnitureSymbol emoji={entry.emoji} size={36} strokeWidth={1.5} className="text-ink-muted" />
         )}
         {entry.isUser && !entry.modelPath && (
-          <span className="absolute top-1 right-1 text-[9px] bg-amber-100 text-warn px-1 rounded">{t('studio.mebel.uploading')}</span>
+          <span className="absolute top-1 right-1 text-[9px] bg-warn/15 text-warn px-1 rounded">{t('studio.mebel.uploading')}</span>
         )}
         {entry.isShop && !entry.modelPath && (
-          <span className="absolute top-1 right-1 text-[9px] bg-amber-100 text-warn px-1 rounded">{t('studio.mebel.no_model')}</span>
+          <span className="absolute top-1 right-1 text-[9px] bg-warn/15 text-warn px-1 rounded">{t('studio.mebel.no_model')}</span>
         )}
         {entry.isUser && !entry.hasTextures && entry.modelPath && (
           <span className="absolute top-1 right-1" title={t('studio.mebel.no_texture')}><AlertTriangle size={13} className="text-warn" aria-label={t('studio.mebel.no_texture')} /></span>

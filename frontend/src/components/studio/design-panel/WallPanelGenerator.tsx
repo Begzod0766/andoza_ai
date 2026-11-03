@@ -44,7 +44,7 @@ function PanelInput({
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         className={`w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none transition-colors ${
-          isInvalid ? 'border-red-400 bg-red-50' : 'border-line focus:border-brand'
+          isInvalid ? 'border-red-400 bg-red-500/10' : 'border-line focus:border-brand'
         }`}
       />
       {draft !== null && !isNaN(draftVal) && draftVal < minMm && (

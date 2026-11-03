@@ -15,6 +15,8 @@ export function DiscardDesignMenuItem({ roomId, onDone }: { roomId: string; onDo
   const resetDesignState = useRoomStore((s) => s.resetDesignState);
 
   const discard = async () => {
+    // The menu floats above the dialog's overlay: close it before asking (as Delete does).
+    onDone();
     const ok = await confirm({
       title: t("studio.dizaynni_bekor_qilish"),
       description: t("studio.dizayn_bekor_izoh"),
@@ -23,7 +25,6 @@ export function DiscardDesignMenuItem({ roomId, onDone }: { roomId: string; onDo
     });
     if (!ok) return;
     resetDesignState();
-    onDone();
     if (roomId !== "local") {
       await updateRoom(roomId, {
         design_state: { wallCoverings: DEFAULT_DESIGN_STATE.wallCoverings, floorType: DEFAULT_DESIGN_STATE.floorType },
@@ -32,7 +33,7 @@ export function DiscardDesignMenuItem({ roomId, onDone }: { roomId: string; onDo
   };
 
   return (
-    <button type="button" onClick={() => void discard()} className={`${MENU_ROW} text-red-500`}>
+    <button type="button" onClick={() => void discard()} className={`${MENU_ROW} !text-red-500`}>
       <svg className={MENU_ICON} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" />
       </svg>

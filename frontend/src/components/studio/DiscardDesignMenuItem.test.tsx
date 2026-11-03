@@ -43,6 +43,20 @@ describe('DiscardDesignMenuItem', () => {
   })
 })
 
+describe('DiscardDesignMenuItem — menu', () => {
+  it('closes the ⋮ menu before asking, so the dialog is not under it', async () => {
+    const onDone = mount()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.dizaynni_bekor_qilish') }))
+    expect(onDone).toHaveBeenCalled()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('reads red over the menu row\'s own ink colour', () => {
+    mount()
+    expect(screen.getByRole('button', { name: i18n.t('studio.dizaynni_bekor_qilish') }).className).toContain('!text-red-500')
+  })
+})
+
 describe('the design panel', () => {
   it('no longer carries the discard button', () => {
     const src = readFileSync(join(__dirname, 'DesignPanel.tsx'), 'utf8')

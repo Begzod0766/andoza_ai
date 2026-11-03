@@ -25,3 +25,19 @@ describe('wall labels a user reads', () => {
     expect(lettered.slice(1).map(targetLabel)).toEqual(['Devor A', 'Devor W2'])
   })
 })
+
+describe('every place that prints a wall goes through wallNumber', () => {
+  it('the plan edge labels, the sidebars and the opening labels no longer print the raw id', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const SRC = join(__dirname, '..', '..')
+    const RAW = /\{e\.id\} ·|>\{el\.wallId\}<|wall: (?:el\.wallId|wall\.id|w\.id)\b/
+    const files = [
+      'features/studio/MebelPlanView.tsx', 'features/studio/ChiroqPlanView.tsx', 'pages/studio/placement/FloorPlan.tsx',
+      'pages/studio/placement/OlchamlarSidebar.tsx', 'pages/studio/placement/ElektrSidebar.tsx', 'components/studio/WallOpenings.tsx',
+    ]
+    const offenders = files.flatMap((f) => readFileSync(join(SRC, f), 'utf8').split('\n')
+      .map((line, i) => (RAW.test(line) ? `${f}:${i + 1}` : null)).filter(Boolean))
+    expect(offenders).toEqual([])
+  })
+})

@@ -11,12 +11,12 @@ const FILES = [
   ...readdirSync(PANEL).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx')).map((f) => join(PANEL, f)),
 ]
 // Light or fixed shades that vanish on the night theme's dark card (or glare on it).
-const BANNED = /(?<![\w:-])(?:hover:|focus:|group-hover:)?(bg-white|bg-(?:gray|neutral|slate)-\d+|text-(?:gray|neutral|slate|blue|emerald|amber|green)-\d+|border-(?:gray|neutral|slate)-\d+|ring-(?:gray|neutral)-\d+|divide-(?:gray|neutral)-\d+|text-brand|text-muted|bg-surface)\b/g
+const BANNED = /(?<![\w:-])(?:hover:|focus:|group-hover:)?(bg-white|bg-(?:gray|neutral|slate)-\d+|text-(?:gray|neutral|slate|blue|emerald|amber|green)-\d+|border-(?:gray|neutral|slate)-\d+|ring-(?:gray|neutral)-\d+|divide-(?:gray|neutral)-\d+|text-brand|text-muted|bg-surface|bg-amber-(?:50|100|200)|border-amber-(?:50|100|200)|bg-red-50|border-red-200)\b/g
 
 describe('studio panels theme', () => {
   it('use the theme tokens, not light or fixed colour classes', () => {
     const offenders = FILES.flatMap((file) => readFileSync(file, 'utf8').split('\n').flatMap((line, i) =>
-      line.includes('paper') ? [] : [...line.matchAll(BANNED)].map((m) => `${file.replace(SRC, '')}:${i + 1} ${m[0]}`)))
+      /(?<![\w-])paper(?![\w-])/.test(line) && !/wallpaper/i.test(line) ? [] : [...line.matchAll(BANNED)].map((m) => `${file.replace(SRC, '')}:${i + 1} ${m[0]}`)))
     expect(offenders).toEqual([])
   })
 
