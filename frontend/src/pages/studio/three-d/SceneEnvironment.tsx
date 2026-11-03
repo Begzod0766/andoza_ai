@@ -105,6 +105,15 @@ export function BrandedSky({ sun }: { sun: SunState }) {
  * owns it while mounted and restores whatever it found on unmount, which
  * covers the leftover-sky bug the manual clear was written for.
  */
+/**
+ * Half a turn about the vertical: the moonrise file's moon sat straight ahead of the studio's
+ * opening view, a white disc at the top of every frame (the brightest thing on screen, above
+ * the room being worked on). Turned, it rises behind the camera — still in the sky for anyone
+ * who orbits round to it — and the brightness numbers above stay exactly as measured. The
+ * environment turns with it, so a reflection's highlight still comes from where the moon is.
+ */
+export const MOON_TURN_Y = Math.PI
+
 export function MoonriseSky() {
   return (
     <>
@@ -114,6 +123,8 @@ export function MoonriseSky() {
         background
         intensity={MOONRISE_ENVIRONMENT_INTENSITY}
         backgroundIntensity={MOONRISE_BACKGROUND_INTENSITY}
+        backgroundRotation={[0, MOON_TURN_Y, 0]}
+        environmentRotation={[0, MOON_TURN_Y, 0]}
       />
     </>
   )
