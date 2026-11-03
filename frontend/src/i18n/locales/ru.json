@@ -206,7 +206,9 @@
       "kameralar": "Камеры",
       "tahrirlashni_yoqish": "Включить редактирование",
       "tahrirlashni_qulflash": "Заблокировать редактирование",
-      "xonani_ochirish_tasdiq": "Подтвердите удаление комнаты «{{name}}»"
+      "xonani_ochirish_tasdiq": "Подтвердите удаление комнаты «{{name}}»",
+      "kvartira": "Квартира",
+      "xona": "Комната"
     },
     "radial": {
       "rang": "Цвет",

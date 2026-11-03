@@ -196,7 +196,9 @@
       "kameralar": "Cameras",
       "tahrirlashni_yoqish": "Enable editing",
       "tahrirlashni_qulflash": "Lock editing",
-      "xonani_ochirish_tasdiq": "Confirm deleting the room \"{{name}}\""
+      "xonani_ochirish_tasdiq": "Confirm deleting the room \"{{name}}\"",
+      "kvartira": "Flat",
+      "xona": "Room"
     },
     "radial": {
       "rang": "Color",

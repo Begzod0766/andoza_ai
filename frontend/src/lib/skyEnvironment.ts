@@ -327,5 +327,12 @@ export function skyFogColor(sun: SunState): string {
  * and city glow that never quite reaches zero.
  */
 export function skyIntensity(sun: SunState): number {
-  return 0.08 + 0.62 * daylight(sun.altitude)
+  return Math.min(SKY_PEAK, 0.08 + 0.62 * daylight(sun.altitude))
 }
+
+/**
+ * The brightest the sky backdrop gets. At the old midday peak (0.7) the sun's disc and the
+ * sky around it were the brightest thing in the studio's frame, above the room the user is
+ * working on; capped here the backdrop stays a backdrop. The room's own light is separate.
+ */
+export const SKY_PEAK = 0.45

@@ -61,7 +61,9 @@ import { PanoramaSnap } from "./PanoramaSnap";
 import { SwapButtons, RoomScene } from "./RoomShell";
 import type { RoomSide } from "./constants";
 import { applyUniformZoom, fitRoomDistance } from "@/lib/orbitZoom";
-import { initialRoomFocus, isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { useRoomFocus } from "./useRoomFocus";
+import { FlatToggle } from "./FlatToggle";
 import { SceneLoadingOverlay } from "./SceneLoadingOverlay";
 
 /**
@@ -224,7 +226,7 @@ export function ThreeDCanvasScene({
 }) {
   /** Which room the user is looking at alone, or null for the whole flat.
    *  Local to the canvas: nothing outside it cares which room is focused. */
-  const [focusedRoomId, setFocusedRoomId] = useState<string | null>(null);
+  const [focusedRoomId, setFocusedRoomId] = useRoomFocus(room.id, window.location.search);
   // Focus is a way of looking at THIS flat from THIS room, so it must not
   // outlive the room — and it would. `/studio/:roomId` has no key on its route
   // element, so switching rooms only changes the param: React Router keeps
@@ -238,7 +240,7 @@ export function ThreeDCanvasScene({
   // different way, so the focus is dropped whenever the room changes.
   // The one exception is a link that asks for it (`?focus=1`, used right after
   // a scan), which opens that room alone.
-  useEffect(() => { setFocusedRoomId(initialRoomFocus(window.location.search, room.id)); }, [room.id]);
+  // (useRoomFocus sets the focus again on every room change: the room just opened, alone.)
   /**
    * "that door between should be visible in both rooms": what every room of
    * the flat draws for its openings, the active room included — one plan,
@@ -831,7 +833,8 @@ export function ThreeDCanvasScene({
           <ActiveRoomFocusButton
             H={H}
             focused={focusedRoomId === room.id}
-            onClick={() => setFocusedRoomId((cur) => toggleRoomFocus(cur, room.id))}
+            onClick={() => setFocusedRoomId(toggleRoomFocus(focusedRoomId, room.id))}
+            name={focusedRoomId === null ? room.name : undefined}
           />
         )}
         <SwapButtons W={W} D={D} H={H} />
@@ -1107,6 +1110,11 @@ export function ThreeDCanvasScene({
     </Canvas>
     </CanvasErrorBoundary>
     <SceneLoadingOverlay />
+    {aptRooms && aptRooms.length > 1 && (
+      <div className="pointer-events-auto absolute bottom-5 right-20 z-20">
+        <FlatToggle flat={focusedRoomId === null} onToggle={() => setFocusedRoomId(focusedRoomId === null ? room.id : null)} />
+      </div>
+    )}
 
     </>
   );

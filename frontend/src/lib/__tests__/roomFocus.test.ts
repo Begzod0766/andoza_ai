@@ -57,14 +57,11 @@ describe('toggleRoomFocus', () => {
 })
 
 describe('initialRoomFocus', () => {
-  it('opens the room alone only when the link asks for it', () => {
+  it('opens on the room itself unless the link asks for the whole flat', () => {
+    expect(initialRoomFocus('', 'r1')).toBe('r1')
     expect(initialRoomFocus('?focus=1', 'r1')).toBe('r1')
     expect(initialRoomFocus('?x=2&focus=1', 'r1')).toBe('r1')
-  })
-
-  it('shows the whole flat for any other link', () => {
-    expect(initialRoomFocus('', 'r1')).toBeNull()
     expect(initialRoomFocus('?focus=0', 'r1')).toBeNull()
-    expect(initialRoomFocus('?phase=2', 'r1')).toBeNull()
+    expect(initialRoomFocus('?x=2&focus=0', 'r1')).toBeNull()
   })
 })

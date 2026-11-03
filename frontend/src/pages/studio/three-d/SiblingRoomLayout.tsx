@@ -78,19 +78,30 @@ export function AddRoomButtons({ W, D, H, onAdd, disabled, occupiedSides }: { W:
  * what tells the user they are in focus rather than in a flat that has
  * mysteriously lost its other rooms.
  */
-export function FocusButton({ focused, onClick }: { focused: boolean; onClick: () => void }) {
+export function FocusButton({ focused, onClick, name, active = false }: {
+  focused: boolean; onClick: () => void;
+  /** The room's name, shown beside the brackets (cut at 16 characters; the whole name in the title). */
+  name?: string;
+  /** The room being edited: its mark is filled, so it reads apart from the others. */
+  active?: boolean;
+}) {
   const { t } = useTranslation();
+  const label = name && name.length > 16 ? `${name.slice(0, 16)}…` : name;
+  const action = focused ? t('studio.three_d.hamma_xonalar') : t('studio.three_d.faqat_shu_xona');
+  const filled = focused || active;
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
-      title={focused ? t('studio.three_d.hamma_xonalar') : t('studio.three_d.faqat_shu_xona')}
+      title={name ? `${name} — ${action}` : action}
       aria-pressed={focused}
+      data-active={active ? 'true' : undefined}
       style={{
-        width: 26, height: 26, borderRadius: 8, border: 'none', padding: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: 'pointer', pointerEvents: 'auto',
-        background: focused ? '#1E40AF' : 'rgba(255,255,255,0.95)',
-        color: focused ? '#fff' : '#1E40AF',
+        height: 26, minWidth: 26, borderRadius: 8, border: 'none', padding: name ? '0 8px 0 6px' : 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+        cursor: 'pointer', pointerEvents: 'auto', whiteSpace: 'nowrap',
+        font: '600 12px/1 system-ui, sans-serif',
+        background: filled ? '#1E40AF' : 'rgba(255,255,255,0.95)',
+        color: filled ? '#fff' : '#1E40AF',
         boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
       }}
     >
@@ -98,18 +109,21 @@ export function FocusButton({ focused, onClick }: { focused: boolean; onClick: (
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3" />
       </svg>
+      {label && <span>{label}</span>}
     </button>
   );
 }
 
 /** The same button for the room the user is actually editing, floated above
  *  it. The active room has no sibling label bar to live in. */
-export function ActiveRoomFocusButton({ H, focused, onClick }: {
+export function ActiveRoomFocusButton({ H, focused, onClick, name }: {
   H: number; focused: boolean; onClick: () => void;
+  /** Named only in the flat view, where the other rooms (and their names) show too. */
+  name?: string;
 }) {
   return (
     <Html position={[0, H + 0.3, 0]} center zIndexRange={[90, 0]} style={{ pointerEvents: 'none' }}>
-      <FocusButton focused={focused} onClick={onClick} />
+      <FocusButton focused={focused} onClick={onClick} name={name} active />
     </Html>
   );
 }
@@ -203,17 +217,16 @@ export function SiblingRooms({
               partitionWithActive={siblingPlans?.get(sib.id)?.partitionWalls}
               onOpen={(e) => onOpen(sib.id, e)}
             />
-            {/* No name pill: every room in the flat carried one, so a
-                four-room flat wore four name tags across the view, and they
-                are fixed-size so a room 30 m away shouted as loudly as the one
-                next door. The name said nothing a user looking at their own
-                flat needed; rooms are opened from the ⋮ menu's list. Focus
-                and delete stay: those are actions, not labels. */}
+            {/* The focus mark carries the room's name. Name pills were once
+                dropped for crowding a four-room view, but a sibling now shows
+                only in the flat view — the studio opens on one room — and
+                there an unnamed mark over every room said nothing. */}
             <Html position={[0, h + 0.3, 0]} center zIndexRange={[90, 0]}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FocusButton
                   focused={focusedRoomId === sib.id}
                   onClick={() => onToggleFocus(sib.id)}
+                  name={sib.name}
                 />
                 {/* An edit: only with the move tool picked up, and never while
                     the view is locked; focus is looking, so it stays. */}

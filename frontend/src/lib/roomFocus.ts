@@ -35,13 +35,14 @@ export function toggleRoomFocus(focusedRoomId: string | null, roomId: string): s
 }
 
 /**
- * Whether a studio link asks for the room to be opened alone.
+ * Which room the studio opens on.
  *
- * `?focus=1` is how the app opens a room straight after scanning it: the flat
- * can hold many scans made on different days, and showing them all stacked is
- * the opposite of "here is the room you just scanned". Anything else — no
- * query, another value — is the normal whole-flat view.
+ * The room being edited, alone: from far above the whole flat is a chain of grey
+ * shapes and the user's own room is lost in it, so a paint they pick shows next to
+ * nothing. The flat is one press away ("Kvartira"), and `?focus=0` opens on it.
+ * `?focus=1`, which the app sent after a scan when the flat was the default, still
+ * means the room.
  */
 export function initialRoomFocus(search: string, roomId: string): string | null {
-  return new URLSearchParams(search).get('focus') === '1' ? roomId : null
+  return new URLSearchParams(search).get('focus') === '0' ? null : roomId
 }

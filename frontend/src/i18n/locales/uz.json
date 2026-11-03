@@ -196,7 +196,9 @@
       "kameralar": "Kameralar",
       "tahrirlashni_yoqish": "Tahrirlashni yoqish",
       "tahrirlashni_qulflash": "Tahrirlashni qulflash",
-      "xonani_ochirish_tasdiq": "\"{{name}}\" xonasini o'chirishni tasdiqlaysizmi?"
+      "xonani_ochirish_tasdiq": "\"{{name}}\" xonasini o'chirishni tasdiqlaysizmi?",
+      "kvartira": "Kvartira",
+      "xona": "Xona"
     },
     "radial": {
       "rang": "Rang",
