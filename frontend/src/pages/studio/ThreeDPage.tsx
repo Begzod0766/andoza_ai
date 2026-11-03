@@ -69,7 +69,7 @@ import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 import { CameraButton, LockButton } from "./three-d/CanvasButtons";
-import { StagePill, TapHint, useTapHintSeen } from "@/components/studio/TapHint";
+import { StagePill, TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -873,7 +873,7 @@ export default function ThreeDPage() {
           className={`flex-1 min-w-0 min-h-0 relative isolate overflow-hidden ${(isMebelTab && mebelView === '2d') || (isChiroqTab && chiroqView === '2d') ? 'hidden' : ''}`}
           // The first tap on the view also closes the phone hint; it does not stop
           // the tap, so the surface's menu still opens.
-          onPointerDownCapture={() => { if (!tapHintSeen) markTapHintSeen(); }}
+          onPointerDownCapture={() => { if (shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })) markTapHintSeen(); }}
         >
 
           {/* Phone only: which room and stage (the header hides the name under sm),
@@ -881,7 +881,7 @@ export default function ThreeDPage() {
           <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center sm:hidden">
             <StagePill roomName={room.name} phase={activePhase} />
           </div>
-          {!tapHintSeen && (
+          {shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked }) && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
               <TapHint onDismiss={markTapHintSeen} />
             </div>

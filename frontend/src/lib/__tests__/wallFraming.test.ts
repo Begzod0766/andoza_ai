@@ -37,4 +37,11 @@ describe('wallFraming', () => {
     expect(wallFraming(walls, 'Z', { height: 2.7 })).toBeNull()
     expect(wallFraming([], '0', { height: 2.7 })).toBeNull()
   })
+
+  it('a portrait view (phone) stands farther back than a square one, so a long wall still fits its width', () => {
+    const d = (f: ReturnType<typeof wallFraming>) => Math.hypot(...f!.position.map((p, i) => p - f!.target[i]))
+    const square = wallFraming(walls, '0', { height: 2.7, aspect: 1 })
+    const portrait = wallFraming(walls, '0', { height: 2.7, aspect: 0.5 })
+    expect(d(portrait)).toBeGreaterThan(d(square) * 1.4)
+  })
 })

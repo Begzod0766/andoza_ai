@@ -493,4 +493,9 @@ describe('SmetaPage in English', () => {
     renderSmetaPage()
     expect(await screen.findByTestId('smeta-skeleton')).toBeInTheDocument()
   })
+
+  it('the room name is the page\'s heading', async () => {
+    renderSmetaPage()
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveAttribute('data-testid', 'smeta-room')
+  })
 })

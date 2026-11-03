@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import { updateRoom } from "@/lib/api";
 import { DEFAULT_DESIGN_STATE, useRoomStore } from "@/store/roomStore";
 import { MENU_ICON, MENU_ROW } from "./menuRow";
@@ -12,6 +13,7 @@ import { MENU_ICON, MENU_ROW } from "./menuRow";
 export function DiscardDesignMenuItem({ roomId, onDone }: { roomId: string; onDone: () => void }) {
   const { t } = useTranslation();
   const confirm = useConfirm();
+  const { toast } = useToast();
   const resetDesignState = useRoomStore((s) => s.resetDesignState);
 
   const discard = async () => {
@@ -28,7 +30,10 @@ export function DiscardDesignMenuItem({ roomId, onDone }: { roomId: string; onDo
     if (roomId !== "local") {
       await updateRoom(roomId, {
         design_state: { wallCoverings: DEFAULT_DESIGN_STATE.wallCoverings, floorType: DEFAULT_DESIGN_STATE.floorType },
-      }).catch(() => {});
+      }).catch(() => {
+        // Reset here, not on the server: say so rather than let a reload bring the design back unannounced.
+        toast({ variant: "warning", title: t("studio.oflayn_saqlandi") });
+      });
     }
   };
 

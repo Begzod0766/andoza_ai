@@ -292,8 +292,8 @@ function NWallRoomShell({
 }) {
   // The panel's hovered wall belongs to the room being edited: a read-only neighbour (no
   // onWallClick) shares wall ids like "0" and must not light up with it.
-  const panelHovered = useWallFocusStore((st) => st.hovered);
-  const hoveredWall = onWallClick ? panelHovered : null;
+  // A read-only room (a sibling) never subscribes, so a chip hover re-renders only the edited one.
+  const hoveredWall = useWallFocusStore((st) => (onWallClick ? st.hovered : null));
   // Skirting: undefined means the user never touched it, which still renders
   // the default board; only an explicit null takes it off.
   const trim = designState.skirting === null ? null : resolveTrim(designState.skirting, 'skirting')
@@ -843,8 +843,8 @@ export const RoomScene = memo(function RoomScene({
 }) {
   // The panel's hovered wall belongs to the room being edited: a read-only neighbour (no
   // onWallClick) shares wall ids like "0" and must not light up with it.
-  const panelHovered = useWallFocusStore((st) => st.hovered);
-  const hoveredWall = onWallClick ? panelHovered : null;
+  // A read-only room (a sibling) never subscribes, so a chip hover re-renders only the edited one.
+  const hoveredWall = useWallFocusStore((st) => (onWallClick ? st.hovered : null));
   // Legacy 4-wall ABCD rectangle — use the existing precise rendering.
   // Any other layout (N-wall from RoomPlan) uses NWallRoomShell.
   // The test lives in lib/borrowedOpenings, which must decide a wall's

@@ -68,7 +68,7 @@ export function PhaseStageNav({
                 </svg>
               )}
               {status === 'current' && (
-                <span className="w-2 h-2 rounded-full bg-card/90 animate-pulse inline-block shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-current animate-pulse inline-block shrink-0" />
               )}
               {status === 'pending' && (
                 <span className="w-2 h-2 rounded-full bg-ink/10 inline-block shrink-0" />

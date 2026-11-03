@@ -114,6 +114,14 @@ function OrbitZoomLimit({ controlsRef, W, D, H }: {
   return null
 }
 
+/** Reports the canvas's width / height (two decimals, so a resize settles) to the scene that renders the Canvas. */
+function ViewAspect({ onChange }: { onChange: (aspect: number) => void }) {
+  const { size } = useThree()
+  const aspect = Math.round((size.width / Math.max(size.height, 1)) * 100) / 100
+  useEffect(() => { onChange(aspect) }, [aspect, onChange])
+  return null
+}
+
 /** Why a wall stopped growing into a neighbour, said at the wall. */
 const BLOCKED_SAYS = {
   opening: 'studio.three_d.blocked_opening',
@@ -593,9 +601,10 @@ export function ThreeDCanvasScene({
   // A wall chip press aims the camera at that wall until the next framing request
   // (useCameraGoal); a wall tapped in the view only selects it.
   const wallIds = useMemo(() => geometry.walls.map((w) => w.id), [geometry.walls]);
+  const [viewAspect, setViewAspect] = useState(1);
   const cameraGoal = useCameraGoal({
     framedCam, framedKey: framedCamKey, presetVersion,
-    vertices: geometry.vertices, wallIds, height: H, fovDeg: CAMERA_FOV,
+    vertices: geometry.vertices, wallIds, height: H, fovDeg: CAMERA_FOV, aspect: viewAspect,
   });
   /** The room's own openings, carrying their partition marks so a shared
    *  door's leaf hangs at the end of its measured lining — the editable layer. */
@@ -1051,6 +1060,7 @@ export function ThreeDCanvasScene({
         <RoomSwitchCamera controlsRef={controlsRef} />
         {/* Fitted to what the camera orbits (lib/focusFraming): the focused
             room, or the box round the whole flat — and not a step further. */}
+        <ViewAspect onChange={setViewAspect} />
         <OrbitZoomLimit
           controlsRef={controlsRef}
           W={zoomFit.W}

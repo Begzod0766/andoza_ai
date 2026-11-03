@@ -16,6 +16,11 @@ export function useTapHintSeen(): [boolean, () => void] {
   return [seen, markSeen];
 }
 
+/** The hint shows until it is seen, and never while the view is locked — a tap opens nothing then. */
+export function shouldShowTapHint({ seen, locked }: { seen: boolean; locked: boolean }): boolean {
+  return !seen && !locked;
+}
+
 /**
  * On a phone the tools are reached by tapping a surface (the stage list was removed from the
  * header on 2026-09-28) — and nothing said so. This says it once, over the bottom of the view.

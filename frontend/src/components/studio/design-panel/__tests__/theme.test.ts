@@ -26,4 +26,15 @@ describe('studio panels theme', () => {
     expect(nav).toMatch(/\bh-full\b/)
     expect(rail).toMatch(/relative hidden lg:block shrink-0 lg:self-stretch/)
   })
+
+  it('the current stage\'s pulse dot is drawn in the button\'s own (white) ink, visible on the brand fill', () => {
+    const rail = readFileSync(join(SRC, 'pages/studio/three-d/PhaseStageNav.tsx'), 'utf8')
+    expect(rail).toMatch(/bg-current[^"]*animate-pulse|animate-pulse[^"]*bg-current/)
+  })
+
+  it('a read-only room does not even subscribe to the hovered wall', () => {
+    const shell = readFileSync(join(SRC, 'pages/studio/three-d/RoomShell.tsx'), 'utf8')
+    expect(shell).not.toContain('const panelHovered')
+    expect(shell.match(/useWallFocusStore\(\(st\) => \(onWallClick \? st\.hovered : null\)\)/g)?.length).toBe(2)
+  })
 })

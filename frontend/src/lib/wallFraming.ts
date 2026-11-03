@@ -26,15 +26,17 @@ export interface FramedWall {
 export function wallFraming(
   walls: FramedWall[],
   wallId: string | null,
-  opts: { height: number; pitchDeg?: number; fovDeg?: number },
+  opts: { height: number; pitchDeg?: number; fovDeg?: number; aspect?: number },
 ): WallFrame | null {
   if (wallId == null) return null;
   const wall = walls.find((w) => w.id === wallId);
   if (!wall) return null;
   const pitch = ((opts.pitchDeg ?? 35) * Math.PI) / 180;
   const fov = ((opts.fovDeg ?? 68) * Math.PI) / 180;
-  // The wall's length should fill ~70 % of the view's width at the target's distance.
-  const dist = Math.max(1.5, wall.length / 0.7 / (2 * Math.tan(fov / 2)) + opts.height * 0.4);
+  // fovDeg is the vertical angle (three's convention); the wall runs across, so it is the
+  // horizontal half-width — narrower on an upright phone — that has to hold ~70 % of it.
+  const halfWidth = Math.tan(fov / 2) * (opts.aspect ?? 1);
+  const dist = Math.max(1.5, wall.length / 0.7 / (2 * halfWidth) + opts.height * 0.4);
   const n = Math.hypot(wall.normal.x, wall.normal.z) || 1;
   const nx = wall.normal.x / n, nz = wall.normal.z / n;
   const ty = opts.height * 0.45;
