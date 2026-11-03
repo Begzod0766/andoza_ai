@@ -7,7 +7,7 @@ import {
 import type { Room, Wallpaper } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useTranslation } from "react-i18next";
-import { useRoomStore, DEFAULT_DESIGN_STATE } from "@/store/roomStore";
+import { useRoomStore } from "@/store/roomStore";
 import type { WallCovering, FloorType, DesignState } from "@/store/roomStore";
 import { LightPanel } from "@/components/studio/LightPanel";
 import type { LightTypeId } from "@/lib/lightCatalog";
@@ -42,7 +42,6 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const setWallCovering = useRoomStore((s) => s.setWallCovering);
   const setFloorTexture = useRoomStore((s) => s.setFloorTexture);
-  const resetDesignState = useRoomStore((s) => s.resetDesignState);
   const surfaces = useRoomStore((s) => s.surfaces);
   const applySurface = useRoomStore((s) => s.applySurface);
 
@@ -75,28 +74,6 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
         },
       });
     }, 600);
-  }
-
-  // Reset button: click-to-arm, click-to-confirm — see the render below.
-  const [resetArmed, setResetArmed] = React.useState(false);
-  const resetArmTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  React.useEffect(() => () => { if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current) }, []);
-  function armReset() {
-    setResetArmed(true);
-    if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current);
-    // Auto-disarm — a confirm row primed from a tap ten minutes ago and then
-    // rediscovered is more dangerous than no confirm step at all.
-    resetArmTimerRef.current = setTimeout(() => setResetArmed(false), 5000);
-  }
-  function cancelReset() {
-    setResetArmed(false);
-    if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current);
-  }
-  function confirmReset() {
-    setResetArmed(false);
-    if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current);
-    resetDesignState();
-    mutation.mutate({ design_state: { wallCoverings: DEFAULT_DESIGN_STATE.wallCoverings, floorType: DEFAULT_DESIGN_STATE.floorType } });
   }
 
   function applyWallCovering(covering: WallCovering) {
@@ -387,42 +364,6 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
           <p className="text-xs text-warn">{t("studio.oflayn_saqlandi")}</p>
         )}
 
-        {/* Reset button — separated with its own divider from whatever setting
-            sits above (color swatches, panels, etc.) so it never reads as part
-            of that selection. Destructive, so a single tap can't fire it: the
-            first click only arms an inline confirm row (auto-disarms after a
-            few seconds so a stray tap doesn't leave it primed indefinitely);
-            the action only runs on the explicit second tap. */}
-        <div className="mt-8 pt-4 border-t border-line">
-          {!resetArmed ? (
-            <button
-              onClick={armReset}
-              className="w-full px-4 py-2.5 text-sm font-semibold text-red-600 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 active:bg-red-200 transition-colors"
-            >
-              {t("studio.dizaynni_bekor_qilish")}
-            </button>
-          ) : (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
-              <p className="text-sm font-semibold text-red-700">
-                {t("studio.dizaynni_bekor_tasdiq")}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={cancelReset}
-                  className="flex-1 px-3 py-2 text-sm font-medium text-ink bg-card border border-line rounded-lg hover:bg-card-soft transition-colors"
-                >
-                  {t("common.bekor")}
-                </button>
-                <button
-                  onClick={confirmReset}
-                  className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  {t("studio.ha_ochirish")}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </aside>
   );

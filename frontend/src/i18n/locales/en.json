@@ -962,7 +962,8 @@
       "rotate_left": "Rotate 15° left",
       "rotate_right": "Rotate 15° right",
       "size_pct": "Size %"
-    }
+    },
+    "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone."
   },
   "smeta": {
     "sarlavha": "Estimate",
