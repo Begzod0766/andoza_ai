@@ -46,6 +46,10 @@ interface SafeEnvironmentProps {
    * exposure are unaffected.
    */
   backgroundIntensity?: number
+  /** Forwarded to drei's `backgroundRotation` / `environmentRotation` (Euler radians):
+   *  turns the sky (and what it lights) about the scene, e.g. to move a bright moon. */
+  backgroundRotation?: [number, number, number]
+  environmentRotation?: [number, number, number]
 }
 
 /**
@@ -58,6 +62,8 @@ export function SafeEnvironment({
   files = LOCAL_HDR,
   background = false,
   backgroundIntensity,
+  backgroundRotation,
+  environmentRotation,
 }: SafeEnvironmentProps) {
   return (
     <EnvironmentErrorBoundary>
@@ -67,6 +73,8 @@ export function SafeEnvironment({
           environmentIntensity={intensity}
           background={background}
           backgroundIntensity={backgroundIntensity}
+          backgroundRotation={backgroundRotation}
+          environmentRotation={environmentRotation}
         />
       </Suspense>
     </EnvironmentErrorBoundary>
