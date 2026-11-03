@@ -33,6 +33,7 @@ import { Wall, WindowFrames, DoorFrames, Baseboard, Cornice, WindowFrameItem, Do
 import { resolveTrim } from "@/lib/trimProfiles";
 import { CeilingLights } from "./LightingComponents";
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
+import { useWallFocusStore } from "@/store/wallFocusStore";
 
 /**
  * The full room shell: the legacy 4-wall ABCD room (floor, ceiling, walls,
@@ -289,6 +290,10 @@ function NWallRoomShell({
    *  only one drawing them. */
   partitionWalls?: ReadonlySet<string>;
 }) {
+  // The panel's hovered wall belongs to the room being edited: a read-only neighbour (no
+  // onWallClick) shares wall ids like "0" and must not light up with it.
+  const panelHovered = useWallFocusStore((st) => st.hovered);
+  const hoveredWall = onWallClick ? panelHovered : null;
   // Skirting: undefined means the user never touched it, which still renders
   // the default board; only an explicit null takes it off.
   const trim = designState.skirting === null ? null : resolveTrim(designState.skirting, 'skirting')
@@ -665,7 +670,7 @@ function NWallRoomShell({
                 cx={0}
                 cz={0}
                 innerFaceDir={e.faceDir}
-                isSelected={selectedWall === e.wallId}
+                isSelected={selectedWall === e.wallId || hoveredWall === e.wallId}
                 onClick={() => onWallClick?.(e.wallId)}
                 panelSettings={resolveWallPanel(designState.wallPanels, e.wallId)}
               />
@@ -836,6 +841,10 @@ export const RoomScene = memo(function RoomScene({
    *  only one drawing them. */
   partitionWalls?: ReadonlySet<string>;
 }) {
+  // The panel's hovered wall belongs to the room being edited: a read-only neighbour (no
+  // onWallClick) shares wall ids like "0" and must not light up with it.
+  const panelHovered = useWallFocusStore((st) => st.hovered);
+  const hoveredWall = onWallClick ? panelHovered : null;
   // Legacy 4-wall ABCD rectangle — use the existing precise rendering.
   // Any other layout (N-wall from RoomPlan) uses NWallRoomShell.
   // The test lives in lib/borrowedOpenings, which must decide a wall's
@@ -1080,7 +1089,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'A') ?? {})}>
               <Wall plaster={plasterWalls} wallId="A" length={W} height={H} thickness={T} covering={coveringA}
                 elements={wallA?.elements ?? EMPTY_ELEMENTS} axis="X" cx={0} cz={-(D / 2 + T / 2)}
-                isSelected={selectedWall === 'A'} onClick={handleWallClickA}
+                isSelected={selectedWall === 'A' || hoveredWall === 'A'} onClick={handleWallClickA}
                 panelSettings={panelsA} />
             </group>
           </WallFade>
@@ -1090,7 +1099,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'B') ?? {})}>
               <Wall plaster={plasterWalls} wallId="B" length={D + 2 * T} height={H} thickness={T} covering={coveringB}
                 elements={elementsBOuter} axis="Z" cx={W / 2 + T / 2} cz={0}
-                isSelected={selectedWall === 'B'} onClick={handleWallClickB}
+                isSelected={selectedWall === 'B' || hoveredWall === 'B'} onClick={handleWallClickB}
                 panelSettings={panelsB} />
             </group>
           </WallFade>
@@ -1100,7 +1109,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'C') ?? {})}>
               <Wall plaster={plasterWalls} wallId="C" length={W} height={H} thickness={T} covering={coveringC}
                 elements={wallC?.elements ?? EMPTY_ELEMENTS} axis="X" cx={0} cz={D / 2 + T / 2}
-                isSelected={selectedWall === 'C'} onClick={handleWallClickC}
+                isSelected={selectedWall === 'C' || hoveredWall === 'C'} onClick={handleWallClickC}
                 panelSettings={panelsC} />
             </group>
           </WallFade>
@@ -1110,7 +1119,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'D') ?? {})}>
               <Wall plaster={plasterWalls} wallId="D" length={D + 2 * T} height={H} thickness={T} covering={coveringD}
                 elements={elementsDOuter} axis="Z" cx={-(W / 2 + T / 2)} cz={0}
-                isSelected={selectedWall === 'D'} onClick={handleWallClickD}
+                isSelected={selectedWall === 'D' || hoveredWall === 'D'} onClick={handleWallClickD}
                 panelSettings={panelsD} />
             </group>
           </WallFade>

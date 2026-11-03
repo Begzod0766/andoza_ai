@@ -8,11 +8,12 @@ import { useRoomStore, resolveWallColor } from "@/store/roomStore";
 import type { WallCovering, DesignState } from "@/store/roomStore";
 import { computeOboyRolls } from "@/lib/oboySmeta";
 import { useDebounce } from "@/hooks/useDebounce";
-import { getWallTargets, targetLabel, FLOOR_TARGET, CEILING_TARGET, SKIRTING_TARGET, CORNICE_TARGET, resolveTargetWall, type WallTarget } from "./shared";
+import { getWallTargets, FLOOR_TARGET, CEILING_TARGET, SKIRTING_TARGET, CORNICE_TARGET, resolveTargetWall, type WallTarget } from "./shared";
 import { SkirtingGroup } from "./FloorControls";
 import { CorniceGroup } from "./CeilingTargetPanel";
 import { CeilingTargetPanel } from "./CeilingTargetPanel";
 import { WallFloorTargetPanel } from "./WallFloorTargetPanel";
+import { WallTargetChips } from "./WallTargetChips";
 import { WallPanelGenerator } from "./WallPanelGenerator";
 import { MaterialSwatch } from "../MaterialSwatch";
 
@@ -173,21 +174,7 @@ export function WallSection({
       {/* Wall + floor selector */}
       <section>
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("studio.dp.walls_floor")}</h3>
-        <div className="flex flex-wrap gap-1.5">
-          {wallTargets.map((option) => (
-            <button
-              key={option.key}
-              onClick={() => setTargetWall(option.key)}
-              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                targetWall === option.key
-                  ? "bg-brand text-white border-brand font-semibold"
-                  : "border-gray-300 text-gray-600 hover:border-brand/50"
-              }`}
-            >
-              {targetLabel(option)}
-            </button>
-          ))}
-        </div>
+        <WallTargetChips options={wallTargets} value={targetWall} onSelect={setTargetWall} />
       </section>
 
       {/* Ceiling design when "Shift" is selected */}

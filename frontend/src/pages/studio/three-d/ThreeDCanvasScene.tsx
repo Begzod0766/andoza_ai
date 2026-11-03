@@ -63,6 +63,9 @@ import type { RoomSide } from "./constants";
 import { applyUniformZoom, fitRoomDistance } from "@/lib/orbitZoom";
 import { isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
 import { useRoomFocus } from "./useRoomFocus";
+import { useWallFocusStore } from "@/store/wallFocusStore";
+import { wallFraming } from "@/lib/wallFraming";
+import { wallDefsFromVertices } from "@/lib/wallDefsFromVertices";
 import { FlatToggle } from "./FlatToggle";
 import { SceneLoadingOverlay } from "./SceneLoadingOverlay";
 
@@ -576,6 +579,22 @@ export function ThreeDCanvasScene({
     const f = focusedRoomId ? flatBoxes.find((b) => b.id === focusedRoomId) : null;
     return f ? { W: f.w, D: f.d } : flatBounds(flatBoxes);
   }, [flatBoxes, focusedRoomId]);
+  // A wall chip pressed in the design panel turns the camera to face that wall
+  // (lib/wallFraming); "Hamma devorlar" — turnTo null — gives the room's framing back.
+  // A wall tapped in the view only selects it: the camera stays where the user put it.
+  const turnTo = useWallFocusStore((st) => st.turnTo);
+  const turnNonce = useWallFocusStore((st) => st.nonce);
+  const resetWallFocus = useWallFocusStore((st) => st.reset);
+  useEffect(() => { resetWallFocus(); }, [room.id, resetWallFocus]);
+  const wallFrame = useMemo(() => {
+    const vertices = geometry.vertices;
+    if (!turnTo || !vertices || vertices.length < 3) return null;
+    return wallFraming(Object.values(wallDefsFromVertices(vertices, geometry.walls.map((w) => w.id))), turnTo, { height: H, fovDeg: CAMERA_FOV });
+  }, [geometry, turnTo, H]);
+  const reducedMotion = useMemo(
+    () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
   const framedCamKey = JSON.stringify(framedCamRaw);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const framedCam = useMemo(() => framedCamRaw, [framedCamKey]);
@@ -1095,10 +1114,11 @@ export function ThreeDCanvasScene({
         <MultiTouchPan panSpeed={0.9} />
 
         <CameraAnimator
-          position={framedCam.position}
-          target={framedCam.target}
+          position={wallFrame?.position ?? framedCam.position}
+          target={wallFrame?.target ?? framedCam.target}
           controlsRef={controlsRef}
-          version={presetVersion}
+          version={presetVersion + turnNonce}
+          instant={reducedMotion}
         />
 
         {/* Double-click to focus; empty double-click recenters the room */}
