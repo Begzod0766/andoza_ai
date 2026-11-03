@@ -173,7 +173,7 @@ export function WallSection({
     <>
       {/* Wall + floor selector */}
       <section>
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("studio.dp.walls_floor")}</h3>
+        <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">{t("studio.dp.walls_floor")}</h3>
         <WallTargetChips options={wallTargets} value={targetWall} onSelect={setTargetWall} />
       </section>
 
@@ -195,16 +195,16 @@ export function WallSection({
        * showed "0 dona" since no wall in geometry has id 'CEILING'. */}
       {targetWall !== 'FLOOR' && targetWall !== 'CEILING'
         && targetWall !== 'SKIRTING' && targetWall !== 'CORNICE' && (<>
-      <section className="pt-5 border-t border-gray-100">
-        <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg">
+      <section className="pt-5 border-t border-line">
+        <div className="flex gap-1 p-0.5 bg-card-soft rounded-lg">
           {(["paint", "texture"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => handleSetCoveringMode(mode)}
               className={`flex-1 py-1.5 text-xs rounded-md font-medium transition-colors ${
                 coveringMode === mode
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-card text-ink shadow-sm"
+                  : "text-ink-muted hover:text-ink"
               }`}
             >
               {mode === "paint" ? t("studio.dp.paint") : t("studio.radial.oboy")}
@@ -215,8 +215,8 @@ export function WallSection({
 
       {/* Paint colors */}
       {coveringMode === "paint" && (
-        <section className="pt-5 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">{t("studio.devor_rangi")}</h3>
+        <section className="pt-5 border-t border-line">
+          <h3 className="text-sm font-semibold text-ink mb-3">{t("studio.devor_rangi")}</h3>
           <div className="flex flex-wrap gap-2">
             {WALL_COLORS.map((color) => {
               const isSelected = wallColorForPreview === color;
@@ -251,16 +251,16 @@ export function WallSection({
 
           {(boyoqProducts.length > 0 || boyoqQuery) && (
             <div className="mt-4">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("studio.dokondan_tanlang")}</h3>
+              <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">{t("studio.dokondan_tanlang")}</h3>
               <input
                 type="text"
                 value={boyoqQuery}
                 onChange={(e) => setBoyoqQuery(e.target.value)}
                 placeholder={t("studio.shared.qidirish")}
-                className="w-full px-3 py-2 mb-2 text-sm border border-gray-200 rounded-card focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 transition-colors"
+                className="w-full px-3 py-2 mb-2 text-sm border border-line rounded-card focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 transition-colors"
               />
               {boyoqProducts.length === 0 ? (
-                <p className="text-xs text-gray-500">{t("studio.shared.topilmadi")}</p>
+                <p className="text-xs text-ink-muted">{t("studio.shared.topilmadi")}</p>
               ) : (
                 <>
                   <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
@@ -273,7 +273,7 @@ export function WallSection({
                       />
                     ))}
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1.5">
+                  <p className="text-[11px] text-ink-muted mt-1.5">
                     {t("studio.rang_dokon_izoh")}
                   </p>
                 </>
@@ -285,8 +285,8 @@ export function WallSection({
 
       {/* Texture upload */}
       {coveringMode === "texture" && (
-        <section className="space-y-3 pt-5 border-t border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">{t("studio.dp.wall_image")}</h3>
+        <section className="space-y-3 pt-5 border-t border-line">
+          <h3 className="text-sm font-semibold text-ink">{t("studio.dp.wall_image")}</h3>
           {renderTexturePicker('wallpaper', applyWallpaper, t('studio.dp.wallpaper_library'))}
           {(() => {
             const c = targetWall === "ALL"
@@ -296,10 +296,10 @@ export function WallSection({
             return (
               <div className="space-y-3">
                 {/* Preview + remove */}
-                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <img src={c.url} alt={t("studio.dp.texture")} className="w-14 h-14 object-cover rounded-md border border-gray-200 shrink-0" />
+                <div className="flex items-center gap-3 p-2 bg-card-soft rounded-lg border border-line">
+                  <img src={c.url} alt={t("studio.dp.texture")} className="w-14 h-14 object-cover rounded-md border border-line shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 truncate">{t("studio.dp.uploaded_image")}</p>
+                    <p className="text-xs font-medium text-ink truncate">{t("studio.dp.uploaded_image")}</p>
                     <button
                       onClick={() => applyWallCovering({ kind: 'paint', color: '#F5F0E8' })}
                       className="text-xs text-red-400 hover:text-red-600 mt-0.5"
@@ -310,14 +310,14 @@ export function WallSection({
                 </div>
 
                 {/* UVW controls */}
-                <div className="space-y-2.5 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t("studio.dp.tex_settings")}</p>
+                <div className="space-y-2.5 p-3 bg-card-soft rounded-xl border border-line">
+                  <p className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">{t("studio.dp.tex_settings")}</p>
 
                   {/* Scale — value = tiles per meter; display as tile size in cm */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${textureUvwIdBase}-scale-x`} className="text-xs text-gray-600 font-medium">{t("studio.dp.scale_x")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{Math.round(100 / c.repeatX)} {t("studio.dp.unit_cm")}</span>
+                      <label htmlFor={`${textureUvwIdBase}-scale-x`} className="text-xs text-ink-muted font-medium">{t("studio.dp.scale_x")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{Math.round(100 / c.repeatX)} {t("studio.dp.unit_cm")}</span>
                     </div>
                     <input id={`${textureUvwIdBase}-scale-x`} type="range" min="0.1" max="5" step="0.05" value={c.repeatX}
                       onChange={(e) => updateTextureProp({ repeatX: parseFloat(e.target.value) })}
@@ -325,8 +325,8 @@ export function WallSection({
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${textureUvwIdBase}-scale-y`} className="text-xs text-gray-600 font-medium">{t("studio.vertikal_cho_zish")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(c.repeatY, 2)}×</span>
+                      <label htmlFor={`${textureUvwIdBase}-scale-y`} className="text-xs text-ink-muted font-medium">{t("studio.vertikal_cho_zish")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(c.repeatY, 2)}×</span>
                     </div>
                     <input id={`${textureUvwIdBase}-scale-y`} type="range" min="0.1" max="4" step="0.05" value={c.repeatY}
                       onChange={(e) => updateTextureProp({ repeatY: parseFloat(e.target.value) })}
@@ -336,8 +336,8 @@ export function WallSection({
                   {/* Rotation */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${textureUvwIdBase}-rotation`} className="text-xs text-gray-600 font-medium">{t("studio.dp.rotate")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{Math.round(c.rotation * 180 / Math.PI)}°</span>
+                      <label htmlFor={`${textureUvwIdBase}-rotation`} className="text-xs text-ink-muted font-medium">{t("studio.dp.rotate")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{Math.round(c.rotation * 180 / Math.PI)}°</span>
                     </div>
                     <input id={`${textureUvwIdBase}-rotation`} type="range" min="0" max={Math.PI * 2} step={Math.PI / 36} value={c.rotation}
                       onChange={(e) => updateTextureProp({ rotation: parseFloat(e.target.value) })}
@@ -347,8 +347,8 @@ export function WallSection({
                   {/* Offset */}
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${textureUvwIdBase}-offset-x`} className="text-xs text-gray-600 font-medium">{t("studio.dp.offset_x")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(c.offsetX, 2)}</span>
+                      <label htmlFor={`${textureUvwIdBase}-offset-x`} className="text-xs text-ink-muted font-medium">{t("studio.dp.offset_x")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(c.offsetX, 2)}</span>
                     </div>
                     <input id={`${textureUvwIdBase}-offset-x`} type="range" min="0" max="1" step="0.01" value={c.offsetX}
                       onChange={(e) => updateTextureProp({ offsetX: parseFloat(e.target.value) })}
@@ -356,8 +356,8 @@ export function WallSection({
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${textureUvwIdBase}-offset-y`} className="text-xs text-gray-600 font-medium">{t("studio.dp.offset_y")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(c.offsetY, 2)}</span>
+                      <label htmlFor={`${textureUvwIdBase}-offset-y`} className="text-xs text-ink-muted font-medium">{t("studio.dp.offset_y")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(c.offsetY, 2)}</span>
                     </div>
                     <input id={`${textureUvwIdBase}-offset-y`} type="range" min="0" max="1" step="0.01" value={c.offsetY}
                       onChange={(e) => updateTextureProp({ offsetY: parseFloat(e.target.value) })}
@@ -366,7 +366,7 @@ export function WallSection({
 
                   <button
                     onClick={() => updateTextureProp({ repeatX: 0.5, repeatY: 1.0, offsetX: 0, offsetY: 0, rotation: 0 })}
-                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-xs text-ink-muted hover:text-ink-muted transition-colors"
                   >
                     {t("studio.dp.reset_defaults")}
                   </button>
@@ -380,19 +380,19 @@ export function WallSection({
       {/* Oboy smeta */}
       {hasOboy && (
         <section className="p-3 bg-amber-50 border border-amber-200 rounded-card">
-          <h4 className="text-xs font-semibold text-amber-800 mb-1">{t("studio.dp.wallpaper_needed")}</h4>
+          <h4 className="text-xs font-semibold text-warn mb-1">{t("studio.dp.wallpaper_needed")}</h4>
           {previewLoading ? (
-            <p className="text-sm text-amber-700">{t("studio.dp.calculating")}</p>
+            <p className="text-sm text-warn">{t("studio.dp.calculating")}</p>
           ) : previewData ? (
             (() => {
               const oboyLines = previewData.lines.filter((l) => l.category === "oboy");
               const totalRolls = oboyLines.reduce((s, l) => s + l.quantity, 0);
               return (
                 <>
-                  <p className="text-sm font-bold text-amber-900">{t("studio.dp.rolls", { count: totalRolls })}</p>
+                  <p className="text-sm font-bold text-warn">{t("studio.dp.rolls", { count: totalRolls })}</p>
                   <div className="mt-2 space-y-0.5">
                     {oboyLines.map((l, i) => (
-                      <p key={i} className="text-xs text-amber-700">{l.label}: {t("studio.dp.rolls", { count: l.quantity })}</p>
+                      <p key={i} className="text-xs text-warn">{l.label}: {t("studio.dp.rolls", { count: l.quantity })}</p>
                     ))}
                   </div>
                 </>
@@ -400,10 +400,10 @@ export function WallSection({
             })()
           ) : smeta && smeta.totalRolls > 0 ? (
             <>
-              <p className="text-sm font-bold text-amber-900">{t("studio.dp.rolls", { count: smeta.totalRolls })} (~{formatDecimal(smeta.totalAreaM2, 1)} m²)</p>
+              <p className="text-sm font-bold text-warn">{t("studio.dp.rolls", { count: smeta.totalRolls })} (~{formatDecimal(smeta.totalAreaM2, 1)} m²)</p>
               <div className="mt-2 space-y-0.5">
                 {smeta.perWall.map((w) => (
-                  <p key={w.wallId} className="text-xs text-amber-700">{t("studio.shared.wall_n", { id: wallNumber(w.wallId) })}: {t("studio.dp.rolls", { count: w.rolls })} ({formatDecimal(w.areaM2, 1)} m²)</p>
+                  <p key={w.wallId} className="text-xs text-warn">{t("studio.shared.wall_n", { id: wallNumber(w.wallId) })}: {t("studio.dp.rolls", { count: w.rolls })} ({formatDecimal(w.areaM2, 1)} m²)</p>
                 ))}
               </div>
             </>

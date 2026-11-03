@@ -144,13 +144,13 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
     <>
       {/* Turi / Rasm tabs */}
       <section>
-        <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg">
+        <div className="flex gap-1 p-0.5 bg-card-soft rounded-lg">
           {(['turi', 'rasm'] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setFloorMode(mode)}
               className={`flex-1 py-1.5 text-xs rounded-md font-medium transition-colors ${
-                floorMode === mode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                floorMode === mode ? 'bg-card text-ink shadow-sm' : 'text-ink-muted hover:text-ink'
               }`}
             >
               {mode === 'turi' ? t('studio.dp.tab_type') : t('studio.dp.tab_image')}
@@ -161,7 +161,7 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
       {floorMode === 'turi' && (
         <section>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">{t("studio.pol_turi")}</h3>
+          <h3 className="text-sm font-semibold text-ink mb-3">{t("studio.pol_turi")}</h3>
           <div className="space-y-2">
             {FLOOR_TYPES.map((ft) => (
               <button
@@ -169,8 +169,8 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
                 onClick={() => handleSetFloorType(ft.key)}
                 className={`w-full text-left px-3 py-2.5 rounded-card text-sm border-2 transition-colors ${
                   floorType === ft.key
-                    ? "border-brand bg-brand/10 text-brand font-semibold"
-                    : "border-gray-200 hover:border-brand/40 text-gray-700"
+                    ? "border-brand bg-brand/10 text-accent font-semibold"
+                    : "border-line hover:border-brand/40 text-ink"
                 }`}
               >
                 {t(ft.labelKey)}
@@ -180,16 +180,16 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
           {floorMaterialCategory && (
             <div className="mt-4">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("studio.dokondan_tanlang")}</h3>
+              <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide mb-2">{t("studio.dokondan_tanlang")}</h3>
               <input
                 type="text"
                 value={floorQuery}
                 onChange={(e) => setFloorQuery(e.target.value)}
                 placeholder={t("studio.shared.qidirish")}
-                className="w-full px-3 py-2 mb-2 text-sm border border-gray-200 rounded-card focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 transition-colors"
+                className="w-full px-3 py-2 mb-2 text-sm border border-line rounded-card focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 transition-colors"
               />
               {floorProducts.length === 0 ? (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-muted">
                   {floorQuery ? t("studio.shared.topilmadi") : t("studio.dp.floor_shop_none")}
                 </p>
               ) : (
@@ -204,7 +204,7 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
                           role="option"
                           aria-selected={isActive}
                           className={`w-full flex items-center gap-3 p-2.5 rounded-card text-left border-2 transition-colors ${
-                            isActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-brand/40"
+                            isActive ? "border-brand bg-brand/10" : "border-line hover:border-brand/40"
                           }`}
                         >
                           <div
@@ -212,14 +212,14 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
                             style={{ backgroundColor: product.color_hex ?? "#D8D3C8" }}
                           />
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{product.name_uz}</p>
-                            <p className="text-xs text-muted">{t("common.price_per_unit", { price: product.price_uzs.toLocaleString(intlLocale()), unit: product.unit })}</p>
+                            <p className="text-sm font-semibold text-ink truncate">{product.name_uz}</p>
+                            <p className="text-xs text-ink-muted">{t("common.price_per_unit", { price: product.price_uzs.toLocaleString(intlLocale()), unit: product.unit })}</p>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-1.5">
+                  <p className="text-[11px] text-ink-muted mt-1.5">
                     {t("studio.pol_dokon_izoh")}
                   </p>
                 </>
@@ -235,7 +235,7 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
       {floorMode === 'rasm' && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-900">{t("studio.dp.floor_image")}</h3>
+          <h3 className="text-sm font-semibold text-ink">{t("studio.dp.floor_image")}</h3>
           <input
             ref={floorFileRef}
             type="file"
@@ -246,7 +246,7 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
           <button
             onClick={() => { setFloorError(null); floorFileRef.current?.click(); }}
             disabled={floorBusy}
-            className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-brand/50 hover:text-brand transition-colors disabled:opacity-50"
+            className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-line rounded-xl text-ink-muted hover:border-brand/50 hover:text-accent transition-colors disabled:opacity-50"
           >
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -254,17 +254,17 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
               <path d="M21 15l-5-5L5 21"/>
             </svg>
             <span className="text-sm font-medium">{floorBusy ? t('studio.shared.yuklanmoqda') : t('studio.shared.rasm_yuklash')}</span>
-            <span className="text-xs text-gray-500">{t("studio.shared.rasm_format")}</span>
+            <span className="text-xs text-ink-muted">{t("studio.shared.rasm_format")}</span>
           </button>
-          {floorError && <p className="text-xs text-amber-600 leading-snug">{floorError}</p>}
+          {floorError && <p className="text-xs text-warn leading-snug">{floorError}</p>}
           {activeFloorImage && (() => {
             const fs = floorTextureSettings ?? DEFAULT_FLOOR_TEX_SETTINGS;
             return (
               <>
-                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200">
-                  <img src={activeFloorImage} alt={t("studio.dp.floor_texture")} className="w-14 h-14 object-cover rounded-md border border-gray-200 shrink-0" />
+                <div className="flex items-center gap-3 p-2 bg-card-soft rounded-lg border border-line">
+                  <img src={activeFloorImage} alt={t("studio.dp.floor_texture")} className="w-14 h-14 object-cover rounded-md border border-line shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 truncate">
+                    <p className="text-xs font-medium text-ink truncate">
                       {floorPattern ? t("studio.dp.applied_boards") : t("studio.dp.uploaded_image")}
                     </p>
                     <button
@@ -281,17 +281,17 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
                     own size (see FloorCeiling), so these sliders would move
                     nothing; the Naqsh settings above are the knobs then. */}
                 {floorPattern ? (
-                  <p className="text-[11px] text-gray-500 leading-snug">
+                  <p className="text-[11px] text-ink-muted leading-snug">
                     {t("studio.naqsh_yoqilgan")}
                   </p>
                 ) : (
-                <div className="space-y-2.5 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{t("studio.dp.tex_settings")}</p>
+                <div className="space-y-2.5 p-3 bg-card-soft rounded-xl border border-line">
+                  <p className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">{t("studio.dp.tex_settings")}</p>
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${uvwIdBase}-scale-x`} className="text-xs text-gray-600 font-medium">{t("studio.dp.scale_x")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(1 / fs.repeatX, 2)} m</span>
+                      <label htmlFor={`${uvwIdBase}-scale-x`} className="text-xs text-ink-muted font-medium">{t("studio.dp.scale_x")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(1 / fs.repeatX, 2)} m</span>
                     </div>
                     <input id={`${uvwIdBase}-scale-x`} type="range" min="0.1" max="5" step="0.05" value={fs.repeatX}
                       onChange={(e) => updateFloorTexSettings({ repeatX: parseFloat(e.target.value) })}
@@ -300,8 +300,8 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${uvwIdBase}-scale-y`} className="text-xs text-gray-600 font-medium">{t("studio.dp.scale_y")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(1 / fs.repeatY, 2)} m</span>
+                      <label htmlFor={`${uvwIdBase}-scale-y`} className="text-xs text-ink-muted font-medium">{t("studio.dp.scale_y")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(1 / fs.repeatY, 2)} m</span>
                     </div>
                     <input id={`${uvwIdBase}-scale-y`} type="range" min="0.1" max="5" step="0.05" value={fs.repeatY}
                       onChange={(e) => updateFloorTexSettings({ repeatY: parseFloat(e.target.value) })}
@@ -310,8 +310,8 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${uvwIdBase}-rotation`} className="text-xs text-gray-600 font-medium">{t("studio.dp.rotate")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{Math.round(fs.rotation * 180 / Math.PI)}°</span>
+                      <label htmlFor={`${uvwIdBase}-rotation`} className="text-xs text-ink-muted font-medium">{t("studio.dp.rotate")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{Math.round(fs.rotation * 180 / Math.PI)}°</span>
                     </div>
                     <input id={`${uvwIdBase}-rotation`} type="range" min="0" max={Math.PI * 2} step={Math.PI / 36} value={fs.rotation}
                       onChange={(e) => updateFloorTexSettings({ rotation: parseFloat(e.target.value) })}
@@ -320,8 +320,8 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${uvwIdBase}-offset-x`} className="text-xs text-gray-600 font-medium">{t("studio.dp.offset_x")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(fs.offsetX, 2)}</span>
+                      <label htmlFor={`${uvwIdBase}-offset-x`} className="text-xs text-ink-muted font-medium">{t("studio.dp.offset_x")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(fs.offsetX, 2)}</span>
                     </div>
                     <input id={`${uvwIdBase}-offset-x`} type="range" min="0" max="1" step="0.01" value={fs.offsetX}
                       onChange={(e) => updateFloorTexSettings({ offsetX: parseFloat(e.target.value) })}
@@ -330,8 +330,8 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label htmlFor={`${uvwIdBase}-offset-y`} className="text-xs text-gray-600 font-medium">{t("studio.dp.offset_y")}</label>
-                      <span className="text-xs text-gray-500 tabular-nums">{formatDecimal(fs.offsetY, 2)}</span>
+                      <label htmlFor={`${uvwIdBase}-offset-y`} className="text-xs text-ink-muted font-medium">{t("studio.dp.offset_y")}</label>
+                      <span className="text-xs text-ink-muted tabular-nums">{formatDecimal(fs.offsetY, 2)}</span>
                     </div>
                     <input id={`${uvwIdBase}-offset-y`} type="range" min="0" max="1" step="0.01" value={fs.offsetY}
                       onChange={(e) => updateFloorTexSettings({ offsetY: parseFloat(e.target.value) })}
@@ -340,7 +340,7 @@ export function WallFloorTargetPanel({ handleSetFloorType }: {
 
                   <button
                     onClick={() => setDesignState({ floorTextureSettings: DEFAULT_FLOOR_TEX_SETTINGS })}
-                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-xs text-ink-muted hover:text-ink-muted transition-colors"
                   >
                     {t("studio.dp.reset_defaults")}
                   </button>

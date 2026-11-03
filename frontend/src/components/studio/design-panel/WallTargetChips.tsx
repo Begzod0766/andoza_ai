@@ -34,7 +34,7 @@ export function WallTargetChips({ options, value, onSelect }: {
             onFocus={() => light(option.key)}
             onBlur={() => light(null)}
             className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-              chosen ? "bg-brand text-white border-brand font-semibold" : "border-gray-300 text-gray-600 hover:border-brand/50"
+              chosen ? "bg-brand text-white border-brand font-semibold" : "border-line text-ink-muted hover:border-brand/50"
             }`}
           >
             {targetLabel(option)}

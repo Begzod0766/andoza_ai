@@ -96,7 +96,7 @@ export function DesignPanelDock({
       <div
         className={[
           /* mobile base */
-          'fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-surface',
+          'fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card',
           showPanel ? 'translate-x-0' : 'translate-x-full',
           /* desktop override */
           'lg:static lg:translate-x-0 lg:w-auto lg:h-full lg:shadow-none lg:z-auto lg:overflow-auto',
@@ -109,7 +109,7 @@ export function DesignPanelDock({
           <button
             onClick={() => setShowPanel(false)}
             aria-label={t('common.yopish')}
-            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"
+            className="w-9 h-9 rounded-full bg-card-soft flex items-center justify-center text-ink-muted"
           >
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
               <path d="M1 1l12 12M13 1L1 13"/>
@@ -129,7 +129,7 @@ export function DesignPanelDock({
         onClick={() => setRightOpen(v => !v)}
         title={rightOpen ? t('studio.three_d.dizayn_paneli_yopish') : t('studio.three_d.dizayn_paneli_ochish')}
         aria-label={rightOpen ? t('studio.three_d.dizayn_paneli_yopish') : t('studio.three_d.dizayn_paneli_ochish')}
-        className="hidden lg:flex items-center justify-center bg-white border border-gray-200 shadow-md rounded-full hover:bg-gray-50 transition-colors"
+        className="hidden lg:flex items-center justify-center bg-card border border-line shadow-md rounded-full hover:bg-card-soft transition-colors"
         style={{
           position: 'absolute',
           top: '50%',

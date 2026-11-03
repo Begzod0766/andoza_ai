@@ -33,7 +33,7 @@ function PanelInput({
 
   return (
     <div>
-      <label htmlFor={inputId} className="text-xs text-gray-500 block mb-1">{label}</label>
+      <label htmlFor={inputId} className="text-xs text-ink-muted block mb-1">{label}</label>
       <input
         id={inputId}
         type="text"
@@ -44,7 +44,7 @@ function PanelInput({
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         className={`w-full px-2 py-1.5 text-sm border rounded-md focus:outline-none transition-colors ${
-          isInvalid ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-brand'
+          isInvalid ? 'border-red-400 bg-red-50' : 'border-line focus:border-brand'
         }`}
       />
       {draft !== null && !isNaN(draftVal) && draftVal < minMm && (
@@ -104,18 +104,18 @@ export function WallPanelGenerator({ targetWall }: { targetWall: WallTarget }) {
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-900">{t("studio.dp.panels")}</h3>
+        <h3 className="text-sm font-semibold text-ink">{t("studio.dp.panels")}</h3>
         <button
           onClick={() => handlePanelChange({ enabled: !panelSettings.enabled })}
           className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand/40 ${
-            panelSettings.enabled ? 'bg-brand' : 'bg-gray-200'
+            panelSettings.enabled ? 'bg-brand' : 'bg-ink/10'
           }`}
           aria-checked={panelSettings.enabled}
           aria-label={t("studio.dp.panels_switch")}
           role="switch"
         >
           <span
-            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-card shadow transition-transform ${
               panelSettings.enabled ? 'translate-x-4' : 'translate-x-0.5'
             }`}
           />
@@ -162,16 +162,16 @@ export function WallPanelGenerator({ targetWall }: { targetWall: WallTarget }) {
 
           {/* Orientation */}
           <div>
-            <label className="text-xs text-gray-500 block mb-1">{t("studio.dp.orientation")}</label>
-            <div className="flex gap-1 p-0.5 bg-gray-100 rounded-lg">
+            <label className="text-xs text-ink-muted block mb-1">{t("studio.dp.orientation")}</label>
+            <div className="flex gap-1 p-0.5 bg-card-soft rounded-lg">
               {([0, 90] as const).map((angle) => (
                 <button
                   key={angle}
                   onClick={() => handlePanelChange({ rotation: angle })}
                   className={`flex-1 py-1.5 text-xs rounded-md font-medium transition-colors ${
                     panelSettings.rotation === angle
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-card text-ink shadow-sm'
+                      : 'text-ink-muted hover:text-ink'
                   }`}
                 >
                   {angle === 0 ? t('studio.dp.vertical') : t('studio.dp.horizontal')}
@@ -191,24 +191,24 @@ export function WallPanelGenerator({ targetWall }: { targetWall: WallTarget }) {
 
           {/* Color */}
           <div>
-            <label htmlFor={panelColorId} className="text-xs text-gray-500 block mb-1">{t("studio.dp.panel_color")}</label>
+            <label htmlFor={panelColorId} className="text-xs text-ink-muted block mb-1">{t("studio.dp.panel_color")}</label>
             <input
               id={panelColorId}
               type="color"
               value={panelSettings.color}
               onChange={(e) => handlePanelChange({ color: e.target.value })}
-              className="w-full h-8 rounded border border-gray-200 cursor-pointer"
+              className="w-full h-8 rounded border border-line cursor-pointer"
             />
           </div>
 
           {/* Panel count */}
-          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="text-xs text-gray-500 mb-0.5">{t("studio.dp.panels_per_wall")}</p>
-            <p className="text-2xl font-bold text-gray-900 leading-tight">
+          <div className="p-3 bg-card-soft rounded-lg border border-line">
+            <p className="text-xs text-ink-muted mb-0.5">{t("studio.dp.panels_per_wall")}</p>
+            <p className="text-2xl font-bold text-ink leading-tight">
               {getPanelCount()}
-              <span className="text-sm font-normal text-gray-500 ml-1">{t("studio.dp.pcs")}</span>
+              <span className="text-sm font-normal text-ink-muted ml-1">{t("studio.dp.pcs")}</span>
             </p>
-            <p className="text-[10px] text-gray-500 mt-0.5">
+            <p className="text-[10px] text-ink-muted mt-0.5">
               {(() => {
                 const refWalls = targetWall === 'ALL' ? geometry.walls : geometry.walls.filter(w => w.id === targetWall);
                 const avgMm = refWalls.reduce((s, w) => s + renderLengthMm(w), 0) / (refWalls.length || 1);

@@ -198,7 +198,9 @@
       "tahrirlashni_qulflash": "Tahrirlashni qulflash",
       "xonani_ochirish_tasdiq": "\"{{name}}\" xonasini o'chirishni tasdiqlaysizmi?",
       "kvartira": "Kvartira",
-      "xona": "Xona"
+      "xona": "Xona",
+      "tahrir_yopiq": "Tahrirlash: yopiq",
+      "tahrir_ochiq": "Tahrirlash: ochiq"
     },
     "radial": {
       "rang": "Rang",

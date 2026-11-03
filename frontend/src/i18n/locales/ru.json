@@ -208,7 +208,9 @@
       "tahrirlashni_qulflash": "Заблокировать редактирование",
       "xonani_ochirish_tasdiq": "Подтвердите удаление комнаты «{{name}}»",
       "kvartira": "Квартира",
-      "xona": "Комната"
+      "xona": "Комната",
+      "tahrir_yopiq": "Редактирование: выкл.",
+      "tahrir_ochiq": "Редактирование: вкл."
     },
     "radial": {
       "rang": "Цвет",
