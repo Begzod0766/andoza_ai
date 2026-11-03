@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ConfirmProvider } from '@/components/ui/ConfirmDialog'
+import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { useRoomStore } from '@/store/roomStore'
 import i18n from '@/i18n'
 
@@ -14,7 +14,7 @@ import { DiscardDesignMenuItem } from './DiscardDesignMenuItem'
 
 function mount(onDone = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
-  render(<QueryClientProvider client={qc}><ConfirmProvider><DiscardDesignMenuItem roomId="r1" onDone={onDone} /></ConfirmProvider></QueryClientProvider>)
+  render(<QueryClientProvider client={qc}><FeedbackProvider><DiscardDesignMenuItem roomId="r1" onDone={onDone} /></FeedbackProvider></QueryClientProvider>)
   return onDone
 }
 
@@ -54,6 +54,17 @@ describe('DiscardDesignMenuItem — menu', () => {
   it('reads red over the menu row\'s own ink colour', () => {
     mount()
     expect(screen.getByRole('button', { name: i18n.t('studio.dizaynni_bekor_qilish') }).className).toContain('!text-red-500')
+  })
+})
+
+describe('DiscardDesignMenuItem — a save that fails', () => {
+  it('says the reset is only on this device when the server does not take it', async () => {
+    api.updateRoom.mockRejectedValue(new Error('offline'))
+    mount()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.dizaynni_bekor_qilish') }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('studio.dizaynni_bekor_qilish') }))
+    expect(await screen.findByText(i18n.t('studio.oflayn_saqlandi'))).toBeInTheDocument()
   })
 })
 

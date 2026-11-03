@@ -257,7 +257,7 @@ export default function SmetaPage() {
               ← {t("common.orqaga")}
             </Link>
             <div className="min-w-0">
-              <p data-testid="smeta-room" className="truncate text-base font-extrabold text-ink">{room?.name ?? t("smeta.sarlavha")}</p>
+              <h1 data-testid="smeta-room" className="truncate text-base font-extrabold text-ink">{room?.name ?? t("smeta.sarlavha")}</h1>
               <p className="text-[11px] text-ink-muted">
                 {t("smeta.sarlavha")}
                 {room?.floor_area != null && ` · ${Math.round(room.floor_area * 10) / 10} m²`}

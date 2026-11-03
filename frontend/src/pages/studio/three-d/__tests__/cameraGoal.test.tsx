@@ -12,7 +12,7 @@ const flat = { position: [0, 12, 16] as [number, number, number], target: [3, 0,
 type P = { framed: typeof room; framedKey: string; presetVersion: number; verts: [number, number][] }
 const hook = (init: P) => renderHook((p: P) => useCameraGoal({
   framedCam: p.framed, framedKey: p.framedKey, presetVersion: p.presetVersion,
-  vertices: p.verts, wallIds, height: 2.7, fovDeg: 68,
+  vertices: p.verts, wallIds, height: 2.7, fovDeg: 68, aspect: 1,
 }), { initialProps: init })
 
 beforeEach(() => useWallFocusStore.setState({ hovered: null, turnTo: null, nonce: 0 }))

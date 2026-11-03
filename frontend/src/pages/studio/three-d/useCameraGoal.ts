@@ -14,7 +14,7 @@ type Vec3 = [number, number, number];
  * The wall goal is keyed on its numbers, like the framing, so a geometry write-back with the
  * same values does not hand the animator new arrays and send the camera flying back.
  */
-export function useCameraGoal({ framedCam, framedKey, presetVersion, vertices, wallIds, height, fovDeg }: {
+export function useCameraGoal({ framedCam, framedKey, presetVersion, vertices, wallIds, height, fovDeg, aspect }: {
   framedCam: { position: Vec3; target: Vec3 };
   framedKey: string;
   presetVersion: number;
@@ -22,6 +22,8 @@ export function useCameraGoal({ framedCam, framedKey, presetVersion, vertices, w
   wallIds: string[];
   height: number;
   fovDeg: number;
+  /** The canvas's width / height. */
+  aspect: number;
 }): { position: Vec3; target: Vec3; version: number } {
   const turnTo = useWallFocusStore((st) => st.turnTo);
   const nonce = useWallFocusStore((st) => st.nonce);
@@ -34,8 +36,8 @@ export function useCameraGoal({ framedCam, framedKey, presetVersion, vertices, w
 
   const raw = useMemo(() => {
     if (!turnTo || !vertices || vertices.length < 3) return null;
-    return wallFraming(Object.values(wallDefsFromVertices(vertices, wallIds)), turnTo, { height, fovDeg });
-  }, [turnTo, vertices, wallIds, height, fovDeg]);
+    return wallFraming(Object.values(wallDefsFromVertices(vertices, wallIds)), turnTo, { height, fovDeg, aspect });
+  }, [turnTo, vertices, wallIds, height, fovDeg, aspect]);
   const key = JSON.stringify(raw);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the numbers
   const wallFrame = useMemo(() => raw, [key]);

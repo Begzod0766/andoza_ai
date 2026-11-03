@@ -82,27 +82,30 @@ export function FocusButton({ focused, onClick, name, active = false }: {
   focused: boolean; onClick: () => void;
   /** The room's name, shown beside the brackets (cut at 16 characters; the whole name in the title). */
   name?: string;
-  /** The room being edited: its mark is filled, so it reads apart from the others. */
+  /** The room being edited: its mark is outlined, so it reads apart from the others (filled means focused). */
   active?: boolean;
 }) {
   const { t } = useTranslation();
   const label = name && name.length > 16 ? `${name.slice(0, 16)}…` : name;
   const action = focused ? t('studio.three_d.hamma_xonalar') : t('studio.three_d.faqat_shu_xona');
-  const filled = focused || active;
+  const state = focused ? 'focused' : active ? 'active' : 'idle';
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
       title={name ? `${name} — ${action}` : action}
       aria-pressed={focused}
       data-active={active ? 'true' : undefined}
+      data-state={state}
       style={{
         height: 26, minWidth: 26, borderRadius: 8, border: 'none', padding: name ? '0 8px 0 6px' : 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
         cursor: 'pointer', pointerEvents: 'auto', whiteSpace: 'nowrap',
         font: '600 12px/1 system-ui, sans-serif',
-        background: filled ? '#1E40AF' : 'rgba(255,255,255,0.95)',
-        color: filled ? '#fff' : '#1E40AF',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+        background: state === 'focused' ? '#1E40AF' : 'rgba(255,255,255,0.95)',
+        color: state === 'focused' ? '#fff' : '#1E40AF',
+        boxShadow: state === 'active'
+          ? 'inset 0 0 0 2px #1E40AF, 0 2px 8px rgba(0,0,0,0.18)'
+          : '0 2px 8px rgba(0,0,0,0.18)',
       }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
