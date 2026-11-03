@@ -249,20 +249,23 @@ export default function SmetaPage() {
           page and leads back, and the screen is better spent on the smeta. */}
       {!compact && (
       <header className="border-b border-line bg-card">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            to={`/studio/${roomId}`}
-            className="text-ink-muted hover:text-ink text-sm"
-          >
-            ← {t("common.orqaga")}
-          </Link>
-          <h1 className="text-xl font-bold text-ink">{t("smeta.sarlavha")}</h1>
-          {room && (
-            <span className="ml-auto text-sm text-ink-muted">
-              {room.name}
-              {room.floor_area != null && ` · ${Math.round(room.floor_area * 10) / 10} m²`}
-            </span>
-          )}
+        {/* The same row as the 3D tab's header: back and the room on the left, the
+            3D | Smeta control in the middle. */}
+        <div className="mx-auto grid max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to={`/studio/${roomId}`} className="shrink-0 text-sm text-ink-muted hover:text-ink">
+              ← {t("common.orqaga")}
+            </Link>
+            <div className="min-w-0">
+              <p data-testid="smeta-room" className="truncate text-base font-extrabold text-ink">{room?.name ?? t("smeta.sarlavha")}</p>
+              <p className="text-[11px] text-ink-muted">
+                {t("smeta.sarlavha")}
+                {room?.floor_area != null && ` · ${Math.round(room.floor_area * 10) / 10} m²`}
+              </p>
+            </div>
+          </div>
+          {roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
+          <div />
         </div>
       </header>
       )}
@@ -271,7 +274,7 @@ export default function SmetaPage() {
         {/* Stories-style tab navigation — Smeta is a regular scrolling page
             (a top-level route outside StudioPage's layout), so the strip
             renders as a normal-flow row here instead of a viewport overlay. */}
-        {roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
+        {compact && roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
 
         {floorNoteKind && (
           <div
@@ -293,7 +296,12 @@ export default function SmetaPage() {
         {!estimate && (
           <div className="text-center py-12">
             {mutation.isPending ? (
-              <p className="text-ink-muted animate-pulse">{t("common.yuklanmoqda")}</p>
+              <div data-testid="smeta-skeleton" className="space-y-3 text-left" aria-busy="true">
+                <span className="sr-only">{t("common.yuklanmoqda")}</span>
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-14 animate-pulse rounded-2xl bg-card" />
+                ))}
+              </div>
             ) : (
               <>
                 <p className="text-ink-muted mb-6">{t("empty.smeta_yoq")}</p>

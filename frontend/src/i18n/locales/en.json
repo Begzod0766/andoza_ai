@@ -963,7 +963,8 @@
       "rotate_right": "Rotate 15° right",
       "size_pct": "Size %"
     },
-    "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone."
+    "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
+    "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material."
   },
   "smeta": {
     "sarlavha": "Estimate",

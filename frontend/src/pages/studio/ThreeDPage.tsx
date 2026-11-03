@@ -69,6 +69,7 @@ import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 import { CameraButton, LockButton } from "./three-d/CanvasButtons";
+import { StagePill, TapHint, useTapHintSeen } from "@/components/studio/TapHint";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -316,6 +317,7 @@ export default function ThreeDPage() {
         ? (phaseParam as PhaseKey)
         : 'boyoq'
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
+  const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -869,7 +871,21 @@ export default function ThreeDPage() {
           // inside this box, so they stay under the header and its ⋮ menu,
           // which float over the scene inside the app.
           className={`flex-1 min-w-0 min-h-0 relative isolate overflow-hidden ${(isMebelTab && mebelView === '2d') || (isChiroqTab && chiroqView === '2d') ? 'hidden' : ''}`}
+          // The first tap on the view also closes the phone hint; it does not stop
+          // the tap, so the surface's menu still opens.
+          onPointerDownCapture={() => { if (!tapHintSeen) markTapHintSeen(); }}
         >
+
+          {/* Phone only: which room and stage (the header hides the name under sm),
+              and, once, how to reach the tools — tap a surface. */}
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center sm:hidden">
+            <StagePill roomName={room.name} phase={activePhase} />
+          </div>
+          {!tapHintSeen && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
+              <TapHint onDismiss={markTapHintSeen} />
+            </div>
+          )}
 
           {/* View mode — relocated here from the tools drawer's old
               "Ko'rinish" chips + cutaway button. One segmented control pinned

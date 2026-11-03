@@ -963,7 +963,8 @@
       "rotate_right": "15° o'ngga burish",
       "size_pct": "O'lcham %"
     },
-    "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi."
+    "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
+    "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang."
   },
   "smeta": {
     "sarlavha": "Smeta",
