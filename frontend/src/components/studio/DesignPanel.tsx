@@ -7,7 +7,7 @@ import {
 import type { Room, Wallpaper } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { useTranslation } from "react-i18next";
-import { useRoomStore, DEFAULT_DESIGN_STATE } from "@/store/roomStore";
+import { useRoomStore } from "@/store/roomStore";
 import type { WallCovering, FloorType, DesignState } from "@/store/roomStore";
 import { LightPanel } from "@/components/studio/LightPanel";
 import type { LightTypeId } from "@/lib/lightCatalog";
@@ -42,7 +42,6 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const setWallCovering = useRoomStore((s) => s.setWallCovering);
   const setFloorTexture = useRoomStore((s) => s.setFloorTexture);
-  const resetDesignState = useRoomStore((s) => s.resetDesignState);
   const surfaces = useRoomStore((s) => s.surfaces);
   const applySurface = useRoomStore((s) => s.applySurface);
 
@@ -75,28 +74,6 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
         },
       });
     }, 600);
-  }
-
-  // Reset button: click-to-arm, click-to-confirm — see the render below.
-  const [resetArmed, setResetArmed] = React.useState(false);
-  const resetArmTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  React.useEffect(() => () => { if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current) }, []);
-  function armReset() {
-    setResetArmed(true);
-    if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current);
-    // Auto-disarm — a confirm row primed from a tap ten minutes ago and then
-    // rediscovered is more dangerous than no confirm step at all.
-    resetArmTimerRef.current = setTimeout(() => setResetArmed(false), 5000);
-  }
-  function cancelReset() {
-    setResetArmed(false);
-    if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current);
-  }
-  function confirmReset() {
-    setResetArmed(false);
-    if (resetArmTimerRef.current) clearTimeout(resetArmTimerRef.current);
-    resetDesignState();
-    mutation.mutate({ design_state: { wallCoverings: DEFAULT_DESIGN_STATE.wallCoverings, floorType: DEFAULT_DESIGN_STATE.floorType } });
   }
 
   function applyWallCovering(covering: WallCovering) {
@@ -224,7 +201,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
         <button
           onClick={() => openTexturePicker(intent)}
           disabled={wallpaperBusy}
-          className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-brand/50 hover:text-brand transition-colors disabled:opacity-50"
+          className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-line rounded-xl text-ink-muted hover:border-brand/50 hover:text-accent transition-colors disabled:opacity-50"
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -234,7 +211,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
           <span className="text-sm font-medium">
             {wallpaperBusy ? t('studio.shared.yuklanmoqda') : t('studio.shared.rasm_yuklash')}
           </span>
-          <span className="text-xs text-gray-500">{t('studio.shared.rasm_format')}</span>
+          <span className="text-xs text-ink-muted">{t('studio.shared.rasm_format')}</span>
         </button>
         {wallpaperError && <p className="text-xs text-red-500">{wallpaperError}</p>}
 
@@ -242,8 +219,8 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
         {wallpapers.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{libraryLabel}</p>
-              <span className="text-[10px] text-gray-500">{t('studio.shared.dona_soni', { count: wallpapers.length })}</span>
+              <p className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">{libraryLabel}</p>
+              <span className="text-[10px] text-ink-muted">{t('studio.shared.dona_soni', { count: wallpapers.length })}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
               {wallpapers.map((w) => (
@@ -252,7 +229,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
                     onClick={() => onPick(w.url)}
                     title={w.name}
                     className={`block w-full aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
-                      activeUrl === w.url ? 'border-brand' : 'border-gray-200 hover:border-gray-300'
+                      activeUrl === w.url ? 'border-brand' : 'border-line hover:border-line'
                     }`}
                   >
                     <img src={w.url} alt={w.name} loading="lazy" className="w-full h-full object-cover" />
@@ -266,9 +243,9 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
                       onClick={() => handleWallpaperDelete(w)}
                       title={t("studio.kutubxonadan_ochirish")}
                       aria-label={t("studio.kutubxonadan_ochirish")}
-                      className="absolute -top-[18px] -right-[18px] w-11 h-11 flex items-center justify-center text-gray-400 hover:text-red-500"
+                      className="absolute -top-[18px] -right-[18px] w-11 h-11 flex items-center justify-center text-ink-muted hover:text-red-500"
                     >
-                      <span className="w-5 h-5 flex items-center justify-center rounded-full bg-white border border-gray-200 shadow text-[10px] leading-none">
+                      <span className="w-5 h-5 flex items-center justify-center rounded-full bg-card border border-line shadow text-[10px] leading-none">
                         ✕
                       </span>
                     </button>
@@ -276,7 +253,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
                 </div>
               ))}
             </div>
-            <p className="text-[10px] leading-4 text-gray-500">
+            <p className="text-[10px] leading-4 text-ink-muted">
               {isAdmin ? t("studio.yuklangan_rasmlar_admin") : t("studio.yuklangan_rasmlar")}
             </p>
           </div>
@@ -334,7 +311,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
     // height, which used to leave a large empty gap below the color swatches
     // whenever the active phase's content was short. Still scrolls (overflow
     // -y-auto + max-h-full) if content ever grows past the viewport.
-    <aside className="w-full lg:w-72 lg:shrink-0 lg:self-start bg-surface border-l border-gray-200 overflow-y-auto lg:max-h-full">
+    <aside className="w-full lg:w-72 lg:shrink-0 lg:self-start bg-card border-l border-line overflow-y-auto lg:max-h-full">
       {/* Mounted at the root so every phase's upload button can reach it */}
       <input
         ref={textureFileRef}
@@ -381,48 +358,12 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
         {phase === 'montaj' && <MontajSection />}
 
         {mutation.isPending && (
-          <p className="text-xs text-muted animate-pulse">{t("common.saqlash")}...</p>
+          <p className="text-xs text-ink-muted animate-pulse">{t("common.saqlash")}...</p>
         )}
         {mutation.isError && (
-          <p className="text-xs text-amber-600">{t("studio.oflayn_saqlandi")}</p>
+          <p className="text-xs text-warn">{t("studio.oflayn_saqlandi")}</p>
         )}
 
-        {/* Reset button — separated with its own divider from whatever setting
-            sits above (color swatches, panels, etc.) so it never reads as part
-            of that selection. Destructive, so a single tap can't fire it: the
-            first click only arms an inline confirm row (auto-disarms after a
-            few seconds so a stray tap doesn't leave it primed indefinitely);
-            the action only runs on the explicit second tap. */}
-        <div className="mt-8 pt-4 border-t border-gray-200">
-          {!resetArmed ? (
-            <button
-              onClick={armReset}
-              className="w-full px-4 py-2.5 text-sm font-semibold text-red-600 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 active:bg-red-200 transition-colors"
-            >
-              {t("studio.dizaynni_bekor_qilish")}
-            </button>
-          ) : (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
-              <p className="text-sm font-semibold text-red-700">
-                {t("studio.dizaynni_bekor_tasdiq")}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={cancelReset}
-                  className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  {t("common.bekor")}
-                </button>
-                <button
-                  onClick={confirmReset}
-                  className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  {t("studio.ha_ochirish")}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </aside>
   );

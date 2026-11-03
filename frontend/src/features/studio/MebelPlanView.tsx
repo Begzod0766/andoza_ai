@@ -24,6 +24,7 @@ import { isAbcdRoom, offsetPolygon, planPolygon, svgPoints } from '@/lib/planPol
 import { FurnitureSymbol } from '@/lib/catalogIcons'
 import { FUR_WALL_GAP } from '@/lib/furnitureBounds'
 import { resolveFurnitureMove, type Obstacle } from '@/lib/furnitureCollision'
+import { wallNumber } from '@/lib/wallLabel'
 
 type ElType = WallElement['type']
 
@@ -748,7 +749,7 @@ export function MebelPlanView() {
                       style={{ cursor: 'grab' }}
                       tabIndex={0}
                       role="button"
-                      aria-label={t('studio.opening.aria', { name: el.type === 'eshik' ? t('studio.shared.eshik') : el.type === 'deraza' ? t('studio.shared.deraza') : t('studio.shared.balkon'), wall: wall.id })}
+                      aria-label={t('studio.opening.aria', { name: el.type === 'eshik' ? t('studio.shared.eshik') : el.type === 'deraza' ? t('studio.shared.deraza') : t('studio.shared.balkon'), wall: wallNumber(wall.id) })}
                       className="kbd-focusable"
                       onPointerDown={(e) => startDrag(wall, el, e)}
                       onKeyDown={handleOpeningKeyDown}
@@ -917,7 +918,7 @@ export function MebelPlanView() {
                 const mz = (e.z1 + e.z2) / 2
                 return (
                   <text key={e.id} x={mx - e.nx * (T + 330)} y={mz - e.nz * (T + 330)} textAnchor="middle" dominantBaseline="middle" fontSize={210}>
-                    {e.id} · {formatDecimal(e.len / 1000, 1)} m
+                    {wallNumber(e.id)} · {formatDecimal(e.len / 1000, 1)} m
                   </text>
                 )
               })}

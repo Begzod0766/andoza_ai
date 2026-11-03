@@ -26,6 +26,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { StudioMenu } from "@/components/studio/StudioMenu";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
+import { DiscardDesignMenuItem } from "@/components/studio/DiscardDesignMenuItem";
 
 // Read live at navigation time (not from the last render): a save marks the
 // store clean and may navigate in the same tick.
@@ -615,6 +616,7 @@ export default function StudioPage() {
             <div className="relative">
               <StudioMenu ref={menuButtonRef} open={menuOpen} onOpenChange={setMenuOpen}>
                 <div ref={setMenuSlotEl} />
+                <DiscardDesignMenuItem roomId={room.id} onDone={() => setMenuOpen(false)} />
                 {room.id !== 'local' && (
                   <button
                     onClick={handleShareClick}

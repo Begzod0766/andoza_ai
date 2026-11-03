@@ -37,6 +37,7 @@ import { liveOpeningDrag } from '@/lib/liveOpeningDrag'
 import { wallDefsFromVertices } from '@/lib/wallDefsFromVertices'
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { LEAF_FACE_DEPTH } from "./DoorLeaves";
+import { wallNumber } from "@/lib/wallLabel";
 
 export interface OpeningSel { wallId: string; elId: string }
 
@@ -349,7 +350,7 @@ export function WallOpenings({
               <Html position={[px, py, pz]} center zIndexRange={[200, 0]} style={{ pointerEvents: 'none' }}>
                 <button
                   type="button"
-                  aria-label={t('studio.opening.aria', { name: isDoor ? t('studio.shared.eshik') : el.type === 'balkon' ? t('studio.shared.balkon_eshigi') : t('studio.shared.deraza'), wall: w.id })}
+                  aria-label={t('studio.opening.aria', { name: isDoor ? t('studio.shared.eshik') : el.type === 'balkon' ? t('studio.shared.balkon_eshigi') : t('studio.shared.deraza'), wall: wallNumber(w.id) })}
                   // Both stops matter, and for a reason that is easy to miss:
                   // R3F listens on a DIV that is this button's ANCESTOR, and
                   // its default hit test reads `offsetX/offsetY` — which are

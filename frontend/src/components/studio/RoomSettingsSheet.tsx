@@ -10,6 +10,7 @@ import { WindowElevation } from "@/features/studio/WindowElevation";
 import NewWindowSheet from "./NewWindowSheet";
 import { hasAbcdWalls } from "@/lib/roomDims";
 import { RoomTypePicker } from "./RoomTypePicker";
+import { wallNumber } from "@/lib/wallLabel";
 
 // Keeps Tab cycling inside the sheet instead of leaking out to the page
 // behind the backdrop while it's open.
@@ -39,7 +40,7 @@ const WALL_LABEL_KEYS = {
 
 /** "Devor A (uzunlik)" for the wizard's four walls, "Devor 3" for a drawn room's. */
 function wallLabel(t: TFunction, id: string): string {
-  return id in WALL_LABEL_KEYS ? t(WALL_LABEL_KEYS[id as keyof typeof WALL_LABEL_KEYS]) : t("studio.shared.wall_n", { id });
+  return id in WALL_LABEL_KEYS ? t(WALL_LABEL_KEYS[id as keyof typeof WALL_LABEL_KEYS]) : t("studio.shared.wall_n", { id: wallNumber(id) });
 }
 
 // position: 0 is a placeholder here, not a real placement — positionAuto:

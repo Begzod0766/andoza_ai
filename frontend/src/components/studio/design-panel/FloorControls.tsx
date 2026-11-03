@@ -71,7 +71,7 @@ export function FloorPatternGroup() {
 
   return (
     <div className="mt-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("studio.dp.pattern")}</h3>
+      <h3 className="text-sm font-semibold text-ink mb-2">{t("studio.dp.pattern")}</h3>
       <div className="grid grid-cols-3 gap-2">
         {FLOOR_PATTERN_DEFS.map((def) => {
           const active = floorPattern?.id === def.id;
@@ -80,7 +80,7 @@ export function FloorPatternGroup() {
               key={def.id}
               onClick={() => applyPattern(def.id)}
               className={`rounded-card border-2 p-1 pb-1.5 text-left transition-colors ${
-                active ? "border-brand bg-brand/10" : "border-gray-200 hover:border-brand/40"
+                active ? "border-brand bg-brand/10" : "border-line hover:border-brand/40"
               }`}
               title={t(def.labelKey)}
             >
@@ -89,7 +89,7 @@ export function FloorPatternGroup() {
                 color={floorPattern?.settings?.baseColor ?? baseColor}
                 textureUrl={activeTextureUrl}
               />
-              <span className={`block mt-1 text-[10px] leading-tight ${active ? "text-brand font-semibold" : "text-gray-600"}`}>
+              <span className={`block mt-1 text-[10px] leading-tight ${active ? "text-accent font-semibold" : "text-ink-muted"}`}>
                 {t(def.labelKey)}
               </span>
             </button>
@@ -106,7 +106,7 @@ export function FloorPatternGroup() {
           />
           <button
             onClick={() => setDesignState({ floorPattern: null })}
-            className="mt-2 w-full py-2 text-xs font-medium text-red-500 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded-card transition-colors"
+            className="mt-2 w-full py-2 text-xs font-medium text-red-500 hover:text-red-600 border border-line hover:border-red-300 rounded-card transition-colors"
           >
             {t("studio.dp.pattern_remove")}
           </button>
@@ -156,7 +156,7 @@ export function SkirtingGroup() {
 
   return (
     <div className="mt-5">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">{t("studio.shared.plintus")}</h3>
+      <h3 className="text-sm font-semibold text-ink mb-2">{t("studio.shared.plintus")}</h3>
       <div className="grid grid-cols-3 gap-2">
         {profiles.map((def) => {
           const on = !off && active.def.id === def.id;
@@ -166,11 +166,11 @@ export function SkirtingGroup() {
               onClick={() => pick(def)}
               title={trimLabel(def)}
               className={`rounded-card border-2 p-1 pb-1.5 text-left transition-colors ${
-                on ? "border-brand bg-brand/10" : "border-gray-200 hover:border-brand/40"
+                on ? "border-brand bg-brand/10" : "border-line hover:border-brand/40"
               }`}
             >
               <TrimThumb def={def} />
-              <span className={`block mt-1 text-[10px] leading-tight ${on ? "text-brand font-semibold" : "text-gray-600"}`}>
+              <span className={`block mt-1 text-[10px] leading-tight ${on ? "text-accent font-semibold" : "text-ink-muted"}`}>
                 {trimLabel(def)}
               </span>
             </button>
@@ -181,14 +181,14 @@ export function SkirtingGroup() {
       {off ? (
         <button
           onClick={() => setDesignState({ skirting: { id: profiles[0].id } })}
-          className="mt-2 w-full py-2 text-xs font-medium text-brand border border-gray-200 hover:border-brand/50 rounded-card transition-colors"
+          className="mt-2 w-full py-2 text-xs font-medium text-accent border border-line hover:border-brand/50 rounded-card transition-colors"
         >
           {t("studio.dp.skirting_add")}
         </button>
       ) : (
         <>
           <div className="mt-3 space-y-2.5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("studio.dp.settings")}</h3>
+            <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide">{t("studio.dp.settings")}</h3>
             <SettingSlider
               label={t("studio.dp.height")} unit={` ${t("studio.dp.unit_mm")}`} min={hRange.min} max={hRange.max} step={5}
               value={Math.round(active.heightM * 1000)}
@@ -202,7 +202,7 @@ export function SkirtingGroup() {
           </div>
           <button
             onClick={() => setDesignState({ skirting: null })}
-            className="mt-2 w-full py-2 text-xs font-medium text-red-500 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded-card transition-colors"
+            className="mt-2 w-full py-2 text-xs font-medium text-red-500 hover:text-red-600 border border-line hover:border-red-300 rounded-card transition-colors"
           >
             {t("studio.dp.skirting_remove")}
           </button>
@@ -256,7 +256,7 @@ export function TrimThumb({ def, detail = true, toScale = true }: {
         src={def.previewUrl}
         alt=""
         loading="lazy"
-        className="w-full aspect-square rounded-md bg-white object-contain p-0.5"
+        className="w-full aspect-square rounded-md bg-card object-contain p-0.5"
       />
     );
   }
@@ -279,7 +279,7 @@ export function TrimThumb({ def, detail = true, toScale = true }: {
   const floorY = 50 + (toScale ? refHMm * k : SPAN) / 2;
 
   return (
-    <svg viewBox="0 0 100 100" className="w-full aspect-square rounded-md bg-gray-50" aria-hidden>
+    <svg viewBox="0 0 100 100" className="w-full aspect-square rounded-md bg-card-soft" aria-hidden>
       <defs>
         {/* Milled timber rather than a flat cut-out: light along the top of
             the section, shading into the wall side. */}
@@ -367,9 +367,9 @@ function SettingSlider({ label, value, min, max, step, unit, onChange }: {
 }) {
   return (
     <label className="block">
-      <span className="flex justify-between text-xs text-gray-500 mb-0.5">
+      <span className="flex justify-between text-xs text-ink-muted mb-0.5">
         <span>{label}</span>
-        <span className="tabular-nums text-gray-700">{value}{unit}</span>
+        <span className="tabular-nums text-ink">{value}{unit}</span>
       </span>
       <input
         type="range"
@@ -394,7 +394,7 @@ function PatternSettings({ def, settings, typeColor, onPatch }: {
   const rotation = s.rotationDeg ?? 0;
   return (
     <div className="mt-3 space-y-2.5">
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("studio.dp.settings")}</h3>
+      <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide">{t("studio.dp.settings")}</h3>
       {def.usesLength && (
         <SettingSlider
           label={t("studio.dp.plank_length")} unit={` ${t("studio.dp.unit_cm")}`} min={10} max={300} step={1}
@@ -428,19 +428,19 @@ function PatternSettings({ def, settings, typeColor, onPatch }: {
         {/* With a texture on the planks the colour multiplies over the image
             (white = the image's own colours), so it stays useful for warming
             or darkening a photo instead of being ignored. */}
-        <span className="text-xs text-gray-500 flex-1">
+        <span className="text-xs text-ink-muted flex-1">
           {s.textureUrl ? t("studio.dp.color_over_texture") : t("studio.dp.wood_color")}
         </span>
         <input
           type="color"
           value={s.baseColor ?? (s.textureUrl ? "#ffffff" : typeColor)}
           onChange={(e) => onPatch({ baseColor: e.target.value })}
-          className="w-8 h-8 rounded-md border border-gray-200 cursor-pointer bg-transparent"
+          className="w-8 h-8 rounded-md border border-line cursor-pointer bg-transparent"
         />
         {s.baseColor && (
           <button
             onClick={() => onPatch({ baseColor: undefined })}
-            className="text-[10px] text-gray-400 hover:text-gray-600"
+            className="text-[10px] text-ink-muted hover:text-ink-muted"
             title={s.textureUrl ? t("studio.dp.reset_texture_color") : t("studio.dp.reset_floor_color")}
           >
             {t("studio.dp.reset_color")}
@@ -448,7 +448,7 @@ function PatternSettings({ def, settings, typeColor, onPatch }: {
         )}
       </div>
       <div>
-        <span className="text-xs text-gray-500 block mb-1">{t("studio.dp.rotation")}</span>
+        <span className="text-xs text-ink-muted block mb-1">{t("studio.dp.rotation")}</span>
         <div className="flex gap-1.5">
           {([0, 45, 90] as const).map((deg) => (
             <button
@@ -456,8 +456,8 @@ function PatternSettings({ def, settings, typeColor, onPatch }: {
               onClick={() => onPatch({ rotationDeg: deg })}
               className={`flex-1 py-1.5 text-xs rounded-md border transition-colors ${
                 rotation === deg
-                  ? "border-brand bg-brand/10 text-brand font-semibold"
-                  : "border-gray-200 text-gray-600 hover:border-brand/40"
+                  ? "border-brand bg-brand/10 text-accent font-semibold"
+                  : "border-line text-ink-muted hover:border-brand/40"
               }`}
             >
               {deg}°

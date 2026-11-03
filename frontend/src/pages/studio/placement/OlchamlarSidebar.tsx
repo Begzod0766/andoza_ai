@@ -4,6 +4,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import type { PlacedElectrical } from '@/store/roomStore'
 import { SOCKET_TYPES, SWITCH_TYPES, electricalShort } from './constants'
 import type { InnerTab } from './types'
+import { wallNumber } from '@/lib/wallLabel'
 
 // ─── Sidebar: O'lchamlar panel ────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ export function OlchamlarSidebar({ electricals, wireLengths }: {
                   <tr key={el.id} className="border-b border-gray-50 hover:bg-blue-50/40 transition-colors">
                     <td className="px-3 py-2 text-gray-700 truncate max-w-[80px]">{electricalShort(el.type)}</td>
                     <td className="px-2 py-2 text-center">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-[10px] font-bold text-blue-800">{el.wallId}</span>
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-[10px] font-bold text-blue-800">{wallNumber(el.wallId)}</span>
                     </td>
                     <td className="px-2 py-2 text-right font-mono text-gray-700">{formatDecimal(el.positionMm/1000, 2)}{t('common.m')}</td>
                     <td className="px-2 py-2 text-right font-mono text-blue-700 font-semibold">{formatDecimal(el.heightMm/1000, 2)}{t('common.m')}</td>

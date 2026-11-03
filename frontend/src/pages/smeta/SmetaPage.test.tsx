@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, within, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import SmetaPage from './SmetaPage'
@@ -389,7 +389,8 @@ describe('SmetaPage (furniture toggle, sticky total, actions)', () => {
     const { getRoom } = await import('@/lib/api')
     vi.mocked(getRoom).mockResolvedValueOnce({ id: 'room-1', apartment_id: 'apt-1', name: 'Xona', floor_area: 12 } as never)
     renderSmetaPage()
-    expect(await screen.findByText('Xona · 12 m²')).toBeInTheDocument()
+    expect(await screen.findByTestId('smeta-room')).toHaveTextContent('Xona')
+    expect(screen.getByText(/· 12 m²/)).toBeInTheDocument()
   })
 
   it('says when the chosen floor is left out for lack of a product', async () => {
@@ -478,5 +479,18 @@ describe('SmetaPage in English', () => {
     expect(screen.getByText(en.smeta.ha)).toBeTruthy()
     expect(screen.getAllByText(formatUZS(ESTIMATE_RESPONSE.total_uzs)).length).toBeGreaterThan(0)
     expect(formatUZS(ESTIMATE_RESPONSE.total_uzs)).toContain('UZS')
+  })
+
+  it('the 3D | Smeta control sits in the header with the room name, as on the 3D tab', async () => {
+    renderSmetaPage()
+    const header = screen.getByRole('banner')
+    expect(within(header).getByRole('button', { name: '3D' })).toBeInTheDocument()
+    expect(await within(header).findByText(/.+/, { selector: '[data-testid="smeta-room"]' })).toBeInTheDocument()
+  })
+
+  it('while the estimate loads it shows placeholder rows, not a bare Loading line', async () => {
+    previewEstimate.mockReturnValue(new Promise(() => {}))
+    renderSmetaPage()
+    expect(await screen.findByTestId('smeta-skeleton')).toBeInTheDocument()
   })
 })

@@ -19,6 +19,7 @@
 
 import type { RoomGeometry } from "@/store/roomStore";
 import i18n, { type TKey } from "@/i18n";
+import { wallNumber } from "@/lib/wallLabel";
 
 /** The resolved target key: "ALL", a real `Wall.id`, or one of the
  * non-wall sentinels ("FLOOR"/"CEILING") some surfaces also offer. */
@@ -79,7 +80,7 @@ export const FLOOR_TYPES = [
  * dead code, so the test stays in `roomDims` for the callers (the header, the
  * settings sheet's steppers) that genuinely have to pick a different layout. */
 function wallTarget(id: string): WallTargetOption {
-  return { key: id, labelKey: "studio.shared.wall_n", values: { id } };
+  return { key: id, labelKey: "studio.shared.wall_n", values: { id: wallNumber(id) } };
 }
 
 /** Build the "ALL" + one-entry-per-actual-wall target list from the room's

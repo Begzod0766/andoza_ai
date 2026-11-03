@@ -196,7 +196,11 @@
       "kameralar": "Kameralar",
       "tahrirlashni_yoqish": "Tahrirlashni yoqish",
       "tahrirlashni_qulflash": "Tahrirlashni qulflash",
-      "xonani_ochirish_tasdiq": "\"{{name}}\" xonasini o'chirishni tasdiqlaysizmi?"
+      "xonani_ochirish_tasdiq": "\"{{name}}\" xonasini o'chirishni tasdiqlaysizmi?",
+      "kvartira": "Kvartira",
+      "xona": "Xona",
+      "tahrir_yopiq": "Tahrirlash: yopiq",
+      "tahrir_ochiq": "Tahrirlash: ochiq"
     },
     "radial": {
       "rang": "Rang",
@@ -958,7 +962,9 @@
       "rotate_left": "15° chapga burish",
       "rotate_right": "15° o'ngga burish",
       "size_pct": "O'lcham %"
-    }
+    },
+    "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
+    "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang."
   },
   "smeta": {
     "sarlavha": "Smeta",

@@ -16,6 +16,7 @@ import { MiniSymbol } from './icons'
 import { WallOpenings, WallOpeningsMask } from './WallOpenings'
 import { DimensionOverlay, PolyDimensionOverlay } from './DimensionOverlay'
 import type { TabId, WallHover, WireConfig } from './types'
+import { wallNumber } from '@/lib/wallLabel'
 
 // ─── Floor plan SVG ────────────────────────────────────────────────────────────
 
@@ -251,7 +252,7 @@ export function FloorPlan({
             return (
               <text key={e.id} x={mx - e.nx * 22} y={my - e.nz * 22} fill="#888" fontFamily="sans-serif"
                 textAnchor="middle" dominantBaseline="middle" fontSize="10" fontWeight="bold">
-                {e.id} · {formatDecimal(e.len / 1000, 1)} {tr('common.m')}
+                {wallNumber(e.id)} · {formatDecimal(e.len / 1000, 1)} {tr('common.m')}
               </text>
             )
           })}
@@ -414,7 +415,7 @@ export function FloorPlan({
             }
 
             const elLabel = electricalLabel(el.type)
-            const elAriaLabel = tr('studio.placement.el_aria', { name: elLabel, wall: el.wallId })
+            const elAriaLabel = tr('studio.placement.el_aria', { name: elLabel, wall: wallNumber(el.wallId) })
 
             if (el.type === 'panel') {
               return (

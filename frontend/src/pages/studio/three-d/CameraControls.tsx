@@ -109,11 +109,14 @@ export function CameraAnimator({
   position,
   controlsRef,
   version,
+  instant = false,
 }: {
   target: [number, number, number];
   position: [number, number, number];
   controlsRef: RefObject<OrbitControlsImpl | null>;
   version: number;
+  /** Jump instead of gliding (the system asks for reduced motion). */
+  instant?: boolean;
 }) {
   const { camera } = useThree();
   const targetPos = useMemo(() => new THREE.Vector3(...position), [position]);
@@ -163,9 +166,9 @@ export function CameraAnimator({
 
   useFrame(() => {
     if (!isAnimating.current || userDragging.current) return;
-    camera.position.lerp(targetPos, 0.1);
+    camera.position.lerp(targetPos, instant ? 1 : 0.1);
     if (controlsRef.current) {
-      controlsRef.current.target.lerp(targetLookAt, 0.1);
+      controlsRef.current.target.lerp(targetLookAt, instant ? 1 : 0.1);
       controlsRef.current.update();
     }
     // Stop when close enough

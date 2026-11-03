@@ -43,20 +43,20 @@ function PartRow({ mat, busy, onFiles, onPick }: {
     <div
       {...dropProps}
       className={`flex items-center gap-2 border rounded-xl px-3 py-2 transition-colors ${
-        isOver ? 'border-brand bg-brand/10 border-dashed' : 'border-gray-200'
+        isOver ? 'border-brand bg-brand/10 border-dashed' : 'border-line'
       }`}
     >
       <span className={`w-2 h-2 rounded-full shrink-0 ${
-        mat.textured ? 'bg-green-500' : mat.hasMap ? 'bg-amber-400' : 'bg-gray-300'
+        mat.textured ? 'bg-green-500' : mat.hasMap ? 'bg-amber-400' : 'bg-ink/10'
       }`} />
-      <span className="flex-1 text-[12px] font-medium text-gray-800 truncate" title={mat.name}>
+      <span className="flex-1 text-[12px] font-medium text-ink truncate" title={mat.name}>
         {isOver ? t('studio.mebel.drop_here') : mat.name}
       </span>
       {!mat.hasUVs && (
-        <span className="text-[9px] font-bold text-red-500 bg-red-50 px-1 rounded shrink-0" title={t('studio.mebel.no_uv_title')}>{t('studio.mebel.no_uv')}</span>
+        <span className="text-[9px] font-bold text-red-500 bg-red-500/10 px-1 rounded shrink-0" title={t('studio.mebel.no_uv_title')}>{t('studio.mebel.no_uv')}</span>
       )}
       <span
-        className={`text-[10px] shrink-0 ${mat.hasMap && !mat.textured ? 'text-amber-600' : 'text-gray-500'}`}
+        className={`text-[10px] shrink-0 ${mat.hasMap && !mat.textured ? 'text-warn' : 'text-ink-muted'}`}
         title={mat.hasMap && !mat.textured ? t('studio.mebel.invisible_title') : undefined}
       >
         {mat.textured ? t('studio.mebel.textured') : mat.hasMap ? t('studio.mebel.invisible') : t('studio.mebel.none')}
@@ -64,7 +64,7 @@ function PartRow({ mat, busy, onFiles, onPick }: {
       <button
         onClick={onPick}
         disabled={busy}
-        className="shrink-0 text-[11px] font-semibold text-brand border border-brand/30 rounded-lg px-2 py-1 hover:bg-brand/5 disabled:opacity-40"
+        className="shrink-0 text-[11px] font-semibold text-accent border border-brand/30 rounded-lg px-2 py-1 hover:bg-brand/5 disabled:opacity-40"
       >
         {busy ? '⏳' : t('studio.mebel.image_btn')}
       </button>
@@ -134,34 +134,34 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
       {...(canTexture ? dropProps : {})}
       className={`relative flex flex-col rounded-xl border-2 overflow-hidden transition-all
         ${isOver ? 'border-brand border-dashed bg-brand/5'
-                 : count > 0 ? 'border-brand shadow-sm' : 'border-gray-200 hover:border-brand/40'}`}
+                 : count > 0 ? 'border-brand shadow-sm' : 'border-line hover:border-brand/40'}`}
     >
       {/* Thumbnail — a real render of the model when available, else the symbol of its kind */}
       <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center h-20 text-4xl select-none overflow-hidden">
         {!isOver && entry.thumbnailUrl ? (
           <img src={entry.thumbnailUrl} alt={entry.name} className="w-full h-full object-cover" />
         ) : (
-          isOver ? <ImagePlus size={34} strokeWidth={1.5} className="text-gray-500" aria-hidden="true" /> : <FurnitureSymbol emoji={entry.emoji} size={36} strokeWidth={1.5} className="text-gray-500" />
+          isOver ? <ImagePlus size={34} strokeWidth={1.5} className="text-ink-muted" aria-hidden="true" /> : <FurnitureSymbol emoji={entry.emoji} size={36} strokeWidth={1.5} className="text-ink-muted" />
         )}
         {entry.isUser && !entry.modelPath && (
-          <span className="absolute top-1 right-1 text-[9px] bg-amber-100 text-amber-600 px-1 rounded">{t('studio.mebel.uploading')}</span>
+          <span className="absolute top-1 right-1 text-[9px] bg-warn/15 text-warn px-1 rounded">{t('studio.mebel.uploading')}</span>
         )}
         {entry.isShop && !entry.modelPath && (
-          <span className="absolute top-1 right-1 text-[9px] bg-amber-100 text-amber-600 px-1 rounded">{t('studio.mebel.no_model')}</span>
+          <span className="absolute top-1 right-1 text-[9px] bg-warn/15 text-warn px-1 rounded">{t('studio.mebel.no_model')}</span>
         )}
         {entry.isUser && !entry.hasTextures && entry.modelPath && (
-          <span className="absolute top-1 right-1" title={t('studio.mebel.no_texture')}><AlertTriangle size={13} className="text-amber-500" aria-label={t('studio.mebel.no_texture')} /></span>
+          <span className="absolute top-1 right-1" title={t('studio.mebel.no_texture')}><AlertTriangle size={13} className="text-warn" aria-label={t('studio.mebel.no_texture')} /></span>
         )}
       </div>
 
       {/* Info */}
       <div className="px-2 py-1.5 flex-1">
-        <p className="text-[11px] font-semibold text-gray-900 leading-tight line-clamp-2">
+        <p className="text-[11px] font-semibold text-ink leading-tight line-clamp-2">
           {isOver ? t('studio.mebel.apply_texture') : entry.name}
         </p>
-        <p className="text-[10px] text-gray-500 mt-0.5">{entry.sizeM.w}×{entry.sizeM.d} m</p>
+        <p className="text-[10px] text-ink-muted mt-0.5">{entry.sizeM.w}×{entry.sizeM.d} m</p>
         {entry.isShop && (
-          <p className="text-[10px] text-gray-500 mt-0.5 truncate" title={entry.storeName ?? undefined}>
+          <p className="text-[10px] text-ink-muted mt-0.5 truncate" title={entry.storeName ?? undefined}>
             <Store size={11} className="mr-1 inline -mt-0.5" aria-hidden="true" />{entry.storeName ?? t('studio.mebel.no_shop')}
             {entry.priceUzs != null && ` · ${t('studio.shared.price_som', { price: entry.priceUzs.toLocaleString(intlLocale()) })}`}
           </p>
@@ -172,7 +172,7 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setInquiryOpen(true); }}
-              className="mt-1 w-full rounded-md border border-brand/30 px-1.5 py-0.5 text-center text-[10px] font-semibold text-brand hover:bg-brand/5"
+              className="mt-1 w-full rounded-md border border-brand/30 px-1.5 py-0.5 text-center text-[10px] font-semibold text-accent hover:bg-brand/5"
             >
               {t('studio.inquiry.title')}
             </button>
@@ -190,7 +190,7 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
           <select
             value={entry.category ?? 'boshqa'}
             onChange={(e) => onRecategorize(e.target.value as FurnitureCategory)}
-            className="mt-1 w-full text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 hover:border-brand/40 focus:border-brand focus:outline-none"
+            className="mt-1 w-full text-[10px] text-ink-muted bg-card-soft border border-line rounded px-1 py-0.5 hover:border-brand/40 focus:border-brand focus:outline-none"
             title={t('studio.mebel.change_category')}
           >
             {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
@@ -202,7 +202,7 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
           <select
             value={entry.placement ?? 'pol'}
             onChange={(e) => onSetPlacement(e.target.value as FurniturePlacement)}
-            className="mt-1 w-full text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 hover:border-brand/40 focus:border-brand focus:outline-none"
+            className="mt-1 w-full text-[10px] text-ink-muted bg-card-soft border border-line rounded px-1 py-0.5 hover:border-brand/40 focus:border-brand focus:outline-none"
             title={t('studio.mebel.placement')}
           >
             {Object.entries(PLACEMENT_LABELS).map(([k, v]) => (
@@ -211,14 +211,14 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
           </select>
         )}
         {entry.isUser && onSetPrice && (
-          <label className="mt-1 flex items-center gap-1 text-[10px] text-gray-500">
+          <label className="mt-1 flex items-center gap-1 text-[10px] text-ink-muted">
             <input
               type="number"
               min={0}
               step={1000}
               value={entry.priceUzs ?? 0}
               onChange={(e) => onSetPrice(Math.max(0, Number(e.target.value) || 0))}
-              className="w-full text-[10px] text-gray-500 bg-gray-50 border border-gray-200 rounded px-1 py-0.5 hover:border-brand/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+              className="w-full text-[10px] text-ink-muted bg-card-soft border border-line rounded px-1 py-0.5 hover:border-brand/40 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
               title={t('studio.mebel.price_title')}
             />
             <span className="shrink-0">{t('studio.mebel.currency')}</span>
@@ -234,11 +234,11 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
       )}
 
       {/* Actions row */}
-      <div className="flex border-t border-gray-100">
+      <div className="flex border-t border-line">
         <button
           onClick={() => ready && onPlace()}
           disabled={!ready}
-          className="flex-1 py-1.5 text-brand text-sm font-bold hover:bg-brand/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 py-1.5 text-accent text-sm font-bold hover:bg-brand/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title={t('studio.add.add')}
         >
           {t('studio.add.add_plus')}
@@ -247,14 +247,14 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
           <button
             onClick={onOpenTexEditor}
             disabled={busy}
-            className="px-2 border-l border-gray-100 text-gray-400 hover:text-brand transition-colors text-xs"
+            className="px-2 border-l border-line text-ink-muted hover:text-accent transition-colors text-xs"
             title={t('studio.mebel.tex_manage_title')}
            aria-label={t('studio.mebel.tex_manage')}>{busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <ImagePlus size={14} aria-hidden="true" />}</button>
         )}
         {entry.isUser && (
           <button
             onClick={onRemove}
-            className="px-2 border-l border-gray-100 text-red-600 hover:text-red-700 transition-colors text-xs"
+            className="px-2 border-l border-line text-red-600 hover:text-red-700 transition-colors text-xs"
             title={t('studio.mebel.delete_model')}
             aria-label={t('studio.mebel.delete_model')}
           >✕</button>
@@ -411,7 +411,7 @@ export function MebelSection() {
 
   return (
     <section className="relative rounded-xl">
-      <h3 className="text-sm font-semibold text-gray-900 mb-2">{t('studio.mebel.models')}</h3>
+      <h3 className="text-sm font-semibold text-ink mb-2">{t('studio.mebel.models')}</h3>
 
       {/* Category chips */}
       <div className="flex gap-1.5 flex-wrap mb-3">
@@ -422,7 +422,7 @@ export function MebelSection() {
             className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors whitespace-nowrap ${
               furnitureCat === c.key
                 ? 'bg-brand text-white border-brand'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-brand/50 hover:text-brand'
+                : 'bg-card text-ink-muted border-line hover:border-brand/50 hover:text-accent'
             }`}
           >
             {c.label}
@@ -514,19 +514,19 @@ export function MebelSection() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={texEditorTitleId}
-            className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-4"
+            className="w-full max-w-sm bg-card rounded-2xl shadow-2xl p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">
-              <p id={texEditorTitleId} className="text-sm font-bold text-gray-900 truncate">{texEditor.name}</p>
+              <p id={texEditorTitleId} className="text-sm font-bold text-ink truncate">{texEditor.name}</p>
               <button
                 ref={texEditorCloseRef}
                 onClick={() => setTexEditor(null)}
                 aria-label={t('common.yopish')}
-                className="text-gray-400 hover:text-gray-600 font-bold px-1"
+                className="text-ink-muted hover:text-ink-muted font-bold px-1"
               >✕</button>
             </div>
-            <p className="text-[11px] text-gray-500 mb-3">
+            <p className="text-[11px] text-ink-muted mb-3">
               {t('studio.mebel.parts_count', { count: texEditor.mats.length })} {t('studio.mebel.parts_hint')}
             </p>
             <div className="max-h-72 overflow-y-auto space-y-1.5">
@@ -543,7 +543,7 @@ export function MebelSection() {
             <button
               onClick={() => { texTargetRef.current = { entryId: texEditor.entryId }; texInputRef.current?.click(); }}
               disabled={texBusy === texEditor.entryId}
-              className="mt-3 w-full text-[12px] font-semibold text-gray-600 border border-gray-200 rounded-xl py-2 hover:border-brand/40 hover:text-brand disabled:opacity-40"
+              className="mt-3 w-full text-[12px] font-semibold text-ink-muted border border-line rounded-xl py-2 hover:border-brand/40 hover:text-accent disabled:opacity-40"
             >
               {t('studio.mebel.one_image_all')}
             </button>
@@ -555,7 +555,7 @@ export function MebelSection() {
 
       {furniture.length > 0 && (
         <div className="mt-3 space-y-1">
-          <p className="text-xs text-gray-500 font-medium mb-1">{t('studio.mebel.placed')}</p>
+          <p className="text-xs text-ink-muted font-medium mb-1">{t('studio.mebel.placed')}</p>
           {furniture.map((f) => {
             const staticEntry = FURNITURE_CATALOG.find((c) => c.id === f.furniture_id) as FurnitureCatalogEntry | undefined;
             const userEntry = userFurniture.find((c) => c.id === f.furniture_id);
@@ -574,33 +574,33 @@ export function MebelSection() {
             const actualW = formatDecimal((entry?.sizeM.w ?? shopSizeM?.w ?? 0) * so, 2);
             const actualD = formatDecimal((entry?.sizeM.d ?? shopSizeM?.d ?? 0) * so, 2);
             return (
-              <div key={f.id} className="border border-gray-100 rounded-lg overflow-hidden mb-1">
-                <div className="flex items-center gap-2 text-xs px-2 py-1.5 bg-gray-50">
-                  <span className="text-gray-600"><FurnitureSymbol emoji={entry?.emoji ?? (shopEntry ? '🏪' : '📦')} size={15} /></span>
-                  <span className="flex-1 text-gray-700 truncate font-medium">{entry?.name ?? f.name ?? shopEntry?.name_uz ?? t('studio.mebel.model')}</span>
-                  <span className="text-[10px] text-gray-500 tabular-nums shrink-0">{actualW}×{actualD} m</span>
+              <div key={f.id} className="border border-line rounded-lg overflow-hidden mb-1">
+                <div className="flex items-center gap-2 text-xs px-2 py-1.5 bg-card-soft">
+                  <span className="text-ink-muted"><FurnitureSymbol emoji={entry?.emoji ?? (shopEntry ? '🏪' : '📦')} size={15} /></span>
+                  <span className="flex-1 text-ink truncate font-medium">{entry?.name ?? f.name ?? shopEntry?.name_uz ?? t('studio.mebel.model')}</span>
+                  <span className="text-[10px] text-ink-muted tabular-nums shrink-0">{actualW}×{actualD} m</span>
                   <button
                     onClick={() => setColorEditorId(isEditing ? null : f.id)}
                     title={t('studio.mebel.change_color')}
-                    className={`text-sm leading-none transition-colors ${isEditing ? 'text-brand' : hasOverrides ? 'text-amber-500' : 'text-gray-300 hover:text-gray-500'}`}
+                    className={`text-sm leading-none transition-colors ${isEditing ? 'text-accent' : hasOverrides ? 'text-warn' : 'text-ink-muted hover:text-ink-muted'}`}
                    aria-label={t('studio.mebel.change_color')}><Palette size={15} aria-hidden="true" /></button>
-                  <button onClick={() => removeFurniture(f.id)} className="text-gray-400 hover:text-red-500 transition-colors text-sm leading-none" title={t('common.ochirish')}>✕</button>
+                  <button onClick={() => removeFurniture(f.id)} className="text-ink-muted hover:text-red-500 transition-colors text-sm leading-none" title={t('common.ochirish')}>✕</button>
                 </div>
 
                 {isEditing && (
-                  <div className="px-2 py-1.5 space-y-1.5 bg-gray-50 border-t border-gray-100">
+                  <div className="px-2 py-1.5 space-y-1.5 bg-card-soft border-t border-line">
                     {slots ? slots.map((slot) => {
                       const current = f.colorOverrides?.[slot.name] ?? '#ffffff';
                       const slotInputId = `furniture-color-${f.id}-${slot.name}`;
                       return (
                         <div key={slot.name} className="flex items-center gap-2">
-                          <label htmlFor={slotInputId} className="text-xs text-gray-500 w-16 shrink-0">{t(slot.labelKey)}</label>
+                          <label htmlFor={slotInputId} className="text-xs text-ink-muted w-16 shrink-0">{t(slot.labelKey)}</label>
                           <input
                             id={slotInputId}
                             type="color"
                             value={current}
                             onChange={(e) => setFurnitureColors(f.id, { ...(f.colorOverrides ?? {}), [slot.name]: e.target.value })}
-                            className="h-6 w-10 rounded border border-gray-200 cursor-pointer"
+                            className="h-6 w-10 rounded border border-line cursor-pointer"
                           />
                           {current !== '#ffffff' && (
                             <button
@@ -609,7 +609,7 @@ export function MebelSection() {
                                 delete rest[slot.name];
                                 setFurnitureColors(f.id, rest);
                               }}
-                              className="text-xs text-gray-400 hover:text-red-400"
+                              className="text-xs text-ink-muted hover:text-red-400"
                               title={t('studio.mebel.reset_color')}
                             >↺</button>
                           )}
@@ -617,13 +617,13 @@ export function MebelSection() {
                       );
                     }) : (
                       <div className="flex items-center gap-2">
-                        <label htmlFor={`furniture-color-${f.id}-single`} className="text-xs text-gray-500 w-16 shrink-0">{t('studio.mebel.color')}</label>
+                        <label htmlFor={`furniture-color-${f.id}-single`} className="text-xs text-ink-muted w-16 shrink-0">{t('studio.mebel.color')}</label>
                         <input
                           id={`furniture-color-${f.id}-single`}
                           type="color"
                           value={f.colorOverrides?.['*'] ?? '#ffffff'}
                           onChange={(e) => setFurnitureColors(f.id, { '*': e.target.value })}
-                          className="h-6 w-10 rounded border border-gray-200 cursor-pointer"
+                          className="h-6 w-10 rounded border border-line cursor-pointer"
                         />
                       </div>
                     )}

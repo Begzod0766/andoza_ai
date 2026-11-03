@@ -2,6 +2,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ElectricalType, PlacedElectrical } from "@/store/roomStore";
+import { wallNumber } from "@/lib/wallLabel";
 
 /** What each electrical point is called, in the order they are listed. */
 const ELECTRICAL_LABELS = {
@@ -17,7 +18,7 @@ const ORDER = Object.keys(ELECTRICAL_LABELS) as ElectricalType[];
 
 /** Where on the wall, in the units a person measures with: "Devor A · 30 sm balandlikda". */
 function describe(t: TFunction, e: PlacedElectrical): string {
-  return t("studio.dp.el_where", { wall: e.wallId, cm: Math.round(e.heightMm / 10) });
+  return t("studio.dp.el_where", { wall: wallNumber(e.wallId), cm: Math.round(e.heightMm / 10) });
 }
 
 /**
@@ -34,8 +35,8 @@ export function MontajSection() {
   if (electricals.length === 0) {
     return (
       <section className="space-y-2 py-6 text-center">
-        <p className="text-sm font-semibold text-gray-900">{t("studio.dp.el_none")}</p>
-        <p className="text-[11px] leading-snug text-gray-500">
+        <p className="text-sm font-semibold text-ink">{t("studio.dp.el_none")}</p>
+        <p className="text-[11px] leading-snug text-ink-muted">
           {t("studio.dp.el_none_text")}
         </p>
       </section>
@@ -49,24 +50,24 @@ export function MontajSection() {
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="mb-1 text-sm font-semibold text-gray-900">{t("studio.dp.el_title", { n: electricals.length })}</h3>
-        <p className="text-[11px] leading-snug text-gray-500">
+        <h3 className="mb-1 text-sm font-semibold text-ink">{t("studio.dp.el_title", { n: electricals.length })}</h3>
+        <p className="text-[11px] leading-snug text-ink-muted">
           {t("studio.dp.el_hint")}
         </p>
       </div>
 
       {groups.map(({ type, items }) => (
         <div key={type}>
-          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-gray-500">
+          <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">
             {t(ELECTRICAL_LABELS[type])} · {items.length}
           </span>
           <ul className="space-y-1">
             {items.map((e) => (
               <li
                 key={e.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2"
               >
-                <span className="text-[12px] text-gray-700">{describe(t, e)}</span>
+                <span className="text-[12px] text-ink">{describe(t, e)}</span>
                 <button
                   type="button"
                   onClick={() => removeElectrical(e.id)}

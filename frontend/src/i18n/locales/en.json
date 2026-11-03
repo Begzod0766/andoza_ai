@@ -196,7 +196,11 @@
       "kameralar": "Cameras",
       "tahrirlashni_yoqish": "Enable editing",
       "tahrirlashni_qulflash": "Lock editing",
-      "xonani_ochirish_tasdiq": "Confirm deleting the room \"{{name}}\""
+      "xonani_ochirish_tasdiq": "Confirm deleting the room \"{{name}}\"",
+      "kvartira": "Flat",
+      "xona": "Room",
+      "tahrir_yopiq": "Editing: off",
+      "tahrir_ochiq": "Editing: on"
     },
     "radial": {
       "rang": "Color",
@@ -958,7 +962,9 @@
       "rotate_left": "Rotate 15° left",
       "rotate_right": "Rotate 15° right",
       "size_pct": "Size %"
-    }
+    },
+    "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
+    "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material."
   },
   "smeta": {
     "sarlavha": "Estimate",

@@ -62,8 +62,8 @@ export function CeilingTargetPanel({ syncToApi }: {
   return (
     <>
       <section>
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">{t("studio.radial.shift_turi")}</h3>
-        <p className="text-xs text-gray-500 mb-3">
+        <h3 className="text-sm font-semibold text-ink mb-1">{t("studio.radial.shift_turi")}</h3>
+        <p className="text-xs text-ink-muted mb-3">
           {t("studio.dp.ceiling_hint")}
         </p>
         <div className="space-y-2">
@@ -74,7 +74,7 @@ export function CeilingTargetPanel({ syncToApi }: {
                 key={cd.id}
                 onClick={() => handleSetCeilingDesign(cd.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-card border-2 transition-colors ${
-                  active ? "border-brand bg-brand/10" : "border-gray-200 hover:border-brand/40"
+                  active ? "border-brand bg-brand/10" : "border-line hover:border-brand/40"
                 }`}
               >
                 <span className="flex items-start gap-2.5">
@@ -83,17 +83,17 @@ export function CeilingTargetPanel({ syncToApi }: {
                     className="w-12 h-8 flex-shrink-0 mt-0.5"
                   />
                   <span className="min-w-0">
-                    <span className={`block text-sm ${active ? "text-brand font-semibold" : "text-gray-700"}`}>
+                    <span className={`block text-sm ${active ? "text-accent font-semibold" : "text-ink"}`}>
                       {t(cd.labelKey)}
                     </span>
-                    <span className="block text-xs text-gray-500 mt-0.5 leading-snug">{t(cd.hintKey)}</span>
+                    <span className="block text-xs text-ink-muted mt-0.5 leading-snug">{t(cd.hintKey)}</span>
                     {/* The fixtures that belong with this profile — the pairing
                         is half of what makes each one look like itself. */}
                     <span className="flex flex-wrap gap-1 mt-1.5">
                       {cd.lighting.map((id) => (
                         <span
                           key={id}
-                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200"
+                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-card-soft text-ink-muted border border-line"
                         >
                           <LightSymbol type={id} size={11} className="mr-1 inline -mt-0.5" />{t(lightType(id).nameKey)}
                         </span>
@@ -111,11 +111,11 @@ export function CeilingTargetPanel({ syncToApi }: {
           for it, and a slider that does nothing is worse than no slider. */}
       {activeCeiling.uses.some((k) => k !== 'color') && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-900">{t("studio.dp.settings")}</h3>
+          <h3 className="text-sm font-semibold text-ink">{t("studio.dp.settings")}</h3>
 
           {activeCeiling.uses.includes('strip') && (
             <label className="flex items-center justify-between gap-3 cursor-pointer">
-              <span className="text-xs text-gray-600 font-medium">{t("studio.dp.hidden_led")}</span>
+              <span className="text-xs text-ink-muted font-medium">{t("studio.dp.hidden_led")}</span>
               <input
                 type="checkbox"
                 checked={ceilingSettings.strip}
@@ -134,8 +134,8 @@ export function CeilingTargetPanel({ syncToApi }: {
               return (
                 <div key={key}>
                   <div className="flex justify-between items-center mb-1">
-                    <label htmlFor={inputId} className="text-xs text-gray-600 font-medium">{t(range.labelKey)}</label>
-                    <span className="text-xs text-gray-500 tabular-nums">
+                    <label htmlFor={inputId} className="text-xs text-ink-muted font-medium">{t(range.labelKey)}</label>
+                    <span className="text-xs text-ink-muted tabular-nums">
                       {ceilingSettings[key]} {range.unit === 'mm' ? t('studio.dp.unit_mm') : range.unit}
                     </span>
                   </div>
@@ -154,7 +154,7 @@ export function CeilingTargetPanel({ syncToApi }: {
             })}
 
           <div>
-            <span className="text-xs text-gray-600 font-medium block mb-1.5">{t("studio.dp.ceiling_color")}</span>
+            <span className="text-xs text-ink-muted font-medium block mb-1.5">{t("studio.dp.ceiling_color")}</span>
             <div className="flex flex-wrap gap-1.5" role="listbox" aria-label={t("studio.dp.ceiling_color")}>
               {["#FFFFFF", "#F4F1EA", "#EDE9E0", "#E3E6E8", "#D8D3C8"].map((c) => {
                 const active = ceilingSettings.color === c;
@@ -170,7 +170,7 @@ export function CeilingTargetPanel({ syncToApi }: {
                     aria-selected={active}
                     role="option"
                     className={`w-11 h-11 rounded-full border-2 transition-colors ${
-                      active ? "border-brand" : "border-gray-200"
+                      active ? "border-brand" : "border-line"
                     }`}
                   />
                 );
@@ -184,11 +184,11 @@ export function CeilingTargetPanel({ syncToApi }: {
           priced whenever its setting is on, the same rule the estimate follows. */}
       {activeCeiling.id !== 'non_drop' && (
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-900">{t("studio.dokondan_tanlang")}</h3>
+          <h3 className="text-sm font-semibold text-ink">{t("studio.dokondan_tanlang")}</h3>
           <ShopPickList smetaKey="gipsokarton" title={t("studio.dp.shop_board")} />
           <ShopPickList smetaKey="profil" title={t("studio.dp.shop_profile")} />
           {ceilingSettings.strip && <ShopPickList smetaKey="led_lenta" title={t("studio.dp.shop_strip")} />}
-          <p className="text-[11px] text-gray-500">{t("studio.dp.shop_pick_note")}</p>
+          <p className="text-[11px] text-ink-muted">{t("studio.dp.shop_pick_note")}</p>
         </section>
       )}
 
@@ -236,8 +236,8 @@ export function CorniceGroup({ syncToApi }: { syncToApi: (ds: DesignState) => vo
 
   return (
     <section>
-      <h3 className="text-sm font-semibold text-gray-900 mb-1">{t("studio.dp.cornice")}</h3>
-      <p className="text-xs text-gray-500 mb-3">
+      <h3 className="text-sm font-semibold text-ink mb-1">{t("studio.dp.cornice")}</h3>
+      <p className="text-xs text-ink-muted mb-3">
         {t("studio.dp.cornice_hint")}
       </p>
       <div className="grid grid-cols-3 gap-2">
@@ -249,11 +249,11 @@ export function CorniceGroup({ syncToApi }: { syncToApi: (ds: DesignState) => vo
               onClick={() => pick(def)}
               title={trimLabel(def)}
               className={`rounded-card border-2 p-1 pb-1.5 text-left transition-colors ${
-                sel ? "border-brand bg-brand/10" : "border-gray-200 hover:border-brand/40"
+                sel ? "border-brand bg-brand/10" : "border-line hover:border-brand/40"
               }`}
             >
               <CorniceThumb def={def} />
-              <span className={`block mt-1 text-[10px] leading-tight ${sel ? "text-brand font-semibold" : "text-gray-600"}`}>
+              <span className={`block mt-1 text-[10px] leading-tight ${sel ? "text-accent font-semibold" : "text-ink-muted"}`}>
                 {trimLabel(def)}
               </span>
             </button>
@@ -264,7 +264,7 @@ export function CorniceGroup({ syncToApi }: { syncToApi: (ds: DesignState) => vo
       {on ? (
         <>
           <div className="mt-3 space-y-2.5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("studio.dp.settings")}</h3>
+            <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide">{t("studio.dp.settings")}</h3>
             <TrimSlider
               label={t("studio.dp.height")} min={hRange.min} max={hRange.max} step={5}
               value={Math.round(active.heightM * 1000)}
@@ -281,7 +281,7 @@ export function CorniceGroup({ syncToApi }: { syncToApi: (ds: DesignState) => vo
           </div>
           <button
             onClick={() => apply(null)}
-            className="mt-2 w-full py-2 text-xs font-medium text-red-500 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded-card transition-colors"
+            className="mt-2 w-full py-2 text-xs font-medium text-red-500 hover:text-red-600 border border-line hover:border-red-300 rounded-card transition-colors"
           >
             {t("studio.dp.cornice_remove")}
           </button>
@@ -289,7 +289,7 @@ export function CorniceGroup({ syncToApi }: { syncToApi: (ds: DesignState) => vo
       ) : (
         <button
           onClick={() => pick(profiles[0])}
-          className="mt-2 w-full py-2 text-xs font-medium text-brand border border-gray-200 hover:border-brand/50 rounded-card transition-colors"
+          className="mt-2 w-full py-2 text-xs font-medium text-accent border border-line hover:border-brand/50 rounded-card transition-colors"
         >
           {t("studio.dp.cornice_add")}
         </button>
@@ -310,12 +310,12 @@ function CorniceThumb({ def }: { def: TrimProfileDef }) {
         src={def.previewUrl}
         alt=""
         loading="lazy"
-        className="w-full aspect-square rounded-md bg-white object-contain p-0.5"
+        className="w-full aspect-square rounded-md bg-card object-contain p-0.5"
       />
     );
   }
   return (
-    <svg viewBox="-6 -6 112 112" className="w-full aspect-square rounded-md bg-gray-50" aria-hidden>
+    <svg viewBox="-6 -6 112 112" className="w-full aspect-square rounded-md bg-card-soft" aria-hidden>
       <path d="M-6,0 L106,0" stroke="#CBD5E1" strokeWidth="3" fill="none" />
       <path d="M0,-6 L0,106" stroke="#CBD5E1" strokeWidth="3" fill="none" />
       <path d={d} fill="#E8E4DA" stroke="#8A7F6D" strokeWidth="2.5" strokeLinejoin="round" />
@@ -330,9 +330,9 @@ function TrimSlider({ label, value, min, max, step, onChange }: {
   const { t } = useTranslation();
   return (
     <label className="block">
-      <span className="flex justify-between text-xs text-gray-500 mb-0.5">
+      <span className="flex justify-between text-xs text-ink-muted mb-0.5">
         <span>{label}</span>
-        <span className="tabular-nums text-gray-700">{value} {t("studio.dp.unit_mm")}</span>
+        <span className="tabular-nums text-ink">{value} {t("studio.dp.unit_mm")}</span>
       </span>
       <input
         type="range"

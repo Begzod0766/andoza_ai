@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { daylight, sunPosition } from '../sunPosition'
-import { skyIntensity, skyFogColor } from '../skyEnvironment'
+import { skyIntensity, skyFogColor, SKY_PEAK } from '../skyEnvironment'
 
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
 const luma = (hex: string) => {
@@ -45,6 +45,11 @@ describe('daylight', () => {
 describe('skyIntensity', () => {
   it('keeps a floor at night so a room stays navigable', () => {
     expect(skyIntensity(sunPosition({ hour: 0 }))).toBeGreaterThan(0)
+  })
+
+  it('never washes the frame out: no hour of the day goes above SKY_PEAK', () => {
+    for (let hour = 0; hour < 24; hour += 0.25) expect(skyIntensity(sunPosition({ hour }))).toBeLessThanOrEqual(SKY_PEAK)
+    expect(SKY_PEAK).toBeLessThan(0.7)
   })
 
   it('is brightest at midday and dimmest at midnight', () => {

@@ -94,9 +94,9 @@ export function FloorSection({ onSetFloorType }: {
 
   return (
     <section>
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">{t("studio.pol_turi")}</h3>
+      <h3 className="text-sm font-semibold text-ink mb-3">{t("studio.pol_turi")}</h3>
       {!floorConfigured && !floorTexture && !floorPattern && (
-        <p className="mb-2 text-[11px] leading-snug text-gray-500">
+        <p className="mb-2 text-[11px] leading-snug text-ink-muted">
           {t("studio.pol_tanlanmagan")}
         </p>
       )}
@@ -108,8 +108,8 @@ export function FloorSection({ onSetFloorType }: {
             onClick={() => { if (floorTexture) setFloorTexture(null); onSetFloorType(ft.key); }}
             className={`w-full text-left px-3 py-2.5 rounded-card text-sm border-2 transition-colors ${
               floorConfigured && floorType === ft.key && !floorTexture
-                ? "border-brand bg-brand/10 text-brand font-semibold"
-                : "border-gray-200 hover:border-brand/40 text-gray-700"
+                ? "border-brand bg-brand/10 text-accent font-semibold"
+                : "border-line hover:border-brand/40 text-ink"
             }`}
           >
             {t(ft.labelKey)}
@@ -126,10 +126,10 @@ export function FloorSection({ onSetFloorType }: {
       {/* Floor image: the plank texture when a pattern is laid, otherwise the
           whole-floor image. Same 'pol' library either way. */}
       <div className="mt-5 space-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">
+        <h3 className="text-sm font-semibold text-ink">
           {floorPattern ? t("studio.dp.board_texture") : t("studio.dp.floor_image")}
         </h3>
-        <p className="text-[11px] text-gray-500 leading-snug">
+        <p className="text-[11px] text-ink-muted leading-snug">
           {floorPattern
             ? t("studio.dp.board_hint")
             : t("studio.dp.floor_hint")}
@@ -144,7 +144,7 @@ export function FloorSection({ onSetFloorType }: {
                   onClick={() => applyTexture(w.url)}
                   title={w.name}
                   className={`rounded-lg overflow-hidden border-2 transition-colors ${
-                    on ? "border-brand" : "border-gray-200 hover:border-brand/40"
+                    on ? "border-brand" : "border-line hover:border-brand/40"
                   }`}
                 >
                   <img src={w.url} alt={w.name} className="w-full aspect-square object-cover" />
@@ -155,7 +155,7 @@ export function FloorSection({ onSetFloorType }: {
         )}
         {activeTextureUrl && floorPattern && (
           <div>
-            <span className="text-xs text-gray-500 block mb-1">{t("studio.dp.texture_rotation")}</span>
+            <span className="text-xs text-ink-muted block mb-1">{t("studio.dp.texture_rotation")}</span>
             <div className="flex gap-1.5">
               {([0, 90] as const).map((deg) => {
                 const on = (floorPattern.settings?.textureRotation ?? 0) === deg;
@@ -164,8 +164,8 @@ export function FloorSection({ onSetFloorType }: {
                     key={deg}
                     onClick={() => patchSettings({ textureRotation: deg })}
                     className={`flex-1 py-1.5 text-xs rounded-md border transition-colors ${
-                      on ? "border-brand bg-brand/10 text-brand font-semibold"
-                        : "border-gray-200 text-gray-600 hover:border-brand/40"
+                      on ? "border-brand bg-brand/10 text-accent font-semibold"
+                        : "border-line text-ink-muted hover:border-brand/40"
                     }`}
                   >
                     {deg}°
@@ -178,17 +178,17 @@ export function FloorSection({ onSetFloorType }: {
         {activeTextureUrl && (
           <button
             onClick={() => applyTexture(null)}
-            className="w-full py-1.5 text-xs font-medium text-red-500 hover:text-red-600 border border-gray-200 hover:border-red-300 rounded-card transition-colors"
+            className="w-full py-1.5 text-xs font-medium text-red-500 hover:text-red-600 border border-line hover:border-red-300 rounded-card transition-colors"
           >
             {t("studio.dp.remove_texture")}
           </button>
         )}
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-1">{t("studio.oz_rasmingiz")}</h3>
+        <h3 className="text-xs font-semibold text-ink-muted uppercase tracking-wide pt-1">{t("studio.oz_rasmingiz")}</h3>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
         <button
           onClick={() => { setError(null); fileRef.current?.click(); }}
           disabled={busy}
-          className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-brand/50 hover:text-brand transition-colors disabled:opacity-50"
+          className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-line rounded-xl text-ink-muted hover:border-brand/50 hover:text-accent transition-colors disabled:opacity-50"
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -196,13 +196,13 @@ export function FloorSection({ onSetFloorType }: {
             <path d="M21 15l-5-5L5 21" />
           </svg>
           <span className="text-sm font-medium">{busy ? t("studio.shared.yuklanmoqda") : t("studio.shared.rasm_yuklash")}</span>
-          <span className="text-xs text-gray-500">{t("studio.shared.rasm_format")}</span>
+          <span className="text-xs text-ink-muted">{t("studio.shared.rasm_format")}</span>
         </button>
-        {error && <p className="text-xs text-amber-600 leading-snug">{error}</p>}
+        {error && <p className="text-xs text-warn leading-snug">{error}</p>}
         {activeTextureUrl && (
           <div className="flex items-center gap-2">
-            <img src={activeTextureUrl} alt={t("studio.dp.floor_image")} className="w-10 h-10 rounded-lg object-cover border border-gray-200" />
-            <span className="flex-1 text-xs text-gray-600">
+            <img src={activeTextureUrl} alt={t("studio.dp.floor_image")} className="w-10 h-10 rounded-lg object-cover border border-line" />
+            <span className="flex-1 text-xs text-ink-muted">
               {floorPattern ? t("studio.dp.applied_boards") : t("studio.dp.applied_image")}
             </span>
             <button

@@ -68,6 +68,8 @@ import { RenderSheet } from "@/components/studio/RenderSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
+import { CameraButton, LockButton } from "./three-d/CanvasButtons";
+import { StagePill, TapHint, useTapHintSeen } from "@/components/studio/TapHint";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -315,6 +317,7 @@ export default function ThreeDPage() {
         ? (phaseParam as PhaseKey)
         : 'boyoq'
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
+  const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -868,7 +871,21 @@ export default function ThreeDPage() {
           // inside this box, so they stay under the header and its ⋮ menu,
           // which float over the scene inside the app.
           className={`flex-1 min-w-0 min-h-0 relative isolate overflow-hidden ${(isMebelTab && mebelView === '2d') || (isChiroqTab && chiroqView === '2d') ? 'hidden' : ''}`}
+          // The first tap on the view also closes the phone hint; it does not stop
+          // the tap, so the surface's menu still opens.
+          onPointerDownCapture={() => { if (!tapHintSeen) markTapHintSeen(); }}
         >
+
+          {/* Phone only: which room and stage (the header hides the name under sm),
+              and, once, how to reach the tools — tap a surface. */}
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center sm:hidden">
+            <StagePill roomName={room.name} phase={activePhase} />
+          </div>
+          {!tapHintSeen && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
+              <TapHint onDismiss={markTapHintSeen} />
+            </div>
+          )}
 
           {/* View mode — relocated here from the tools drawer's old
               "Ko'rinish" chips + cutaway button. One segmented control pinned
@@ -989,42 +1006,16 @@ export default function ThreeDPage() {
                 </div>
               )}
 
-              <button
+              <CameraButton
+                active={cameraListOpen || !!panorama || cameraStation != null}
+                expanded={cameraListOpen}
                 onClick={() => setCameraListOpen((open) => !open)}
-                title={t('studio.three_d.kameralar')}
-                aria-label={t('studio.three_d.kameralar')}
-                aria-expanded={cameraListOpen}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 transition-colors ${
-                  cameraListOpen || panorama || cameraStation != null
-                    ? 'bg-brand text-white ring-brand/40'
-                    : 'bg-white/95 text-brand ring-black/5'
-                }`}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" />
-                  <circle cx="12" cy="12.5" r="3.5" />
-                </svg>
-              </button>
+              />
             </div>
 
             {/* The lock: taps and holds in the 3D view open nothing while it
                 is on, so the room can be turned without a menu popping up. */}
-            <button
-              onClick={onToggleViewLock}
-              title={viewLocked ? t('studio.three_d.tahrirlashni_yoqish') : t('studio.three_d.tahrirlashni_qulflash')}
-              aria-label={viewLocked ? t('studio.three_d.tahrirlashni_yoqish') : t('studio.three_d.tahrirlashni_qulflash')}
-              aria-pressed={viewLocked}
-              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 transition-colors ${
-                viewLocked ? 'bg-brand text-white ring-brand/40' : 'bg-white/95 text-brand ring-black/5'
-              }`}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="5" y="11" width="14" height="9" rx="2" />
-                {viewLocked ? <path d="M8 11V8a4 4 0 0 1 8 0v3" /> : <path d="M8 11V8a4 4 0 0 1 7.5-1.9" />}
-              </svg>
-            </button>
+            <LockButton locked={viewLocked} onClick={onToggleViewLock} />
 
             {/* Move rooms: X / Z arrows on a tapped room (RoomSlide.tsx).
                 Only in a flat of several rooms, and not while locked. */}

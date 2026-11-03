@@ -9,35 +9,34 @@ interface MaterialSwatchProps {
 }
 
 /**
- * "Here's a do'kon-managed material product, tap to select it" — the one
- * shared visual for every horizontal-scroll product strip (Bo'yoq, Oboy,
- * and the mobile "+ Buyum qo'shish" sheet's paint section). Not for the
- * built-in flat-color palette swatches (circular, no product behind them)
- * or the floor-material list rows in WallFloorTargetPanel (a full-width
- * row needs room for a price beside it — a different layout, not an
- * oversight).
+ * "Here's a do'kon-managed material product, tap to select it" — the one shared visual for
+ * every horizontal-scroll product strip (Bo'yoq, Oboy, and the mobile "+ Buyum qo'shish"
+ * sheet's paint section). It shows the product's colour (or picture, or the name's first
+ * letter when it has neither), its whole name — the code or shade is what tells two
+ * "Краска Polisan" apart — and its price per unit.
  */
 export function MaterialSwatch({ material, isActive, onClick }: MaterialSwatchProps) {
   const { t } = useTranslation();
-  const color = material.color_hex ?? "#E5E7EB";
+  const price = t("common.price_per_unit", { price: material.price_uzs.toLocaleString(intlLocale()), unit: material.unit });
   return (
     <button
-      title={`${material.name_uz} — ${t("common.price_per_unit", { price: material.price_uzs.toLocaleString(intlLocale()), unit: material.unit })}`}
+      title={`${material.name_uz} — ${price}`}
       onClick={onClick}
       aria-pressed={isActive}
-      className="flex-shrink-0 flex flex-col items-center gap-1 w-14"
+      className="flex w-20 flex-shrink-0 flex-col items-center gap-1"
     >
       <div
-        className="w-12 h-12 rounded-lg border-2 transition-all"
-        style={{
-          backgroundColor: color,
-          borderColor: isActive ? "#1E40AF" : "#E5E7EB",
-          boxShadow: isActive ? "0 0 0 2px #1E40AF" : undefined,
-        }}
-      />
-      <span className="text-[10px] text-gray-500 text-center line-clamp-2 leading-tight">
-        {material.name_uz.split(" ").slice(0, 2).join(" ")}
-      </span>
+        className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border-2 bg-card-soft text-sm font-bold text-ink-muted transition-all ${
+          isActive ? "border-accent ring-2 ring-accent" : "border-line"
+        }`}
+        style={material.color_hex ? { backgroundColor: material.color_hex } : undefined}
+      >
+        {!material.color_hex && (material.image_url
+          ? <img src={material.image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+          : material.name_uz.slice(0, 1).toUpperCase())}
+      </div>
+      <span className="line-clamp-2 text-center text-[10px] leading-tight text-ink">{material.name_uz}</span>
+      <span className="text-center text-[10px] font-semibold leading-tight text-ink-muted">{price}</span>
     </button>
   );
 }

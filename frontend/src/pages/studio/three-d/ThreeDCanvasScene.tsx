@@ -61,7 +61,11 @@ import { PanoramaSnap } from "./PanoramaSnap";
 import { SwapButtons, RoomScene } from "./RoomShell";
 import type { RoomSide } from "./constants";
 import { applyUniformZoom, fitRoomDistance } from "@/lib/orbitZoom";
-import { initialRoomFocus, isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { useRoomFocus } from "./useRoomFocus";
+import { useWallFocusStore } from "@/store/wallFocusStore";
+import { useCameraGoal } from "./useCameraGoal";
+import { FlatToggle } from "./FlatToggle";
 import { SceneLoadingOverlay } from "./SceneLoadingOverlay";
 
 /**
@@ -224,7 +228,7 @@ export function ThreeDCanvasScene({
 }) {
   /** Which room the user is looking at alone, or null for the whole flat.
    *  Local to the canvas: nothing outside it cares which room is focused. */
-  const [focusedRoomId, setFocusedRoomId] = useState<string | null>(null);
+  const [focusedRoomId, setFocusedRoomId] = useRoomFocus(room.id, window.location.search);
   // Focus is a way of looking at THIS flat from THIS room, so it must not
   // outlive the room — and it would. `/studio/:roomId` has no key on its route
   // element, so switching rooms only changes the param: React Router keeps
@@ -238,7 +242,7 @@ export function ThreeDCanvasScene({
   // different way, so the focus is dropped whenever the room changes.
   // The one exception is a link that asks for it (`?focus=1`, used right after
   // a scan), which opens that room alone.
-  useEffect(() => { setFocusedRoomId(initialRoomFocus(window.location.search, room.id)); }, [room.id]);
+  // (useRoomFocus sets the focus again on every room change: the room just opened, alone.)
   /**
    * "that door between should be visible in both rooms": what every room of
    * the flat draws for its openings, the active room included — one plan,
@@ -574,9 +578,25 @@ export function ThreeDCanvasScene({
     const f = focusedRoomId ? flatBoxes.find((b) => b.id === focusedRoomId) : null;
     return f ? { W: f.w, D: f.d } : flatBounds(flatBoxes);
   }, [flatBoxes, focusedRoomId]);
+  // A wall chip pressed in the design panel turns the camera to face that wall
+  // (lib/wallFraming); "Hamma devorlar" — turnTo null — gives the room's framing back.
+  // A wall tapped in the view only selects it: the camera stays where the user put it.
+  const resetWallFocus = useWallFocusStore((st) => st.reset);
+  useEffect(() => { resetWallFocus(); }, [room.id, resetWallFocus]);
+  const reducedMotion = useMemo(
+    () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
   const framedCamKey = JSON.stringify(framedCamRaw);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const framedCam = useMemo(() => framedCamRaw, [framedCamKey]);
+  // A wall chip press aims the camera at that wall until the next framing request
+  // (useCameraGoal); a wall tapped in the view only selects it.
+  const wallIds = useMemo(() => geometry.walls.map((w) => w.id), [geometry.walls]);
+  const cameraGoal = useCameraGoal({
+    framedCam, framedKey: framedCamKey, presetVersion,
+    vertices: geometry.vertices, wallIds, height: H, fovDeg: CAMERA_FOV,
+  });
   /** The room's own openings, carrying their partition marks so a shared
    *  door's leaf hangs at the end of its measured lining — the editable layer. */
   const ownOpeningGeometry = flatPlan.active.leaves[0].geometry;
@@ -831,7 +851,8 @@ export function ThreeDCanvasScene({
           <ActiveRoomFocusButton
             H={H}
             focused={focusedRoomId === room.id}
-            onClick={() => setFocusedRoomId((cur) => toggleRoomFocus(cur, room.id))}
+            onClick={() => setFocusedRoomId(toggleRoomFocus(focusedRoomId, room.id))}
+            name={focusedRoomId === null ? room.name : undefined}
           />
         )}
         <SwapButtons W={W} D={D} H={H} />
@@ -1092,10 +1113,11 @@ export function ThreeDCanvasScene({
         <MultiTouchPan panSpeed={0.9} />
 
         <CameraAnimator
-          position={framedCam.position}
-          target={framedCam.target}
+          position={cameraGoal.position}
+          target={cameraGoal.target}
           controlsRef={controlsRef}
-          version={presetVersion}
+          version={cameraGoal.version}
+          instant={reducedMotion}
         />
 
         {/* Double-click to focus; empty double-click recenters the room */}
@@ -1107,6 +1129,11 @@ export function ThreeDCanvasScene({
     </Canvas>
     </CanvasErrorBoundary>
     <SceneLoadingOverlay />
+    {aptRooms && aptRooms.length > 1 && (
+      <div className="pointer-events-auto absolute bottom-5 right-20 z-20">
+        <FlatToggle flat={focusedRoomId === null} onToggle={() => setFocusedRoomId(focusedRoomId === null ? room.id : null)} />
+      </div>
+    )}
 
     </>
   );
