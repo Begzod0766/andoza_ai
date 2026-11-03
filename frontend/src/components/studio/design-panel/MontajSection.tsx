@@ -2,6 +2,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { ElectricalType, PlacedElectrical } from "@/store/roomStore";
+import { wallNumber } from "@/lib/wallLabel";
 
 /** What each electrical point is called, in the order they are listed. */
 const ELECTRICAL_LABELS = {
@@ -17,7 +18,7 @@ const ORDER = Object.keys(ELECTRICAL_LABELS) as ElectricalType[];
 
 /** Where on the wall, in the units a person measures with: "Devor A · 30 sm balandlikda". */
 function describe(t: TFunction, e: PlacedElectrical): string {
-  return t("studio.dp.el_where", { wall: e.wallId, cm: Math.round(e.heightMm / 10) });
+  return t("studio.dp.el_where", { wall: wallNumber(e.wallId), cm: Math.round(e.heightMm / 10) });
 }
 
 /**

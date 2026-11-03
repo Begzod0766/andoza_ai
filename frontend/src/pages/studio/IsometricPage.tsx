@@ -11,6 +11,7 @@ import type { OboyPatternId } from "@/lib/oboyPatterns";
 import { computeOboyRolls } from "@/lib/oboySmeta";
 import type { Room } from "@/lib/api";
 import { getWallTargets, targetLabel, type WallTarget } from "@/components/studio/design-panel/shared";
+import { wallNumber } from "@/lib/wallLabel";
 
 interface StudioContext {
   room: Room;
@@ -403,7 +404,7 @@ export default function IsometricPage() {
             <div className="mt-2 space-y-0.5">
               {smeta.perWall.map((w) => (
                 <p key={w.wallId} className="text-xs text-amber-700">
-                  {t('studio.iso.devor_rulon', { wall: w.wallId, count: w.rolls, area: formatDecimal(w.areaM2, 1) })}
+                  {t('studio.iso.devor_rulon', { wall: wallNumber(w.wallId), count: w.rolls, area: formatDecimal(w.areaM2, 1) })}
                 </p>
               ))}
             </div>

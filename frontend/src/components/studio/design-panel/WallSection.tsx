@@ -19,6 +19,7 @@ import { MaterialSwatch } from "../MaterialSwatch";
 /** The Bo'yoq panel's two tabs. "texture" is labelled Oboy — an
  *  uploaded/library wallpaper image. */
 import { WALL_COLORS, wallColorName } from "@/lib/wallPalette";
+import { wallNumber } from "@/lib/wallLabel";
 
 type CoveringMode = "paint" | "texture";
 
@@ -415,7 +416,7 @@ export function WallSection({
               <p className="text-sm font-bold text-amber-900">{t("studio.dp.rolls", { count: smeta.totalRolls })} (~{formatDecimal(smeta.totalAreaM2, 1)} m²)</p>
               <div className="mt-2 space-y-0.5">
                 {smeta.perWall.map((w) => (
-                  <p key={w.wallId} className="text-xs text-amber-700">{t("studio.shared.wall_n", { id: w.wallId })}: {t("studio.dp.rolls", { count: w.rolls })} ({formatDecimal(w.areaM2, 1)} m²)</p>
+                  <p key={w.wallId} className="text-xs text-amber-700">{t("studio.shared.wall_n", { id: wallNumber(w.wallId) })}: {t("studio.dp.rolls", { count: w.rolls })} ({formatDecimal(w.areaM2, 1)} m²)</p>
                 ))}
               </div>
             </>
