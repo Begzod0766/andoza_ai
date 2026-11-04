@@ -85,6 +85,8 @@ export function useMebelProject(id: string) {
   );
 
   const flush = useRef(() => {});
+  // Whether the latest save landed: what the server holds is what the editor shows.
+  const lastSave = useRef<Promise<boolean>>(Promise.resolve(true));
   flush.current = () => {
     const p = pending.current;
     if (!p) return;
@@ -92,9 +94,14 @@ export function useMebelProject(id: string) {
     dirty.current = false;
     // Only the latest save may report: an earlier one landing late says nothing.
     const seq = ++saveSeq.current;
-    saveMebelProject(id, p.name.trim() || "—", p)
-      .then(() => { if (seq === saveSeq.current && !pending.current) setSaveState("saved"); })
-      .catch(() => { if (seq === saveSeq.current) setSaveState("error"); });
+    lastSave.current = saveMebelProject(id, p.name.trim() || "—", p)
+      .then(() => { if (seq === saveSeq.current && !pending.current) setSaveState("saved"); return true; })
+      .catch(() => { if (seq === saveSeq.current) setSaveState("error"); return false; });
+  };
+  /** Saves the pending edit now; true once the server holds the project as shown. */
+  const saveNow = (): Promise<boolean> => {
+    flush.current();
+    return lastSave.current;
   };
 
   useEffect(() => {
@@ -136,6 +143,7 @@ export function useMebelProject(id: string) {
     cutAt,
     markCutLocally: setCutAtLocal,
     hasWorkshopLink,
+    saveNow,
     setHasWorkshopLink: setWorkshopLinkLocal,
     offcutsReady: offcutsQuery.isSuccess,
     isLoading: projectQuery.isLoading,

@@ -2722,7 +2722,8 @@
       "other_parts": "Buyurtmadagi boshqa detallar",
       "assembly": "Yig'ish chizmasi",
       "view_3d": "3D da ko'rish",
-      "holes": "Teshiklar"
+      "holes": "Teshiklar",
+      "save_first": "Loyiha saqlanmagan — internetni tekshirib, qayta urinib ko'ring. Yorliqlar faqat saqlangan loyihadan chop etiladi."
     }
   }
 }

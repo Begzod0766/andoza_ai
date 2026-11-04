@@ -61,6 +61,7 @@ export default function MebelProjectPage() {
   const confirm = useConfirm();
   const { toast } = useToast();
   const [workshopToken, setWorkshopToken] = useState<string | null>(null);
+  const printingLabels = useRef(false);
   const [cutting, setCutting] = useState(false);
   const [cutError, setCutError] = useState("");
   const cutAt = m.cutAt;
@@ -143,14 +144,28 @@ export default function MebelProjectPage() {
   };
   // A label's QR opens the part on the workshop page by the project's workshop token:
   // without one, nothing prints (a QR that leads nowhere is worse than none).
+  // The worker's phone computes from the saved project, so a label must never
+  // carry an edit the server does not have: save first, or do not print.
   const printLabels = async (format: LabelFormat) => {
+    if (printingLabels.current) return;
+    printingLabels.current = true;
     try {
-      const { token } = await createWorkshopLink(id);
+      if (!(await m.saveNow())) {
+        toast({ variant: "error", title: t("mebel.workshop.save_first") });
+        return;
+      }
+      let token: string;
+      try {
+        ({ token } = await createWorkshopLink(id));
+      } catch {
+        toast({ variant: "error", title: t("mebel.workshop.link_failed") });
+        return;
+      }
       flushSync(() => { setWorkshopToken(token); setPrinting(format); });
       m.setHasWorkshopLink(true);
       window.print();
-    } catch {
-      toast({ variant: "error", title: t("mebel.workshop.link_failed") });
+    } finally {
+      printingLabels.current = false;
     }
   };
   const revokeLink = async () => {

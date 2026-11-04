@@ -29,6 +29,11 @@ def _user():
     return user
 
 
+class _Update:
+    def __init__(self, rowcount=1):
+        self.rowcount = rowcount
+
+
 class _Result:
     def __init__(self, one=None):
         self._one = one
@@ -75,8 +80,8 @@ def _url(row):
 def test_post_creates_a_token_for_the_owner(client):
     user = _user()
     row = _project(user.id)
-    # _own_project, then the collision check finds nothing
-    db = _db(_Result(row), _Result(None))
+    # _own_project, the collision check finds nothing, then the guarded UPDATE writes
+    db = _db(_Result(row), _Result(None), _Update())
     _as(user, db)
 
     r = client.post(_url(row))
@@ -85,7 +90,6 @@ def test_post_creates_a_token_for_the_owner(client):
     token = r.json()["token"]
     assert isinstance(token, str) and len(token) >= 30
     assert row.workshop_token == token
-    db.flush.assert_awaited()
 
 
 def test_post_returns_the_existing_token(client):
@@ -135,7 +139,7 @@ def test_delete_on_someone_elses_project_is_404(client):
 def test_a_new_token_after_revoke_differs(client):
     user = _user()
     row = _project(user.id)
-    _as(user, _db(_Result(row), _Result(None), _Result(row), _Result(row), _Result(None)))
+    _as(user, _db(_Result(row), _Result(None), _Update(), _Result(row), _Result(row), _Result(None), _Update()))
 
     first = client.post(_url(row)).json()["token"]
     assert client.delete(_url(row)).status_code == 204
@@ -214,3 +218,18 @@ def test_public_needs_no_auth(client):
 
     assert get_current_active_user not in app.dependency_overrides
     assert r.status_code == 200
+
+
+def test_post_never_overwrites_a_token_set_meanwhile(client):
+    """Two first prints at once: the second must get the first's token, not replace it."""
+    user = _user()
+    row = _project(user.id)
+
+    # someone else set the token between our read and our write: the UPDATE matches nothing
+    # _own_project, collision check, the guarded UPDATE, then the re-read finds the winner's token
+    _as(user, _db(_Result(row), _Result(None), _Update(rowcount=0), _Result("tok-winner")))
+
+    r = client.post(_url(row))
+
+    assert r.status_code == 200
+    assert r.json() == {"token": "tok-winner"}

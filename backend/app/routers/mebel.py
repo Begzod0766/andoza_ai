@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.api.v1.deps import CurrentUser, DbSession
@@ -113,11 +114,27 @@ async def _new_workshop_token(db) -> str:
              summary="The project's workshop token for label QR codes (created on first call)")
 async def create_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> WorkshopLinkOut:
     row = await _own_project(db, current_user, project_id)
-    if not row.workshop_token:
-        row.workshop_token = await _new_workshop_token(db)
-        await db.flush()
+    if row.workshop_token:
+        return WorkshopLinkOut(token=row.workshop_token)
+    token = await _new_workshop_token(db)
+    # Written only while still unset: two first prints at once must share one token,
+    # or the labels printed with the overwritten one would be dead from the start.
+    written = await db.execute(
+        update(FurnitureProject)
+        .where(FurnitureProject.id == row.id, FurnitureProject.workshop_token.is_(None))
+        .values(workshop_token=token)
+        .execution_options(synchronize_session=False)
+    )
+    if written.rowcount == 0:
+        token = (await db.execute(
+            select(FurnitureProject.workshop_token).where(FurnitureProject.id == row.id)
+        )).scalar_one_or_none()
+        if not token:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Havolani yaratib bo'lmadi")
+    else:
         log.info("mebel_workshop_link_created", project_id=str(project_id))
-    return WorkshopLinkOut(token=row.workshop_token)
+    set_committed_value(row, "workshop_token", token)
+    return WorkshopLinkOut(token=token)
 
 
 @router.delete("/projects/{project_id}/workshop-link", status_code=status.HTTP_204_NO_CONTENT,

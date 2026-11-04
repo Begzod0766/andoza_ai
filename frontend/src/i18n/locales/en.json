@@ -2722,7 +2722,8 @@
       "other_parts": "Other parts in this order",
       "assembly": "Assembly drawing",
       "view_3d": "View in 3D",
-      "holes": "Holes"
+      "holes": "Holes",
+      "save_first": "The project is not saved — check the connection and try again. Labels print only from the saved project."
     }
   }
 }

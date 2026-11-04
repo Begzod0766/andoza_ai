@@ -194,6 +194,39 @@ describe('MebelProjectPage export', () => {
     print.mockRestore()
   })
 
+  it('labels never print an edit the server has not saved', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.mocked(api.saveMebelProject).mockRejectedValue(new Error('offline'))
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    const width = await screen.findByLabelText(t('mebel.width'))
+    fireEvent.change(width, { target: { value: '700' } })
+    await act(async () => { vi.advanceTimersByTime(1100) })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(t('mebel.save_failed')))
+    await exportItem(t('mebel.labels.a4'))
+    expect(await screen.findByText(t('mebel.workshop.save_first'))).toBeInTheDocument()
+    expect(api.createWorkshopLink).not.toHaveBeenCalled()
+    expect(print).not.toHaveBeenCalled()
+    print.mockRestore()
+    vi.useRealTimers()
+  })
+
+  it('a pending edit is saved before the labels print', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const order: string[] = []
+    vi.mocked(api.saveMebelProject).mockImplementation(async (_i, _n, data) => { order.push(`save:${data.cabinets[0].width}`); return {} as never })
+    vi.mocked(api.createWorkshopLink).mockImplementation(async () => { order.push('link'); return { token: 'tok' } })
+    const print = vi.spyOn(window, 'print').mockImplementation(() => { order.push('print') })
+    mount()
+    const width = await screen.findByLabelText(t('mebel.width'))
+    fireEvent.change(width, { target: { value: '700' } })
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
+    expect(order).toEqual(['save:700', 'link', 'print'])
+    print.mockRestore()
+    vi.useRealTimers()
+  })
+
   it('the revoke row shows only when the project has a link', async () => {
     mount()
     fireEvent.click(await screen.findByRole('button', { name: t('mebel.header.export') }))
