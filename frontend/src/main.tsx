@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router } from "./router";
 import { FeedbackProvider } from "@/components/ui/FeedbackProvider";
 import { registerSW } from "virtual:pwa-register";
+import { installStaleChunkReload } from "@/lib/staleChunkReload";
 import "@/i18n";
 import "./styles/global.css";
 
@@ -22,6 +23,8 @@ const queryClient = new QueryClient({
 // once that new build takes over, so a deploy shows on this visit rather than
 // some later one. (Pages that hold unsaved work save on pagehide.)
 registerSW({ immediate: true });
+// A tab left open across a deploy reloads instead of erroring on a removed chunk.
+installStaleChunkReload();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element not found");
