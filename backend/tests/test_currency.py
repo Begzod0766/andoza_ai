@@ -49,6 +49,7 @@ async def test_get_usd_rate_uses_cache_on_second_call():
 @respx.mock
 async def test_get_usd_rate_falls_back_when_cbu_unreachable():
     respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectError("no network"))
+    respx.get(currency.ER_API_USD_URL).mock(side_effect=httpx.ConnectError("down"))
     rate = await currency.get_usd_rate()
     assert rate == currency.FALLBACK_USD_RATE
 
@@ -66,6 +67,7 @@ async def test_get_usd_rate_falls_back_to_last_known_good_on_later_failure():
     # last known-good rate rather than fall all the way back to the constant.
     currency._cache.fetched_at -= currency.CACHE_TTL_SECONDS + 1
     respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectError("down"))
+    respx.get(currency.ER_API_USD_URL).mock(side_effect=httpx.ConnectError("down"))
     rate = await currency.get_usd_rate()
     assert rate == pytest.approx(9999.0)
 
@@ -75,6 +77,7 @@ async def test_get_usd_rate_falls_back_to_last_known_good_on_later_failure():
 async def test_a_failed_fetch_is_not_retried_on_every_request():
     # The server could not reach CBU: every smeta waited the full timeout (8 s on prod).
     route = respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectTimeout("slow"))
+    respx.get(currency.ER_API_USD_URL).mock(side_effect=httpx.ConnectError("down"))
     assert await currency.get_usd_rate() == currency.FALLBACK_USD_RATE
     assert await currency.get_usd_rate() == currency.FALLBACK_USD_RATE
     assert route.call_count == 1
@@ -84,11 +87,42 @@ async def test_a_failed_fetch_is_not_retried_on_every_request():
 @respx.mock
 async def test_a_failed_fetch_is_retried_after_the_backoff():
     route = respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectError("down"))
+    respx.get(currency.ER_API_USD_URL).mock(side_effect=httpx.ConnectError("down"))
     await currency.get_usd_rate()
     currency._cache.failed_at -= currency.RETRY_AFTER_FAILURE_SECONDS + 1
     route.mock(return_value=httpx.Response(200, json=[{"Ccy": "USD", "Rate": "12100.0"}]))
     assert await currency.get_usd_rate() == pytest.approx(12100.0)
     assert route.call_count == 2
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_when_cbu_is_unreachable_the_second_source_gives_the_rate():
+    respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectTimeout("blocked"))
+    respx.get(currency.ER_API_USD_URL).mock(
+        return_value=httpx.Response(200, json={"result": "success", "rates": {"UZS": 11910.62}})
+    )
+    assert await currency.get_usd_rate() == pytest.approx(11910.62)
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_both_sources_down_falls_back_and_backs_off():
+    cbu = respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectError("down"))
+    er = respx.get(currency.ER_API_USD_URL).mock(side_effect=httpx.ConnectError("down"))
+    assert await currency.get_usd_rate() == currency.FALLBACK_USD_RATE
+    assert await currency.get_usd_rate() == currency.FALLBACK_USD_RATE
+    assert cbu.call_count == 1 and er.call_count == 1
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_a_nonsense_rate_from_the_second_source_is_not_used():
+    respx.get(currency.CBU_USD_RATE_URL).mock(side_effect=httpx.ConnectError("down"))
+    respx.get(currency.ER_API_USD_URL).mock(
+        return_value=httpx.Response(200, json={"result": "success", "rates": {"UZS": 0}})
+    )
+    assert await currency.get_usd_rate() == currency.FALLBACK_USD_RATE
 
 
 def test_the_rate_fetch_never_holds_a_smeta_for_long():
