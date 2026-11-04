@@ -488,6 +488,19 @@ describe('SmetaPage in English', () => {
     expect(await within(header).findByText(/.+/, { selector: '[data-testid="smeta-room"]' })).toBeInTheDocument()
   })
 
+  it('the header carries the ⋮ menu, as on the 3D tab, with the PDF and a recalculation', async () => {
+    act(() => applyLanguage('en'))
+    renderSmetaPage()
+    await waitFor(() => expect(previewEstimate).toHaveBeenCalled())
+    const calls = previewEstimate.mock.calls.length
+    const header = screen.getByRole('banner')
+    fireEvent.click(within(header).getByRole('button', { name: en.studio.menu.more }))
+    expect(within(header).getByRole('button', { name: en.smeta.pdf_yuklab })).toBeInTheDocument()
+    fireEvent.click(within(header).getByRole('button', { name: en.smeta.qayta_hisoblash }))
+    await waitFor(() => expect(previewEstimate.mock.calls.length).toBe(calls + 1))
+    expect(within(header).queryByRole('button', { name: en.smeta.pdf_yuklab })).toBeNull()
+  })
+
   it('while the estimate loads it shows placeholder rows, not a bare Loading line', async () => {
     previewEstimate.mockReturnValue(new Promise(() => {}))
     renderSmetaPage()

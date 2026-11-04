@@ -12,6 +12,8 @@ import { SmetaAskDrawer } from "@/components/smeta/SmetaAskDrawer";
 import { CategorySection } from "@/components/smeta/CategorySection";
 import { CostBreakdown } from "@/components/smeta/CostBreakdown";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
+import { StudioMenu } from "@/components/studio/StudioMenu";
+import { MENU_ROW } from "@/components/studio/menuRow";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 
@@ -65,6 +67,7 @@ export default function SmetaPage() {
   const compact = useCompactStudio();
   const [estimate, setEstimate] = useState<EstimateResponse | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
   const [askOpen, setAskOpen] = useState(false);
   const [highlightedLines, setHighlightedLines] = useState<Set<string>>(new Set());
@@ -265,7 +268,20 @@ export default function SmetaPage() {
             </div>
           </div>
           {roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
-          <div />
+          {/* The ⋮ menu, where the 3D tab has it: the smeta's own actions, so a long
+              smeta does not have to be scrolled to its end to get the file. */}
+          <div className="relative justify-self-end">
+            <StudioMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <button type="button" className={MENU_ROW} disabled={!estimate || pdfLoading}
+                onClick={() => { setMenuOpen(false); void handlePDF(); }}>
+                <span>{t("smeta.pdf_yuklab")}</span>
+              </button>
+              <button type="button" className={MENU_ROW} disabled={mutation.isPending}
+                onClick={() => { setMenuOpen(false); mutation.mutate(); }}>
+                <span>{t("smeta.qayta_hisoblash")}</span>
+              </button>
+            </StudioMenu>
+          </div>
         </div>
       </header>
       )}
