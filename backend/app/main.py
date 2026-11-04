@@ -115,6 +115,7 @@ def create_app() -> FastAPI:
     app.include_router(room_share.router, prefix="/api/v1", tags=["room-share"])
     app.include_router(room_share.public_router, prefix="/api/v1", tags=["room-share"])
     app.include_router(mebel.router, prefix="/api/v1", tags=["mebel"])
+    app.include_router(mebel.public_router, prefix="/api/v1", tags=["mebel"])
 
     # ------------------------------------------------------------------
     # Uploaded media (wallpapers, photos) when object storage is not set up.

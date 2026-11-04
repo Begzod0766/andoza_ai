@@ -156,3 +156,61 @@ def test_project_out_says_whether_a_link_exists(client):
     assert a["has_workshop_link"] is False
     assert b["has_workshop_link"] is True
     assert "workshop_token" not in a and "workshop_token" not in b
+
+
+# --- public read -------------------------------------------------------------
+
+from unittest.mock import patch  # noqa: E402
+
+
+def _public(client, db, token, limit=None):
+    """GET /public/mebel/{token} with no user override; the rate limit stubbed."""
+    _as(None, db)
+    limit = limit or AsyncMock()
+    with patch("app.routers.mebel.get_redis", return_value=MagicMock()), \
+            patch("app.routers.mebel._enforce_rate_limit", limit):
+        return client.get(f"/api/v1/public/mebel/{token}")
+
+
+def test_public_returns_name_and_data_only(client):
+    row = _project(uuid.uuid4(), workshop_token="tok")
+    r = _public(client, _db(_Result(row)), "tok")
+
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert set(body) == {"name", "data"}
+    assert body["name"] == "Oshxona" and body["data"] == row.data
+
+
+def test_public_404_is_identical_for_wrong_and_revoked(client):
+    wrong = _public(client, _db(_Result(None)), "nope")
+    revoked = _public(client, _db(_Result(None)), "was-revoked-token")
+
+    assert wrong.status_code == revoked.status_code == 404
+    assert wrong.json() == revoked.json()
+
+
+def test_public_blank_token_is_404_without_a_query(client):
+    db = _db()
+    r = _public(client, db, "%20")
+
+    assert r.status_code == 404
+    db.execute.assert_not_awaited()
+
+
+def test_public_is_rate_limited_per_ip(client):
+    limit = AsyncMock(side_effect=HTTPException(status_code=429, detail="Juda ko'p so'rov"))
+    db = _db()
+    r = _public(client, db, "tok", limit=limit)
+
+    assert r.status_code == 429
+    assert limit.await_args.args[1].startswith("public_mebel_ip:")
+    db.execute.assert_not_awaited()
+
+
+def test_public_needs_no_auth(client):
+    row = _project(uuid.uuid4(), workshop_token="tok")
+    r = _public(client, _db(_Result(row)), "tok")
+
+    assert get_current_active_user not in app.dependency_overrides
+    assert r.status_code == 200

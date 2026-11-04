@@ -8,7 +8,7 @@ import uuid as uuid_module
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -17,10 +17,15 @@ from app.models.furniture_project import FurnitureProject
 from app.models.price_book import PriceBook
 from app.models.mebel_offcut import MebelOffcut
 from app.config import settings
-from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, SuggestIn, WorkshopLinkOut
+from app.core.cache import get_redis
+from app.routers.auth import _enforce_rate_limit, _get_client_ip
+from app.routers.room_share import _PUBLIC_ROOM_IP_LIMIT, _PUBLIC_ROOM_IP_WINDOW
+from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, PublicMebelProjectOut, SuggestIn, WorkshopLinkOut
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/mebel", tags=["mebel"])
+# No auth: a part label's QR opens the project read-only by its workshop token
+public_router = APIRouter(prefix="/public/mebel", tags=["mebel"])
 
 
 def _stored(data) -> dict:
@@ -236,3 +241,23 @@ async def ai_suggest(body: SuggestIn, current_user: CurrentUser) -> dict:
     except Exception as exc:
         log.warning("mebel_ai.failed", error=str(exc), error_type=type(exc).__name__)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI javob bermadi, qayta urinib ko'ring")
+
+
+@public_router.get("/{token}", response_model=PublicMebelProjectOut,
+                   summary="Read-only project by workshop token -- no authentication")
+async def get_public_project(token: str, request: Request, db: DbSession) -> PublicMebelProjectOut:
+    await _enforce_rate_limit(
+        get_redis(),
+        f"public_mebel_ip:{_get_client_ip(request)}",
+        _PUBLIC_ROOM_IP_LIMIT,
+        _PUBLIC_ROOM_IP_WINDOW,
+        "Juda ko'p so'rov yuborildi. Birozdan so'ng qayta urinib ko'ring.",
+    )
+    # Wrong, revoked, blank and never-issued tokens all get this one 404.
+    not_found = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Havola topilmadi")
+    if not token.strip():
+        raise not_found
+    row = (await db.execute(select(FurnitureProject).where(FurnitureProject.workshop_token == token))).scalar_one_or_none()
+    if row is None:
+        raise not_found
+    return PublicMebelProjectOut(name=row.name, data=row.data)

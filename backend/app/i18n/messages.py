@@ -187,6 +187,7 @@ MESSAGES: dict[str, dict[str, str]] = _table(
     ("Rasmni saqlab bo'lmadi", "Не удалось сохранить изображение", "The image could not be saved"),
     ("Modelni saqlab bo'lmadi", "Не удалось сохранить модель", "The model could not be saved"),
     ("Ulashish havolasini yaratib bo'lmadi", "Не удалось создать ссылку для обмена", "The share link could not be created"),
+    ("Havolani yaratib bo'lmadi", "Не удалось создать ссылку", "The link could not be created"),
     ("Unsupported file type {content_type}. Accepted: {allowed}", "Неподдерживаемый тип файла {content_type}. Допустимые: {allowed}", "Unsupported file type {content_type}. Accepted: {allowed}", "Fayl turi qo'llab-quvvatlanmaydi: {content_type}. Ruxsat etilgan: {allowed}"),
     ("File exceeds maximum allowed size of {mb} MB", "Файл превышает максимально допустимый размер {mb} МБ", "File exceeds maximum allowed size of {mb} MB", "Fayl hajmi ruxsat etilgan {mb} MB dan oshib ketdi"),
     ("Failed to upload photo to storage", "Не удалось загрузить фото в хранилище", "Failed to upload photo to storage", "Rasmni xotiraga yuklab bo'lmadi"),
