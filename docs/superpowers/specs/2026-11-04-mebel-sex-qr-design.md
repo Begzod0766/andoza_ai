@@ -1,6 +1,6 @@
 # Mebel: workshop QR — a part label opens without an account
 
-**Date:** 2026-11-04 · **Status:** approved in chat · **Area:** `/mebel/:id` labels and ⋮ menu, new public page `/d/:token`, `backend/app/routers/mebel.py`
+**Date:** 2026-11-04 · **Status:** approved in chat · **Area:** `/mebel/:id` labels and its Export menu, new public page `/d/:token`, `backend/app/routers/mebel.py`
 
 ## Why
 
@@ -20,7 +20,7 @@
 ## Decisions (from the brainstorm)
 
 - **What a scan shows:** the scanned part first. From there, the other parts of the same order and each cabinet's assembly drawing are one tap away (variant A). Never prices.
-- **Access:** a per-project secret token, created automatically the first time labels are printed. The owner can revoke it from the ⋮ menu (variant A).
+- **Access:** a per-project secret token, created automatically the first time labels are printed. The owner can revoke it from the editor's Export menu (variant A).
 - **Data:** live. The public endpoint returns the project's construction data, and the page computes the parts with the same engine, `computeProject` (approach 1). A part changed since its label was printed is flagged using a fingerprint carried in the QR.
 
 ## Out of scope
@@ -61,7 +61,7 @@
 - The owner routes go on the existing mebel router.
 - The public route goes on a new `public_router`, mounted under `/api/v1` like `room_share`'s.
 
-## 2. Labels and the ⋮ menu
+## 2. Labels and the Export menu
 
 **Printing labels** (`MebelProjectPage`, the labels print action):
 
@@ -77,9 +77,9 @@
 
 **`partLabels`** takes `token` instead of `projectId` and builds the new URL. The old `/mebel/{id}?part=` handling in `MebelProjectPage` stays, so labels already printed keep working for a signed-in owner.
 
-**⋮ menu**
+**Export menu** (the editor's header has no ⋮ menu; its "Export" action menu, which holds the label prints, is where this goes)
 
-- A "Sex havolasini bekor qilish" row appears only when the project has a token.
+- A "Sex havolasini bekor qilish" row appears at the end of the Export menu, only when the project has a token.
   - To know that, the owner project response gains `has_workshop_link: bool`. The token itself is still not sent to the editor; it comes from the `POST` call.
 - The row asks first, with the existing confirm dialog:
   - title "Sex havolasini bekor qilish";
@@ -160,7 +160,7 @@
 - **Printing labels**
   - calls the link endpoint first;
   - on failure prints nothing and shows the error.
-- **⋮ menu:** the revoke row shows only with `has_workshop_link`, asks first, and calls DELETE.
+- **Export menu:** the revoke row shows only with `has_workshop_link`, asks first, and calls DELETE.
 - **The public page**
   - renders without auth;
   - shows the `?p` part's size, material and holes;
