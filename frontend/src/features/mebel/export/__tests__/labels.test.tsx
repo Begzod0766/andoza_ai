@@ -32,13 +32,13 @@ describe('partLabels', () => {
     const l = partLabels(r.parts, opts).find(x => x.partId === side.id)!
     expect(l).toMatchObject({ cabinet: 'M1', length: side.finished.length, width: side.finished.width, thickness: 18, grain: 'length' })
     expect(l.edges).toEqual({ L1: 2, L2: null, W1: 0.4, W2: null })
-    expect(l.url).toBe(`https://andozaai.uz/d/tok?p=${encodeURIComponent(side.id)}&v=${partFingerprint(side, 'LDSP')}`)
+    expect(l.url).toBe(`https://andozaai.uz/d/tok?p=${encodeURIComponent(side.id)}&v=${partFingerprint(side, side.materialId ?? side.material)}`)
   })
 
   it('the url encodes a part id that needs it', () => {
     const side = project().parts[0]
     const [l] = partLabels([{ ...side, id: 'free #1' }], opts)
-    expect(l.url).toBe(`https://andozaai.uz/d/tok?p=free%20%231&v=${partFingerprint({ ...side, id: 'free #1' }, 'LDSP')}`)
+    expect(l.url).toBe(`https://andozaai.uz/d/tok?p=free%20%231&v=${partFingerprint({ ...side, id: 'free #1' }, side.materialId ?? side.material)}`)
     expect(new URL(l.url).searchParams.get('p')).toBe('free #1')
   })
 })

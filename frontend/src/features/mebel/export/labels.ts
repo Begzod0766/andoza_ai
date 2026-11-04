@@ -24,12 +24,14 @@ export interface PartLabel {
  * by changes: size, thickness, material, grain, edge bands, holes. The label
  * carries it, so the workshop page can say "this part changed since printing".
  * 32-bit FNV-1a: a short, stable checksum, not a security measure.
+ * `materialKey` is the part's catalogue id, else its kind: the same on the
+ * owner's computer and the worker's phone, whatever their language or catalogue.
  */
-export function partFingerprint(part: Part, materialName: string): string {
+export function partFingerprint(part: Part, materialKey: string): string {
   const e = part.edges;
   const band = (s: Part["edges"]["L1"]) => s?.thickness || null;
   const key = JSON.stringify([
-    part.finished.length, part.finished.width, part.thickness, materialName, part.grain,
+    part.finished.length, part.finished.width, part.thickness, materialKey, part.grain,
     [band(e.L1), band(e.L2), band(e.W1), band(e.W2)],
     (part.holes ?? []).map((h) => [h.kind, h.face, h.u, h.v, h.diameter, h.depth]),
   ]);
@@ -68,7 +70,7 @@ export function partLabels(
           L1: p.edges.L1?.thickness || null, L2: p.edges.L2?.thickness || null,
           W1: p.edges.W1?.thickness || null, W2: p.edges.W2?.thickness || null,
         },
-        url: `${opts.origin}/d/${opts.token}?p=${encodeURIComponent(p.id)}&v=${partFingerprint(p, material)}`,
+        url: `${opts.origin}/d/${opts.token}?p=${encodeURIComponent(p.id)}&v=${partFingerprint(p, p.materialId ?? p.material)}`,
       };
     });
 }

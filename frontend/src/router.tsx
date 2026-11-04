@@ -84,6 +84,7 @@ const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
 const SellerPage = lazy(() => import("@/pages/seller/SellerPage"));
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
 const SharedRoomPage = lazy(() => import("@/pages/share/SharedRoomPage"));
+const WorkshopPartPage = lazy(() => import("@/pages/mebel/WorkshopPartPage"));
 const LidarPage = lazy(() => import("@/pages/scan/LidarPage"));
 const Photo360Page = lazy(() => import("@/pages/scan/Photo360Page"));
 const DrawRoomPage = lazy(() => import("@/pages/scan/DrawRoomPage"));
@@ -125,6 +126,11 @@ const routes: RouteObject[] = [
   {
     path: "/share/:token",
     element: withSuspense(<SharedRoomPage />),
+  },
+  // A mebel part label's QR: the worker opens the part without an account.
+  {
+    path: "/d/:token",
+    element: withSuspense(<WorkshopPartPage />),
   },
 
   // ── Main shell (Uy + Do'kon bottom nav) ──
