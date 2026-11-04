@@ -15,6 +15,9 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 CBU_USD_RATE_URL = "https://cbu.uz/en/arkhiv-kursov-valyut/json/USD/"
+# Second source when CBU does not answer (the prod server could not reach cbu.uz):
+# a free, keyless, daily-updated market rate — close to CBU's, far closer than the constant.
+ER_API_USD_URL = "https://open.er-api.com/v6/latest/USD"
 CACHE_TTL_SECONDS = 3600  # CBU publishes once a day — hourly refresh is plenty
 FALLBACK_USD_RATE = 12_700.0  # so'm per 1 USD, used only if CBU is unreachable
 # and nothing has ever been fetched successfully in this process.
@@ -35,7 +38,8 @@ _cache = _Cache()
 
 
 async def get_usd_rate() -> float:
-    """Return so'm-per-1-USD: from cache when fresh, else refetched from CBU.
+    """Return so'm-per-1-USD: from cache when fresh, else refetched from CBU (or, when
+    CBU does not answer, from open.er-api.com).
 
     Never raises. A fetch failure logs a warning and falls back to the last
     known-good rate (or FALLBACK_USD_RATE if none was ever fetched) — a
@@ -47,20 +51,41 @@ async def get_usd_rate() -> float:
     if _cache.failed_at is not None and (now - _cache.failed_at) < RETRY_AFTER_FAILURE_SECONDS:
         return _cache.rate if _cache.rate is not None else FALLBACK_USD_RATE
 
-    try:
-        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_SECONDS) as client:
-            resp = await client.get(CBU_USD_RATE_URL)
-            resp.raise_for_status()
-            data = resp.json()
-        rate = float(data[0]["Rate"])
-        _cache.rate = rate
-        _cache.fetched_at = now
-        _cache.failed_at = None
-        return rate
-    except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as e:
-        logger.warning("currency.usd_rate_fetch_failed", error=str(e))
-        _cache.failed_at = now
-        return _cache.rate if _cache.rate is not None else FALLBACK_USD_RATE
+    async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_SECONDS) as client:
+        for source, fetch in (("cbu", _fetch_cbu), ("er_api", _fetch_er_api)):
+            try:
+                rate = await fetch(client)
+            except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as e:
+                logger.warning("currency.usd_rate_fetch_failed", source=source, error=str(e))
+                continue
+            _cache.rate = rate
+            _cache.fetched_at = now
+            _cache.failed_at = None
+            return rate
+    _cache.failed_at = now
+    return _cache.rate if _cache.rate is not None else FALLBACK_USD_RATE
+
+
+def _sane(rate: float) -> float:
+    """A so'm-per-dollar figure, or ValueError for one no source should give (0, a typo'd scale)."""
+    if not 1_000 < rate < 100_000:
+        raise ValueError(f"implausible USD rate {rate}")
+    return rate
+
+
+async def _fetch_cbu(client: httpx.AsyncClient) -> float:
+    resp = await client.get(CBU_USD_RATE_URL)
+    resp.raise_for_status()
+    return _sane(float(resp.json()[0]["Rate"]))
+
+
+async def _fetch_er_api(client: httpx.AsyncClient) -> float:
+    resp = await client.get(ER_API_USD_URL)
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("result") != "success":
+        raise ValueError(f"er-api result {data.get('result')!r}")
+    return _sane(float(data["rates"]["UZS"]))
 
 
 def uzs_to_usd(uzs: int, usd_rate: float) -> float:
