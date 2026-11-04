@@ -3,12 +3,14 @@ book. The calculation itself runs in the browser (the engine is pure
 TypeScript); the server only keeps what the user typed, scoped to them."""
 from __future__ import annotations
 
+import secrets
 import uuid as uuid_module
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException, Response, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from sqlalchemy import func, select, update
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.api.v1.deps import CurrentUser, DbSession
@@ -16,10 +18,15 @@ from app.models.furniture_project import FurnitureProject
 from app.models.price_book import PriceBook
 from app.models.mebel_offcut import MebelOffcut
 from app.config import settings
-from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, SuggestIn
+from app.core.cache import get_redis
+from app.routers.auth import _enforce_rate_limit, _get_client_ip
+from app.routers.room_share import _PUBLIC_ROOM_IP_LIMIT, _PUBLIC_ROOM_IP_WINDOW
+from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, PublicMebelProjectOut, SuggestIn, WorkshopLinkOut
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/mebel", tags=["mebel"])
+# No auth: a part label's QR opens the project read-only by its workshop token
+public_router = APIRouter(prefix="/public/mebel", tags=["mebel"])
 
 
 def _stored(data) -> dict:
@@ -87,6 +94,57 @@ async def update_project(
 async def delete_project(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> Response:
     row = await _own_project(db, current_user, project_id)
     await db.delete(row)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+_WORKSHOP_TOKEN_BYTES = 24  # ~192 bits, as room share links
+_MAX_TOKEN_ATTEMPTS = 5
+
+
+async def _new_workshop_token(db) -> str:
+    for _ in range(_MAX_TOKEN_ATTEMPTS):
+        candidate = secrets.token_urlsafe(_WORKSHOP_TOKEN_BYTES)
+        taken = await db.execute(select(FurnitureProject.id).where(FurnitureProject.workshop_token == candidate))
+        if taken.scalar_one_or_none() is None:
+            return candidate
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Havolani yaratib bo'lmadi")
+
+
+@router.post("/projects/{project_id}/workshop-link", response_model=WorkshopLinkOut,
+             summary="The project's workshop token for label QR codes (created on first call)")
+async def create_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> WorkshopLinkOut:
+    row = await _own_project(db, current_user, project_id)
+    if row.workshop_token:
+        return WorkshopLinkOut(token=row.workshop_token)
+    token = await _new_workshop_token(db)
+    # Written only while still unset: two first prints at once must share one token,
+    # or the labels printed with the overwritten one would be dead from the start.
+    written = await db.execute(
+        update(FurnitureProject)
+        .where(FurnitureProject.id == row.id, FurnitureProject.workshop_token.is_(None))
+        .values(workshop_token=token)
+        .execution_options(synchronize_session=False)
+    )
+    if written.rowcount == 0:
+        token = (await db.execute(
+            select(FurnitureProject.workshop_token).where(FurnitureProject.id == row.id)
+        )).scalar_one_or_none()
+        if not token:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Havolani yaratib bo'lmadi")
+    else:
+        log.info("mebel_workshop_link_created", project_id=str(project_id))
+    set_committed_value(row, "workshop_token", token)
+    return WorkshopLinkOut(token=token)
+
+
+@router.delete("/projects/{project_id}/workshop-link", status_code=status.HTTP_204_NO_CONTENT,
+               summary="Revoke the workshop token: printed labels stop opening the project")
+async def revoke_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> Response:
+    row = await _own_project(db, current_user, project_id)
+    if row.workshop_token:
+        row.workshop_token = None
+        await db.flush()
+        log.info("mebel_workshop_link_revoked", project_id=str(project_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -200,3 +258,23 @@ async def ai_suggest(body: SuggestIn, current_user: CurrentUser) -> dict:
     except Exception as exc:
         log.warning("mebel_ai.failed", error=str(exc), error_type=type(exc).__name__)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI javob bermadi, qayta urinib ko'ring")
+
+
+@public_router.get("/{token}", response_model=PublicMebelProjectOut,
+                   summary="Read-only project by workshop token -- no authentication")
+async def get_public_project(token: str, request: Request, db: DbSession) -> PublicMebelProjectOut:
+    await _enforce_rate_limit(
+        get_redis(),
+        f"public_mebel_ip:{_get_client_ip(request)}",
+        _PUBLIC_ROOM_IP_LIMIT,
+        _PUBLIC_ROOM_IP_WINDOW,
+        "Juda ko'p so'rov yuborildi. Birozdan so'ng qayta urinib ko'ring.",
+    )
+    # Wrong, revoked, blank and never-issued tokens all get this one 404.
+    not_found = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Havola topilmadi")
+    if not token.strip():
+        raise not_found
+    row = (await db.execute(select(FurnitureProject).where(FurnitureProject.workshop_token == token))).scalar_one_or_none()
+    if row is None:
+        raise not_found
+    return PublicMebelProjectOut(name=row.name, data=row.data)

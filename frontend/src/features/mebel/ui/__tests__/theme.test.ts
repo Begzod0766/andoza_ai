@@ -11,6 +11,7 @@ const FILES = [
   join(SRC, 'pages/mebel/MebelProjectPage.tsx'),
   join(SRC, 'pages/mebel/MebelOffcutsPage.tsx'),
   join(SRC, 'pages/mebel/MebelListPage.tsx'),
+  join(SRC, 'pages/mebel/WorkshopPartPage.tsx'),
   ...readdirSync(UI).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx') && !PAPER.has(f)).map((f) => join(UI, f)),
 ]
 const LIGHT = /(?<![\w:-])(?:hover:|focus:|disabled:|group-hover:)?(bg-white|bg-neutral-\d+|text-neutral-\d+|border-neutral-\d+|ring-neutral-\d+|divide-neutral-\d+)\b/g

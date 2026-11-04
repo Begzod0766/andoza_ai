@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { ConfirmProvider } from '@/components/ui/ConfirmDialog'
+import { ToastProvider } from '@/components/ui/Toast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import MebelProjectPage from './MebelProjectPage'
 import * as api from '@/lib/api'
@@ -21,6 +22,8 @@ vi.mock('@/lib/api', async () => {
     getCatalogMaterials: vi.fn(),
     listOffcuts: vi.fn(),
     cutMebelProject: vi.fn(),
+    createWorkshopLink: vi.fn(),
+    revokeWorkshopLink: vi.fn(),
   }
 })
 vi.mock('@/features/mebel/export/csv', async () => {
@@ -38,13 +41,13 @@ function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <ConfirmProvider>
+      <ToastProvider><ConfirmProvider>
       <MemoryRouter initialEntries={['/mebel/p1']}>
         <Routes>
           <Route path="/mebel/:id" element={<MebelProjectPage />} />
         </Routes>
       </MemoryRouter>
-      </ConfirmProvider>
+      </ConfirmProvider></ToastProvider>
     </QueryClientProvider>,
   )
 }
@@ -68,6 +71,7 @@ beforeEach(() => {
   vi.mocked(api.getMaterials).mockResolvedValue([])
   vi.mocked(api.getCatalogMaterials).mockResolvedValue([])
   vi.mocked(api.listOffcuts).mockResolvedValue([])
+  vi.mocked(api.createWorkshopLink).mockResolvedValue({ token: 'tok' })
 })
 afterEach(() => vi.useRealTimers())
 
@@ -164,6 +168,84 @@ describe('MebelProjectPage export', () => {
     expect(name).toBe('Oshxona')
     expect(body).toContain('ID;Detal;Material')
     expect(body).toContain(t('mebel.part.side_left'))
+  })
+
+  it('printing labels asks for the workshop link first, then prints with it', async () => {
+    vi.mocked(api.createWorkshopLink).mockResolvedValue({ token: 'tok' })
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
+    expect(api.createWorkshopLink).toHaveBeenCalledWith('p1')
+    const qrs = within(screen.getByTestId('mebel-labels')).getAllByTestId('qr')
+    expect(qrs.length).toBeGreaterThan(0)
+    for (const q of qrs) expect(q.getAttribute('data-url')).toMatch(/\/d\/tok\?p=[^&]+&v=[0-9a-z]{6}$/)
+    print.mockRestore()
+  })
+
+  it('when the workshop link cannot be made, nothing prints and an error shows', async () => {
+    vi.mocked(api.createWorkshopLink).mockRejectedValue(new Error('offline'))
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.labels.roll'))
+    expect(await screen.findByText(t('mebel.workshop.link_failed'))).toBeInTheDocument()
+    expect(print).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('mebel-labels')).toBeNull()
+    print.mockRestore()
+  })
+
+  it('labels never print an edit the server has not saved', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.mocked(api.saveMebelProject).mockRejectedValue(new Error('offline'))
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    const width = await screen.findByLabelText(t('mebel.width'))
+    fireEvent.change(width, { target: { value: '700' } })
+    await act(async () => { vi.advanceTimersByTime(1100) })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(t('mebel.save_failed')))
+    await exportItem(t('mebel.labels.a4'))
+    expect(await screen.findByText(t('mebel.workshop.save_first'))).toBeInTheDocument()
+    expect(api.createWorkshopLink).not.toHaveBeenCalled()
+    expect(print).not.toHaveBeenCalled()
+    print.mockRestore()
+    vi.useRealTimers()
+  })
+
+  it('a pending edit is saved before the labels print', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const order: string[] = []
+    vi.mocked(api.saveMebelProject).mockImplementation(async (_i, _n, data) => { order.push(`save:${data.cabinets[0].width}`); return {} as never })
+    vi.mocked(api.createWorkshopLink).mockImplementation(async () => { order.push('link'); return { token: 'tok' } })
+    const print = vi.spyOn(window, 'print').mockImplementation(() => { order.push('print') })
+    mount()
+    const width = await screen.findByLabelText(t('mebel.width'))
+    fireEvent.change(width, { target: { value: '700' } })
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
+    expect(order).toEqual(['save:700', 'link', 'print'])
+    print.mockRestore()
+    vi.useRealTimers()
+  })
+
+  it('the revoke row shows only when the project has a link', async () => {
+    mount()
+    fireEvent.click(await screen.findByRole('button', { name: t('mebel.header.export') }))
+    expect(screen.queryByRole('menuitem', { name: t('mebel.workshop.revoke') })).toBeNull()
+  })
+
+  it('revoking asks first, then revokes the link', async () => {
+    const loaded = await api.getMebelProject('p1')
+    vi.mocked(api.getMebelProject).mockResolvedValue({ ...loaded, has_workshop_link: true })
+    vi.mocked(api.revokeWorkshopLink).mockResolvedValue()
+    mount()
+    await exportItem(t('mebel.workshop.revoke'))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent(t('mebel.workshop.revoke_desc'))
+    expect(api.revokeWorkshopLink).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: t('mebel.workshop.revoke') }))
+    await waitFor(() => expect(api.revokeWorkshopLink).toHaveBeenCalledWith('p1'))
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.header.export') }))
+    await waitFor(() => expect(screen.queryByRole('menuitem', { name: t('mebel.workshop.revoke') })).toBeNull())
   })
 
   it('PDF opens the print dialog with the printable cut list', async () => {
@@ -493,7 +575,7 @@ describe('MebelProjectPage labels', () => {
     mount()
     await screen.findByRole('table', { name: t('mebel.tab.parts') })
     await exportItem(t('mebel.labels.a4'))
-    expect(print).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
     expect(screen.getByTestId('mebel-labels')).toBeInTheDocument()
     expect(screen.queryByTestId('mebel-print')).toBeNull()
     expect(screen.getAllByTestId('label').length).toBeGreaterThan(5)
@@ -504,13 +586,13 @@ describe('MebelProjectPage labels', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
-        <ConfirmProvider>
+        <ToastProvider><ConfirmProvider>
         <MemoryRouter initialEntries={['/mebel/p1?part=M1-02']}>
           <Routes>
             <Route path="/mebel/:id" element={<MebelProjectPage />} />
           </Routes>
         </MemoryRouter>
-        </ConfirmProvider>
+        </ConfirmProvider></ToastProvider>
       </QueryClientProvider>,
     )
     expect(await screen.findByRole('tab', { name: t('mebel.tab.drilling'), selected: true })).toBeInTheDocument()
@@ -613,19 +695,19 @@ describe('MebelProjectPage free part links', () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(
       <QueryClientProvider client={client}>
-        <ConfirmProvider>
+        <ToastProvider><ConfirmProvider>
         <MemoryRouter initialEntries={['/mebel/p1?part=D1-1']}>
           <Routes>
             <Route path="/mebel/:id" element={<MebelProjectPage />} />
           </Routes>
         </MemoryRouter>
-        </ConfirmProvider>
+        </ConfirmProvider></ToastProvider>
       </QueryClientProvider>,
     )
     expect(await screen.findByRole('tab', { name: t('mebel.tab.parts'), selected: true })).toBeInTheDocument()
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})
     await exportItem(t('mebel.labels.a4'))
-    const label = screen.getAllByTestId('label').find(l => l.textContent?.includes('D1-1'))!
+    const label = (await screen.findAllByTestId('label')).find(l => l.textContent?.includes('D1-1'))!
     expect(label.textContent).toContain('D1 · Oshxona')
     print.mockRestore()
   })

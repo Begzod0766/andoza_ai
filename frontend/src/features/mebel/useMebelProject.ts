@@ -6,7 +6,7 @@ import type { CatalogPrices, FurnitureProject, Result, StockPiece } from "@/feat
 import type { CatalogOptions } from "./ui/ParamsPanel";
 
 const SAVE_DELAY_MS = 1000;
-const CATALOG_CATEGORIES = ["ldsp", "hdf", "kromka", "mdf"] as const;
+export const CATALOG_CATEGORIES = ["ldsp", "hdf", "kromka", "mdf"] as const;
 
 /** "invalid": there are edits, but they do not validate, so they are not saved. */
 export type SaveState = "saved" | "saving" | "error" | "invalid";
@@ -28,6 +28,9 @@ export function useMebelProject(id: string) {
   const offcutsQuery = useQuery({ queryKey: ["mebel", "offcuts"], queryFn: listOffcuts, staleTime: Infinity, refetchOnWindowFocus: false });
   const [cutAtLocal, setCutAtLocal] = useState<string | null>(null);
   const cutAt = cutAtLocal ?? projectQuery.data?.cut_at ?? null;
+  // Labels' QR codes open the project without an account while a workshop link exists.
+  const [workshopLinkLocal, setWorkshopLinkLocal] = useState<boolean | null>(null);
+  const hasWorkshopLink = workshopLinkLocal ?? projectQuery.data?.has_workshop_link ?? false;
   const stock = useMemo<StockPiece[]>(
     () => (cutAt ? [] : (offcutsQuery.data ?? []).map(({ id, material, materialId, thickness, length, width }) => ({ id, material, materialId, thickness, length, width }))),
     [offcutsQuery.data, cutAt],
@@ -82,6 +85,8 @@ export function useMebelProject(id: string) {
   );
 
   const flush = useRef(() => {});
+  // Whether the latest save landed: what the server holds is what the editor shows.
+  const lastSave = useRef<Promise<boolean>>(Promise.resolve(true));
   flush.current = () => {
     const p = pending.current;
     if (!p) return;
@@ -89,9 +94,14 @@ export function useMebelProject(id: string) {
     dirty.current = false;
     // Only the latest save may report: an earlier one landing late says nothing.
     const seq = ++saveSeq.current;
-    saveMebelProject(id, p.name.trim() || "—", p)
-      .then(() => { if (seq === saveSeq.current && !pending.current) setSaveState("saved"); })
-      .catch(() => { if (seq === saveSeq.current) setSaveState("error"); });
+    lastSave.current = saveMebelProject(id, p.name.trim() || "—", p)
+      .then(() => { if (seq === saveSeq.current && !pending.current) setSaveState("saved"); return true; })
+      .catch(() => { if (seq === saveSeq.current) setSaveState("error"); return false; });
+  };
+  /** Saves the pending edit now; true once the server holds the project as shown. */
+  const saveNow = (): Promise<boolean> => {
+    flush.current();
+    return lastSave.current;
   };
 
   useEffect(() => {
@@ -132,6 +142,9 @@ export function useMebelProject(id: string) {
     refetchOffcuts: offcutsQuery.refetch,
     cutAt,
     markCutLocally: setCutAtLocal,
+    hasWorkshopLink,
+    saveNow,
+    setHasWorkshopLink: setWorkshopLinkLocal,
     offcutsReady: offcutsQuery.isSuccess,
     isLoading: projectQuery.isLoading,
     isError: projectQuery.isError,

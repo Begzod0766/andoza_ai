@@ -20,6 +20,8 @@ export interface MebelProject {
   data: FurnitureProject;
   /** "Kesildi": when the job was cut and its offcuts moved through the store. */
   cut_at?: string | null;
+  /** A workshop link exists: printed labels' QR codes open the project without an account. */
+  has_workshop_link?: boolean;
 }
 
 /** An offcut entered by hand or left by a job's layout. */
@@ -130,4 +132,19 @@ export async function deleteOffcut(id: string): Promise<void> {
 /** "Kesildi": the store offcuts the layout used leave, the offcuts it leaves arrive. */
 export function cutMebelProject(id: string, body: { used: string[]; produced: OffcutIn[] }): Promise<MebelProject> {
   return apiClient<MebelProject>(`/mebel/projects/${encodeURIComponent(id)}/cut`, { method: "POST", body: JSON.stringify(body) });
+}
+
+/** The project's workshop token for label QR codes; created on the first call, then the same. */
+export function createWorkshopLink(projectId: string): Promise<{ token: string }> {
+  return apiClient<{ token: string }>(`/mebel/projects/${encodeURIComponent(projectId)}/workshop-link`, { method: "POST" });
+}
+
+/** Revokes the workshop token: printed labels stop opening the project. */
+export async function revokeWorkshopLink(projectId: string): Promise<void> {
+  await apiClient<void>(`/mebel/projects/${encodeURIComponent(projectId)}/workshop-link`, { method: "DELETE" });
+}
+
+/** A project read by its workshop token, no account: the name and the construction data only. */
+export function getPublicMebelProject(token: string): Promise<{ name: string; data: FurnitureProject }> {
+  return apiClient<{ name: string; data: FurnitureProject }>(`/public/mebel/${encodeURIComponent(token)}`);
 }

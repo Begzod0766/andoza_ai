@@ -131,14 +131,31 @@ class ProjectSummary(BaseModel):
         data = get("data")
         if not isinstance(data, dict):
             return value
-        fields = {k: get(k) for k in cls.model_fields if k not in ("cabinets", "free_parts") and get(k) is not None}
-        return {**fields, "cabinets": len(data.get("cabinets") or []), "free_parts": len(data.get("freeParts") or [])}
+        skip = ("cabinets", "free_parts", "has_workshop_link")
+        fields = {k: get(k) for k in cls.model_fields if k not in skip and get(k) is not None}
+        out = {**fields, "cabinets": len(data.get("cabinets") or []), "free_parts": len(data.get("freeParts") or [])}
+        if "has_workshop_link" in cls.model_fields:
+            # The editor only needs to know a link exists; the token itself comes from POST …/workshop-link
+            out["has_workshop_link"] = bool(get("workshop_token"))
+        return out
 
 
 class ProjectOut(ProjectSummary):
     data: dict
     schema_version: int
     created_at: datetime
+    has_workshop_link: bool = False
+
+
+class WorkshopLinkOut(BaseModel):
+    token: str
+
+
+class PublicMebelProjectOut(BaseModel):
+    """What a scanned label may see: the name and the construction JSON. No ids, owner,
+    timestamps or prices (those live in the price book, which is never returned)."""
+    name: str
+    data: dict
 
 
 MAX_OFFCUTS = 500

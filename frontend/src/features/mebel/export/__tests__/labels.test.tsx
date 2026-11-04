@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import { partLabels } from '../labels'
+import { partFingerprint, partLabels } from '../labels'
 import { LabelsPrintView } from '../LabelsPrintView'
 import { computeProject, EMPTY_PRICE_BOOK, newProject } from '@/features/mebel/engine'
 
@@ -11,7 +11,7 @@ function project(facade: 'ldsp' | 'mdf' = 'ldsp') {
   return computeProject(p, EMPTY_PRICE_BOOK, {})
 }
 const labelOf = (id: string) => (id === 'c1' ? 'M1' : 'M2')
-const opts = { projectId: 'p1', origin: 'https://andozaai.uz', labelOf, materialName: () => 'LDSP' }
+const opts = { token: 'tok', origin: 'https://andozaai.uz', labelOf, materialName: () => 'LDSP' }
 
 describe('partLabels', () => {
   it('one label per part the workshop cuts, in id order', () => {
@@ -32,7 +32,14 @@ describe('partLabels', () => {
     const l = partLabels(r.parts, opts).find(x => x.partId === side.id)!
     expect(l).toMatchObject({ cabinet: 'M1', length: side.finished.length, width: side.finished.width, thickness: 18, grain: 'length' })
     expect(l.edges).toEqual({ L1: 2, L2: null, W1: 0.4, W2: null })
-    expect(l.url).toBe(`https://andozaai.uz/mebel/p1?part=${side.id}`)
+    expect(l.url).toBe(`https://andozaai.uz/d/tok?p=${encodeURIComponent(side.id)}&v=${partFingerprint(side, side.materialId ?? side.material)}`)
+  })
+
+  it('the url encodes a part id that needs it', () => {
+    const side = project().parts[0]
+    const [l] = partLabels([{ ...side, id: 'free #1' }], opts)
+    expect(l.url).toBe(`https://andozaai.uz/d/tok?p=free%20%231&v=${partFingerprint({ ...side, id: 'free #1' }, side.materialId ?? side.material)}`)
+    expect(new URL(l.url).searchParams.get('p')).toBe('free #1')
   })
 })
 
