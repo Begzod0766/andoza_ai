@@ -29,6 +29,8 @@ class FurnitureProject(Base):
     schema_version: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1, server_default="1")
     # "Kesildi": the job was cut and its offcuts moved through the store; once only
     cut_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The secret in part labels' QR codes: opens the project read-only, no account. NULL = revoked
+    workshop_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,

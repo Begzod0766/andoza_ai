@@ -3,6 +3,7 @@ book. The calculation itself runs in the browser (the engine is pure
 TypeScript); the server only keeps what the user typed, scoped to them."""
 from __future__ import annotations
 
+import secrets
 import uuid as uuid_module
 from datetime import datetime, timezone
 
@@ -16,7 +17,7 @@ from app.models.furniture_project import FurnitureProject
 from app.models.price_book import PriceBook
 from app.models.mebel_offcut import MebelOffcut
 from app.config import settings
-from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, SuggestIn
+from app.schemas.mebel import MAX_OFFCUTS, CutIn, OffcutIn, OffcutOut, PriceBookIn, ProjectIn, ProjectOut, ProjectSummary, SuggestIn, WorkshopLinkOut
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/mebel", tags=["mebel"])
@@ -87,6 +88,41 @@ async def update_project(
 async def delete_project(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> Response:
     row = await _own_project(db, current_user, project_id)
     await db.delete(row)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+_WORKSHOP_TOKEN_BYTES = 24  # ~192 bits, as room share links
+_MAX_TOKEN_ATTEMPTS = 5
+
+
+async def _new_workshop_token(db) -> str:
+    for _ in range(_MAX_TOKEN_ATTEMPTS):
+        candidate = secrets.token_urlsafe(_WORKSHOP_TOKEN_BYTES)
+        taken = await db.execute(select(FurnitureProject.id).where(FurnitureProject.workshop_token == candidate))
+        if taken.scalar_one_or_none() is None:
+            return candidate
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Havolani yaratib bo'lmadi")
+
+
+@router.post("/projects/{project_id}/workshop-link", response_model=WorkshopLinkOut,
+             summary="The project's workshop token for label QR codes (created on first call)")
+async def create_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> WorkshopLinkOut:
+    row = await _own_project(db, current_user, project_id)
+    if not row.workshop_token:
+        row.workshop_token = await _new_workshop_token(db)
+        await db.flush()
+        log.info("mebel_workshop_link_created", project_id=str(project_id))
+    return WorkshopLinkOut(token=row.workshop_token)
+
+
+@router.delete("/projects/{project_id}/workshop-link", status_code=status.HTTP_204_NO_CONTENT,
+               summary="Revoke the workshop token: printed labels stop opening the project")
+async def revoke_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> Response:
+    row = await _own_project(db, current_user, project_id)
+    if row.workshop_token:
+        row.workshop_token = None
+        await db.flush()
+        log.info("mebel_workshop_link_revoked", project_id=str(project_id))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
