@@ -48,6 +48,14 @@ export function rectCorners(r: Rect): Pt[] {
   )
 }
 
+/** Is (x, z) inside the footprint, not on its edge? */
+function strictlyUnder(r: Rect, x: number, z: number): boolean {
+  const dx = x - r.x, dz = z - r.z
+  const along = dx * Math.cos(r.rotation) - dz * Math.sin(r.rotation)
+  const front = dx * Math.sin(r.rotation) + dz * Math.cos(r.rotation)
+  return Math.abs(along) < r.w / 2 - 1e-6 && Math.abs(front) < r.d / 2 - 1e-6
+}
+
 /** The axis-aligned box round a footprint. */
 export function rectBounds(r: Rect): { minX: number; maxX: number; minZ: number; maxZ: number } {
   const c = rectCorners(r)
@@ -155,11 +163,15 @@ export function roomModel(geometry: RoomGeometry): RoomModel {
       const inner = offsetPolygon(poly, -OUTLINE_INSET * 1000)
       const offX = poly.W / 2, offZ = poly.D / 2
       const inPlan = (x: number, z: number) => pointInPolygon(x * 1000 + offX, z * 1000 + offZ, inner)
+      const innerWorld = inner.map(([x, z]) => [(x - offX) / 1000, (z - offZ) / 1000] as Pt)
       return {
         walls,
         ...openingsOf(geometry, walls),
         box: { minX: poly.minX / 1000 - poly.W / 2000, maxX: poly.maxX / 1000 - poly.W / 2000, minZ: poly.minZ / 1000 - poly.D / 2000, maxZ: poly.maxZ / 1000 - poly.D / 2000 },
-        inside: (r) => rectCorners(r).every(([x, z]) => inPlan(x, z)),
+        // Its corners in the outline, and no corner of the outline under it: a turned piece can have
+        // all four corners in an L and still cover the inner corner between them.
+        inside: (r) => rectCorners(r).every(([x, z]) => inPlan(x, z))
+          && !innerWorld.some(([x, z]) => strictlyUnder(r, x, z)),
         offsetMm: { x: offX, z: offZ },
       }
     }
