@@ -18,12 +18,17 @@ CBU_USD_RATE_URL = "https://cbu.uz/en/arkhiv-kursov-valyut/json/USD/"
 CACHE_TTL_SECONDS = 3600  # CBU publishes once a day — hourly refresh is plenty
 FALLBACK_USD_RATE = 12_700.0  # so'm per 1 USD, used only if CBU is unreachable
 # and nothing has ever been fetched successfully in this process.
+# The rate is fetched on the smeta request path: a CBU that does not answer must cost
+# that request little, and only once in a while — not the full timeout every time.
+FETCH_TIMEOUT_SECONDS = 3.0
+RETRY_AFTER_FAILURE_SECONDS = 600
 
 
 @dataclass
 class _Cache:
     rate: float | None = None
     fetched_at: float = 0.0
+    failed_at: float | None = None
 
 
 _cache = _Cache()
@@ -39,18 +44,22 @@ async def get_usd_rate() -> float:
     now = time.monotonic()
     if _cache.rate is not None and (now - _cache.fetched_at) < CACHE_TTL_SECONDS:
         return _cache.rate
+    if _cache.failed_at is not None and (now - _cache.failed_at) < RETRY_AFTER_FAILURE_SECONDS:
+        return _cache.rate if _cache.rate is not None else FALLBACK_USD_RATE
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=FETCH_TIMEOUT_SECONDS) as client:
             resp = await client.get(CBU_USD_RATE_URL)
             resp.raise_for_status()
             data = resp.json()
         rate = float(data[0]["Rate"])
         _cache.rate = rate
         _cache.fetched_at = now
+        _cache.failed_at = None
         return rate
     except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as e:
         logger.warning("currency.usd_rate_fetch_failed", error=str(e))
+        _cache.failed_at = now
         return _cache.rate if _cache.rate is not None else FALLBACK_USD_RATE
 
 
