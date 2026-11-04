@@ -166,4 +166,57 @@ describe('WorkshopPartPage', () => {
     expect(await screen.findByText(t('mebel.workshop.pick_part'))).toBeInTheDocument()
     expect(location).toBe('')
   })
+
+  it('lists the order\'s parts by cabinet; tapping one selects it and replaces ?p', async () => {
+    const part = drilled()
+    const other = parts().find(p => p.cabinetId === 'c2')!
+    mount(`/d/tok?p=${encodeURIComponent(part.id)}&v=zzzzzz`)
+    await screen.findByTestId('workshop-part')
+    const list = screen.getByRole('region', { name: t('mebel.workshop.other_parts') })
+    expect(within(list).getByRole('heading', { name: 'M1' })).toBeInTheDocument()
+    expect(within(list).getByRole('heading', { name: 'M2' })).toBeInTheDocument()
+    expect(within(list).getByRole('heading', { name: 'D #1' })).toBeInTheDocument()
+    const historyBefore = window.history.length
+    fireEvent.click(within(list).getByRole('button', { name: new RegExp(other.id) }))
+    await waitFor(() => expect(location).toBe(`?p=${encodeURIComponent(other.id)}`))
+    expect(window.history.length).toBe(historyBefore)
+    expect(screen.getByTestId('workshop-part')).toHaveTextContent(other.id)
+    // the "changed" note was about the scanned part only
+    expect(screen.queryByText(t('mebel.workshop.changed'))).toBeNull()
+  })
+
+  it('with no part chosen, the list is there to choose from', async () => {
+    mount('/d/tok')
+    expect(await screen.findByRole('region', { name: t('mebel.workshop.other_parts') })).toBeInTheDocument()
+  })
+
+  it('each cabinet group opens its assembly drawing', async () => {
+    mount(`/d/tok?p=${encodeURIComponent(drilled().id)}`)
+    const list = await screen.findByRole('region', { name: t('mebel.workshop.other_parts') })
+    expect(screen.queryByRole('img', { name: /^M1 — / })).toBeNull()
+    fireEvent.click(within(list).getAllByRole('button', { name: t('mebel.workshop.assembly') })[0])
+    expect(screen.getAllByRole('img', { name: /^M1 — / }).length).toBeGreaterThan(0)
+  })
+
+  it('3D is not loaded until asked for, then shows the part\'s cabinet with it selected', async () => {
+    const part = drilled()
+    mount(`/d/tok?p=${encodeURIComponent(part.id)}`)
+    await screen.findByTestId('workshop-part')
+    expect(screen.queryByTestId('cabinet-view')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.workshop.view_3d') }))
+    const view = await screen.findByTestId('cabinet-view')
+    expect(view.dataset.selected).toBe(part.id)
+    expect(Number(view.dataset.parts)).toBe(parts().filter(p => p.cabinetId === 'c1').length)
+  })
+
+  it('a long name and many parts do not widen the page', async () => {
+    vi.mocked(api.getPublicMebelProject).mockResolvedValue({ name: 'Juda uzun loyiha nomi '.repeat(10), data: project() })
+    mount(`/d/tok?p=${encodeURIComponent(drilled().id)}`)
+    expect(await screen.findByTestId('workshop-name')).toHaveClass('truncate')
+    const list = screen.getByRole('region', { name: t('mebel.workshop.other_parts') })
+    for (const row of within(list).getAllByTestId('workshop-row')) {
+      expect(row).toHaveClass('min-w-0')
+      expect(row.querySelector('.truncate')).not.toBeNull()
+    }
+  })
 })
