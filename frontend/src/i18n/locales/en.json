@@ -2705,6 +2705,24 @@
     },
     "view3d_height": "3D view height",
     "cut_group_qty": "{{n}} pcs",
-    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}"
+    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}",
+    "workshop": {
+      "link_failed": "Label QR codes need a connection — please try again.",
+      "revoke": "Revoke the workshop link",
+      "revoke_desc": "QR codes on printed labels will stop working. The next print creates a new link.",
+      "revoke_failed": "The link could not be revoked.",
+      "read_only": "View only",
+      "gone": "This link no longer works. Ask the project owner for a new label.",
+      "load_failed": "Could not load",
+      "retry": "Retry",
+      "part_missing": "This part is no longer in the project",
+      "changed": "This part changed after its label was printed. The sizes below are the new ones.",
+      "no_holes": "This part has no holes",
+      "pick_part": "Choose a part",
+      "other_parts": "Other parts in this order",
+      "assembly": "Assembly drawing",
+      "view_3d": "View in 3D",
+      "holes": "Holes"
+    }
   }
 }

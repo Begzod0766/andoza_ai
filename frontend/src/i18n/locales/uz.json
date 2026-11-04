@@ -2705,6 +2705,24 @@
     },
     "view3d_height": "3D balandligi",
     "cut_group_qty": "{{n}} dona",
-    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}"
+    "cut_group": "{{name}} · {{thickness}} mm · {{qty}}",
+    "workshop": {
+      "link_failed": "Yorliqlar QR kodi uchun internet kerak — qayta urinib ko'ring.",
+      "revoke": "Sex havolasini bekor qilish",
+      "revoke_desc": "Chop etilgan yorliqlardagi QR kodlar ishlamay qoladi. Keyingi chop etishda yangi havola yaratiladi.",
+      "revoke_failed": "Havolani bekor qilib bo'lmadi.",
+      "read_only": "Faqat ko'rish",
+      "gone": "Bu havola endi ishlamaydi. Loyiha egasidan yangi yorliq so'rang.",
+      "load_failed": "Yuklab bo'lmadi",
+      "retry": "Qayta urinish",
+      "part_missing": "Bu detal loyihada endi yo'q",
+      "changed": "Bu detal yorliq chop etilgandan keyin o'zgargan. Quyidagi o'lchamlar — yangi.",
+      "no_holes": "Bu detalda teshik yo'q",
+      "pick_part": "Detalni tanlang",
+      "other_parts": "Buyurtmadagi boshqa detallar",
+      "assembly": "Yig'ish chizmasi",
+      "view_3d": "3D da ko'rish",
+      "holes": "Teshiklar"
+    }
   }
 }

@@ -19,7 +19,7 @@ function Qr({ text, size }: { text: string; size: string }) {
     if (data[y * n + x]) cells.push(<rect key={`${x}-${y}`} x={x} y={y} width={1.02} height={1.02} />);
   }
   return (
-    <svg data-testid="qr" viewBox={`-1 -1 ${n + 2} ${n + 2}`} style={{ width: size, height: size }} shapeRendering="crispEdges">
+    <svg data-testid="qr" data-url={text} viewBox={`-1 -1 ${n + 2} ${n + 2}`} style={{ width: size, height: size }} shapeRendering="crispEdges">
       {cells}
     </svg>
   );

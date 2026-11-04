@@ -28,6 +28,9 @@ export function useMebelProject(id: string) {
   const offcutsQuery = useQuery({ queryKey: ["mebel", "offcuts"], queryFn: listOffcuts, staleTime: Infinity, refetchOnWindowFocus: false });
   const [cutAtLocal, setCutAtLocal] = useState<string | null>(null);
   const cutAt = cutAtLocal ?? projectQuery.data?.cut_at ?? null;
+  // Labels' QR codes open the project without an account while a workshop link exists.
+  const [workshopLinkLocal, setWorkshopLinkLocal] = useState<boolean | null>(null);
+  const hasWorkshopLink = workshopLinkLocal ?? projectQuery.data?.has_workshop_link ?? false;
   const stock = useMemo<StockPiece[]>(
     () => (cutAt ? [] : (offcutsQuery.data ?? []).map(({ id, material, materialId, thickness, length, width }) => ({ id, material, materialId, thickness, length, width }))),
     [offcutsQuery.data, cutAt],
@@ -132,6 +135,8 @@ export function useMebelProject(id: string) {
     refetchOffcuts: offcutsQuery.refetch,
     cutAt,
     markCutLocally: setCutAtLocal,
+    hasWorkshopLink,
+    setHasWorkshopLink: setWorkshopLinkLocal,
     offcutsReady: offcutsQuery.isSuccess,
     isLoading: projectQuery.isLoading,
     isError: projectQuery.isError,

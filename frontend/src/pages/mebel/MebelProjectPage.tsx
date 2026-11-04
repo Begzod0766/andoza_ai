@@ -19,7 +19,8 @@ import { FacadeOrder } from "@/features/mebel/ui/FacadeOrder";
 import { facadeOrderCsv } from "@/features/mebel/export/facadeCsv";
 import { cutListCsv, downloadCsv } from "@/features/mebel/export/csv";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import { cutMebelProject, errorMessage } from "@/lib/api";
+import { useToast } from "@/components/ui/Toast";
+import { createWorkshopLink, cutMebelProject, errorMessage, revokeWorkshopLink } from "@/lib/api";
 import { producedOffcuts, usedStockIds } from "@/features/mebel/engine";
 import { PrintView } from "@/features/mebel/export/PrintView";
 import { LabelsPrintView } from "@/features/mebel/export/LabelsPrintView";
@@ -58,6 +59,8 @@ export default function MebelProjectPage() {
   // What the next print holds: the PDF, or a sheet of part labels.
   const [printing, setPrinting] = useState<"pdf" | LabelFormat>("pdf");
   const confirm = useConfirm();
+  const { toast } = useToast();
+  const [workshopToken, setWorkshopToken] = useState<string | null>(null);
   const [cutting, setCutting] = useState(false);
   const [cutError, setCutError] = useState("");
   const cutAt = m.cutAt;
@@ -138,9 +141,32 @@ export default function MebelProjectPage() {
       void m.refetchOffcuts();
     }
   };
-  const printLabels = (format: LabelFormat) => {
-    flushSync(() => setPrinting(format));
-    window.print();
+  // A label's QR opens the part on the workshop page by the project's workshop token:
+  // without one, nothing prints (a QR that leads nowhere is worse than none).
+  const printLabels = async (format: LabelFormat) => {
+    try {
+      const { token } = await createWorkshopLink(id);
+      flushSync(() => { setWorkshopToken(token); setPrinting(format); });
+      m.setHasWorkshopLink(true);
+      window.print();
+    } catch {
+      toast({ variant: "error", title: t("mebel.workshop.link_failed") });
+    }
+  };
+  const revokeLink = async () => {
+    if (!(await confirm({
+      title: t("mebel.workshop.revoke"),
+      description: t("mebel.workshop.revoke_desc"),
+      confirmLabel: t("mebel.workshop.revoke"),
+      destructive: true,
+    }))) return;
+    try {
+      await revokeWorkshopLink(id);
+      m.setHasWorkshopLink(false);
+      setWorkshopToken(null);
+    } catch {
+      toast({ variant: "error", title: t("mebel.workshop.revoke_failed") });
+    }
   };
 
   return (
@@ -177,8 +203,9 @@ export default function MebelProjectPage() {
             actions={[
               { label: t("mebel.export_pdf"), onSelect: exportPdf },
               { label: t("mebel.export_csv"), onSelect: exportCsv },
-              { label: t("mebel.labels.a4"), onSelect: () => printLabels("a4") },
-              { label: t("mebel.labels.roll"), onSelect: () => printLabels("roll") },
+              { label: t("mebel.labels.a4"), onSelect: () => void printLabels("a4") },
+              { label: t("mebel.labels.roll"), onSelect: () => void printLabels("roll") },
+              ...(m.hasWorkshopLink ? [{ label: t("mebel.workshop.revoke"), onSelect: () => void revokeLink() }] : []),
             ]}
           />
         )}
@@ -300,10 +327,10 @@ export default function MebelProjectPage() {
       <PriceBookDialog open={priceBookOpen} onOpenChange={setPriceBookOpen} priceBook={m.priceBook} ready={m.priceBookReady}
         usedMaterials={used} catalog={m.catalog} />
     </div>
-    {!failed && printing !== "pdf" && (
+    {!failed && printing !== "pdf" && workshopToken && (
       <LabelsPrintView projectName={project.name} format={printing}
         labels={partLabels(result.parts, {
-          projectId: id, origin: window.location.origin, labelOf: (cid) => labelOf(cid) ?? "",
+          token: workshopToken, origin: window.location.origin, labelOf: (cid) => labelOf(cid) ?? "",
           materialName: (p) => materialName(p.materialId) ?? t(`mebel.material.${p.material}`),
         })} />
     )}
