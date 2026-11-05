@@ -136,6 +136,26 @@ export function roomFootprint(r: Room, activeId: string, activeW: number, active
   // deep rooms, a 0.35m intrusion — the two-rooms-overlap render bug).
   const wallA = r.geometry?.walls?.find((w) => w.id === 'A');
   const wallB = r.geometry?.walls?.find((w) => w.id === 'B');
+  if (wallA && wallB) return { w: wallA.length, d: wallB.length };
+  // A scanned or drawn polygon has no A/B pair — a LiDAR scan's walls are
+  // numbered "0", "1", … (backend room_scan_converter). Reading walls A and B
+  // off it fell back to 4 x 3 for EVERY such room, so scans were packed at a
+  // 4-metre pitch while drawn at their real size: the QA 2026-11-05 flat's
+  // "Mening xonam" (5.5 x 2.95 m turned ~46°, outline 5.94 x 6.01 m) ran into
+  // its neighbours, and differently from each room, since the open one used
+  // its true size. The polygon is drawn centred on its VERTEX MEAN
+  // (lib/flatBoxes), so the footprint is twice its furthest reach from that
+  // point along each axis — for an outline that is not symmetric about its
+  // mean (an L) that is a little more than its outer rectangle, never less,
+  // which is the side a layout that must not overlap has to err on.
+  const v = r.geometry?.vertices;
+  if (v && v.length >= 3) {
+    const mx = v.reduce((s, p) => s + p[0], 0) / v.length;
+    const mz = v.reduce((s, p) => s + p[1], 0) / v.length;
+    const reachX = Math.max(...v.map((p) => Math.abs(p[0] - mx)));
+    const reachZ = Math.max(...v.map((p) => Math.abs(p[1] - mz)));
+    if (reachX > 0 && reachZ > 0) return { w: 2 * reachX, d: 2 * reachZ };
+  }
   return { w: wallA?.length ?? 4, d: wallB?.length ?? 3 };
 }
 
