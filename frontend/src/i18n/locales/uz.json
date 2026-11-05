@@ -2723,7 +2723,8 @@
       "assembly": "Yig'ish chizmasi",
       "view_3d": "3D da ko'rish",
       "holes": "Teshiklar",
-      "save_first": "Loyiha saqlanmagan — internetni tekshirib, qayta urinib ko'ring. Yorliqlar faqat saqlangan loyihadan chop etiladi."
+      "save_first": "Loyiha saqlanmagan — internetni tekshirib, qayta urinib ko'ring. Yorliqlar faqat saqlangan loyihadan chop etiladi.",
+      "broken": "Bu loyiha ma'lumotida xato bor. Loyiha egasiga ayting — u loyihani tuzatib, yorliqlarni qayta chop etsin."
     }
   }
 }
