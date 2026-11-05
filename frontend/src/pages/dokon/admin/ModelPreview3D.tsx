@@ -46,7 +46,7 @@ class PreviewErrorBoundary extends Component<{ children: ReactNode }, BoundarySt
 /** A small arrow on the floor in front of the model, pointing +Z: where its front faces after the turn. */
 function FrontArrow() {
   return (
-    <group position={[0, -0.5, 0.9]} rotation={[Math.PI / 2, 0, 0]} data-testid="front-arrow">
+    <group position={[0, -0.5, 0.9]} rotation={[Math.PI / 2, 0, 0]} name="front-arrow">
       <mesh>
         <coneGeometry args={[0.12, 0.3, 12]} />
         <meshBasicMaterial color="#e11d48" />
