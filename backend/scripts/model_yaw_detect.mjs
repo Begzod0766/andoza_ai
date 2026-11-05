@@ -3,8 +3,10 @@
 //   node model_yaw_detect.mjs <file.glb>...      one JSON line per file: {file, yaw, detected, size: [x, y, z]}
 //                                                 (or {file, error}; the exit code is then 1)
 //   node model_yaw_detect.mjs --points cases.json [{name, yaw, detected}] for each {name, points} case
+//   node model_yaw_detect.mjs --wall <file.glb>...      the same for pieces that stand against a wall
+//   node model_yaw_detect.mjs --wall-points cases.json  (a TV unit, a wardrobe, a shelf)
 //
-// yawFromPoints mirrors frontend/src/lib/modelYaw.ts, so the backfill and the upload form agree: keep
+// yawFromPoints and wallYawFromPoints mirror frontend/src/lib/modelYaw.ts, so the backfill and the upload form agree: keep
 // the two in step (tests/test_model_yaw_backfill.py checks both against the same fixture). GLB mode
 // needs the global gltf-transform CLI of the api/converter image; --points needs plain node only.
 import fs from 'node:fs'
@@ -44,6 +46,42 @@ export function yawFromPoints(points) {
 
   if (Math.abs(dx) > Math.abs(dz)) return { yaw: dx > 0 ? 90 : 270, detected: true }
   return { yaw: dz < 0 ? 0 : 180, detected: true }
+}
+
+/**
+ * A piece that stands against a wall: its depth is its thinner side across the floor, and its back
+ * is the side its top quarter reaches flush while it falls short of the front. With no such step a
+ * piece lying sideways is still turned a quarter. Mirrors `wallYawFromPoints` in modelYaw.ts.
+ */
+export function wallYawFromPoints(points) {
+  if (points.length === 0) return NOT_DETECTED
+  const min = [Infinity, Infinity, Infinity]
+  const max = [-Infinity, -Infinity, -Infinity]
+  for (const p of points) {
+    for (let i = 0; i < 3; i++) {
+      if (p[i] < min[i]) min[i] = p[i]
+      if (p[i] > max[i]) max[i] = p[i]
+    }
+  }
+  const [sizeX, sizeY, sizeZ] = [max[0] - min[0], max[1] - min[1], max[2] - min[2]]
+  if (!(sizeY > 0) || sizeX === sizeZ) return NOT_DETECTED
+
+  const axis = sizeX < sizeZ ? 0 : 2
+  const depth = axis === 0 ? sizeX : sizeZ
+  const top = max[1] - BACK_SHARE * sizeY
+  let lo = Infinity, hi = -Infinity
+  for (const p of points) {
+    if (p[1] < top) continue
+    if (p[axis] < lo) lo = p[axis]
+    if (p[axis] > hi) hi = p[axis]
+  }
+  const gapMin = (lo - min[axis]) / depth
+  const gapMax = (max[axis] - hi) / depth
+  if (Math.abs(gapMin - gapMax) < MIN_OFFSET) return axis === 0 ? { yaw: 90, detected: true } : NOT_DETECTED
+
+  const backOnMin = gapMin < gapMax
+  if (axis === 0) return { yaw: backOnMin ? 270 : 90, detected: true }
+  return { yaw: backOnMin ? 0 : 180, detected: true }
 }
 
 function boxSize(points) {
@@ -106,13 +144,16 @@ function scenePoints(doc) {
 }
 
 async function main(args) {
-  if (args[0] === '--points') {
+  if (args[0] === '--points' || args[0] === '--wall-points') {
+    const read = args[0] === '--points' ? yawFromPoints : wallYawFromPoints
     const cases = JSON.parse(fs.readFileSync(args[1], 'utf8'))
-    console.log(JSON.stringify(cases.map((c) => ({ name: c.name, ...yawFromPoints(c.points) }))))
+    console.log(JSON.stringify(cases.map((c) => ({ name: c.name, ...read(c.points) }))))
     return 0
   }
+  const wall = args[0] === '--wall'
+  if (wall) args = args.slice(1)
   if (args.length === 0) {
-    console.error('usage: node model_yaw_detect.mjs <file.glb>... | --points <cases.json>')
+    console.error('usage: node model_yaw_detect.mjs [--wall] <file.glb>... | --points <cases.json> | --wall-points <cases.json>')
     return 2
   }
   let failed = false
@@ -121,7 +162,7 @@ async function main(args) {
     try {
       io ??= await openIO()
       const points = scenePoints(await io.read(file))
-      const { yaw, detected } = yawFromPoints(points)
+      const { yaw, detected } = (wall ? wallYawFromPoints : yawFromPoints)(points)
       console.log(JSON.stringify({ file, yaw, detected, size: boxSize(points) }))
     } catch (err) {
       failed = true
