@@ -389,7 +389,7 @@ export function PlacedLights({
         const pose = fixturePose(l, t, roomW, roomD, roomH)
         return (
           <group key={l.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rot, 0]}>
-            <LightFixture light={l} on={lightsOn} />
+            <LightFixture light={l} on={lightsOn} drop={pose.drop} />
           </group>
         )
       })}
@@ -586,7 +586,7 @@ function DraggableLightItem({
   return (
     <group>
       <group ref={groupRef} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rot, 0]}>
-        <LightFixture light={l} on={lightsOn} />
+        <LightFixture light={l} on={lightsOn} drop={pose.drop} />
         {/* Invisible grab/select handle over the fixture */}
         <mesh
           onPointerDown={(e) => {

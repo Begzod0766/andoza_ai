@@ -374,7 +374,7 @@ function SiblingFullShell(
         const pose = fixturePose(l, lightType(l.type), view.widthM, view.depthM, view.heightM);
         return (
           <group key={l.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rot, 0]}>
-            <LightFixture light={l} on={false} />
+            <LightFixture light={l} on={false} drop={pose.drop} />
           </group>
         );
       })}

@@ -13,7 +13,7 @@
  */
 import * as THREE from 'three'
 import type { PlacedLight } from '@/store/roomStore'
-import { lightType, kelvinToHex, type LightType } from '@/lib/lightCatalog'
+import { hangingDropM, lightType, kelvinToHex, type LightType } from '@/lib/lightCatalog'
 
 /** Where a fixture's body sits, in room-centred world metres. */
 export interface FixturePose {
@@ -22,6 +22,8 @@ export interface FixturePose {
   z: number
   /** Yaw about Y. */
   rot: number
+  /** How far a hanging body hangs below the ceiling, metres (0 for anything else). */
+  drop: number
 }
 
 /**
@@ -44,25 +46,25 @@ export function fixturePose(
     const h = light.wallHM ?? t.wallHM ?? 1.8
     const inset = t.sizeM.d / 2
     switch (light.wallId ?? 'A') {
-      case 'A': return { x, y: h, z: -roomD / 2 + inset, rot: 0 }
-      case 'C': return { x, y: h, z: roomD / 2 - inset, rot: Math.PI }
-      case 'B': return { x: roomW / 2 - inset, y: h, z, rot: -Math.PI / 2 }
-      case 'D': return { x: -roomW / 2 + inset, y: h, z, rot: Math.PI / 2 }
+      case 'A': return { x, y: h, z: -roomD / 2 + inset, rot: 0, drop: 0 }
+      case 'C': return { x, y: h, z: roomD / 2 - inset, rot: Math.PI, drop: 0 }
+      case 'B': return { x: roomW / 2 - inset, y: h, z, rot: -Math.PI / 2, drop: 0 }
+      case 'D': return { x: -roomW / 2 + inset, y: h, z, rot: Math.PI / 2, drop: 0 }
       default:
         // A polygon room's wall (W1..Wn): the Chiroqlar plan already stores
         // the fixture's point inset from that wall, and the wall's inward
         // facing in `rotation` (see ChiroqPlanView), so the plan point is
         // the pose. Before this the fixture silently fell through to the
         // ceiling branch below.
-        return { x, y: h, z, rot }
+        return { x, y: h, z, rot, drop: 0 }
     }
   }
 
-  if (t.mount === 'floor') return { x, y: 0, z, rot }
+  if (t.mount === 'floor') return { x, y: 0, z, rot, drop: 0 }
 
   // Ceiling, recessed and track fixtures all hang from the ceiling plane.
-  const drop = t.mount === 'recessed' ? 0 : (light.dropM ?? t.dropM ?? 0)
-  return { x, y: roomH - drop, z, rot }
+  const drop = hangingDropM(light, t, roomH)
+  return { x, y: roomH - drop, z, rot, drop }
 }
 
 /** Emissive material for the lit face — colour follows the fixture's kelvin. */
@@ -86,7 +88,8 @@ const DARK = <meshStandardMaterial color="#3C3F45" metalness={0.4} roughness={0.
  * One fixture body. Positioned by the caller so the drag handle and the light
  * emitter can share the same pose.
  */
-export function LightFixture({ light, on }: { light: PlacedLight; on: boolean }) {
+/** `drop` is the pose's (see `fixturePose`): the cord is drawn as long as the body actually hangs. */
+export function LightFixture({ light, on, drop }: { light: PlacedLight; on: boolean; drop?: number }) {
   const t = lightType(light.type)
   const hex = kelvinToHex(light.colorK ?? t.colorK)
   const lit = on && !light.off
@@ -96,7 +99,7 @@ export function LightFixture({ light, on }: { light: PlacedLight; on: boolean })
     case 'pendant':
       return (
         <group>
-          <Cord length={light.dropM ?? t.dropM ?? 0} />
+          <Cord length={drop ?? light.dropM ?? t.dropM ?? 0} />
           <mesh position={[0, -h / 2, 0]}>
             <coneGeometry args={[w / 2, h, 24, 1, true]} />
             <meshStandardMaterial color="#2F3338" side={THREE.DoubleSide} roughness={0.5} metalness={0.3} />
@@ -112,7 +115,7 @@ export function LightFixture({ light, on }: { light: PlacedLight; on: boolean })
       const arms = 6
       return (
         <group>
-          <Cord length={light.dropM ?? t.dropM ?? 0} />
+          <Cord length={drop ?? light.dropM ?? t.dropM ?? 0} />
           <mesh position={[0, -0.06, 0]}>
             <cylinderGeometry args={[0.05, 0.07, 0.12, 16]} />
             {METAL}
