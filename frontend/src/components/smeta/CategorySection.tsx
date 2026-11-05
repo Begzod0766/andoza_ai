@@ -2,6 +2,7 @@ import { ChevronDown, Armchair, Grid3x3, Hammer, Layers, Package, PaintRoller, Z
 import { GROUP_COLOUR, formatQuantity, formatShare, type GroupKey, type LineGroup } from "@/lib/smetaGroups";
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
+import { localizeLabel, localizeUnit, localizeWarning } from "@/lib/smetaLineText";
 
 const GROUP_ICON: Record<GroupKey, LucideIcon> = {
   tayyorlash: Hammer,
@@ -88,7 +89,7 @@ export function CategorySection({
             >
               <div className="min-w-0">
                 <p className="font-medium text-ink">
-                  {line.label}
+                  {localizeLabel(line.label, t)}
                   {line.price_source === "market" && (
                     <span className="ml-2 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 align-middle text-[11px] font-medium text-emerald-500">
                       {t("smeta.bozor_belgi")}
@@ -102,7 +103,7 @@ export function CategorySection({
                   )}
                 </p>
                 <p className="mt-0.5 text-sm tabular-nums text-ink-muted">
-                  {formatQuantity(line.quantity)} {line.unit} × {fmt(line.unit_price)}
+                  {formatQuantity(line.quantity)} {localizeUnit(line.unit, line.quantity, t)} × {fmt(line.unit_price)}
                 </p>
                 {line.price_source === "market" && (
                   <p className="mt-0.5 text-xs leading-snug text-emerald-500">
@@ -124,7 +125,7 @@ export function CategorySection({
                   </p>
                 )}
                 {line.formula && !repeatsQuantityLine(line) && <p className="mt-0.5 text-xs leading-snug text-ink-muted">{line.formula}</p>}
-                {line.warning && <p className="mt-1 text-xs leading-snug text-orange-500">{line.warning}</p>}
+                {line.warning && <p className="mt-1 text-xs leading-snug text-orange-500">{localizeWarning(line.warning, t)}</p>}
               </div>
               <p className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-ink">{fmt(line.total_uzs)}</p>
             </li>
