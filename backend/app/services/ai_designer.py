@@ -55,19 +55,20 @@ FURNITURE_ROLES = (
     "decor", "rug",
 )
 
-# Name rules, first match wins. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
+# Name rules, first match wins; Latin, Uzbek and Russian names. Cyrillic "тв" is matched with
+# lookarounds, not \b: JavaScript's \b knows only ASCII letters. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
 # "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
 _ROLE_BY_NAME: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.I), role) for pattern, role in (
-        (r"gilam|rug|carpet|kovrolin", "rug"),
-        (r"jurnal|kofe|coffee", "coffee_table"),
-        (r"tumbochka|nightstand|prikrovat", "nightstand"),
-        (r"\btv\b|televizor|tumba", "tv_unit"),
+        (r"gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас", "rug"),
+        (r"jurnal|kofe|coffee|журнальн|кофейн", "coffee_table"),
+        (r"tumbochka|nightstand|prikrovat|тумбочк|прикроватн", "nightstand"),
+        (r"\btv\b|televizor|tumba|(?<![а-яё])тв(?![а-яё])|телевизор|тумб", "tv_unit"),
         (r"\bish stuli|ofis stuli|kompyuter stuli|kreslo-kompyuter|office chair|desk chair|(офисн|компьютерн)\S*\s+(стул|кресл)", "desk_chair"),
-        (r"yozuv|kompyuter|desk|\bish stoli|компьютерн\S*\s+стол", "desk"),
-        (r"kreslo|armchair", "armchair"),
-        (r"shkaf|garderob|wardrobe", "wardrobe"),
-        (r"javon|komod|stellaj|vitrina|bookcase", "shelf"),
+        (r"yozuv|kompyuter|desk|\bish stoli|(компьютерн|письменн)\S*\s+стол", "desk"),
+        (r"kreslo|armchair|кресл", "armchair"),
+        (r"shkaf|garderob|wardrobe|шкаф|гардероб", "wardrobe"),
+        (r"javon|komod|stellaj|vitrina|bookcase|стеллаж|комод|витрин", "shelf"),
     )
 )
 _ROLE_BY_CATEGORY = {"divan": "sofa", "karavot": "bed", "stol": "dining_table", "stul": "dining_chair"}
