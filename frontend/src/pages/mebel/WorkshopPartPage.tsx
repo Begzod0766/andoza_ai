@@ -50,6 +50,9 @@ export default function WorkshopPartPage() {
   if (w.status === "gone") {
     return <Shell><p role="alert" className="rounded-2xl border border-line bg-card p-4 text-sm text-ink">{t("mebel.workshop.gone")}</p></Shell>;
   }
+  if (w.status === "broken") {
+    return <Shell><p role="alert" className="rounded-2xl border border-line bg-card p-4 text-sm text-ink">{t("mebel.workshop.broken")}</p></Shell>;
+  }
   if (w.status === "error" || !w.project || !w.result) {
     return (
       <Shell>

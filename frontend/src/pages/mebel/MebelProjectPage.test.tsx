@@ -183,6 +183,18 @@ describe('MebelProjectPage export', () => {
     print.mockRestore()
   })
 
+  it('once the link is known and nothing waits to be saved, the next print starts within the click', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
+    await exportItem(t('mebel.labels.roll'))
+    // no await between the click and print(): Safari only prints from inside a user gesture
+    expect(print).toHaveBeenCalledTimes(2)
+    expect(api.createWorkshopLink).toHaveBeenCalledTimes(1)
+    print.mockRestore()
+  })
+
   it('when the workshop link cannot be made, nothing prints and an error shows', async () => {
     vi.mocked(api.createWorkshopLink).mockRejectedValue(new Error('offline'))
     const print = vi.spyOn(window, 'print').mockImplementation(() => {})

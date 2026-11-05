@@ -138,18 +138,19 @@ describe('WorkshopPartPage', () => {
     expect(await screen.findByTestId('workshop-part')).toHaveTextContent(t('mebel.material.board'))
   })
 
-  it('a malformed project shows the error state, not a crash', async () => {
+  it('a malformed project says to ask the owner, without a retry that cannot help', async () => {
     vi.mocked(api.getPublicMebelProject).mockResolvedValue({ name: 'x', data: {} as FurnitureProject })
     mount('/d/tok?p=x')
-    expect(await screen.findByText(t('mebel.workshop.load_failed'))).toBeInTheDocument()
+    expect(await screen.findByText(t('mebel.workshop.broken'))).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: t('mebel.workshop.retry') })).toBeNull()
   })
 
-  it('a project the engine rejects shows the error state', async () => {
+  it('a project the engine rejects says to ask the owner', async () => {
     const bad = project()
     bad.cabinets[0].width = 5
     vi.mocked(api.getPublicMebelProject).mockResolvedValue({ name: 'x', data: bad })
     mount('/d/tok?p=x')
-    expect(await screen.findByText(t('mebel.workshop.load_failed'))).toBeInTheDocument()
+    expect(await screen.findByText(t('mebel.workshop.broken'))).toBeInTheDocument()
   })
 
   it('an encoded part id is read back', async () => {

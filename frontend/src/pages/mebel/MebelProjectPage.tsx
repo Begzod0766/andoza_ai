@@ -148,6 +148,13 @@ export default function MebelProjectPage() {
   // carry an edit the server does not have: save first, or do not print.
   const printLabels = async (format: LabelFormat) => {
     if (printingLabels.current) return;
+    // The link is known and the server holds what is shown: print inside the click itself.
+    // Safari asks first (or ignores it) when print() comes after an await.
+    if (workshopToken && m.saveState === "saved") {
+      flushSync(() => setPrinting(format));
+      window.print();
+      return;
+    }
     printingLabels.current = true;
     try {
       if (!(await m.saveNow())) {

@@ -7,7 +7,7 @@ import { computeProject, EMPTY_PRICE_BOOK, normalizeProject } from "@/features/m
 import type { FurnitureProject, Part, Result } from "@/features/mebel/engine";
 import { CATALOG_CATEGORIES } from "./useMebelProject";
 
-export type WorkshopStatus = "loading" | "gone" | "error" | "ready";
+export type WorkshopStatus = "loading" | "gone" | "error" | "broken" | "ready";
 
 export interface WorkshopProject {
   status: WorkshopStatus;
@@ -24,8 +24,9 @@ export interface WorkshopProject {
  * account, and its parts recomputed by the same engine as the editor. No
  * price book and no offcut stock: part sizes, bands and holes depend on neither.
  *
- * `gone` is only a 404 (a wrong or revoked token). A rate limit, a network
- * failure or a project the engine cannot compute is `error`, which can be retried.
+ * `gone` is only a 404 (a wrong or revoked token). A rate limit or a network
+ * failure is `error`, which can be retried. A stored project the engine cannot
+ * compute is `broken`: fetching it again gives the same data, only its owner can fix it.
  */
 export function useWorkshopProject(token: string): WorkshopProject {
   const query = useQuery({
@@ -74,6 +75,7 @@ export function useWorkshopProject(token: string): WorkshopProject {
     const gone = query.error instanceof ApiError && query.error.status === 404;
     return { status: gone ? "gone" : "error", materialName, retry };
   }
-  if (computed === null || computed === "bad") return { status: "error", name: query.data?.name, materialName, retry };
+  if (computed === null) return { status: "error", materialName, retry };
+  if (computed === "bad") return { status: "broken", name: query.data.name, materialName, retry };
   return { status: "ready", name: query.data.name, project: computed.project, result: computed.result, materialName, retry };
 }
