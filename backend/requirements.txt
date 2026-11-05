@@ -7,6 +7,9 @@ asyncpg==0.29.0
 alembic==1.13.1
 redis[hiredis]==5.0.4
 celery[redis]==5.4.0
+# celery leaves kombu unpinned; kombu 5.7 needs redis-py >= 6.1 and crash-looped every worker
+# against redis 5.0.4 (2026-11-05). Move kombu and redis together.
+kombu==5.4.2
 python-jose[cryptography]==3.5.0
 # Verifies "Sign in with Google" ID tokens (POST /auth/google); [requests]
 # brings the HTTP transport it uses to fetch Google's signing certs.
