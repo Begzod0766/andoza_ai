@@ -9,7 +9,7 @@ import { CameraRefBridge, CutOutline, DoorDimensions, GapField, PolygonGhost, Re
 import { isRectilinear, moveEdge, outwardNormal, polygonCentre, type EdgeMove } from "@/lib/resizePolygon";
 import { keepContentInPlace, type RoomThings } from "@/lib/keepContent";
 import { clipRoom, outlineOf, type RoomContent } from "@/lib/clipRoom";
-import { flatBoxOf, flatBounds } from "@/lib/flatBoxes";
+import { flatBoxOf, flatBounds, flatOutlineOf, overlappingRooms } from "@/lib/flatBoxes";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { isResizable, minSizeMm, resizeBox, resizeGeometry, sideWallShiftMm, type Side } from "@/lib/resizeRoom";
 import { storeGeometryToApiGeometry } from "@/lib/apiRoomGeometry";
@@ -67,6 +67,7 @@ import { useWallFocusStore } from "@/store/wallFocusStore";
 import { useCameraGoal } from "./useCameraGoal";
 import { showsEditingCorners } from "./cameraViewChrome";
 import { FlatToggle } from "./FlatToggle";
+import { FlatOverlapHint } from "./FlatOverlapHint";
 import { SceneLoadingOverlay } from "./SceneLoadingOverlay";
 
 /**
@@ -288,6 +289,16 @@ export function ThreeDCanvasScene({
     flatBoxOf(room.id, geometry, 0, 0),
     ...siblingsPlaced.map((s) => flatBoxOf(s.id, s.geometry, s.offsetXM, s.offsetZM)),
   ], [room.id, geometry, siblingsPlaced]);
+  /** Whether any two rooms' SAVED positions put them inside each other. The
+   *  layout pass packs unpositioned rooms clear of each other at their real
+   *  size, but a stored `layoutPos` is used as it is — it is the user's own
+   *  arrangement, or one saved by an older layout that read a scanned room as
+   *  4 x 3 m (QA 2026-11-05 item 9). Rather than shuffle rooms behind the
+   *  user's back, the flat view says so and points at "Move rooms". */
+  const roomsOverlap = useMemo(() => overlappingRooms([
+    flatOutlineOf(room.id, geometry, 0, 0),
+    ...siblingsPlaced.map((s) => flatOutlineOf(s.id, s.geometry, s.offsetXM, s.offsetZM)),
+  ]).length > 0, [room.id, geometry, siblingsPlaced]);
   // Read, not depended on: a room slid along its neighbour changes the flat's
   // footprint, and re-framing the camera for that would yank the view away
   // from the room the user just placed. The framing follows focus and the
@@ -1143,6 +1154,14 @@ export function ThreeDCanvasScene({
     {aptRooms && aptRooms.length > 1 && showsEditingCorners({ panorama, cameraStation }) && (
       <div className="pointer-events-auto absolute bottom-5 right-20 z-20">
         <FlatToggle flat={focusedRoomId === null} onToggle={() => setFocusedRoomId(focusedRoomId === null ? room.id : null)} />
+      </div>
+    )}
+    {/* Only in the flat view, where the overlap is on screen, and not while
+        the rooms are being moved — the user is already doing what it asks. */}
+    {aptRooms && aptRooms.length > 1 && focusedRoomId === null && roomsOverlap && !moveMode
+      && showsEditingCorners({ panorama, cameraStation }) && (
+      <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2">
+        <FlatOverlapHint />
       </div>
     )}
 

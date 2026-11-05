@@ -169,6 +169,7 @@
       "mm": "mm",
       "siljitish_tugatish": "Finish moving rooms",
       "siljitish": "Move rooms",
+      "xonalar_ustma_ust": "Some rooms overlap. Arrange them with \"Move rooms\".",
       "sahna_yuklanmoqda": "Loading the 3D scene…",
       "quvur_qutisi": "Pipe duct",
       "xona_qoshish": "Add a room",
