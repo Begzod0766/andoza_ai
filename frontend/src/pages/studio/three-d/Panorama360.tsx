@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   PANO_EYE_HEIGHT, PANO_WIDTH, PANO_HEIGHT,
-  panoramaSizeFor, renderPanorama, flipRows,
+  panoramaSizeFor, renderPanorama, flipRows, panoramaLookFov,
 } from "@/lib/panorama360";
 import { roomCentreWorld } from "@/lib/roomCentre";
 import type { RoomGeometry } from "@/store/roomStore";
@@ -47,10 +47,10 @@ export function Panorama360({ active, geometry, onCaptured }: {
    *  GPU would not grant it. */
   onCaptured?: (canvas: HTMLCanvasElement) => void;
 }) {
-  const { camera, gl, scene, invalidate } = useThree();
+  const { camera, gl, scene, invalidate, size } = useThree();
   const look = useRef({ yaw: 0, pitch: 0 });
   const dragging = useRef<{ x: number; y: number } | null>(null);
-  const restore = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion } | null>(null);
+  const restore = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion; fov: number | null } | null>(null);
 
   /**
    * Where the camera stands, world metres. Memoised on the vertex and wall
@@ -75,6 +75,7 @@ export function Panorama360({ active, geometry, onCaptured }: {
     restore.current = {
       position: camera.position.clone(),
       quaternion: camera.quaternion.clone(),
+      fov: camera instanceof THREE.PerspectiveCamera ? camera.fov : null,
     };
     camera.position.copy(eye);
     // Start facing the way the camera already faced, so entering the mode does
@@ -89,10 +90,24 @@ export function Panorama360({ active, geometry, onCaptured }: {
       if (!prev) return;
       camera.position.copy(prev.position);
       camera.quaternion.copy(prev.quaternion);
+      if (prev.fov != null && camera instanceof THREE.PerspectiveCamera) {
+        camera.fov = prev.fov;
+        camera.updateProjectionMatrix();
+      }
       restore.current = null;
       invalidate();
     };
   }, [active, camera, eye, invalidate]);
+
+  // Wide enough across on a portrait phone to see the room, not one wall; the fov the
+  // camera came in with is put back on the way out (above). Re-run when the canvas resizes.
+  useEffect(() => {
+    if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;
+    const base = restore.current?.fov ?? camera.fov;
+    camera.fov = panoramaLookFov(size.width / size.height, base);
+    camera.updateProjectionMatrix();
+    invalidate();
+  }, [active, camera, size.width, size.height, invalidate]);
 
   // Drag to turn. On the canvas itself rather than through R3F's object
   // events: there is nothing to hit — the point is to look around the room,

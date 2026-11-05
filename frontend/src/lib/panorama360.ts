@@ -24,6 +24,27 @@ import * as THREE from 'three'
  */
 export const PANO_EYE_HEIGHT = 1.35
 
+/** The horizontal angle the 360 camera keeps while being looked around with, degrees: the
+ *  same 65 degrees the four station cameras frame with (`RENDER_HFOV_DEG` in roomCameras). */
+export const PANO_LOOK_HFOV = 65
+/** The widest vertical angle it goes to on a tall screen, before the room bends like a fish tank. */
+export const PANO_LOOK_MAX_VFOV = 90
+
+/**
+ * three's vertical `fov` for the 360 camera while it is looked around with, for a canvas of this
+ * aspect. The canvas camera's own fov (`base`) is vertical, so on a portrait phone it left only
+ * about 24 degrees across: from the middle of a 3 m room the user saw one wall and nothing else,
+ * and read it as a camera stood against the wall (QA 2026-11-05 #2). This keeps the width at
+ * `PANO_LOOK_HFOV` up to `PANO_LOOK_MAX_VFOV`, and never narrows a wide screen below `base`.
+ * Only the live view: the captured panorama is a full sphere and has no fov.
+ */
+export function panoramaLookFov(aspect: number, base: number): number {
+  if (!(aspect > 0)) return base
+  const h = (PANO_LOOK_HFOV * Math.PI) / 180
+  const v = (2 * Math.atan(Math.tan(h / 2) / aspect) * 180) / Math.PI
+  return Math.max(base, Math.min(PANO_LOOK_MAX_VFOV, v))
+}
+
 export const PANO_WIDTH = 4000
 export const PANO_HEIGHT = 2000
 
