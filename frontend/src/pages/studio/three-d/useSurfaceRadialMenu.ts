@@ -3,6 +3,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { RadialSurface } from "@/components/studio/SurfaceRadialMenu";
 import { armsForDragging } from "@/lib/doubleTapArm";
 import { createTrailingClickGuard } from "@/lib/trailingClick";
+import { multiTouchGuard } from "@/lib/multiTouchGuard";
 
 /**
  * One guard for the page: the click that trails a tap on the ring's backdrop
@@ -57,6 +58,10 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
   const holdPoint = useRef<{ x: number; y: number; z: number } | null>(null);
   const holdTimer = useRef<number | null>(null);
   const holdStart = useRef<{ x: number; y: number } | null>(null);
+  // When the current press began: a second finger since then makes it a pinch, not a tap
+  // (QA 2026-11-05 #6). The window guard is made here, before the first press it must see.
+  const pressAt = useRef(0);
+  const pinch = multiTouchGuard();
   // True from the moment a long-press fires until the next surface click, so
   // the click that ends the hold doesn't ALSO run the tap-select behaviour.
   const heldRef = useRef(false);
@@ -83,6 +88,8 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
     // If a long-press already opened the menu, its trailing click must not
     // reopen/replace it.
     if (heldRef.current) { heldRef.current = false; return; }
+    // The first finger of a pinch landed here: zooming is not a tap on the wall.
+    if (pinch.multiTouchSince(pressAt.current)) return;
     const x = e?.nativeEvent?.clientX ?? e?.clientX ?? 0;
     const y = e?.nativeEvent?.clientY ?? e?.clientY ?? 0;
     const point = e?.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : (holdPoint.current ?? undefined);
@@ -105,8 +112,11 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
     // The R3F event's world intersection point — where on the wall it was hit.
     holdPoint.current = e.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : null;
     holdStart.current = { x: cx, y: cy };
+    pressAt.current = Date.now();
     clearHoldTimerOnly();
     holdTimer.current = window.setTimeout(() => {
+      // A second finger joined: the user is zooming, not holding the wall.
+      if (pinch.multiTouchSince(pressAt.current)) { clearHold(); return; }
       heldRef.current = true;
       // Freeze the camera so menu taps don't orbit the room, and drop any
       // active selection highlight noise.
