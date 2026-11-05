@@ -43,12 +43,26 @@ const secondaryButton =
 
 /** The floor type is chosen in the studio (by hand, by the AI designer or a ready-made
  *  style) but no shop product for it. The estimate prices it from the median shop product
- *  when there is one ("stand_in": the price is approximate) and otherwise leaves it out
- *  ("left_out"); either way the page says so rather than show a total that looks settled.
- *  A bare concrete floor has nothing to buy. */
-type FloorNote = "left_out" | "stand_in" | null
+ *  of that floor type when there is one ("stand_in": the price is approximate) and otherwise
+ *  leaves it out ("left_out"); either way the page says so rather than show a total that
+ *  looks settled. A bare concrete floor has nothing to buy.
+ *
+ *  To the user, picking "Floor -> Parquet -> Chevron" in 3D is choosing the floor (QA #12),
+ *  so the stand-in note names the floor type it was priced as ("the shop's average
+ *  parquet") instead of saying flatly that no product is chosen. That type is read off the
+ *  priced line, not the design: a parquet floor with no parquet in the shop is priced from
+ *  laminate (smeta.py's _DESIGNED_FLOORS), and the note must say what was really done. */
+type FloorKind = "parket" | "laminat" | "plitka"
+type FloorNote = { kind: "left_out" } | { kind: "stand_in"; floor: FloorKind } | null
 
 const FLOOR_LINE_CATEGORIES = new Set(["laminat", "parket", "plitka"])
+
+/** Which floor a priced floor line is: tile by its category; parquet and laminate share the
+ *  "laminat" category and differ only by the label's head ("Parket: ..." / "Laminat: ..."). */
+function floorKindOf(line: EstimateResponse["lines"][number]): FloorKind {
+  if (line.category === "plitka") return "plitka";
+  return line.category === "parket" || line.label.startsWith("Parket") ? "parket" : "laminat";
+}
 
 function floorNote(
   room: { surfaces?: Record<string, unknown> | null; state?: Record<string, unknown> | null } | undefined,
@@ -56,7 +70,8 @@ function floorNote(
 ): FloorNote {
   const design = (room?.state as { designState?: { floorType?: string | null; floorConfigured?: boolean } } | null)?.designState;
   if (!design?.floorConfigured || !design.floorType || design.floorType === "concrete" || room?.surfaces?.floor) return null;
-  return (lines ?? []).some((l) => FLOOR_LINE_CATEGORIES.has(l.category ?? "")) ? "stand_in" : "left_out";
+  const priced = (lines ?? []).find((l) => FLOOR_LINE_CATEGORIES.has(l.category ?? ""));
+  return priced ? { kind: "stand_in", floor: floorKindOf(priced) } : { kind: "left_out" };
 }
 
 export default function SmetaPage() {
@@ -295,11 +310,11 @@ export default function SmetaPage() {
         {floorNoteKind && (
           <div
             role="status"
-            aria-label={floorNoteKind === "stand_in" ? t("smeta.floor_stand_in_aria") : t("smeta.floor_left_out_aria")}
+            aria-label={floorNoteKind.kind === "stand_in" ? t("smeta.floor_stand_in_aria") : t("smeta.floor_left_out_aria")}
             className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-ink"
           >
-            {floorNoteKind === "stand_in"
-              ? t("smeta.floor_stand_in")
+            {floorNoteKind.kind === "stand_in"
+              ? t("smeta.floor_stand_in", { floor: t(`smeta.floor_kind.${floorNoteKind.floor}`) })
               : t("smeta.floor_left_out")}{" "}
             <Link to={`/studio/${roomId}/ichkarida?phase=pol`} className="font-semibold text-accent hover:underline">
               {t("smeta.floor_pick")}

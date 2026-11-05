@@ -404,7 +404,7 @@ describe('SmetaPage (furniture toggle, sticky total, actions)', () => {
     } as never)
     renderSmetaPage()
     const note = await screen.findByRole('status', { name: 'Pol smetaga kirmadi' })
-    expect(note.textContent).toContain('Pol uchun mahsulot tanlanmagan')
+    expect(note.textContent).toContain("do'konda hali yo'q")
     expect(note.querySelector('a')!.getAttribute('href')).toBe('/studio/room-1/ichkarida?phase=pol')
   })
 
@@ -425,6 +425,39 @@ describe('SmetaPage (furniture toggle, sticky total, actions)', () => {
     expect(note.textContent).toContain("o'rtacha")
     expect(note.querySelector('a')!.getAttribute('href')).toBe('/studio/room-1/ichkarida?phase=pol')
     expect(screen.queryByRole('status', { name: 'Pol smetaga kirmadi' })).toBeNull()
+  })
+
+  it('names the floor type the user chose in 3D, not "no product" (QA #12)', async () => {
+    // Floor -> Parquet -> Chevron: to the user that is choosing the floor. The note used to
+    // say no product was chosen and the price came from "the average floor"; it now says the
+    // floor is priced at the shop's average parquet, because that is what the estimate does.
+    act(() => applyLanguage('en'))
+    const { getRoom } = await import('@/lib/api')
+    vi.mocked(getRoom).mockResolvedValueOnce({
+      id: 'room-1', apartment_id: 'apt-1', name: 'Xona', floor_area: 12,
+      surfaces: {}, state: { designState: { floorType: 'parquet', floorConfigured: true } },
+    } as never)
+    previewEstimate.mockResolvedValueOnce({
+      ...ESTIMATE_RESPONSE,
+      lines: [{ label: 'Parket: Massiv parket', formula: '', quantity: 12, unit: 'm²', unit_price: 210_000, total_uzs: 2_520_000, is_approximate: true, category: 'laminat' }],
+    })
+    renderSmetaPage()
+    const note = await screen.findByRole('status', { name: en.smeta.floor_stand_in_aria })
+    expect(note.textContent).toContain("average parquet")
+    expect(note.textContent).not.toContain('No product is chosen')
+  })
+
+  it('shows the line names and units in the UI language (QA #13)', async () => {
+    act(() => applyLanguage('en'))
+    previewEstimate.mockResolvedValueOnce({
+      ...ESTIMATE_RESPONSE,
+      lines: [{ label: 'Suvoq: VENTUM Гипсовая штукатурка', formula: '', quantity: 13, unit: 'qop', unit_price: 65_000, total_uzs: 845_000, is_approximate: false, category: 'suvoq' }],
+    })
+    const { container } = renderSmetaPage()
+    await screen.findByText('Plaster: VENTUM Гипсовая штукатурка')
+    expect(container.textContent).toContain('13 bags')
+    expect(container.textContent).not.toContain('Suvoq')
+    expect(container.textContent).not.toContain('qop')
   })
 
   it('says nothing about a bare concrete floor', async () => {
