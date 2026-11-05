@@ -21,6 +21,7 @@ import { nextLightPositionMm } from '@/lib/placement'
 import {
   LIGHT_TYPES,
   LIGHT_LIMITS,
+  hangingDropM,
   lightType,
   kelvinToHex,
   type LightType,
@@ -284,10 +285,11 @@ function LightSettings({ light, ceilingHeight, onPatch, onDelete }: {
       {(t.mount === 'ceiling' || t.mount === 'track') && (
         <Slider
           label={tr('studio.light.drop')}
-          value={light.dropM ?? t.dropM ?? 0}
-          display={`${formatDecimal(light.dropM ?? t.dropM ?? 0, 2)} m`}
+          value={hangingDropM(light, t, ceilingHeight / 1000)}
+          display={`${formatDecimal(hangingDropM(light, t, ceilingHeight / 1000), 2)} m`}
           min={LIGHT_LIMITS.dropM.min}
-          max={Math.min(LIGHT_LIMITS.dropM.max, Math.max(0.1, ceilingHeight - 0.4))}
+          // ceilingHeight is millimetres; the cord can be let down to 0.4 m above the floor.
+          max={Math.min(LIGHT_LIMITS.dropM.max, Math.max(0.1, ceilingHeight / 1000 - 0.4))}
           step={LIGHT_LIMITS.dropM.step}
           onChange={(v) => onPatch({ dropM: v })}
           onReset={light.dropM === undefined ? undefined : () => onPatch({ dropM: undefined })}

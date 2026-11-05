@@ -231,6 +231,27 @@ export function lightType(id?: string): LightType {
   return LIGHT_TYPE_BY_ID[id ?? ''] ?? LIGHT_TYPE_BY_ID[DEFAULT_LIGHT_TYPE]
 }
 
+/** How high above the floor a hanging light's lowest point stays by default, metres: walked under. */
+export const HANG_HEADROOM_M = 2.1
+/** The shortest cord a hanging light keeps, metres, so it still reads as hanging. */
+export const MIN_HANG_DROP_M = 0.05
+
+/**
+ * How far a ceiling light hangs below the ceiling, metres. The catalog's drop (0.9 m for a pendant)
+ * suits a tall room; in a 2.4 m one it put the shade's rim 1.22 m off the floor, half the room's
+ * height and right at eye level (user report 2026-11-05, "Mening xonam"). So unless the user set
+ * the drop by hand, it is shortened until the body's bottom stays at `HANG_HEADROOM_M`, never below
+ * `MIN_HANG_DROP_M`. A recessed or surface light has no drop; a hand-set one is kept as it is.
+ */
+export function hangingDropM(light: { dropM?: number }, t: LightType, roomH: number): number {
+  if (t.mount === 'recessed') return 0
+  if (light.dropM !== undefined) return light.dropM
+  const catalog = t.dropM ?? 0
+  if (catalog <= 0 || !(roomH > 0)) return catalog
+  const room = roomH - t.sizeM.h - HANG_HEADROOM_M
+  return Math.min(catalog, Math.max(MIN_HANG_DROP_M, room))
+}
+
 /** Settings ranges — the sliders clamp to these, and so does the 3D. */
 export const LIGHT_LIMITS = {
   brightnessPct: { min: 10, max: 200, step: 5 },
