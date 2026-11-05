@@ -18,6 +18,17 @@ describe('furniture roles', () => {
     // "ovqatlanish" ends in "ish": a dining chair or table is not a desk chair or desk
     ['stul', 'KLEIN ovqatlanish stuli', 'dining_chair'], ['stol', 'NARVI ovqatlanish stoli — oq', 'dining_table'],
     ['stul', 'Ish stuli Pro', 'desk_chair'], ['stol', 'Ish stoli', 'desk'],
+    // Russian catalogue names: without these a shelf or wardrobe fell through to decor
+    ['boshqa', 'Стеллаж', 'shelf'], ['boshqa', 'СТЕЛЛАЖ металлический', 'shelf'], ['boshqa', 'Комод', 'shelf'],
+    ['boshqa', 'Витрина', 'shelf'], ['boshqa', 'Шкаф', 'wardrobe'], ['boshqa', 'Шкаф-купе', 'wardrobe'],
+    ['boshqa', 'Гардероб', 'wardrobe'], ['boshqa', 'Кресло дизайнерское', 'armchair'],
+    ['boshqa', 'Тумбочка', 'nightstand'], ['boshqa', 'Прикроватная тумба', 'nightstand'],
+    ['boshqa', 'ТВ-тумба', 'tv_unit'], ['boshqa', 'Тумба под телевизор', 'tv_unit'], ['boshqa', 'Стойка ТВ', 'tv_unit'],
+    ['boshqa', 'Журнальный столик', 'coffee_table'], ['boshqa', 'Кофейный стол', 'coffee_table'],
+    ['boshqa', 'Ковёр шерстяной', 'rug'], ['boshqa', 'Ковер', 'rug'], ['boshqa', 'Ковры', 'rug'],
+    ['stol', 'Письменный стол', 'desk'],
+    // "тв" only as a word: a hard pouf is decor, not a TV stand
+    ['boshqa', 'Твёрдый пуф', 'decor'], ['boshqa', 'Пуф', 'decor'],
   ])('%s / %s is %s', (category, name, role) => {
     expect(inferRole(category, name)).toBe(role)
   })
