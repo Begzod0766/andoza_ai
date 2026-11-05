@@ -85,6 +85,13 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
    * created window/door lands exactly where the surface was tapped.
    */
   function openSurfaceMenu(surface: RadialSurface, wallId: string | undefined, e: any, elId?: string) {
+    // The nearest surface the ray meets owns the tap. react-three-fiber hands
+    // a click to every object along the ray until one stops it, so without
+    // this a tap on a wall went on through it into the hit plane of a door
+    // set back in its niche, and the door ring replaced the wall's — door
+    // models where the categories should be (QA 2026-11-05 #8). A tap on the
+    // door itself still reaches the door first, and opens its ring.
+    e?.stopPropagation?.();
     // If a long-press already opened the menu, its trailing click must not
     // reopen/replace it.
     if (heldRef.current) { heldRef.current = false; return; }
