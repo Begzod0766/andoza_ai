@@ -4,7 +4,8 @@
  * anywhere else is floor laid inside a wall.
  */
 import { describe, it, expect } from 'vitest'
-import { doorwayNiches, type NicheWall } from '../doorwayNiches'
+import { doorwayNiches, shownNiches, type NicheWall } from '../doorwayNiches'
+import { wallDefsFromVertices } from '../wallDefsFromVertices'
 
 const REVEAL = 0.2
 const W = 4
@@ -57,5 +58,62 @@ describe('doorwayNiches', () => {
 
   it('has nothing to do with a room whose walls carry no doors', () => {
     expect(doorwayNiches([{ id: 'A' }], W, D, {}, REVEAL)).toEqual([])
+  })
+
+  // QA #11, on the real scanned room ("Mening xonam"): a 5.5 x 2.95 m
+  // rectangle at ~46 deg with doors on walls 1 and 2. The niche floor is
+  // meant to sit inside the door's own lining, behind the wall line. Once the
+  // camera is behind that wall, the wall culls itself and the lining goes
+  // with it — and a niche drawn anyway is a door-wide slab of floor poking
+  // out past the wall line, which is the "step" in the report.
+  describe('on the scanned room from QA #11', () => {
+    const verts: [number, number][] = [[0, 3965], [3812, 0], [5938, 2044], [2127, 6009]]
+    const cx = verts.reduce((s, [x]) => s + x, 0) / 4
+    const cz = verts.reduce((s, [, z]) => s + z, 0) / 4
+    const centredMm = verts.map(([x, z]) => [x - cx, z - cz] as [number, number])
+    const scanWalls: NicheWall[] = [
+      { id: '0', elements: [] },
+      { id: '1', elements: [{ id: 'e1', type: 'eshik', width: 727, position: 1571 }] },
+      { id: '2', elements: [{ id: 'e2', type: 'eshik', width: 815, position: 49 }] },
+      { id: '3', elements: [{ id: 'w3', type: 'deraza', width: 1870, position: 543 }] },
+    ]
+    const defs = wallDefsFromVertices(centredMm, scanWalls.map((w) => w.id))
+
+    it('lays each niche behind its own wall, inside the lining depth', () => {
+      const out = doorwayNiches(scanWalls, 0, 0, defs, REVEAL)
+      expect(out.map((n) => n.wallId)).toEqual(['1', '2'])
+      for (const n of out) {
+        const d = defs[n.wallId]
+        for (const [x, z] of n.polygon) {
+          // Signed distance into the room from the wall line.
+          const into = (x - d.midX) * d.normal.x + (z - d.midZ) * d.normal.z
+          expect(into).toBeLessThanOrEqual(0.01 + 1e-9)
+          expect(into).toBeGreaterThanOrEqual(-(REVEAL + 0.01) - 1e-9)
+        }
+      }
+    })
+
+    it('draws no niche for a door whose wall the camera stands behind', () => {
+      const out = shownNiches(doorwayNiches(scanWalls, 0, 0, defs, REVEAL), { behindCamera: new Set(['2']) })
+      expect(out.map((n) => n.wallId)).toEqual(['1'])
+    })
+
+    it('draws no niche on a wall the cutaway has faded out', () => {
+      const out = shownNiches(doorwayNiches(scanWalls, 0, 0, defs, REVEAL), { faded: new Set(['1', '2']) })
+      expect(out).toEqual([])
+    })
+
+    it('hands back the same niche objects, so their floors are not rebuilt', () => {
+      const all = doorwayNiches(scanWalls, 0, 0, defs, REVEAL)
+      expect(shownNiches(all, { behindCamera: new Set(['2']) })[0]).toBe(all[0])
+    })
+  })
+
+  it('keeps the niche of a shared doorway when the camera is behind it', () => {
+    // Its lining stays too (flatOpenings.hiddenByCamera): the neighbour's
+    // wall still stands there with the hole in it.
+    const shared = { ...door, sharedPartition: true }
+    const out = shownNiches(doorwayNiches([{ id: 'A', elements: [shared] }], W, D, {}, REVEAL), { behindCamera: new Set(['A']) })
+    expect(out).toHaveLength(1)
   })
 })

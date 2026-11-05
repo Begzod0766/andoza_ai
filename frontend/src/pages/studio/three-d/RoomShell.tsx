@@ -22,7 +22,7 @@ import { WALL_T, FLOOR_COLORS, UNCONFIGURED_FLOOR_COLOR, noRaycast, OPENING_REVE
 import { wallDefsFromVertices } from "@/lib/wallDefsFromVertices";
 import { shadeCovering, boardSegments, trimSegments } from "./helpers";
 import { WoodFloor, Ceiling, PatternFloor, CeilingProfile, DoorwayFloors } from "./FloorCeiling";
-import { doorwayNiches } from "@/lib/doorwayNiches";
+import { doorwayNiches, shownNiches } from "@/lib/doorwayNiches";
 import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
 import { drawsOpeningLining, hiddenByCamera } from "@/lib/flatOpenings";
 import { rectangleFrame } from "@/lib/roomOutline";
@@ -468,6 +468,18 @@ function NWallRoomShell({
     )
     return doorwayNiches(geometry.walls, 0, 0, defs, OPENING_REVEAL_D)
   }, [filteredCentred, geometry.walls])
+  // ...but only those whose door lining is standing round them. A niche lies
+  // behind the wall line, so with its wall culled from outside (and the lining
+  // taken by hiddenByCamera below) or faded by the cutaway, it is a door-wide
+  // slab of floor sticking out of the room (QA #11).
+  const fadedWallIds = useMemo(
+    () => new Set(edges.filter((e) => hiddenEdges.has(e.index)).map((e) => e.wallId)),
+    [edges, hiddenEdges],
+  )
+  const visibleNiches = useMemo(
+    () => shownNiches(niches, { behindCamera: hiddenAttachments, faded: fadedWallIds }),
+    [niches, hiddenAttachments, fadedWallIds],
+  )
 
   // The ceiling design, for an outline the rectangular builder can serve.
   //
@@ -541,7 +553,7 @@ function NWallRoomShell({
           {/* ...and on under each door, from the same pattern, so the joints
               carry through rather than merely matching in colour. */}
           <DoorwayFloors
-            niches={niches}
+            niches={visibleNiches}
             pattern={floorPattern}
             width={patternExtents.W}
             depth={patternExtents.D}
@@ -1032,6 +1044,12 @@ export const RoomScene = memo(function RoomScene({
     () => doorwayNiches(geometry.walls, W, D, {}, OPENING_REVEAL_D),
     [geometry.walls, W, D],
   )
+  // Only under doors whose lining is drawn — the same `hiddenWalls` the
+  // DoorFrames below are hidden by; see the drawn shell's `visibleNiches`.
+  const shownAbcdNiches = useMemo(
+    () => shownNiches(abcdNiches, { behindCamera: hiddenWalls }),
+    [abcdNiches, hiddenWalls],
+  )
 
   return (
     <group>
@@ -1051,7 +1069,7 @@ export const RoomScene = memo(function RoomScene({
                 carry through rather than merely matching in colour. */}
             {designState.floorPattern && (
               <DoorwayFloors
-                niches={abcdNiches}
+                niches={shownAbcdNiches}
                 pattern={designState.floorPattern}
                 width={W}
                 depth={D}

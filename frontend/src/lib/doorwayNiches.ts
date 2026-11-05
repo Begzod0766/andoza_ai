@@ -19,6 +19,8 @@ export interface DoorwayNiche {
   elId: string
   /** Four corners, in order, ready to clip against. */
   polygon: [number, number][]
+  /** The door goes through a partition shared with a neighbour. */
+  sharedPartition?: boolean
 }
 
 export interface NicheOpening {
@@ -33,6 +35,9 @@ export interface NicheOpening {
   /** Render-only: the lining depth of a door in a shared partition, mm — the
    *  measured gap between the two faces, which the niche floor must match. */
   revealDepthMm?: number
+  /** A doorway through a partition shared with a neighbour: its lining stays
+   *  when the camera is behind this wall (flatOpenings.hiddenByCamera). */
+  sharedPartition?: boolean
 }
 
 export interface NicheWall {
@@ -65,10 +70,49 @@ export function doorwayNiches(
         wallId: wall.id,
         elId: el.id,
         polygon: nicheRect(frame, el.position / 1000, el.width / 1000, depth),
+        ...(el.sharedPartition ? { sharedPartition: true } : {}),
       })
     }
   }
   return out
+}
+
+/**
+ * Walls whose door linings are not being drawn right now, so their niches
+ * must not be either.
+ *
+ * A niche lies BEHIND the wall line, inside the 200 mm lining — it only reads
+ * as a threshold while that lining stands round it. The niches used to be
+ * drawn whatever the camera did, while the lining went with its wall: once
+ * the camera was behind a wall (it culls itself from outside, and
+ * `hiddenByCamera` takes its casings away) or the cutaway faded it out, all
+ * that was left of the doorway was a door-wide slab of parquet sticking out
+ * past the wall line, "like a step" (QA #11, on a scanned room).
+ */
+export interface NicheHidden {
+  /** Walls the camera stands behind. A shared doorway keeps its niche here,
+   *  exactly as it keeps its lining (flatOpenings.hiddenByCamera). */
+  behindCamera?: ReadonlySet<string>
+  /** Walls faded out whole, with every opening on them (a drawn room's
+   *  cutaway `WallFade`, which takes even a shared doorway's lining). */
+  faded?: ReadonlySet<string>
+}
+
+/**
+ * The niches whose doors are drawn right now — the same objects, not copies,
+ * so a niche that stays keeps its polygon's identity and the clipped floor
+ * built from it (PatternFloor memoises on it) is not rebuilt each time the
+ * camera crosses a wall.
+ */
+export function shownNiches(
+  niches: readonly DoorwayNiche[],
+  hidden: NicheHidden,
+): DoorwayNiche[] {
+  return niches.filter((n) => {
+    if (hidden.faded?.has(n.wallId)) return false
+    // Same rule as flatOpenings.hiddenByCamera, which decides the lining.
+    return !(hidden.behindCamera?.has(n.wallId) && !n.sharedPartition)
+  })
 }
 
 /** One niche, as a rectangle: across the opening, and from the wall face back
