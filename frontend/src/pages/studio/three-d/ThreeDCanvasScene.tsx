@@ -65,6 +65,7 @@ import { isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
 import { useRoomFocus } from "./useRoomFocus";
 import { useWallFocusStore } from "@/store/wallFocusStore";
 import { useCameraGoal } from "./useCameraGoal";
+import { showsEditingCorners } from "./cameraViewChrome";
 import { FlatToggle } from "./FlatToggle";
 import { SceneLoadingOverlay } from "./SceneLoadingOverlay";
 
@@ -1139,7 +1140,7 @@ export function ThreeDCanvasScene({
     </Canvas>
     </CanvasErrorBoundary>
     <SceneLoadingOverlay />
-    {aptRooms && aptRooms.length > 1 && (
+    {aptRooms && aptRooms.length > 1 && showsEditingCorners({ panorama, cameraStation }) && (
       <div className="pointer-events-auto absolute bottom-5 right-20 z-20">
         <FlatToggle flat={focusedRoomId === null} onToggle={() => setFocusedRoomId(focusedRoomId === null ? room.id : null)} />
       </div>
