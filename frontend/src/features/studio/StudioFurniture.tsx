@@ -41,6 +41,7 @@ import { saveModelToDb, arrayBufferToBlobUrl } from "@/lib/modelDb";
 import { nanoid } from "nanoid";
 import * as THREE from "three";
 import { toDiffuseOnly } from "@/lib/modelMaterials";
+import { ceilingFitScale } from "@/lib/modelSize"
 import { turnedSize, yawRadians, type ModelYaw } from "@/lib/modelYaw";
 
 // ─── Shared furniture entry (catalog + user-uploaded) ─────────────────────────
@@ -174,10 +175,12 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
 
   // Compute bottom offset ONCE per clone, before R3F touches the object's position.
   // Storing scale-independent value so it stays correct when scaleOverride changes.
-  const yOffUnit = useMemo(() => {
+  const { yOffUnit, rawHeight } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
-    return isFinite(box.min.y) ? -box.min.y : 0
+    const ok = isFinite(box.min.y)
+    return { yOffUnit: ok ? -box.min.y : 0, rawHeight: ok ? box.max.y - box.min.y : 0 }
   }, [cloned]);
+  const ceilingHeight = useRoomStore((st) => st.ceilingHeight);
 
   // A do'kon catalog model has no authored scale — detect it from the loaded
   // GLB's own geometry, same heuristic a fresh user import goes through.
@@ -192,7 +195,8 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   }, [cloned, item.colorOverrides])
 
   if (!entry || !modelPath) return null;
-  const s = (autoScale ?? entry.scale) * (item.scaleOverride ?? 1);
+  // Never through the ceiling: the model's own scale is brought under it (QA 2026-11-05 #3).
+  const s = ceilingFitScale(autoScale ?? entry.scale, rawHeight, ceilingHeight) * (item.scaleOverride ?? 1);
   // The model's own yaw turns it to face the room first; the placement's
   // rotation turns it from there. Bottom alignment is unaffected: a turn
   // about Y leaves box.min.y where it was.
@@ -399,10 +403,16 @@ export function DraggableFurnitureItem({
 
   // A do'kon catalog model has no authored scale — detect it from the loaded
   // GLB's own geometry, same heuristic a fresh user import goes through.
+  const ceilingHeight = useRoomStore((st) => st.ceilingHeight)
+  // The model's own scale, brought under the ceiling when it is taller than the room
+  // (QA 2026-11-05 #3); the user's own resize (scaleOverride) still applies on top.
   const effScale = useMemo(() => {
-    if (!entry?.autoScale) return entry?.scale ?? 1
-    try { return extractSceneInfo(cloned).scale } catch { return 1 }
-  }, [entry, cloned])
+    const base = (() => {
+      if (!entry?.autoScale) return entry?.scale ?? 1
+      try { return extractSceneInfo(cloned).scale } catch { return 1 }
+    })()
+    return ceilingFitScale(base, geomHH * 2, ceilingHeight)
+  }, [entry, cloned, geomHH, ceilingHeight])
 
   // Report actual footprint to parent for collision detection
   useEffect(() => {
