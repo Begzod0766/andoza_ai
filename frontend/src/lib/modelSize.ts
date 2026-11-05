@@ -30,3 +30,19 @@ export function describeSize(size: MeasuredSize): string {
   const n = (v: number) => String(Math.round(v));
   return `${n(size.width_cm)} × ${n(size.depth_cm)} × ${n(size.height_cm)} ${i18n.t("dokon.model.cm")}`;
 }
+
+/** How far under the ceiling a model shrunk to fit stops, mm: touching it would flicker against it. */
+export const CEILING_GAP_MM = 20;
+
+/**
+ * The scale a model is drawn at, brought down so it stands under the ceiling. A TV wall unit
+ * 2.7 m tall went through a 2.4 m ceiling when a style placed it (QA 2026-11-05 #3); the catalog
+ * often has no height for a model, so this is decided where the model is drawn, from its own box.
+ * `scale` turns the model's units into metres; `rawHeight` is its height in those units.
+ * Unchanged when it fits, or when the ceiling or the height is not known.
+ */
+export function ceilingFitScale(scale: number, rawHeight: number, ceilingMm: number): number {
+  if (!(ceilingMm > CEILING_GAP_MM) || !(rawHeight > 0) || !(scale > 0)) return scale;
+  const room = (ceilingMm - CEILING_GAP_MM) / 1000;
+  return rawHeight * scale > room ? room / rawHeight : scale;
+}
