@@ -587,6 +587,7 @@ function NWallRoomShell({
               ceilingDesign(designState.ceiling?.design ?? DEFAULT_CEILING_DESIGN),
               designState.ceiling?.settings,
             ).stripK}
+            ceilingY={H}
           />
         </group>
       )}

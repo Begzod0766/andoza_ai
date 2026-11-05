@@ -478,14 +478,6 @@ export const Ceiling = memo(function Ceiling({
   // cannot be picked, so the highlight has to go with it — a tint glowing in
   // an open-topped top view would be painting a ceiling that isn't shown.
   const showSelected = !!isSelected && !hidden
-  const profileRef = useRef<THREE.Group>(null)
-  useFrame(({ camera }) => {
-    const g = profileRef.current
-    if (!g) return
-    _ceilingWorld.set(0, H, 0)
-    g.parent?.localToWorld(_ceilingWorld)
-    g.visible = ceilingProfileVisible(camera.position.y, _ceilingWorld.y)
-  })
 
   return (
     <group onClick={onClick}>
@@ -506,13 +498,12 @@ export const Ceiling = memo(function Ceiling({
           dropped panels too (no depth test), where a tint used to be. */}
       {showSelected && <RectOutline w={W} h={D} position={[0, H - 0.012, 0]} rotation={[Math.PI / 2, 0, 0]} />}
       {!hidden && parts.length > 0 && (
-        <group ref={profileRef}>
-          <CeilingProfile
-            parts={parts}
-            color={resolved.color}
-            stripK={resolved.stripK}
-          />
-        </group>
+        <CeilingProfile
+          parts={parts}
+          color={resolved.color}
+          stripK={resolved.stripK}
+          ceilingY={H}
+        />
       )}
     </group>
   )
@@ -525,17 +516,39 @@ export const Ceiling = memo(function Ceiling({
  * Strips are drawn unlit and untone-mapped so they read as the source rather
  * than as a pale surface that happens to be bright: a cove LED is the one thing
  * in the room that should not respond to the room's own lighting.
+ *
+ * The cutaway for a camera above the ceiling (see `ceilingProfileVisible`)
+ * lives here rather than in whichever shell hangs the profile: the drawn-room
+ * shell renders this component directly, not through <Ceiling>, and so used
+ * to skip the rule entirely — once an AI style put a designed ceiling into a
+ * drawn room, its boxes covered the room like a lid from the default outside
+ * view (QA #10). Only this group's `visible` is switched, per frame, so the
+ * slab above (which blocks the sun) and the lights hung beneath (separate
+ * meshes) are untouched, and any eye inside the room — a station camera, the
+ * 360 camera, a walkthrough — is below the ceiling and sees it as before.
  */
 export function CeilingProfile({
-  parts, color, stripK,
+  parts, color, stripK, ceilingY,
 }: {
   parts: CeilingPart[]
   color: string
   stripK: number
+  /** The ceiling's height in the parent's local frame (the room's H). Taken
+   *  to world space each frame, so a room lifted by its parent still cuts at
+   *  its own ceiling. */
+  ceilingY: number
 }) {
   const stripColor = kelvinToHex(stripK)
+  const groupRef = useRef<THREE.Group>(null)
+  useFrame(({ camera }) => {
+    const g = groupRef.current
+    if (!g) return
+    _ceilingWorld.set(0, ceilingY, 0)
+    g.parent?.localToWorld(_ceilingWorld)
+    g.visible = ceilingProfileVisible(camera.position.y, _ceilingWorld.y)
+  })
   return (
-    <group>
+    <group ref={groupRef}>
       {parts.map((part, i) => (
         <mesh
           key={i}
