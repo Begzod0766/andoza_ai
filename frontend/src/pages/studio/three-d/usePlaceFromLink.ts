@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
 import { getCatalogFurniture, type CatalogFurniture } from '@/lib/api'
-import { furniturePlacementMm } from '@/lib/placement'
+import { nextFurnitureSpot } from '@/features/studio/nextFurnitureSpot'
 import { useRoomStore } from '@/store/roomStore'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -78,8 +78,7 @@ export function usePlaceFromLink({
     s.placeFurniture({
       id: nanoid(),
       furniture_id: item.id,
-      rotation: 0,
-      ...furniturePlacementMm(s.geometry, s.furniture.length, sizeM),
+      ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM }),
     })
     setPlaced(item)
     onPlaced(item)

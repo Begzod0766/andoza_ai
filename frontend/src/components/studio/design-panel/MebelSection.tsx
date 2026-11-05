@@ -14,7 +14,7 @@ import { getModelFromDb, saveModelToDb, deleteModelFromDb, arrayBufferToBlobUrl 
 import { useGLTF } from "@react-three/drei";
 import { applyMaterialToGlb, listGlbMaterials } from "@/lib/modelConverter";
 import type { GlbMaterialInfo } from "@/lib/modelConverter";
-import { furniturePlacementMm } from "@/lib/placement";
+import { nextFurnitureSpot } from "@/features/studio/nextFurnitureSpot";
 import { deleteUserModel, getStores, updateUserModel } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { StoreContactLinks } from "@/components/studio/StoreContactLinks";
@@ -288,7 +288,6 @@ export function MebelSection() {
   // Public shop details, to put a call / Telegram shortcut on each shop's models.
   const { data: shops = [] } = useQuery({ queryKey: ['stores'], queryFn: getStores, staleTime: 5 * 60_000 });
   const shopById = new Map(shops.map((st) => [st.id, st]));
-  const geometry = useRoomStore((s) => s.geometry);
 
   const [colorEditorId, setColorEditorId] = React.useState<string | null>(null);
   const [furnitureCat, setFurnitureCat] = React.useState<FurnitureCategory | 'barchasi' | 'mening'>('barchasi');
@@ -456,8 +455,8 @@ export function MebelSection() {
               count={count}
               busy={texBusy === entry.id}
               onPlace={() => placeFurniture({
-                id: nanoid(), furniture_id: entry.id, rotation: 0,
-                ...furniturePlacementMm(geometry, count, entry.sizeM),
+                id: nanoid(), furniture_id: entry.id,
+                ...nextFurnitureSpot({ name: entry.name, category: 'category' in entry ? entry.category : undefined, sizeM: entry.sizeM }),
               })}
               onOpenTexEditor={() => openTexEditor(entry.id)}
               onRemove={() => {
