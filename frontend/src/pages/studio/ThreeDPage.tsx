@@ -16,6 +16,7 @@ import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { PlanViewToggle } from "@/components/studio/PlanViewToggle";
 import { QuarterArcMenu } from "@/components/studio/QuarterArcMenu";
+import { showsEditingCorners } from "./three-d/cameraViewChrome";
 import { useArcCategories } from "@/features/studio/useArcCategories";
 import { deleteRoom, updateRoom, listCatalogFurniture, listRenders, pinParam } from "@/lib/api";
 import type { Room } from "@/lib/api";
@@ -974,7 +975,7 @@ export default function ThreeDPage() {
               button opens a list, the list closes the moment a camera is
               chosen, and the only thing left on screen after that is the one
               control that camera still needs: render. */}
-          <div className="absolute bottom-5 left-4 z-20 flex items-end gap-2">
+          <div className="absolute bottom-5 left-4 right-4 z-20 flex flex-wrap items-end gap-2 pointer-events-none [&>*]:pointer-events-auto">
             <div className="flex flex-col items-start gap-2">
               {/* The list rises from the button rather than running across the
                   foot of the screen: a column keeps it clear of the arc menu in
@@ -1087,13 +1088,13 @@ export default function ThreeDPage() {
               of which a phone shows without a detour. Sits beside the CTA
               above rather than replacing it: that button adds whatever suits
               the current phase, this one names the three outright. */}
-          <div className="lg:hidden">
+          {showsEditingCorners({ panorama, cameraStation }) && <div className="lg:hidden">
             <QuarterArcMenu
               className="bottom-5 right-4"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
             />
-          </div>
+          </div>}
 
           <ThreeDCanvasScene
           armedOpeningId={armedOpening?.elId ?? null}
