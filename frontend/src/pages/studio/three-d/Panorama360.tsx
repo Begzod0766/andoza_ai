@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   PANO_EYE_HEIGHT, PANO_WIDTH, PANO_HEIGHT,
-  panoramaSizeFor, renderPanorama, flipRows, panoramaLookFov,
+  panoramaSizeFor, renderPanorama, flipRows, meshesAroundEye, panoramaLookFov,
 } from "@/lib/panorama360";
 import { roomCentreWorld } from "@/lib/roomCentre";
 import type { RoomGeometry } from "@/store/roomStore";
@@ -108,6 +108,20 @@ export function Panorama360({ active, geometry, onCaptured }: {
     camera.updateProjectionMatrix();
     invalidate();
   }, [active, camera, size.width, size.height, invalidate]);
+
+  // Whatever hangs round the eye (a pendant's shade from the middle of a low ceiling) is put
+  // out of sight while the camera stands here, for the live view and the captured picture
+  // alike, and back on the way out (QA 2026-11-05 #2: the "dark floor" was the shade's inside).
+  useEffect(() => {
+    if (!active) return;
+    const hidden = meshesAroundEye(scene, eye);
+    for (const m of hidden) m.visible = false;
+    invalidate();
+    return () => {
+      for (const m of hidden) m.visible = true;
+      invalidate();
+    };
+  }, [active, scene, eye, invalidate]);
 
   // Drag to turn. On the canvas itself rather than through R3F's object
   // events: there is nothing to hit — the point is to look around the room,

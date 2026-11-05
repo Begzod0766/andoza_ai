@@ -277,3 +277,31 @@ export function captureViewCanvas(
   }
   return canvas
 }
+
+/** How close to the eye a mesh's box may come before it counts as wrapped round it, metres. */
+const EYE_CLEARANCE = 0.05
+/** Wider than this across the floor is the room itself (its walls, its ceiling), not a fixture. */
+const MAX_WRAPPING_SPAN = 1.5
+
+/**
+ * The visible meshes whose box wraps round the 360 camera's eye: a pendant's shade hanging from
+ * the middle of a low ceiling down to eye height. Standing inside it, every look down saw the
+ * inside of the shade, read as a dark polygon on the floor (QA 2026-11-05 #2, found in
+ * "Mening xonam": a 24-sided cone 0.11 m from the eye in every direction). The room's own shell
+ * also surrounds the eye, so only pieces narrower than `MAX_WRAPPING_SPAN` are returned.
+ */
+export function meshesAroundEye(scene: THREE.Object3D, eye: THREE.Vector3): THREE.Mesh[] {
+  scene.updateMatrixWorld(true)
+  const found: THREE.Mesh[] = []
+  const box = new THREE.Box3()
+  const size = new THREE.Vector3()
+  scene.traverseVisible((o) => {
+    if (!(o instanceof THREE.Mesh)) return
+    box.setFromObject(o)
+    if (box.isEmpty()) return
+    box.getSize(size)
+    if (Math.max(size.x, size.z) > MAX_WRAPPING_SPAN) return
+    if (box.expandByScalar(EYE_CLEARANCE).containsPoint(eye)) found.push(o)
+  })
+  return found
+}
