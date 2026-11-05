@@ -12,6 +12,8 @@
 import type { RoomGeometry } from '@/store/roomStore'
 import { roomExtents } from '@/lib/roomDims'
 import { halfExtentsToBounds, placementSpot, roomBoundsFromGeometry } from '@/lib/furnitureBounds'
+import { furnitureSpot, roomModel, WALL_GAP, type Rect } from '@/lib/aiDesignLayout'
+import type { FurnitureRole } from '@/lib/furnitureRole'
 
 /**
  * Stagger offset (mm) for the *n*th piece of a given furniture item already
@@ -72,6 +74,59 @@ export function furniturePlacementMm(
   // Plan millimetres (from the room's corner) back to the store's own frame,
   // which measures from the room's centre.
   return { x: spot.x - room.W / 2, y: spot.z - room.D / 2 }
+}
+
+
+/** A piece already in the room: its store position (mm from the room's centre), turn and size (metres). */
+export interface PlacedBox { x: number; y: number; rotation: number; w: number; d: number }
+
+/** The pieces that stand with their back on a wall when added; the rest go to the middle. */
+const WALL_ROLES = new Set<FurnitureRole>(['sofa', 'bed', 'wardrobe', 'shelf', 'tv_unit', 'desk', 'nightstand'])
+/** Tall enough to keep out of a window's light, as the AI layout reads them. */
+const TALL_ROLES = new Set<FurnitureRole>(['wardrobe', 'shelf', 'tv_unit'])
+
+/**
+ * Where a piece added from a menu goes (store millimetres and its turn), so it neither lands in
+ * the middle on top of what is already there nor stands across a doorway (QA 2026-11-05 #5: a
+ * wardrobe dropped into the bed, a desk behind it). The AI layout's own rules decide:
+ *   - a piece that belongs against a wall stands with its back on the longest wall that has room
+ *     for it, facing the room, clear of the doors' swing (and, when tall, the windows);
+ *   - anything else goes to the free spot nearest the middle;
+ *   - a rug goes to the middle regardless: it lies under the rest.
+ * When nothing is free it falls back to the old staggered drop point, so a piece is still added.
+ */
+export function freeFurnitureSpotMm(
+  geometry: RoomGeometry,
+  placed: readonly PlacedBox[],
+  sizeM: { w: number; d: number },
+  role: FurnitureRole,
+): { x: number; y: number; rotation: number } {
+  const model = roomModel(geometry)
+  const size = { w: sizeM.w > 0 ? sizeM.w : 0.6, d: sizeM.d > 0 ? sizeM.d : 0.6, tall: TALL_ROLES.has(role) }
+  if (role === 'rug') {
+    const spot = furnitureSpot('center', size, model, [])
+    return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, 0, sizeM), rotation: 0 } : toMm(spot)
+  }
+  const taken: Rect[] = placed.map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
+  if (WALL_ROLES.has(role)) {
+    const walls = [...model.walls].sort((a, b) => b.length - a.length)
+    let tight: ReturnType<typeof furnitureSpot> | null = null
+    for (const wall of walls) {
+      const spot = furnitureSpot(`wall_${wall.id}`, size, model, taken)
+      // furnitureSpot falls back to the middle when the wall is full; only a spot on this wall counts here.
+      const onWall = Math.abs((spot.x - wall.midX) * wall.nx + (spot.z - wall.midZ) * wall.nz - (size.d / 2 + WALL_GAP)) < 0.01
+      if (!onWall) continue
+      if (spot.fit === 'ok') return toMm(spot)
+      if (spot.fit === 'tight' && !tight) tight = spot
+    }
+    if (tight) return toMm(tight)
+  }
+  const spot = furnitureSpot('center', size, model, taken)
+  return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: 0 } : toMm(spot)
+}
+
+function toMm(spot: { x: number; z: number; rotation: number }): { x: number; y: number; rotation: number } {
+  return { x: Math.round(spot.x * 1000), y: Math.round(spot.z * 1000), rotation: spot.rotation }
 }
 
 

@@ -7,7 +7,8 @@ import { getMaterials } from "@/lib/api";
 import type { Material, CatalogFurniture } from "@/lib/api";
 import { useRoomStore, type FloorType } from "@/store/roomStore";
 import { LIGHT_TYPES } from "@/lib/lightCatalog";
-import { furniturePlacementMm, nextLightPositionMm } from "@/lib/placement";
+import { nextLightPositionMm } from "@/lib/placement";
+import { nextFurnitureSpot } from "@/features/studio/nextFurnitureSpot";
 import { buildFurnitureGroups } from "@/lib/furnitureSwapGroups";
 import { useDebounce } from "@/hooks/useDebounce";
 import { LightSymbol } from "@/lib/catalogIcons";
@@ -122,7 +123,7 @@ export function AddObjectSheet({
   // used to blow away desktop customization with a single tap.
   const [targetWall, setTargetWall] = useState<WallTarget>("ALL");
   const {
-    setWallCovering, applySurface, addLight, placeFurniture, catalogFurniture, geometry, lights, furniture,
+    setWallCovering, applySurface, addLight, placeFurniture, catalogFurniture, geometry, lights,
     designState, setDesignState, setFloorTexture, surfaces,
   } = useRoomStore();
   // ALL + one entry per actual wall in the room's own geometry (no
@@ -481,14 +482,13 @@ export function AddObjectSheet({
               <button
                 onClick={() => {
                   const item = pendingFurniture;
-                  const count = furniture.filter((f) => f.furniture_id === item.id).length;
                   const scaleOverride = item.footprint_w ? furnitureWidthCm / item.footprint_w : 1;
                   placeFurniture({
                     id: `furn_${item.id}_${Date.now()}`, furniture_id: item.id,
-                    ...furniturePlacementMm(geometry, count, {
+                    ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM: {
                       w: ((item.footprint_w ?? 0) / 100) * scaleOverride,
                       d: ((item.footprint_d ?? 0) / 100) * scaleOverride,
-                    }), rotation: 0, scaleOverride,
+                    } }), scaleOverride,
                   });
                   setPendingFurniture(null);
                   onClose();
