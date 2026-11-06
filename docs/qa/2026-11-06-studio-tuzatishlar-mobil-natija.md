@@ -15,10 +15,9 @@ Ro'yxat: [2026-11-06-studio-tuzatishlar-mobil-tekshiruv.md](2026-11-06-studio-tu
 
 | | Soni | Bandlar |
 |---|---|---|
-| ✅ | 28 | qolganlari |
+| ✅ | 30 | qolganlari |
 | ⚠️ qisman | 4 | 1.2, 1.10, 2.5, 4.4 |
 | ❌ | 3 | 2.4 ⭐, 2.6, 6.6 ⭐ |
-| tekshirilmadi | 2 | 2.7 ⭐, 4.2 |
 
 ## 1. Kamera, render va pastki panel
 
@@ -45,7 +44,7 @@ Ro'yxat: [2026-11-06-studio-tuzatishlar-mobil-tekshiruv.md](2026-11-06-studio-tu
 | 2.4 ⭐ | ❌ simulyatorda: toast yoki aylana menyu yopilgandan keyingi birinchi sudrash hali ham e'tiborga olinmaydi. Telefonda tasdiqlash kerak |
 | 2.5 ⭐ | ⚠️ simulyatorda: mebel barmoq ortidan yuradi, lekin bir sinovda kreslo o'zi ~20 sm chapga siljidi |
 | 2.6 | ❌ Eshik yonidagi devorni uzoqdan bosganda toifalar emas, darhol eshik modellari ochiladi ([rasm](img/2026-11-06/2.6-wall-near-door-opens-doors.jpg)) |
-| 2.7 ⭐ | tekshirilmadi |
+| 2.7 ⭐ | ✅ simulyatorda (keyinroq): eshik yonidagi devor bosib turilganda devor menyusi ochildi, eshikning o'chirish menyusi emas |
 
 ## 3. Menyular va nomlar
 
@@ -61,7 +60,7 @@ Ro'yxat: [2026-11-06-studio-tuzatishlar-mobil-tekshiruv.md](2026-11-06-studio-tu
 | # | Natija |
 |---|---|
 | 4.1 | ✅ TV uzun devorga tushdi; tashqaridan orqasi ko'rinishi 7-bo'limdagi ma'lum masala. Sinovdan keyin o'chirildi |
-| 4.2 | tekshirilmadi |
+| 4.2 | ✅ (keyinroq): "Shkaf 1" bo'sh o'ng devorga, eshikdan uzoqqa tushdi; divan uchiga tegib turadi, lekin ustiga chiqmaydi ([rasm](img/2026-11-06/4.2-wardrobe-top.jpg)). Sinovdan keyin o'chirildi |
 | 4.3 | ✅ |
 | 4.4 | ⚠️ 90°, −, + ishlaydi. Lekin burish rad etilganda chiqadigan toast "My renders" tugmasi ostida qoladi va o'qib bo'lmaydi ([rasm](img/2026-11-06/4.4-rotate-toast-unreadable.jpg)) |
 | 4.5 ⭐ | ✅ simulyatorda |
@@ -111,4 +110,6 @@ Xonalar bir-biriga kirib turganga o'xshaydi, ishora yo'q. Ehtimol kesishuv chega
 
 ## Qo'shimcha topilmalar (ro'yxatda yo'q)
 - Mobil ilova, Русский: xona kartochkasidagi "SKAN" belgisi tarjima qilinmagan (mobil tomonda tuzatiladi).
-- 7-bo'limdagi QA #20 (Qibla) va QA #21 (Room type) qayta tekshirilmadi.
+- QA #20 ❌ tasdiqlandi: Qibla yoqilib, Studio'dan chiqib qayta kirilgach o'chiq holatda ([rasm](img/2026-11-06/qa20-qibla-off-after-reopen.jpg)).
+- QA #21 ❌ tasdiqlandi: AI designer varag'idagi "Room type" tanlovi iOS'da ochilmaydi ([rasm](img/2026-11-06/qa21-room-type-no-picker.jpg)). Qibla bo'limidagi tanlovlar esa iOS ro'yxatini ochadi, ya'ni muammo faqat shu varaqda.
+- Mebelni bosib turganda chiqadigan kartochka ekranning o'ng chetidan chiqib, kesilib qoladi ([rasm](img/2026-11-06/extra-card-clipped.jpg)).
