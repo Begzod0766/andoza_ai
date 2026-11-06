@@ -269,7 +269,7 @@ function slideOffsets(limit: number, step: number): number[] {
 
 /** The free floor nearest the middle of the room that a footprint fits on, or null. */
 function nearestFree(
-  model: RoomModel, size: { w: number; d: number }, taken: Rect[], ok: (r: Rect) => boolean = () => true,
+  model: RoomModel, size: { w: number; d: number }, taken: Rect[], ok: (r: Rect) => boolean = () => true, rotation = 0,
 ): { x: number; z: number } | null {
   const step = 0.25
   const spots: [number, number][] = []
@@ -278,7 +278,7 @@ function nearestFree(
   }
   spots.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
   for (const [x, z] of spots) {
-    const rect = { x, z, ...size, rotation: 0 }
+    const rect = { x, z, ...size, rotation }
     if (model.inside(rect) && !taken.some((t) => overlaps(rect, t)) && ok(rect)) return { x, z }
   }
   return null
@@ -302,8 +302,13 @@ const RULES = [{ doors: true, windows: true }, { doors: true, windows: false }, 
 /** 'ok': a clean place; 'tight': found only by ignoring a door or window rule; 'none': no place at all. */
 export type Fit = 'ok' | 'tight' | 'none'
 
+/**
+ * `centreTurn` is the turn a piece takes when it goes to the middle (the zone was the middle, or its
+ * wall was full): 0, square to the plan's axes, unless the caller turns it square to the room's own
+ * walls. A scanned room is rarely square to the axes, and a long piece at 0 stood across it.
+ */
 export function furnitureSpot(
-  zone: string, size: PieceSize, model: RoomModel, taken: Rect[],
+  zone: string, size: PieceSize, model: RoomModel, taken: Rect[], centreTurn = 0,
 ): Spot & { rect: Rect; fit: Fit } {
   const parsed = parseZone(zone, model)
   const tall = size.tall === true
@@ -338,10 +343,10 @@ export function furnitureSpot(
     }
 
     // The middle, or anywhere free nearest it (the wall was full, the zone was the middle, or it named no wall here).
-    const spot = nearestFree(model, footprint, taken, (r) => !blocksOpening(r, tall, model, rules))
-    if (spot) return { ...spot, rotation: 0, rect: { ...spot, ...footprint, rotation: 0 }, fit }
+    const spot = nearestFree(model, footprint, taken, (r) => !blocksOpening(r, tall, model, rules), centreTurn)
+    if (spot) return { ...spot, rotation: centreTurn, rect: { ...spot, ...footprint, rotation: centreTurn }, fit }
   }
-  return { x: 0, z: 0, rotation: 0, rect: { x: 0, z: 0, ...footprint, rotation: 0 }, fit: 'none' } // no room left: the caller decides
+  return { x: 0, z: 0, rotation: centreTurn, rect: { x: 0, z: 0, ...footprint, rotation: centreTurn }, fit: 'none' } // no room left: the caller decides
 }
 
 /** Is a point on `wall`, `along` metres from its midpoint, inside a door or window (plus clearance)? */

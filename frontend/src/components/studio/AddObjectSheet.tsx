@@ -488,7 +488,7 @@ export function AddObjectSheet({
                     ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM: {
                       w: ((item.footprint_w ?? 0) / 100) * scaleOverride,
                       d: ((item.footprint_d ?? 0) / 100) * scaleOverride,
-                    } }), scaleOverride,
+                    }, heightM: item.height_cm ? (item.height_cm / 100) * scaleOverride : undefined }), scaleOverride,
                   });
                   setPendingFurniture(null);
                   onClose();

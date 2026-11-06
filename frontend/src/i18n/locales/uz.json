@@ -933,6 +933,8 @@
     },
     "furn": {
       "detach_failed": "Qismni ajratib bo'lmadi",
+      "no_wall_title": "{{name}} uchun devorda joy yo'q",
+      "no_wall_desc": "Hozircha xona o'rtasida turibdi: uni suring yoki devorda joy bo'shating.",
       "detach_title": "Qismni alohida obyekt sifatida ajratish",
       "detach": "Ajratish",
       "delete_part": "Qismni o'chirish",

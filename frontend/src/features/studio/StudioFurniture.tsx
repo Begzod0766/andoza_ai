@@ -87,6 +87,27 @@ const REPORT_LIMIT = 40
 
 /** Set shadows on every mesh + strip its materials down to colour.
  *  Preserves single-vs-array structure. */
+/**
+ * Where a model's root goes, in its own parent's frame (inside the yaw and the scale), so that the
+ * middle of its footprint stands on the placement point rather than the GLB's own origin.
+ *
+ * Every placement takes the point as that middle: the menus' and the AI's layouts, the collision
+ * resolver, the drag clamp, a detached part's `worldCenter`. A GLB's origin is wherever it was
+ * modelled: "Televizor 2" has it on its back edge, 22 cm behind its middle and 18 cm to one side,
+ * and some catalog models have it metres away, so they stood off the wall they were put against or
+ * outside the room altogether (QA re-check R1). Height is left alone: the bottom is aligned apart.
+ *
+ * `box` must be the root's own box, taken before react-three-fiber moves it.
+ */
+export function footprintCentredRoot(root: THREE.Object3D, box: THREE.Box3): [number, number, number] {
+  if (box.isEmpty()) return [root.position.x, root.position.y, root.position.z]
+  return [
+    root.position.x - (box.min.x + box.max.x) / 2,
+    root.position.y,
+    root.position.z - (box.min.z + box.max.z) / 2,
+  ]
+}
+
 function prepareMesh(obj: THREE.Object3D, debugLabel?: string) {
   const report: Record<string, unknown>[] = []
   let parts = 0
@@ -175,10 +196,13 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
 
   // Compute bottom offset ONCE per clone, before R3F touches the object's position.
   // Storing scale-independent value so it stays correct when scaleOverride changes.
-  const { yOffUnit, rawHeight } = useMemo(() => {
+  const { yOffUnit, rawHeight, rootAt } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
     const ok = isFinite(box.min.y)
-    return { yOffUnit: ok ? -box.min.y : 0, rawHeight: ok ? box.max.y - box.min.y : 0 }
+    return {
+      yOffUnit: ok ? -box.min.y : 0, rawHeight: ok ? box.max.y - box.min.y : 0,
+      rootAt: footprintCentredRoot(cloned, box),
+    }
   }, [cloned]);
   const ceilingHeight = useRoomStore((st) => st.ceilingHeight);
 
@@ -207,7 +231,7 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
       scale={s}
     >
       <group rotation={[0, yawRadians(entry.modelYaw), 0]}>
-        <primitive object={cloned} />
+        <primitive object={cloned} position={rootAt} />
       </group>
     </group>
   );
@@ -385,10 +409,11 @@ export function DraggableFurnitureItem({
   }
 
   // Compute Y offset and XZ footprint ONCE per clone, before R3F sets position.
-  const { yOffUnit, rawHW, rawHD, geomHH } = useMemo(() => {
+  const { yOffUnit, rawHW, rawHD, geomHH, rootAt } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
     const ok = isFinite(box.min.x)
     return {
+      rootAt: footprintCentredRoot(cloned, box),
       yOffUnit: ok ? -box.min.y : 0,
       rawHW: ok ? (box.max.x - box.min.x) / 2 : 0.3,
       rawHD: ok ? (box.max.z - box.min.z) / 2 : 0.3,
@@ -497,6 +522,7 @@ export function DraggableFurnitureItem({
         <group rotation={[0, yawRadians(modelYaw), 0]}>
           <primitive
             object={cloned}
+            position={rootAt}
             onPointerDown={toolMode === 'part' ? handlePartClick : onMeshPointerDown}
             onClick={swallowPickClick}
             onPointerEnter={() => { document.body.style.cursor = meshCursor }}
@@ -560,7 +586,7 @@ export function DraggableFurnitureItem({
           same frame loop while a live scale drag is in flight. */}
       {isSelected && (
         <group ref={selRef} rotation={[0, item.rotation, 0]}>
-          <SelectionOutline object={cloned} scale={s} position={[0, yOff, 0]} rotationY={yawRadians(modelYaw)} />
+          <SelectionOutline object={cloned} scale={s} position={[0, yOff, 0]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
         </group>
       )}
       {toolMode === 'move' && (

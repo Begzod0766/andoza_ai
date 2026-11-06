@@ -218,3 +218,65 @@ describe('a model turned by its yaw', () => {
     unmount()
   })
 })
+
+/**
+ * QA re-check R1: the studio stood a model's own ORIGIN on its placement point, while the layout,
+ * the collision resolver and the selection all take that point as the middle of its footprint.
+ * "Televizor 2" has its origin on its back edge, 22 cm behind its middle and 18 cm to one side;
+ * some catalog models have theirs metres away. The footprint's middle goes on the point now.
+ */
+describe('a model whose origin is off its footprint', () => {
+  function useOffsetBox() {
+    fakeGltfScene = new THREE.Group()
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2, 0.4), new THREE.MeshStandardMaterial())
+    mesh.name = 'seat'
+    mesh.position.set(-0.18, 1, 0.22) // its back on the origin's z, its middle off to one side
+    fakeGltfScene.add(mesh)
+  }
+  const footprintMiddle = (mesh: THREE.Mesh) => {
+    mesh.updateWorldMatrix(true, false)
+    const c = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3())
+    return { x: c.x, z: c.z }
+  }
+
+  it.each([0, 90, 180, 270])('FurnitureItem stands its footprint on the placement point (yaw %i)', (yaw) => {
+    useOffsetBox()
+    const item = { ...placeOne(0.7, yaw), x: 1200, y: -400 }
+    const { scene, unmount } = mount(<FurnitureItem item={item} />)
+    const c = footprintMiddle(modelNodes(scene()).mesh)
+    expect(c.x).toBeCloseTo(1.2, 6)
+    expect(c.z).toBeCloseTo(-0.4, 6)
+    unmount()
+  })
+
+  it('the draggable model and its selection outline do too', () => {
+    useOffsetBox()
+    const item = { ...placeOne(0.7, 90), x: 1200, y: -400 }
+    const { scene, unmount } = mount(
+      <DraggableFurnitureItem
+        item={item}
+        isDragging={false}
+        isSelected={true}
+        toolMode="select"
+        dragPosRef={{ current: new THREE.Vector3() }}
+        dragRotRef={{ current: 0 }}
+        dragScaleRef={{ current: 1 }}
+        onMeshPointerDown={() => {}}
+        onButtonPointerDown={() => {}}
+        onFootprint={() => {}}
+        displayInfo={{ name: 'Stul', priceUzs: null }}
+        selectedPartKey={null}
+        onSelectPart={() => {}}
+      />,
+    )
+    const { mesh, outline } = modelNodes(scene())
+    const c = footprintMiddle(mesh)
+    expect(c.x).toBeCloseTo(1.2, 6)
+    expect(c.z).toBeCloseTo(-0.4, 6)
+    expect(outline).not.toBeNull()
+    scene().updateMatrixWorld(true)
+    expect(outline!.matrixWorld.toArray().map((v) => +v.toFixed(6)))
+      .toEqual(mesh.matrixWorld.toArray().map((v) => +v.toFixed(6)))
+    unmount()
+  })
+})

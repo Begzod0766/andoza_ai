@@ -94,13 +94,19 @@ const TALL_ROLES = new Set<FurnitureRole>(['wardrobe', 'shelf', 'tv_unit'])
  *   - anything else goes to the free spot nearest the middle;
  *   - a rug goes to the middle regardless: it lies under the rest.
  * When nothing is free it falls back to the old staggered drop point, so a piece is still added.
+ *
+ * A wall piece that no wall has room for still goes in (to the free floor nearest the middle), but
+ * turned square to the room's longest wall, and `onWall` says it found no wall, so the caller can
+ * tell the user. It used to stand at a turn of 0 with no word: in a scanned room turned 46 degrees a
+ * 3.5 m TV unit then stood diagonally across the middle, back to half the room (QA re-check R1).
+ * `onWall` is only there for a piece that belongs on a wall.
  */
 export function freeFurnitureSpotMm(
   geometry: RoomGeometry,
   placed: readonly PlacedBox[],
   sizeM: { w: number; d: number },
   role: FurnitureRole,
-): { x: number; y: number; rotation: number } {
+): { x: number; y: number; rotation: number; onWall?: boolean } {
   const model = roomModel(geometry)
   const size = { w: sizeM.w > 0 ? sizeM.w : 0.6, d: sizeM.d > 0 ? sizeM.d : 0.6, tall: TALL_ROLES.has(role) }
   if (role === 'rug') {
@@ -116,10 +122,17 @@ export function freeFurnitureSpotMm(
       // furnitureSpot falls back to the middle when the wall is full; only a spot on this wall counts here.
       const onWall = Math.abs((spot.x - wall.midX) * wall.nx + (spot.z - wall.midZ) * wall.nz - (size.d / 2 + WALL_GAP)) < 0.01
       if (!onWall) continue
-      if (spot.fit === 'ok') return toMm(spot)
+      if (spot.fit === 'ok') return { ...toMm(spot), onWall: true }
       if (spot.fit === 'tight' && !tight) tight = spot
     }
-    if (tight) return toMm(tight)
+    if (tight) return { ...toMm(tight), onWall: true }
+    // No wall has room: the middle, lined up with the longest wall as if it stood on it.
+    const longest = walls[0]
+    const turn = longest ? Math.atan2(longest.nx, longest.nz) : 0
+    const spot = furnitureSpot('center', size, model, taken, turn)
+    return spot.fit === 'none'
+      ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: turn, onWall: false }
+      : { ...toMm(spot), onWall: false }
   }
   const spot = furnitureSpot('center', size, model, taken)
   return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: 0 } : toMm(spot)

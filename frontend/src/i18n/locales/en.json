@@ -933,6 +933,8 @@
     },
     "furn": {
       "detach_failed": "The part could not be detached",
+      "no_wall_title": "No wall has room for {{name}}",
+      "no_wall_desc": "It stands in the middle for now: move it, or make room on a wall.",
       "detach_title": "Detach the part as a separate object",
       "detach": "Detach",
       "delete_part": "Delete the part",

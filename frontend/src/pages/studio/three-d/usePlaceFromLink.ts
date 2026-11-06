@@ -78,7 +78,7 @@ export function usePlaceFromLink({
     s.placeFurniture({
       id: nanoid(),
       furniture_id: item.id,
-      ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM }),
+      ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM, heightM: item.height_cm ? item.height_cm / 100 : undefined }),
     })
     setPlaced(item)
     onPlaced(item)

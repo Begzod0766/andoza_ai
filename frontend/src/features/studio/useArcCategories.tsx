@@ -97,7 +97,11 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
           onSelect: () => placeFurniture({
             id: nanoid(),
             furniture_id: f.id,
-            ...nextFurnitureSpot({ name: f.name_uz, category: f.category, sizeM: { w: (f.footprint_w ?? 0) / 100, d: (f.footprint_d ?? 0) / 100 } }),
+            ...nextFurnitureSpot({
+              name: f.name_uz, category: f.category,
+              sizeM: { w: (f.footprint_w ?? 0) / 100, d: (f.footprint_d ?? 0) / 100 },
+              heightM: f.height_cm ? f.height_cm / 100 : undefined,
+            }),
           }),
         }))
 
