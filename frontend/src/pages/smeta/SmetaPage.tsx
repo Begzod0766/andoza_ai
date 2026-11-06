@@ -53,7 +53,15 @@ const secondaryButton =
  *  priced line, not the design: a parquet floor with no parquet in the shop is priced from
  *  laminate (smeta.py's _DESIGNED_FLOORS), and the note must say what was really done. */
 type FloorKind = "parket" | "laminat" | "plitka"
-type FloorNote = { kind: "left_out" } | { kind: "stand_in"; floor: FloorKind } | null
+/** The board patterns the studio lays a parquet or laminate floor in (lib/floorGeometry's
+ *  FLOOR_PATTERN_DEFS, minus the tile's stake bond). Listed here rather than imported so this
+ *  page does not pull three.js in with floorGeometry. */
+const BOARD_PATTERNS = ["herringbone", "double_herringbone", "chevron", "wood_strip", "brick_bond"] as const
+type BoardPattern = (typeof BOARD_PATTERNS)[number]
+type FloorNote =
+  | { kind: "left_out" }
+  | { kind: "stand_in"; floor: FloorKind; pattern: BoardPattern | null }
+  | null
 
 const FLOOR_LINE_CATEGORIES = new Set(["laminat", "parket", "plitka"])
 
@@ -64,14 +72,26 @@ function floorKindOf(line: EstimateResponse["lines"][number]): FloorKind {
   return line.category === "parket" || line.label.startsWith("Parket") ? "parket" : "laminat";
 }
 
+/** Which note the estimate calls for. Nothing until the estimate has come in (QA re-check
+ *  R11): the room loads first, and deciding from the room alone read "the floor is not in the
+ *  estimate", then swapped to "priced at the shop's average" a moment later. */
 function floorNote(
   room: { surfaces?: Record<string, unknown> | null; state?: Record<string, unknown> | null } | undefined,
   lines: EstimateResponse["lines"] | undefined,
 ): FloorNote {
-  const design = (room?.state as { designState?: { floorType?: string | null; floorConfigured?: boolean } } | null)?.designState;
+  if (!lines) return null;
+  const design = (room?.state as {
+    designState?: { floorType?: string | null; floorConfigured?: boolean; floorPattern?: { id?: string } | null }
+  } | null)?.designState;
   if (!design?.floorConfigured || !design.floorType || design.floorType === "concrete" || room?.surfaces?.floor) return null;
-  const priced = (lines ?? []).find((l) => FLOOR_LINE_CATEGORIES.has(l.category ?? ""));
-  return priced ? { kind: "stand_in", floor: floorKindOf(priced) } : { kind: "left_out" };
+  const priced = lines.find((l) => FLOOR_LINE_CATEGORIES.has(l.category ?? ""));
+  if (!priced) return { kind: "left_out" };
+  const floor = floorKindOf(priced);
+  // A board pattern picked in 3D (Floor -> Parquet -> Chevron) has no shop product behind it
+  // yet (QA re-check R12): the note names the pattern so the reader knows why it is approximate.
+  const id = design.floorPattern?.id;
+  const pattern = floor !== "plitka" && BOARD_PATTERNS.includes(id as BoardPattern) ? (id as BoardPattern) : null;
+  return { kind: "stand_in", floor, pattern };
 }
 
 export default function SmetaPage() {
@@ -313,9 +333,14 @@ export default function SmetaPage() {
             aria-label={floorNoteKind.kind === "stand_in" ? t("smeta.floor_stand_in_aria") : t("smeta.floor_left_out_aria")}
             className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-ink"
           >
-            {floorNoteKind.kind === "stand_in"
-              ? t("smeta.floor_stand_in", { floor: t(`smeta.floor_kind.${floorNoteKind.floor}`) })
-              : t("smeta.floor_left_out")}{" "}
+            {floorNoteKind.kind === "left_out"
+              ? t("smeta.floor_left_out")
+              : floorNoteKind.pattern
+                ? t("smeta.floor_stand_in_pattern", {
+                    pattern: t(`studio.lib.floor_pattern.${floorNoteKind.pattern}`),
+                    floor: t(`smeta.floor_kind.${floorNoteKind.floor}`),
+                  })
+                : t("smeta.floor_stand_in", { floor: t(`smeta.floor_kind.${floorNoteKind.floor}`) })}{" "}
             <Link to={`/studio/${roomId}/ichkarida?phase=pol`} className="font-semibold text-accent hover:underline">
               {t("smeta.floor_pick")}
             </Link>

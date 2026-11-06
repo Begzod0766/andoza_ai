@@ -2,7 +2,7 @@ import { ChevronDown, Armchair, Grid3x3, Hammer, Layers, Package, PaintRoller, Z
 import { GROUP_COLOUR, formatQuantity, formatShare, type GroupKey, type LineGroup } from "@/lib/smetaGroups";
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
-import { localizeLabel, localizeUnit, localizeWarning } from "@/lib/smetaLineText";
+import { localizeFormula, localizeLabel, localizeUnit, localizeWarning } from "@/lib/smetaLineText";
 
 const GROUP_ICON: Record<GroupKey, LucideIcon> = {
   tayyorlash: Hammer,
@@ -124,7 +124,9 @@ export function CategorySection({
                     {t("smeta.dokon")}: {line.store_name}
                   </p>
                 )}
-                {line.formula && !repeatsQuantityLine(line) && <p className="mt-0.5 text-xs leading-snug text-ink-muted">{line.formula}</p>}
+                {line.formula && !repeatsQuantityLine(line) && (
+                  <p className="mt-0.5 text-xs leading-snug text-ink-muted">{localizeFormula(line.formula, t)}</p>
+                )}
                 {line.warning && <p className="mt-1 text-xs leading-snug text-orange-500">{localizeWarning(line.warning, t)}</p>}
               </div>
               <p className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-ink">{fmt(line.total_uzs)}</p>
