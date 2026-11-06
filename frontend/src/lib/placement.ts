@@ -106,7 +106,11 @@ export function furniturePlacementMm(
 
 
 /** A piece already in the room: its store position (mm from the room's centre), turn and size (metres). */
-export interface PlacedBox { x: number; y: number; rotation: number; w: number; d: number }
+export interface PlacedBox {
+  x: number; y: number; rotation: number; w: number; d: number
+  /** What the piece is. A rug lies under the rest, so it never takes floor from a new piece. */
+  role?: FurnitureRole
+}
 
 /** The pieces that stand with their back on a wall when added; the rest go to the middle. */
 const WALL_ROLES = new Set<FurnitureRole>(['sofa', 'bed', 'wardrobe', 'shelf', 'tv_unit', 'desk', 'nightstand'])
@@ -141,7 +145,11 @@ export function freeFurnitureSpotMm(
     const spot = furnitureSpot('center', size, model, [])
     return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, 0, sizeM), rotation: 0 } : toMm(spot)
   }
-  const taken: Rect[] = placed.map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
+  // A rug is walked on and stood on: counted as taken, the rug in "Mening xonam" (turned across the
+  // room, reaching to 8 cm off a long wall) left the TV unit no wall at all (QA re-check R1).
+  const taken: Rect[] = placed
+    .filter((p) => p.role !== 'rug')
+    .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
   if (WALL_ROLES.has(role)) {
     const walls = [...model.walls].sort((a, b) => b.length - a.length)
     let tight: ReturnType<typeof furnitureSpot> | null = null

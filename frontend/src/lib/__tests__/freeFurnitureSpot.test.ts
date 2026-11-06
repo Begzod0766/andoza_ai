@@ -63,3 +63,51 @@ describe('where an added piece goes (QA 2026-11-05 #5)', () => {
     }
   })
 })
+
+describe('a rug is not in the way (QA re-check R1, "Mening xonam")', () => {
+  // The room's rug, turned across it, reached to 8 cm off the long wall: counted as taken, it left
+  // no wall for the TV unit, which then stood in the middle of the room with its back to it.
+  it('a wall piece stands on the wall a rug reaches up to', () => {
+    const rug: PlacedBox = { x: 0, y: -50, rotation: Math.PI / 2, w: 2.9, d: 2.0, role: 'rug' }
+    const s = freeFurnitureSpotMm(geometry(), [rug], { w: 3.04, d: 0.37 }, 'tv_unit')
+    expect(s.onWall).toBe(true)
+    expect(fromWall(box(s, 3.04, 0.37))).toBeCloseTo(0.37 / 2 + 0.04, 2)
+  })
+
+  it('anything else still keeps off pieces that are not rugs', () => {
+    const sofa: PlacedBox = { x: 0, y: 0, rotation: 0, w: 2.1, d: 0.95, role: 'sofa' }
+    const t = box(freeFurnitureSpotMm(geometry(), [sofa], { w: 1.0, d: 0.6 }, 'coffee_table'), 1.0, 0.6)
+    expect(overlaps(rect(t), rect(sofa), 0)).toBe(false)
+  })
+})
+
+describe('the TV unit in the room from the re-check, as it is on prod (QA re-check R1)', () => {
+  const el = (id: string, type: string, width: number, height: number, position: number, sill: number) =>
+    ({ id, type, width, height, position, sill_height: sill, positionAuto: false }) as WallElement
+  const room = (): RoomGeometry => ({
+    vertices: [[0, 3965], [3812, 0], [5938, 2044], [2127, 6009]],
+    walls: [
+      { id: '0', length: 5500, elements: [] },
+      { id: '1', length: 2950, elements: [el('a', 'eshik', 727, 2040, 1571, 0)] },
+      { id: '2', length: 5500, elements: [el('b', 'eshik', 815, 2029, 49, 0)] },
+      { id: '3', length: 2950, elements: [el('c', 'deraza', 1870, 1446, 543, 840)] },
+    ],
+  }) as RoomGeometry
+  // Divan 1, two Kreslo 2 and Gilam 1 where they stand in "Mening xonam".
+  const furniture: PlacedBox[] = [
+    { x: -1937, y: 1294, rotation: 2.38, w: 1.8, d: 0.87, role: 'sofa' },
+    { x: -447, y: 1706, rotation: 3.47, w: 0.72, d: 0.71, role: 'armchair' },
+    { x: -715, y: 900, rotation: 2.38, w: 2.18, d: 2.99, role: 'rug' },
+    { x: 781, y: -755, rotation: -2.27, w: 0.72, d: 0.71, role: 'armchair' },
+  ]
+
+  it('stands the 3.04 m unit on a wall, not across the middle', () => {
+    const g = room()
+    const s = freeFurnitureSpotMm(g, furniture, { w: 3.04, d: 0.37 }, 'tv_unit')
+    expect(s.onWall).toBe(true)
+    const model = roomModel(g)
+    const b = box(s, 3.04, 0.37)
+    expect(model.inside(rect(b))).toBe(true)
+    for (const p of furniture.filter((f) => f.role !== 'rug')) expect(overlaps(rect(b), rect(p), 0)).toBe(false)
+  })
+})
