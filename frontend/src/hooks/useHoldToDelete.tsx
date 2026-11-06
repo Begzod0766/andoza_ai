@@ -72,7 +72,9 @@ export function useHoldToDelete() {
   /** Whether the press that just ended fired a hold — checked before treating
    *  a release as a tap. */
   const wasHeld = useCallback(() => heldThisPress, [])
-  return useMemo(() => ({ bind, wasHeld }), [bind, wasHeld])
+  /** Calls off a hold in progress: the press turned into something else (a pinch). */
+  const cancel = useCallback(() => tracker.cancel(), [])
+  return useMemo(() => ({ bind, wasHeld, cancel }), [bind, wasHeld, cancel])
 }
 
 /**
