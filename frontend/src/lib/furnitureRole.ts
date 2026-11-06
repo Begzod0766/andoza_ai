@@ -30,13 +30,15 @@ export function isRole(v: unknown): v is FurnitureRole {
 // Name rules, first match wins; Latin, Uzbek and Russian names. Cyrillic "тв" is matched with
 // lookarounds, not \b: JavaScript's \b knows only ASCII letters. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
 // "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
+// A Russian name that is just "Стол <model>" is an office shop's desk: a dining table says
+// "обеденный" or "кухонный", and "Стол-книжка" / "Стол-трансформер" are folding tables.
 const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
   [/gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас/i, 'rug'],
   [/jurnal|kofe|coffee|журнальн|кофейн/i, 'coffee_table'],
   [/tumbochka|nightstand|prikrovat|тумбочк|прикроватн/i, 'nightstand'],
   [/\btv\b|televizor|tumba|(?<![а-яё])тв(?![а-яё])|телевизор|тумб/i, 'tv_unit'],
   [/\bish stuli|ofis stuli|kompyuter stuli|kreslo-kompyuter|office chair|desk chair|(офисн|компьютерн)\S*\s+(стул|кресл)/i, 'desk_chair'],
-  [/yozuv|kompyuter|desk|\bish stoli|(компьютерн|письменн)\S*\s+стол/i, 'desk'],
+  [/yozuv|kompyuter|desk|\bish stoli|(компьютерн|письменн|офисн|рабоч)\S*\s+стол|^\s*стол(?![-а-яё])(?!.*(?:обеден|кухон))/i, 'desk'],
   [/kreslo|armchair|кресл/i, 'armchair'],
   [/shkaf|garderob|wardrobe|шкаф|гардероб/i, 'wardrobe'],
   [/javon|komod|stellaj|vitrina|bookcase|стеллаж|комод|витрин/i, 'shelf'],

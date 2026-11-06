@@ -29,6 +29,28 @@ describe('furniture roles', () => {
     ['stol', 'Письменный стол', 'desk'],
     // "тв" only as a word: a hard pouf is decor, not a TV stand
     ['boshqa', 'Твёрдый пуф', 'decor'], ['boshqa', 'Пуф', 'decor'],
+    // Russian "Стол <name>": a shop's office desk (Loftbek); a dining table says "обеденный" or "кухонный"
+    ['stol', 'Стол Axis', 'desk'],
+    ['stol', 'Стол Nord', 'desk'],
+    ['stol', 'Стол RS-3 (Rombik)', 'desk'],
+    ['stol', 'Стол 1927', 'desk'],
+    ['stol', 'СТОЛ GOODZONE', 'desk'],
+    ['stol', 'Стол', 'desk'],
+    ['stol', 'Офисный стол', 'desk'],
+    ['stol', 'Рабочий стол Loft', 'desk'],
+    ['stol', 'Стол обеденный Maria', 'dining_table'],
+    ['stol', 'Обеденный стол, DTA-04', 'dining_table'],
+    ['stol', 'Раскладной обеденный стол', 'dining_table'],
+    ['stol', 'Кухонный стол', 'dining_table'],
+    ['stol', 'Стол кухонный Oslo', 'dining_table'],
+    // a hyphenated "Стол-..." is a folding / transforming table, not a desk
+    ['stol', 'Стол-книжка', 'dining_table'],
+    ['stol', 'Стол журнальный Lunar', 'coffee_table'],
+    // a meeting table seats people round it, as a dining table does
+    ['stol', 'Переговорный стол №1', 'dining_table'],
+    // a bare Latin name has nothing to go on: the category decides
+    ['stol', 'Horizon', 'dining_table'],
+    ['stul', 'Стул Axis', 'dining_chair'],
   ])('%s / %s is %s', (category, name, role) => {
     expect(inferRole(category, name)).toBe(role)
   })
