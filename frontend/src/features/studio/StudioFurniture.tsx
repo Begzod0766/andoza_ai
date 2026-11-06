@@ -675,6 +675,8 @@ export function DraggableFurnitureItem({
       {isSelected && (
         <Html position={[0, buttonH + 0.22, 0]} center zIndexRange={[110, 0]} style={{ pointerEvents: 'none' }}>
           <div
+            // The hold-to-delete menu keeps off this card (QA re-check R14), see holdMenuSide.
+            data-hold-avoid=""
             onPointerDown={(e) => e.stopPropagation()}
             style={{
               pointerEvents: 'all', background: 'white', borderRadius: 12, padding: '10px 12px', minWidth: 150,
