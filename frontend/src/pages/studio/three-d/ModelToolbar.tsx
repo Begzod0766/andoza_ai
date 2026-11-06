@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
 import type { ToolMode } from "@/features/studio/StudioFurniture";
+import { stepFurnitureSize, turnFurnitureQuarter } from "@/features/studio/furnitureNudge";
 
 /**
  * The transform tools for a placed model — select, rotate, scale — as a column
@@ -18,6 +19,12 @@ import type { ToolMode } from "@/features/studio/StudioFurniture";
  * Deleting is NOT here. It is a press and hold on the model itself, which is
  * harder to hit by accident than a button sitting under the user's thumb
  * throughout a drag.
+ *
+ * Under the modes, one-tap actions: a quarter turn and a size step each way
+ * (QA 2026-11-05 #14). The rotate and size modes only work by dragging a
+ * handle, 5 degrees at a time, which is slow and fiddly with a thumb. The
+ * turn keeps out of the walls and the other pieces, as the drag does (see
+ * features/studio/furnitureNudge).
  */
 const TOOLS: { mode: ToolMode; labelKey: 'studio.three_d.tool_select' | 'studio.three_d.tool_rotate' | 'studio.three_d.tool_scale'; icon: React.ReactNode }[] = [
   {
@@ -51,6 +58,9 @@ const TOOLS: { mode: ToolMode; labelKey: 'studio.three_d.tool_select' | 'studio.
     ),
   },
 ];
+
+/** A one-tap action: the same footprint as a mode, never pressed. */
+const ACTION = 'w-12 h-11 rounded-2xl flex items-center justify-center text-gray-600 hover:bg-gray-100 active:bg-gray-200';
 
 export function ModelToolbar({ selectedId, toolMode, setToolMode }: {
   /** The model these tools act on. Nothing selected, nothing shown. */
@@ -87,6 +97,33 @@ export function ModelToolbar({ selectedId, toolMode, setToolMode }: {
           </button>
         );
       })}
+      <div className="mx-2 my-0.5 h-px bg-gray-200" aria-hidden />
+      <button
+        onClick={() => turnFurnitureQuarter(selectedId)}
+        title={tr('studio.three_d.turn_90')}
+        aria-label={tr('studio.three_d.turn_90')}
+        className={ACTION}
+      >
+        <span className="text-[13px] font-bold leading-none">90°</span>
+      </button>
+      <div className="flex gap-1">
+        <button
+          onClick={() => stepFurnitureSize(selectedId, -1)}
+          title={tr('studio.three_d.size_down')}
+          aria-label={tr('studio.three_d.size_down')}
+          className={`${ACTION} !w-[22px]`}
+        >
+          <span className="text-[16px] font-bold leading-none">−</span>
+        </button>
+        <button
+          onClick={() => stepFurnitureSize(selectedId, 1)}
+          title={tr('studio.three_d.size_up')}
+          aria-label={tr('studio.three_d.size_up')}
+          className={`${ACTION} !w-[22px]`}
+        >
+          <span className="text-[16px] font-bold leading-none">+</span>
+        </button>
+      </div>
     </div>
   );
 }

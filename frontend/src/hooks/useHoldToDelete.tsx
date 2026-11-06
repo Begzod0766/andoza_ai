@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useTranslation } from 'react-i18next'
 import { createHoldTracker, HOLD_DELETE_MS } from '@/lib/holdToDelete'
@@ -77,7 +77,37 @@ export function useHoldToDelete() {
   /** Whether the press that just ended fired a hold — checked before treating
    *  a release as a tap. */
   const wasHeld = useCallback(() => heldThisPress, [])
-  return useMemo(() => ({ bind, wasHeld }), [bind, wasHeld])
+  /** Calls off a hold in progress: the press turned into something else (a pinch). */
+  const cancel = useCallback(() => tracker.cancel(), [])
+  return useMemo(() => ({ bind, wasHeld, cancel }), [bind, wasHeld, cancel])
+}
+
+/** The gap between the finger and the menu when it goes under the finger, px. */
+const BELOW_GAP_PX = 28
+
+interface Box { left: number; top: number; right: number; bottom: number }
+
+/**
+ * Which side of the finger the hold menu goes: over it (where a thumb does not hide it) unless,
+ * there, it would cover something on screen that must stay readable, and under it would not.
+ *
+ * The case is a held MODEL: once selected it shows its own card (name, size, price) floating just
+ * above it, and a finger holding the model's top put the menu's name pill straight over the card's
+ * title (QA re-check R14). `avoid` are the boxes of such things (`data-hold-avoid`); `size` is the
+ * menu's own. Under the finger is only taken when the menu fits on the screen there.
+ */
+export function holdMenuSide(
+  finger: { x: number; y: number }, size: { w: number; h: number }, avoid: readonly Box[], viewportH: number,
+): 'above' | 'below' {
+  const at = (top: number): Box => ({ left: finger.x - size.w / 2, right: finger.x + size.w / 2, top, bottom: top + size.h })
+  // Over the finger: translate(-50%, -120%) puts the menu's bottom a fifth of its height above it.
+  const above = at(finger.y - 1.2 * size.h)
+  const below = at(finger.y + BELOW_GAP_PX)
+  const covered = (b: Box) => avoid.reduce((sum, a) =>
+    sum + Math.max(0, Math.min(b.right, a.right) - Math.max(b.left, a.left)) * Math.max(0, Math.min(b.bottom, a.bottom) - Math.max(b.top, a.top)), 0)
+  const overAbove = covered(above)
+  if (overAbove === 0 || below.bottom > viewportH) return 'above'
+  return covered(below) < overAbove ? 'below' : 'above'
 }
 
 /**
@@ -88,6 +118,8 @@ export function HoldDeleteButton() {
   const { t } = useTranslation()
   const pending = useHoldDeleteStore((s) => s.pending)
   const close = useHoldDeleteStore((s) => s.close)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [side, setSide] = useState<'above' | 'below'>('above')
 
   useEffect(() => {
     if (!pending) return
@@ -96,13 +128,22 @@ export function HoldDeleteButton() {
     return () => window.removeEventListener('keydown', onKey)
   }, [pending, close])
 
-  if (!pending) return null
-
   // Keep it on screen when something near an edge is held.
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1080
   const vh = typeof window !== 'undefined' ? window.innerHeight : 1920
-  const x = Math.max(80, Math.min(vw - 80, pending.x))
-  const y = Math.max(64, Math.min(vh - 16, pending.y))
+  const x = pending ? Math.max(80, Math.min(vw - 80, pending.x)) : 0
+  const y = pending ? Math.max(64, Math.min(vh - 16, pending.y)) : 0
+
+  // Measured before the first paint, so the menu never shows over the card and then jumps.
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (!pending || !menu) { setSide('above'); return }
+    const r = menu.getBoundingClientRect()
+    const avoid = Array.from(document.querySelectorAll('[data-hold-avoid]'), (el) => el.getBoundingClientRect())
+    setSide(holdMenuSide({ x, y }, { w: r.width, h: r.height }, avoid, vh))
+  }, [pending, x, y, vh])
+
+  if (!pending) return null
 
   return (
     <div
@@ -120,8 +161,10 @@ export function HoldDeleteButton() {
       onContextMenu={(e) => e.preventDefault()}
     >
       <div
+        ref={menuRef}
+        data-hold-menu={side}
         className="absolute flex flex-col items-center gap-1"
-        style={{ left: x, top: y, transform: 'translate(-50%, -120%)' }}
+        style={{ left: x, top: y, transform: side === 'above' ? 'translate(-50%, -120%)' : `translate(-50%, ${BELOW_GAP_PX}px)` }}
         // BOTH halves of the press have to stop here, and forgetting the
         // second one is what broke deleting: the release on the delete button
         // bubbled to the backdrop above, which closed on pointerUp and

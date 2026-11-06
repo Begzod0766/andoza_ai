@@ -39,7 +39,7 @@ function outlineMaterial(thickness: number): THREE.ShaderMaterial {
   })
 }
 
-export function SelectionOutline({ object, scale, position, rotationY }: {
+export function SelectionOutline({ object, scale, position, rotationY, rootAt }: {
   /** The model being outlined. Its geometries are shared, not copied. */
   object: THREE.Object3D
   /** The model's own uniform scale, so the line can be kept a fixed width in
@@ -47,6 +47,9 @@ export function SelectionOutline({ object, scale, position, rotationY }: {
   scale: number
   position: [number, number, number]
   rotationY: number
+  /** Where the model's own root stands inside its yaw and scale (see footprintCentredRoot), so
+   *  the line sits on the model and not on where its GLB origin would have put it. */
+  rootAt?: [number, number, number]
 }) {
   const { hull, material } = useMemo(() => {
     const material = outlineMaterial(OUTLINE_M / (scale || 1))
@@ -69,6 +72,8 @@ export function SelectionOutline({ object, scale, position, rotationY }: {
   useEffect(() => () => { material.dispose() }, [material])
 
   return (
-    <primitive object={hull} position={position} rotation={[0, rotationY, 0]} scale={scale} />
+    <group position={position} rotation={[0, rotationY, 0]} scale={scale}>
+      <primitive object={hull} position={rootAt ?? [0, 0, 0]} />
+    </group>
   )
 }

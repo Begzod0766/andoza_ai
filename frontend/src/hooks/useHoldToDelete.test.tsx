@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import { HoldDeleteButton, useHoldToDelete } from './useHoldToDelete'
+import { HoldDeleteButton, holdMenuSide, useHoldToDelete } from './useHoldToDelete'
 import { HOLD_DELETE_MS } from '@/lib/holdToDelete'
 
 /**
@@ -190,5 +190,58 @@ describe('a release the window never sees bubble up (QA re-check R8)', () => {
 
     expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
     swallow.remove()
+  })
+})
+
+/**
+ * QA re-check R14 (old #16): holding a selected model put the hold menu's name pill straight over
+ * the title of the model's own card, which floats just above the model. The menu now goes under the
+ * finger when above it would cover something marked `data-hold-avoid`.
+ */
+describe('HoldDeleteButton keeps off the card', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+
+  const rect = (left: number, top: number, w: number, h: number) =>
+    ({ left, top, right: left + w, bottom: top + h, width: w, height: h, x: left, y: top, toJSON: () => ({}) }) as DOMRect
+
+  function withCard(card: DOMRect) {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.hasAttribute('data-hold-avoid')) return card
+      if (this.hasAttribute('data-hold-menu')) return rect(0, 0, 160, 70)
+      return rect(0, 0, 0, 0)
+    })
+    render(
+      <>
+        <div data-hold-avoid="">Shkaf 3 card</div>
+        <Harness onDelete={() => {}} />
+      </>,
+    )
+    holdIt() // at (200, 300)
+    return document.querySelector('[data-hold-menu]') as HTMLElement
+  }
+
+  it('goes under the finger when, over it, it would cover the card', () => {
+    // The card just above the finger, where the menu's pill would be.
+    const menu = withCard(rect(120, 200, 160, 70))
+    expect(menu.dataset.holdMenu).toBe('below')
+  })
+
+  it('stays over the finger when the card is elsewhere', () => {
+    const menu = withCard(rect(600, 40, 160, 70))
+    expect(menu.dataset.holdMenu).toBe('above')
+  })
+})
+
+describe('holdMenuSide', () => {
+  const box = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom })
+  it('is above when nothing is in the way', () => {
+    expect(holdMenuSide({ x: 200, y: 300 }, { w: 160, h: 70 }, [], 800)).toBe('above')
+  })
+  it('is below when above covers a card and below does not', () => {
+    expect(holdMenuSide({ x: 200, y: 300 }, { w: 160, h: 70 }, [box(120, 200, 280, 270)], 800)).toBe('below')
+  })
+  it('stays above when below would run off the screen', () => {
+    expect(holdMenuSide({ x: 200, y: 760 }, { w: 160, h: 70 }, [box(120, 660, 280, 730)], 800)).toBe('above')
   })
 })

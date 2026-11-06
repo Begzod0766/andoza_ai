@@ -28,25 +28,53 @@ export function nextFurnitureOffsetMm(existingCount: number): { x: number; y: nu
   return { x: offset, y: offset }
 }
 
+/** How far a new light keeps from every light already in the room, mm. */
+export const LIGHT_GAP_MM = 600
+/** The step of the grid of spots a new light is tried at, metres. */
+const LIGHT_STEP = 0.25
+/** The footprint a light's spot must have inside the room, metres. */
+const LIGHT_PROBE = 0.2
+
 /**
- * Drop point (mm) for the next light fixture — centred in the room (so it
- * starts somewhere sensible regardless of room size, unlike a hardcoded
- * point that can land past a wall in a small room) and nudged off however
- * many lights already exist so a run of them stays individually clickable
- * instead of stacking into one hitbox.
+ * Drop point (plan mm, from the room's corner) for the next light fixture: the middle of the room
+ * when it is free, else the spot nearest the middle that keeps `LIGHT_GAP_MM` from every light
+ * already there, always over the room's own floor (a scanned or L-shaped room's box is not).
  *
- * @param existingCount how many lights are already placed (0 for the first).
+ * It used to count the lights and step 125-250 mm off a fixed point near the middle, whatever
+ * stood there: a chandelier added under the AI design's pendant, which hangs dead centre, landed
+ * on it (QA re-check R6). When no spot keeps the gap (a small room full of lights), the one
+ * furthest from its nearest light is taken, so the new one is still added and still clickable.
  */
 export function nextLightPositionMm(
   geometry: RoomGeometry,
-  existingCount: number,
+  lights: ReadonlyArray<{ xMm: number; zMm: number }>,
 ): { xMm: number; zMm: number } {
-  const { W, D } = roomExtents(geometry)
-  const jitter = (existingCount % 4) * 250
-  return {
-    xMm: Math.round((W * 1000) / 2 + jitter - 375),
-    zMm: Math.round((D * 1000) / 2 + (existingCount % 3) * 250 - 250),
+  const model = roomModel(geometry)
+  const spots: Array<[number, number]> = [[0, 0]]
+  const { box } = model
+  for (let x = box.minX + LIGHT_STEP / 2; x < box.maxX; x += LIGHT_STEP) {
+    for (let z = box.minZ + LIGHT_STEP / 2; z < box.maxZ; z += LIGHT_STEP) spots.push([x, z])
   }
+  spots.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
+  const toMm = ([x, z]: [number, number]) => ({
+    xMm: Math.round(x * 1000 + model.offsetMm.x),
+    zMm: Math.round(z * 1000 + model.offsetMm.z),
+  })
+  const nearest = (p: { xMm: number; zMm: number }) =>
+    lights.reduce((m, l) => Math.min(m, Math.hypot(p.xMm - l.xMm, p.zMm - l.zMm)), Infinity)
+  let best: { xMm: number; zMm: number } | null = null
+  let bestGap = -1
+  for (const s of spots) {
+    if (!model.inside({ x: s[0], z: s[1], w: LIGHT_PROBE, d: LIGHT_PROBE, rotation: 0 })) continue
+    const p = toMm(s)
+    const g = nearest(p)
+    if (g >= LIGHT_GAP_MM) return p
+    if (g > bestGap) { best = p; bestGap = g }
+  }
+  if (best) return best
+  // No floor found at all (a degenerate room): its middle, as before.
+  const { W, D } = roomExtents(geometry)
+  return { xMm: Math.round((W * 1000) / 2), zMm: Math.round((D * 1000) / 2) }
 }
 
 
@@ -94,13 +122,19 @@ const TALL_ROLES = new Set<FurnitureRole>(['wardrobe', 'shelf', 'tv_unit'])
  *   - anything else goes to the free spot nearest the middle;
  *   - a rug goes to the middle regardless: it lies under the rest.
  * When nothing is free it falls back to the old staggered drop point, so a piece is still added.
+ *
+ * A wall piece that no wall has room for still goes in (to the free floor nearest the middle), but
+ * turned square to the room's longest wall, and `onWall` says it found no wall, so the caller can
+ * tell the user. It used to stand at a turn of 0 with no word: in a scanned room turned 46 degrees a
+ * 3.5 m TV unit then stood diagonally across the middle, back to half the room (QA re-check R1).
+ * `onWall` is only there for a piece that belongs on a wall.
  */
 export function freeFurnitureSpotMm(
   geometry: RoomGeometry,
   placed: readonly PlacedBox[],
   sizeM: { w: number; d: number },
   role: FurnitureRole,
-): { x: number; y: number; rotation: number } {
+): { x: number; y: number; rotation: number; onWall?: boolean } {
   const model = roomModel(geometry)
   const size = { w: sizeM.w > 0 ? sizeM.w : 0.6, d: sizeM.d > 0 ? sizeM.d : 0.6, tall: TALL_ROLES.has(role) }
   if (role === 'rug') {
@@ -116,10 +150,17 @@ export function freeFurnitureSpotMm(
       // furnitureSpot falls back to the middle when the wall is full; only a spot on this wall counts here.
       const onWall = Math.abs((spot.x - wall.midX) * wall.nx + (spot.z - wall.midZ) * wall.nz - (size.d / 2 + WALL_GAP)) < 0.01
       if (!onWall) continue
-      if (spot.fit === 'ok') return toMm(spot)
+      if (spot.fit === 'ok') return { ...toMm(spot), onWall: true }
       if (spot.fit === 'tight' && !tight) tight = spot
     }
-    if (tight) return toMm(tight)
+    if (tight) return { ...toMm(tight), onWall: true }
+    // No wall has room: the middle, lined up with the longest wall as if it stood on it.
+    const longest = walls[0]
+    const turn = longest ? Math.atan2(longest.nx, longest.nz) : 0
+    const spot = furnitureSpot('center', size, model, taken, turn)
+    return spot.fit === 'none'
+      ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: turn, onWall: false }
+      : { ...toMm(spot), onWall: false }
   }
   const spot = furnitureSpot('center', size, model, taken)
   return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: 0 } : toMm(spot)

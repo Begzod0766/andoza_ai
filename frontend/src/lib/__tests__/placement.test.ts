@@ -5,7 +5,8 @@
  * (the desktop panels already staggered; the mobile sheet didn't).
  */
 import { describe, it, expect } from 'vitest'
-import { nextFurnitureOffsetMm, nextLightPositionMm, fitDeviceHeightMm } from '../placement'
+import { nextFurnitureOffsetMm, nextLightPositionMm, fitDeviceHeightMm, LIGHT_GAP_MM } from '../placement'
+import { roomModel } from '../aiDesignLayout'
 import type { RoomGeometry } from '@/store/roomStore'
 
 function abcd(a: number, b: number): RoomGeometry {
@@ -42,32 +43,65 @@ describe('nextFurnitureOffsetMm', () => {
 })
 
 describe('nextLightPositionMm', () => {
+  const gap = (a: { xMm: number; zMm: number }, b: { xMm: number; zMm: number }) => Math.hypot(a.xMm - b.xMm, a.zMm - b.zMm)
+
   it('centres the first light in the room', () => {
-    const geometry = abcd(4000, 3000)
-    const pos = nextLightPositionMm(geometry, 0)
-    // W=4m,D=3m → centre (2000,1500), jitter/offset both 0 for the 0th light
-    expect(pos).toEqual({ xMm: 1625, zMm: 1250 })
+    expect(nextLightPositionMm(abcd(4000, 3000), [])).toEqual({ xMm: 2000, zMm: 1500 })
   })
 
-  it('nudges each subsequent light off the last one', () => {
+  // QA re-check R6: a chandelier added to a room whose pendant hangs in the middle landed on it.
+  // The old nudge counted the lights and stepped 125-250 mm from a fixed point, wherever they were.
+  it('keeps clear of a light already hanging in the middle', () => {
+    const pendant = { xMm: 2000, zMm: 1500 }
+    const pos = nextLightPositionMm(abcd(4000, 3000), [pendant])
+    expect(gap(pos, pendant)).toBeGreaterThanOrEqual(LIGHT_GAP_MM)
+  })
+
+  it('keeps clear of every light, wherever they are', () => {
     const geometry = abcd(4000, 3000)
-    const first = nextLightPositionMm(geometry, 0)
-    const second = nextLightPositionMm(geometry, 1)
-    const third = nextLightPositionMm(geometry, 2)
-    expect(second).not.toEqual(first)
-    expect(third).not.toEqual(first)
-    expect(third).not.toEqual(second)
+    const lights: { xMm: number; zMm: number }[] = []
+    for (let i = 0; i < 5; i++) {
+      const pos = nextLightPositionMm(geometry, lights)
+      for (const l of lights) expect(gap(pos, l)).toBeGreaterThanOrEqual(LIGHT_GAP_MM)
+      expect(pos.xMm).toBeGreaterThan(0)
+      expect(pos.xMm).toBeLessThan(4000)
+      expect(pos.zMm).toBeGreaterThan(0)
+      expect(pos.zMm).toBeLessThan(3000)
+      lights.push(pos)
+    }
+  })
+
+  it('lands inside a scanned room turned off the axes, clear of its pendant', () => {
+    const scanned = {
+      vertices: [[0, 3965], [3812, 0], [5938, 2044], [2127, 6009]],
+      walls: ['0', '1', '2', '3'].map((id, i) => ({ id, length: i % 2 ? 2950 : 5500, elements: [] })),
+    } as unknown as RoomGeometry
+    const model = roomModel(scanned)
+    const middle = nextLightPositionMm(scanned, [])
+    const pos = nextLightPositionMm(scanned, [middle])
+    expect(gap(pos, middle)).toBeGreaterThanOrEqual(LIGHT_GAP_MM)
+    const world = { x: (pos.xMm - model.offsetMm.x) / 1000, z: (pos.zMm - model.offsetMm.z) / 1000 }
+    expect(model.inside({ ...world, w: 0.2, d: 0.2, rotation: 0 })).toBe(true)
   })
 
   it('scales with actual room size instead of a fixed point', () => {
     // A fixed (2000, 1500) point — the mobile sheet's old hardcoded value —
     // would land outside a small room; the shared helper must not do that.
     const tiny = abcd(1800, 1800)
-    const pos = nextLightPositionMm(tiny, 0)
+    const pos = nextLightPositionMm(tiny, [{ xMm: 900, zMm: 900 }])
     expect(pos.xMm).toBeGreaterThan(0)
     expect(pos.xMm).toBeLessThan(1800)
     expect(pos.zMm).toBeGreaterThan(0)
     expect(pos.zMm).toBeLessThan(1800)
+  })
+
+  it('a room with no clear spot left still gets the light, as far from the others as it can be', () => {
+    const tiny = abcd(1000, 1000)
+    const lights = [{ xMm: 250, zMm: 250 }, { xMm: 750, zMm: 250 }, { xMm: 250, zMm: 750 }, { xMm: 750, zMm: 750 }, { xMm: 500, zMm: 500 }]
+    const pos = nextLightPositionMm(tiny, lights)
+    expect(pos.xMm).toBeGreaterThan(0)
+    expect(pos.xMm).toBeLessThan(1000)
+    for (const l of lights) expect(gap(pos, l)).toBeGreaterThan(150)
   })
 })
 

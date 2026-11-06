@@ -82,11 +82,11 @@ export function LightPanel({ selectedId, onSelect, armedType, onArm, planMode }:
 
   function place(type: LightType) {
     // Drop it in the middle of the room; dragging in the 3D view moves it.
-    // Nudge each new fixture off the last so a stack of them stays clickable.
+    // Clear of the lights already there, so a new one never hangs on top of another.
     const light: PlacedLight = {
       id: nanoid(),
       type: type.id,
-      ...nextLightPositionMm(geometry, lights.length),
+      ...nextLightPositionMm(geometry, lights),
       ...(type.mount === 'wall' ? { wallId: 'A' as const } : {}),
     }
     addLight(light)

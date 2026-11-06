@@ -401,7 +401,7 @@ export function AddObjectSheet({
                   <p className="text-[12px] text-muted mt-0.5">{t("studio.light.lm_k", { lm: lt.lumens, k: lt.colorK })}</p>
                   <button
                     onClick={() => {
-                      addLight({ id: `light_${lt.id}_${Date.now()}`, type: lt.id, ...nextLightPositionMm(geometry, lights.length) });
+                      addLight({ id: `light_${lt.id}_${Date.now()}`, type: lt.id, ...nextLightPositionMm(geometry, lights) });
                       onClose();
                     }}
                     className="mt-2 w-full py-1.5 bg-brand text-white rounded-xl text-[13px] font-semibold active:scale-95 transition-transform"
@@ -488,7 +488,7 @@ export function AddObjectSheet({
                     ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM: {
                       w: ((item.footprint_w ?? 0) / 100) * scaleOverride,
                       d: ((item.footprint_d ?? 0) / 100) * scaleOverride,
-                    } }), scaleOverride,
+                    }, heightM: item.height_cm ? (item.height_cm / 100) * scaleOverride : undefined }), scaleOverride,
                   });
                   setPendingFurniture(null);
                   onClose();

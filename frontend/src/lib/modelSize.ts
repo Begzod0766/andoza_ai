@@ -46,3 +46,16 @@ export function ceilingFitScale(scale: number, rawHeight: number, ceilingMm: num
   const room = (ceilingMm - CEILING_GAP_MM) / 1000;
   return rawHeight * scale > room ? room / rawHeight : scale;
 }
+
+/**
+ * A footprint (metres) at the size the studio draws it: brought down with the model when it is
+ * taller than the ceiling (`ceilingFitScale` shrinks the whole model, footprint and all).
+ * Placement must use this size, not the catalog's: a 3.51 m TV unit 2.75 m tall is drawn 3.04 m
+ * wide under a 2.4 m ceiling, and was being placed as if it were the bigger one (QA re-check R1).
+ * Unchanged when the height or the ceiling is not known, or the model fits.
+ */
+export function ceilingFitSize<T extends { w: number; d: number }>(size: T, heightM: number | undefined, ceilingMm: number): T {
+  if (!(heightM && heightM > 0)) return size;
+  const k = ceilingFitScale(1, heightM, ceilingMm);
+  return k === 1 ? size : { ...size, w: size.w * k, d: size.d * k };
+}
