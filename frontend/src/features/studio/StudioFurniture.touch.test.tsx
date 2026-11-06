@@ -165,6 +165,37 @@ describe('a finger on a model', () => {
     r.unmount()
   })
 
+  // Issue #176: a finger that grabbed the chair off its centre made the chair's centre jump to the
+  // finger on the first move — a selected armchair "moved an extra ~20 cm" on its own. The piece has
+  // to move by the finger's travel, keeping the offset it was grabbed at.
+  it('a drag grabbed off-centre keeps the grab offset: the piece moves only as far as the finger', () => {
+    const r = mountRoom('f1')
+    // ~20 px right of the centre: on the box, ~0.18 m from the chair's centre on the floor.
+    const grabX = cx + 20
+    send(r.canvas, touch('pointerdown', 1, grabX, cy))
+    expect(r.controls.enabled).toBe(false)
+    send(window, touch('pointermove', 1, grabX + 1, cy))
+    act(() => { advance(performance.now()) })
+    // One pixel of travel is about 9 mm across the floor; the piece follows it, not the 20 px offset.
+    expect(Math.abs(r.meshAt().x)).toBeLessThan(0.03)
+    send(window, touch('pointerup', 1, grabX + 1, cy))
+    expect(stored().x).toBeGreaterThan(0)
+    expect(stored().x).toBeLessThan(30)
+    expect(Math.abs(stored().y)).toBeLessThan(1)
+    r.unmount()
+  })
+
+  it('a drag grabbed off-centre and moved back to where it started leaves the piece where it was', () => {
+    const r = mountRoom('f1')
+    send(r.canvas, touch('pointerdown', 1, cx - 25, cy + 15))
+    send(window, touch('pointermove', 1, cx + 40, cy - 30))
+    send(window, touch('pointermove', 1, cx - 25, cy + 15))
+    send(window, touch('pointerup', 1, cx - 25, cy + 15))
+    expect(Math.abs(stored().x)).toBeLessThan(1)
+    expect(Math.abs(stored().y)).toBeLessThan(1)
+    r.unmount()
+  })
+
   it('a one-finger drag still moves it', () => {
     const r = mountRoom('f1')
     send(r.canvas, touch('pointerdown', 1, cx, cy))

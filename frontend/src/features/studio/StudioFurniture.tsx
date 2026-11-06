@@ -759,6 +759,22 @@ export function DraggableFurnitureModels({
   const floorPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const hitPoint = useRef(new THREE.Vector3())
+  /** Piece centre minus the floor point under the finger when the drag began, metres (XZ). The
+   *  piece follows the finger by its travel, keeping this offset: snapping the centre to the finger
+   *  made a piece grabbed off its centre jump by that distance on the first move (issue #176). */
+  const grabOffsetRef = useRef({ x: 0, z: 0 })
+
+  /** The floor point under a screen position, written into `out`; false when the ray misses it. */
+  function floorHitAt(clientX: number, clientY: number, out: THREE.Vector3): boolean {
+    const rect = gl.domElement.getBoundingClientRect()
+    if (!rect.width || !rect.height) return false
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    )
+    raycaster.setFromCamera(ndc, camera)
+    return raycaster.ray.intersectPlane(floorPlane, out) !== null
+  }
   // Actual XZ half-extents reported by each item from its real geometry bounding box. Shared with
   // the toolbar's quarter turn, which has to keep the piece out of its neighbours as a drag does.
   const footprintsRef = useRef(measuredFootprints)
@@ -866,6 +882,13 @@ export function DraggableFurnitureModels({
     // Position and angle are both live in every mode: a move has to know which
     // way the model faces, and a turn may have to shift it to find the room.
     dragPosRef.current.set(item.x / 1000, 0, item.y / 1000)
+    grabOffsetRef.current = { x: 0, z: 0 }
+    if ((toolMode === 'move' || toolMode === 'select') && floorHitAt(clientX, clientY, hitPoint.current)) {
+      grabOffsetRef.current = {
+        x: dragPosRef.current.x - hitPoint.current.x,
+        z: dragPosRef.current.z - hitPoint.current.z,
+      }
+    }
     dragRotRef.current = item.rotation
     draggingIdRef.current = item.id
     setDraggingId(item.id)
@@ -975,7 +998,6 @@ export function DraggableFurnitureModels({
 
   useEffect(() => {
     if (!draggingId) return
-    const canvas = gl.domElement
 
     /** A pointer other than the one dragging: a second finger's moves must not drag the piece. */
     const otherPointer = (e: PointerEvent) =>
@@ -987,13 +1009,9 @@ export function DraggableFurnitureModels({
       if (otherPointer(e) || !draggingIdRef.current) return
       if (pinched()) { endDrag(); return }
       if (toolMode === 'move' || toolMode === 'select') {
-        const rect = canvas.getBoundingClientRect()
-        const ndc = new THREE.Vector2(
-          ((e.clientX - rect.left) / rect.width) * 2 - 1,
-          -((e.clientY - rect.top) / rect.height) * 2 + 1,
-        )
-        raycaster.setFromCamera(ndc, camera)
-        if (!raycaster.ray.intersectPlane(floorPlane, hitPoint.current)) return
+        if (!floorHitAt(e.clientX, e.clientY, hitPoint.current)) return
+        // Where the finger asks the centre to be: its floor point plus the grab offset.
+        const grab = grabOffsetRef.current
         // No grid snap: the model follows the finger, and the resolver below
         // is what stops it. Rounding to 50 mm first put a model up to half a
         // step away from the wall it was pushed against and made a slow drag
@@ -1003,7 +1021,7 @@ export function DraggableFurnitureModels({
         // the drag works in world metres about the room's centre.
         const fitted = resolveFurnitureMove(
           worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds),
-          worldToPlan({ x: hitPoint.current.x, z: hitPoint.current.z }, roomBounds),
+          worldToPlan({ x: hitPoint.current.x + grab.x, z: hitPoint.current.z + grab.z }, roomBounds),
           dragBox(dragRotRef.current),
           roomBounds,
           obstaclesFor(draggingIdRef.current!),
