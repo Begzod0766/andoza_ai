@@ -11,7 +11,7 @@
  *   • live meter dimension labels while selected (window: 4, door: 2) —
  *     shown as soon as the opening is selected, not only while dragging
  *   • Canva-style magenta alignment guides + snapping to sibling openings
- *   • edge clamping + no-overlap
+ *   • edge clamping + no-overlap (the maths: lib/openingDrag)
  *
  * Everything is expressed in each wall's LOCAL frame — `position` (mm along the
  * wall from its left edge) and `sill_height` (mm above the floor). A drag only
@@ -39,6 +39,7 @@ import { Html } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { RoomGeometry, WallElement } from '@/store/roomStore'
 import { liveOpeningDrag } from '@/lib/liveOpeningDrag'
+import { clearPosition, dragOpening } from '@/lib/openingDrag'
 import { alongWall, openingCentreOnWall, openingWallFrames, pointOnWall, type OpeningWallFrame } from '@/lib/openingFrames'
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { LEAF_FACE_DEPTH } from "./DoorLeaves";
@@ -52,7 +53,6 @@ interface WallDef extends OpeningWallFrame {
   plane: THREE.Plane
 }
 
-const SNAP_M = 0.03 // 3 cm alignment threshold
 // Keyboard nudge step for a selected opening's position — matches the
 // resize steppers' existing ±100mm convention (there is no drag "grid" for
 // position; the pointer drag is continuous).
@@ -129,99 +129,53 @@ export function WallOpenings({
   // the "dimensions changed" case, not final teardown.
   useEffect(() => () => { edgesPlaneCache.current?.geo.dispose() }, [])
 
-  // ── Drag maths ───────────────────────────────────────────────────────
-  function computeDrag(wd: WallDef, el: WallElement, hit: THREE.Vector3): { position: number; sill_height: number; guides: Array<{ kind: 'h' | 'v'; wallId: string; at: number }> } {
-    const isDoor = el.type === 'eshik'
-    const wallLenMm = wd.lengthM * 1000
-    const wallHMm = H * 1000
-    const uMm = alongWall(wd, hit.x, hit.z) * 1000
+  // ── Drag maths (lib/openingDrag) ─────────────────────────────────────
+  // Where on the opening the pointer went down, mm from its centre (along
+  // the wall, and up). Without it the opening's CENTRE jumped to the pointer
+  // on the first move, so grabbing a door near its edge and nudging it 1 cm
+  // threw it up to half its width.
+  const grabRef = useRef<{ alongMm: number; upMm: number }>({ alongMm: 0, upMm: 0 })
 
-    let position = uMm - el.width / 2
-    let sill = isDoor ? 0 : hit.y * 1000 - el.height / 2
-
-    // Resolved, like the openings themselves: an auto sibling is where it is drawn.
-    const siblings = wd.elements.filter((e) => e.id !== el.id && !e.borrowedFrom)
-    const activeGuides: Array<{ kind: 'h' | 'v'; wallId: string; at: number }> = []
-
-    // ── Vertical (Y) snap — windows only ──
-    if (!isDoor) {
-      const myEdges = { bottom: sill, center: sill + el.height / 2, top: sill + el.height }
-      for (const sib of siblings) {
-        const sibEdges = [sib.sill_height, sib.sill_height + sib.height / 2, sib.sill_height + sib.height]
-        for (const mv of [myEdges.bottom, myEdges.center, myEdges.top]) {
-          for (const sv of sibEdges) {
-            if (Math.abs(mv - sv) < SNAP_M * 1000) {
-              // Snap the whole window so that edge lands on the sibling's edge.
-              const delta = sv - mv
-              sill += delta
-              myEdges.bottom += delta; myEdges.center += delta; myEdges.top += delta
-              activeGuides.push({ kind: 'h', wallId: wd.wallId, at: sv })
-            }
-          }
-        }
-      }
-    }
-
-    // ── Horizontal (X) snap — both ──
-    {
-      let myL = position, myC = position + el.width / 2, myR = position + el.width
-      for (const sib of siblings) {
-        const sibL = sib.position, sibC = sib.position + sib.width / 2, sibR = sib.position + sib.width
-        const mine = { left: myL, center: myC, right: myR }
-        const theirs = { left: sibL, center: sibC, right: sibR }
-        for (const mv of Object.values(mine)) {
-          for (const sv of Object.values(theirs)) {
-            if (Math.abs(mv - sv) < SNAP_M * 1000) {
-              const delta = sv - mv
-              position += delta; myL += delta; myC += delta; myR += delta
-              activeGuides.push({ kind: 'v', wallId: wd.wallId, at: sv })
-            }
-          }
-        }
-      }
-    }
-
-    // ── No-overlap in X against siblings whose Y-range overlaps ──
-    const myTop = sill + el.height, myBot = sill
-    let minRight = wallLenMm, maxLeft = 0
-    for (const sib of siblings) {
-      const sTop = sib.sill_height + sib.height, sBot = sib.sill_height
-      const yOverlap = myTop > sBot && myBot < sTop
-      if (!yOverlap) continue
-      const sibL = sib.position, sibR = sib.position + sib.width
-      const myCenter = position + el.width / 2
-      if (sibR <= myCenter) maxLeft = Math.max(maxLeft, sibR)
-      else if (sibL >= myCenter) minRight = Math.min(minRight, sibL)
-    }
-    position = Math.max(maxLeft, Math.min(minRight - el.width, position))
-
-    // ── Final edge clamps ──
-    position = Math.max(0, Math.min(wallLenMm - el.width, position))
-    if (!isDoor) sill = Math.max(0, Math.min(wallHMm - el.height, sill))
-
-    return { position, sill_height: sill, guides: activeGuides }
+  /** Hit point of a pointer ray on the wall, mm along it and up; null if the
+   *  ray runs parallel to the wall. */
+  function pointerOnWall(e: ThreeEvent<PointerEvent>, wd: WallDef): { alongMm: number; upMm: number } | null {
+    const hit = new THREE.Vector3()
+    if (!e.ray?.intersectPlane(wd.plane, hit)) return null
+    return { alongMm: alongWall(wd, hit.x, hit.z) * 1000, upMm: hit.y * 1000 }
   }
 
-  function onDown(e: ThreeEvent<PointerEvent>, el: WallElement) {
+  /** The wall's other openings, resolved, like the openings themselves: an
+   *  auto sibling is where it is drawn. Borrowed ones are another room's. */
+  const siblingsOf = (wd: WallDef, el: WallElement) => wd.elements.filter((e) => e.id !== el.id && !e.borrowedFrom)
+
+  function onDown(e: ThreeEvent<PointerEvent>, wd: WallDef, el: WallElement) {
     e.stopPropagation()
     // Dragging takes two taps to arm — see `armedId`. A single tap is for
     // looking at what the opening could be, and a finger resting on a door
     // and sliding a little used to walk it along the wall.
     if (armedId !== el.id) return
     dragging.current = true
+    const p = pointerOnWall(e, wd)
+    grabRef.current = p
+      ? { alongMm: p.alongMm - (el.position + el.width / 2), upMm: p.upMm - (el.sill_height + el.height / 2) }
+      : { alongMm: 0, upMm: 0 }
     onInteracting(true)
     ;(e.target as Element)?.setPointerCapture?.(e.pointerId)
   }
   function onMove(e: ThreeEvent<PointerEvent>, wd: WallDef, el: WallElement) {
     if (!dragging.current || armedId !== el.id) return
     e.stopPropagation()
-    const hit = new THREE.Vector3()
-    if (!e.ray.intersectPlane(wd.plane, hit)) return
-    // Collision/edge clamping (computeDrag) still runs on every pointermove
+    const p = pointerOnWall(e, wd)
+    if (!p) return
+    // Collision/edge clamping (dragOpening) still runs on every pointermove
     // — that's cheap and drives the live visual feedback below. What no
     // longer happens here is a store write: the result goes into a ref, not
     // into `updateElement`, so this does not touch `geometry` at all.
-    const { position, sill_height, guides: g } = computeDrag(wd, el, hit)
+    const { position, sill_height, guides: found } = dragOpening(
+      el, siblingsOf(wd, el), wd.lengthM * 1000, H * 1000,
+      p.alongMm - grabRef.current.alongMm, p.upMm - grabRef.current.upMm,
+    )
+    const g = found.map((x) => ({ ...x, wallId: wd.wallId }))
     liveDragRef.current = { wallId: wd.wallId, elId: el.id, position, sill_height }
     // Second write target — see liveOpeningDrag.ts's header comment. Same
     // value, same moment, so WindowFrames/DoorFrames/OpeningLeaves never
@@ -301,7 +255,7 @@ export function WallOpenings({
                 }}
                 onPointerDown={(e) => {
                   hold.onPointerDown(e)
-                  onDown(e, el)
+                  onDown(e, wd, el)
                 }}
                 onPointerMove={(e) => onMove(e, wd, el)}
                 onPointerUp={onUp}
@@ -339,17 +293,23 @@ export function WallOpenings({
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onSelect({ wallId: w.id, elId: el.id }) }}
                   onKeyDown={(e) => {
-                    const wallLenMm = wd.lengthM * 1000
+                    // The drag's rule: on the wall, clear of the other
+                    // openings, and explicit from now on (an auto sibling is
+                    // laid out around it, never moves it).
+                    const nudge = (delta: number) => updateElement(w.id, el.id, {
+                      position: clearPosition(el, siblingsOf(wd, el), wd.lengthM * 1000, el.position + delta),
+                      positionAuto: false,
+                    })
                     switch (e.key) {
                       case 'ArrowLeft':
                       case 'ArrowUp':
                         e.preventDefault()
-                        updateElement(w.id, el.id, { position: clampPosition(el, wallLenMm, -KEYBOARD_NUDGE_MM), positionAuto: false })
+                        nudge(-KEYBOARD_NUDGE_MM)
                         break
                       case 'ArrowRight':
                       case 'ArrowDown':
                         e.preventDefault()
-                        updateElement(w.id, el.id, { position: clampPosition(el, wallLenMm, KEYBOARD_NUDGE_MM), positionAuto: false })
+                        nudge(KEYBOARD_NUDGE_MM)
                         break
                       case 'Delete':
                       case 'Backspace':
@@ -418,13 +378,6 @@ export function WallOpenings({
       })}
     </>
   )
-}
-
-/** New position (mm) after a keyboard ±delta, clamped to the wall's bounds.
- *  Unlike the pointer drag's computeDrag, this does not re-run the sibling
- *  no-overlap/snap logic — it is a simple bounded nudge, not a full re-drag. */
-function clampPosition(el: WallElement, wallLenMm: number, deltaMm: number): number {
-  return Math.max(0, Math.min(wallLenMm - el.width, el.position + deltaMm))
 }
 
 function GuideLine({ a, b, color = '#FF2E9A' }: { a: [number, number, number]; b: [number, number, number]; color?: string }) {

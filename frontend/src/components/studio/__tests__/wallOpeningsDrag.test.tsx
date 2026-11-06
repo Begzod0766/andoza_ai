@@ -72,7 +72,7 @@ function pointerAt(wall: DrawnWall, alongM: number, yM: number) {
 
 /** Mounts WallOpenings with `elId` armed for dragging (a double tap, or the
  *  hold menu's "Ko'chirish" — both only set `armedId`). */
-function mount(geometry: RoomGeometry, wallId: string, elId: string) {
+function mount(geometry: RoomGeometry, wallId: string, elId: string, armedId: string = elId) {
   vi.spyOn(console, 'error').mockImplementation(() => {})
   const commits: Commit[] = []
   const { W, D } = roomExtents(geometry)
@@ -81,7 +81,7 @@ function mount(geometry: RoomGeometry, wallId: string, elId: string) {
       geometry={geometry} W={W} D={D} H={H}
       selected={null} onSelect={() => {}} removeElement={() => {}} onInteracting={() => {}}
       updateElement={(w, e, patch) => commits.push({ wallId: w, elId: e, patch })}
-      armedId={elId}
+      armedId={armedId}
     />,
   )
   // The element's hit plane: the mesh on its drawn centre.
@@ -98,6 +98,8 @@ function mount(geometry: RoomGeometry, wallId: string, elId: string) {
   const fire = (name: string, alongM: number, yM: number) => act(() => { reactProps(mesh)[name](pointerAt(wall, alongM, yM)) })
   return {
     commits,
+    /** One pointer event at a point on the wall, for gestures `drag` cannot spell. */
+    fire,
     /** Press at `fromM` along the wall, move through `toM` (each a point,
      *  metres from the wall's position-0 end), let go at the last one. */
     drag(fromM: number, toM: number | number[], yM = 1) {
@@ -148,5 +150,146 @@ describe('a dropped door stays where it was dropped, beside an auto-placed sibli
     fireEvent.keyDown(m.button(), { key: 'ArrowLeft' })
     expect(m.commits).toEqual([{ wallId: 'A', elId: 'd1', patch: { position: before - 100, positionAuto: false } }])
     expect(resolvedEl(applyCommit(g, m.commits[0]), 'A', 'd1').position).toBe(before - 100)
+  })
+})
+
+describe('keyboard nudge', () => {
+  it('stops flush against a sibling instead of running into it', () => {
+    // The door's right edge is 50 mm short of the window: a 100 mm nudge
+    // used to put it 50 mm inside.
+    const g = rect(5000, 4000, { A: [door('d1', 1050, false), win('w1', 2000, false)] })
+    const m = mount(g, 'A', 'd1')
+    fireEvent.keyDown(m.button(), { key: 'ArrowRight' })
+    expect(m.commits).toEqual([{ wallId: 'A', elId: 'd1', patch: { position: 1100, positionAuto: false } }])
+  })
+})
+
+/** The committed patch's position, after checking it went to the right wall. */
+function committedPosition(commits: Commit[], wallId: string, elId: string): number {
+  expect(commits).toHaveLength(1)
+  expect(commits[0].wallId).toBe(wallId)
+  expect(commits[0].elId).toBe(elId)
+  expect(commits[0].patch.positionAuto).toBe(false)
+  return commits[0].patch.position!
+}
+
+describe('pointer drag along a wall', () => {
+  // Each wall of an axis-aligned rectangle runs a different way in the room
+  // frame (A and C along +x, B and D along +z) and faces a different way.
+  it.each(['A', 'B', 'C', 'D'] as const)('rectangle wall %s: the door moves by the pointer\'s distance, wherever it was grabbed', (wallId) => {
+    const g = rect(5000, 4000, { [wallId]: [door('d1', 1000, false)] } as Partial<Record<typeof wallId, WallElement[]>>)
+    const m = mount(g, wallId, 'd1')
+    // Grabbed 300 mm right of its centre (1450), moved 500 mm in three steps.
+    m.drag(1.75, [1.9, 2.1, 2.25])
+    expect(committedPosition(m.commits, wallId, 'd1')).toBeCloseTo(1500, 3)
+  })
+
+  it('nothing is written while the pointer moves; one write on release', () => {
+    const g = rect(5000, 4000, { A: [door('d1', 1000, false)] })
+    const m = mount(g, 'A', 'd1')
+    m.fire('onPointerDown', 1.45, 1)
+    m.fire('onPointerMove', 2, 1)
+    m.fire('onPointerMove', 2.5, 1)
+    expect(m.commits).toHaveLength(0)
+    m.fire('onPointerUp', 2.5, 1)
+    window.dispatchEvent(new Event('pointerup'))
+    expect(committedPosition(m.commits, 'A', 'd1')).toBeCloseTo(2050, 3)
+  })
+
+  it('only the armed opening moves', () => {
+    const g = rect(5000, 4000, { A: [door('d1', 1000, false), win('w1', 3000, false)] })
+    const m = mount(g, 'A', 'd1', 'w1')
+    m.drag(1.45, 2.5)
+    expect(m.commits).toHaveLength(0)
+  })
+
+  it.each([
+    ['past the start', -1, 0],
+    ['past the end', 9, 5000 - 900],
+  ])('clamps at the wall ends: %s', (_n, toM, expected) => {
+    const g = rect(5000, 4000, { A: [door('d1', 2000, false)] })
+    const m = mount(g, 'A', 'd1')
+    m.drag(2.45, toM)
+    expect(committedPosition(m.commits, 'A', 'd1')).toBeCloseTo(expected, 3)
+  })
+
+  it('stops against a sibling instead of passing through it', () => {
+    const g = rect(5000, 4000, { A: [door('d1', 500, false), win('w1', 3000, false)] })
+    const m = mount(g, 'A', 'd1')
+    // The window (sill 900, top 2300) overlaps the door's height: no overlap allowed.
+    m.drag(0.95, 4)
+    expect(committedPosition(m.commits, 'A', 'd1')).toBeCloseTo(3000 - 900, 3)
+  })
+
+  it.each([
+    ['within the snap distance: lands flush on the window', 3.665, 3200],
+    ['outside it: stays where it was dropped', 3.69, 3240],
+  ])('snaps its left edge to a sibling\'s right edge %s', (_n, toM, expected) => {
+    const g = rect(5000, 4000, { A: [win('w1', 2000, false), door('d1', 3300, false)] })
+    const m = mount(g, 'A', 'd1')
+    m.drag(3.75, toM)
+    expect(committedPosition(m.commits, 'A', 'd1')).toBeCloseTo(expected, 3)
+  })
+
+  it.each([
+    ['within the snap distance', 1.62, 900],
+    ['outside it', 1.65, 950],
+  ])('a window snaps its sill to a sibling window\'s: %s', (_n, toY, expectedSill) => {
+    const g = rect(5000, 4000, { A: [win('w1', 500, false), win('w2', 3000, false)] })
+    const m = mount(g, 'A', 'w2')
+    m.fire('onPointerDown', 3.6, 1.6)
+    m.fire('onPointerMove', 3.6, toY)
+    m.fire('onPointerUp', 3.6, toY)
+    window.dispatchEvent(new Event('pointerup'))
+    expect(committedPosition(m.commits, 'A', 'w2')).toBeCloseTo(3000, 3)
+    expect(m.commits[0].patch.sill_height).toBeCloseTo(expectedSill, 3)
+  })
+
+  describe('a rotated polygon room', () => {
+    // A 4 x 3 m room turned 30° and moved off the origin, numbered walls (the
+    // polygon path): no wall runs along an axis.
+    const a = Math.PI / 6
+    const rot = ([x, z]: [number, number]): [number, number] => [x * Math.cos(a) - z * Math.sin(a) + 5000, x * Math.sin(a) + z * Math.cos(a) + 5000]
+    const g: RoomGeometry = {
+      walls: [
+        { id: 'w0', length: 4000, elements: [door('d0', 1000, false)] },
+        { id: 'w1', length: 3000, elements: [door('d1', 1000, false), win('x1', 0, true)] },
+        { id: 'w2', length: 4000, elements: [] },
+        { id: 'w3', length: 3000, elements: [] },
+      ],
+      vertices: ([[0, 0], [4000, 0], [4000, 3000], [0, 3000]] as [number, number][]).map(rot),
+    }
+
+    it.each([
+      ['w0', 'd0'],
+      ['w1', 'd1'],
+    ])('wall %s: moves by the pointer\'s distance along the wall', (wallId, elId) => {
+      const start = resolvedEl(g, wallId, elId).position
+      const c = (start + 450) / 1000
+      const m = mount(g, wallId, elId)
+      // Grabbed 200 mm off centre, moved 300 mm back along the wall.
+      m.drag(c + 0.2, c - 0.1)
+      expect(committedPosition(m.commits, wallId, elId)).toBeCloseTo(start - 300, 3)
+    })
+
+    it('clamps at the wall\'s end, on its own length', () => {
+      const m = mount(g, 'w0', 'd0')
+      m.drag(1.45, 6)
+      expect(committedPosition(m.commits, 'w0', 'd0')).toBeCloseTo(4000 - 900, 3)
+    })
+  })
+
+  describe('an A/B/C/D room whose stored outline does not match its wall lengths', () => {
+    // Drawn from the walls' lengths (5 x 3 m); the outline says 3 x 3 m.
+    const g = rect(5000, 3000, { A: [door('d1', 600, false)] }, [[0, 0], [3000, 0], [3000, 3000], [0, 3000]])
+
+    it('moves along the drawn wall and clamps on the drawn length, not the outline\'s', () => {
+      const m = mount(g, 'A', 'd1')
+      m.drag(1.05, 4.05)
+      expect(committedPosition(m.commits, 'A', 'd1')).toBeCloseTo(3600, 3)
+      const end = mount(g, 'A', 'd1')
+      end.drag(1.05, 8)
+      expect(committedPosition(end.commits, 'A', 'd1')).toBeCloseTo(5000 - 900, 3)
+    })
   })
 })
