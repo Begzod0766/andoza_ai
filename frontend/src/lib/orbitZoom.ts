@@ -24,14 +24,75 @@ export function uniformZoomSpeed(distance: number, roomSpan: number): number {
   return Math.min(Math.max(z, 0.1), 6);
 }
 
+/**
+ * zoomSpeed while two fingers are down: 1, so a pinch is proportional.
+ *
+ * OrbitControls uses the same zoomSpeed for both inputs, in two different
+ * ways. For the wheel it is an exponent on 0.95 per notch (what
+ * uniformZoomSpeed tunes, 2 to 6). For a pinch it is an exponent on the
+ * fingers' spread ratio, so the wheel's tuning made a 20 % spread move the
+ * camera 60–100 %: a small pinch from the outside view shot it through the
+ * room and down at the floor (QA re-check 2026-11-05 R9). At 1 the room
+ * grows exactly as much as the fingers part.
+ */
+export const PINCH_ZOOM_SPEED = 1;
+
 /** Retune a live OrbitControls instance for its current distance. Safe to
- *  call from the controls' own change event — it only writes zoomSpeed. */
+ *  call from the controls' own change event — it only writes zoomSpeed.
+ *  `pinching`: two fingers are down, and the pinch's 1:1 speed holds. */
 export function applyUniformZoom(
   controls: { getDistance(): number; zoomSpeed: number } | null | undefined,
   roomSpan: number,
+  pinching = false,
 ): void {
   if (!controls) return;
-  controls.zoomSpeed = uniformZoomSpeed(controls.getDistance(), roomSpan);
+  controls.zoomSpeed = pinching ? PINCH_ZOOM_SPEED : uniformZoomSpeed(controls.getDistance(), roomSpan);
+}
+
+type Vec3 = { x: number; y: number; z: number };
+
+/** How far outside the room a pinch from outside comes to rest, m. */
+const SHELL_STOP_M = 0.05;
+/** A camera this close to its stop is resting there, not approaching it. */
+const AT_SHELL_TOL_M = 0.02;
+
+/**
+ * The closest a pinch that starts now may bring the camera to its target.
+ *
+ * From outside the room, one pinch stops just short of the room's shell — the
+ * box [-W/2, W/2] x [0, H] x [-D/2, D/2] the room is drawn in — on the
+ * camera's own line to the target. A pinch is a coarse gesture, and with the
+ * walls single-sided nothing marks the moment the camera passes through one:
+ * the view simply flips to the floor at close range. Stopping there gives a
+ * detent instead. A camera already resting at the shell, or inside the room,
+ * keeps the ordinary limit, so the next pinch goes on in.
+ */
+export function pinchMinDistance(camera: Vec3, target: Vec3, room: { W: number; D: number; H: number }, baseMin: number): number {
+  const dx = camera.x - target.x, dy = camera.y - target.y, dz = camera.z - target.z;
+  const dist = Math.hypot(dx, dy, dz);
+  if (dist < 1e-6) return baseMin;
+  // Slab test of the line target + t * dir (t in metres) against the box.
+  const dir = [dx / dist, dy / dist, dz / dist];
+  const from = [target.x, target.y, target.z];
+  const lo = [-room.W / 2, 0, -room.D / 2];
+  const hi = [room.W / 2, room.H, room.D / 2];
+  let tMin = -Infinity, tMax = Infinity;
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(dir[i]) < 1e-9) {
+      if (from[i] < lo[i] || from[i] > hi[i]) return baseMin;
+      continue;
+    }
+    const a = (lo[i] - from[i]) / dir[i], b = (hi[i] - from[i]) / dir[i];
+    tMin = Math.max(tMin, Math.min(a, b));
+    tMax = Math.min(tMax, Math.max(a, b));
+  }
+  // The line misses the room, or the box lies behind the target: no shell
+  // between the camera and what it looks at.
+  if (tMax < tMin || tMax <= 0) return baseMin;
+  // Inside the room, or already resting at the stop.
+  const stop = tMax + SHELL_STOP_M;
+  if (dist <= stop + AT_SHELL_TOL_M) return baseMin;
+  return Math.max(baseMin, stop);
 }
 
 /**

@@ -6,7 +6,68 @@
  * notches only shrank the room into an empty sky.
  */
 import { describe, it, expect } from 'vitest'
-import { fitRoomDistance, uniformZoomSpeed } from '../orbitZoom'
+import { applyUniformZoom, fitRoomDistance, pinchMinDistance, uniformZoomSpeed } from '../orbitZoom'
+
+/**
+ * QA re-check 2026-11-05 R9: a small pinch "flew into the floor".
+ *
+ * OrbitControls applies a pinch as (spread ratio) ^ zoomSpeed. zoomSpeed is
+ * tuned below for the WHEEL, where it is an exponent on 0.95 per notch and
+ * runs 2 to 6, so a finger spread of 1.2 became 1.2^3.4 = 1.9 near the floor.
+ */
+describe('a pinch zooms in proportion to the fingers (R9)', () => {
+  /** The library's own touch dolly: what one pinch move does to the radius. */
+  const pinchScale = (spread: number, zoomSpeed: number) => Math.pow(spread, zoomSpeed)
+
+  it('a 20 % finger spread moves the camera 20 %, at any distance', () => {
+    for (const d of [0.5, 3, 12]) {
+      const controls = { getDistance: () => d, zoomSpeed: 0 }
+      applyUniformZoom(controls, 6, true)
+      expect(pinchScale(1.2, controls.zoomSpeed)).toBeCloseTo(1.2, 6)
+    }
+  })
+
+  it('the wheel keeps its distance-tuned step', () => {
+    const controls = { getDistance: () => 0.5, zoomSpeed: 0 }
+    applyUniformZoom(controls, 6)
+    expect(controls.zoomSpeed).toBeCloseTo(uniformZoomSpeed(0.5, 6), 6)
+  })
+})
+
+describe('pinchMinDistance: one pinch from outside stops at the room (R9)', () => {
+  const ROOM = { W: 5.7, D: 3.85, H: 2.8 }
+  /** The studio's opening framing: above and beyond the back-left corner. */
+  const camera = { x: -ROOM.W * 0.52, y: ROOM.H * 1.05, z: -ROOM.D * 0.52 }
+  const target = { x: ROOM.W * 0.04, y: ROOM.H * 0.22, z: ROOM.D * 0.04 }
+  const dist = Math.hypot(camera.x - target.x, camera.y - target.y, camera.z - target.z)
+  const along = (d: number) => {
+    const t = d / dist
+    return {
+      x: target.x + (camera.x - target.x) * t,
+      y: target.y + (camera.y - target.y) * t,
+      z: target.z + (camera.z - target.z) * t,
+    }
+  }
+
+  it('from outside, the pinch cannot carry the camera past the room shell', () => {
+    const min = pinchMinDistance(camera, target, ROOM, 0.25)
+    expect(min).toBeGreaterThan(0.25)
+    expect(min).toBeLessThan(dist)
+    // The stop is just outside the box, on the camera's own ray.
+    const p = along(min)
+    const inside = Math.abs(p.x) < ROOM.W / 2 && p.y > 0 && p.y < ROOM.H && Math.abs(p.z) < ROOM.D / 2
+    expect(inside).toBe(false)
+  })
+
+  it('a camera already resting at the shell may pinch on in', () => {
+    const resting = along(pinchMinDistance(camera, target, ROOM, 0.25))
+    expect(pinchMinDistance(resting, target, ROOM, 0.25)).toBe(0.25)
+  })
+
+  it('inside the room nothing changes', () => {
+    expect(pinchMinDistance({ x: 0, y: 1.5, z: 1 }, { x: 0, y: 1.2, z: -0.5 }, ROOM, 0.25)).toBe(0.25)
+  })
+})
 
 describe('uniformZoomSpeed', () => {
   it('moves a comparable distance per notch, close up and far out', () => {
