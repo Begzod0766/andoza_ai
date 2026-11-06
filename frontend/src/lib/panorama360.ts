@@ -45,6 +45,24 @@ export function panoramaLookFov(aspect: number, base: number): number {
   return Math.max(base, Math.min(PANO_LOOK_MAX_VFOV, v))
 }
 
+/** Width assumed for a canvas that has not been measured yet: a phone's. */
+const UNMEASURED_WIDTH_PX = 393
+/** Narrower than this and a swipe would spin the view; nothing real is this narrow. */
+const MIN_LOOK_WIDTH_PX = 200
+
+/**
+ * How far a drag turns the 360 view, radians per CSS pixel, for a canvas this wide.
+ *
+ * A full-width swipe turns it half way round, so looking behind you is two swipes on any
+ * screen. It used to be a fixed 0.0042 rad/px, which on a 390 px phone was about 90 degrees
+ * a swipe and four swipes to look round (QA 2026-11-05 #18), while on a desktop it was more
+ * than a full turn across the window.
+ */
+export function panoramaLookSpeed(widthPx: number): number {
+  const w = Number.isFinite(widthPx) && widthPx > 0 ? Math.max(MIN_LOOK_WIDTH_PX, widthPx) : UNMEASURED_WIDTH_PX
+  return Math.PI / w
+}
+
 export const PANO_WIDTH = 4000
 export const PANO_HEIGHT = 2000
 

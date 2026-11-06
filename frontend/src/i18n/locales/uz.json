@@ -1300,6 +1300,12 @@
   "render": {
     "yangi": "Yangi render",
     "kamera_kerak": "360 kamerani tanlang — yangi render shu kameradan olinadi",
+    "kadr": {
+      "sarlavha": "{{n}}-kamera kadri",
+      "maslahat": "Telefonda rasmni bosib turib ham saqlash mumkin",
+      "saqlash": "Saqlash",
+      "qotirilgan": "Bu kamera qotirilgan — atrofga qarash uchun 360 ni tanlang"
+    },
     "renderlarim": "Renderlarim",
     "nomi": "Render",
     "sarlavha": "Realistik render",

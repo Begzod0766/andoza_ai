@@ -1300,6 +1300,12 @@
   "render": {
     "yangi": "New render",
     "kamera_kerak": "Pick the 360 camera — a new render is taken from it",
+    "kadr": {
+      "sarlavha": "Camera {{n}} picture",
+      "maslahat": "On a phone you can also press and hold the picture to save it",
+      "saqlash": "Save",
+      "qotirilgan": "This camera is fixed — pick 360 to look around"
+    },
     "renderlarim": "My renders",
     "nomi": "Render",
     "sarlavha": "Realistic render",

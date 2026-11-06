@@ -282,3 +282,98 @@ export function roomCentreWorld(
   const room = roomBoundsFromGeometry(geometry, fallback)
   return planToWorld(roomCentrePlan(room), room)
 }
+
+/** Directions sampled round the eye when choosing which way the 360 camera opens. */
+const YAW_SAMPLES = 180
+/** Half the spread each direction is judged over, in samples (2 degrees each): +-30 degrees. */
+const YAW_WINDOW = 15
+/** Keep the way the camera already faced unless another way is clearly more open than it. */
+const YAW_KEEP = 0.85
+/** Directions within this share of the most open count as equally open. */
+const YAW_TIE = 0.02
+
+/** How far from `p` a ray along `d` (unit) runs before it meets the outline, mm; 0 if never. */
+function sightline(p: PlanPoint, d: { x: number; z: number }, outline: Outline): number {
+  let best = Infinity
+  const n = outline.length
+  for (let i = 0; i < n; i++) {
+    const [ax, az] = outline[i]
+    const [bx, bz] = outline[(i + 1) % n]
+    const ex = bx - ax
+    const ez = bz - az
+    const denom = d.x * ez - d.z * ex
+    if (Math.abs(denom) < 1e-12) continue // parallel to this wall
+    const wx = ax - p.x
+    const wz = az - p.z
+    const t = (wx * ez - wz * ex) / denom
+    const s = (wx * d.z - wz * d.x) / denom
+    if (t > 1e-6 && s >= 0 && s <= 1 && t < best) best = t
+  }
+  return isFinite(best) ? best : 0
+}
+
+/** three's yaw (rotation about +Y, camera looking down -Z) as a plan / world x-z direction. */
+const yawDirection = (yaw: number) => ({ x: -Math.sin(yaw), z: -Math.cos(yaw) })
+
+/**
+ * Which way the 360 camera faces when it opens, as three's yaw (radians).
+ *
+ * It used to open facing whichever way the camera faced before, which from the
+ * middle of a narrow room is as likely as not straight at a long wall an arm's
+ * length or two away — in "Mening xonam", 5.5 x 2.95 m and scanned at ~46
+ * degrees to the plan, a wall 1.5 m off filling the screen, which read as a
+ * camera stood against the wall (QA 2026-11-05 #2, re-check R7).
+ *
+ * So each direction round the eye is scored by how far the user would see
+ * across a phone's worth of view: the mean sightline over +-30 degrees either
+ * side of it, from `roomCentreWorld`'s point. A window rather than the single
+ * longest ray, because the longest ray from the middle of a rectangle runs into
+ * a corner; averaged across the view, the long axis wins — the view down the
+ * length of the room, to its far wall.
+ *
+ * The previous direction is kept when it is nearly as open (a square room, a
+ * camera already looking down the room), so entering the mode does not spin
+ * the room for nothing; when it is not, the most open direction is taken, and
+ * of two equally open ones (the two ends of a rectangle) the one nearer the
+ * way it faced.
+ *
+ * Plan and world share their axes (`planToWorld` only shifts and scales), so a
+ * direction worked out on the plan is the same direction in the scene.
+ *
+ * @param currentYaw the yaw the camera has on the way in.
+ */
+export function panoramaStartYaw(
+  geometry: RoomGeometry,
+  currentYaw: number,
+  fallback?: { W: number; D: number },
+): number {
+  const room = roomBoundsFromGeometry(geometry, fallback)
+  const outline: Outline = room.outline && room.outline.length >= 3
+    ? room.outline
+    : [[0, 0], [room.W, 0], [room.W, room.D], [0, room.D]]
+  const eye = roomCentrePlan(room)
+  const step = (2 * Math.PI) / YAW_SAMPLES
+
+  /** Mean sightline over the window centred on `yaw`. */
+  const openness = (yaw: number) => {
+    let sum = 0
+    for (let k = -YAW_WINDOW; k <= YAW_WINDOW; k++) sum += sightline(eye, yawDirection(yaw + k * step), outline)
+    return sum / (2 * YAW_WINDOW + 1)
+  }
+
+  const scores = Array.from({ length: YAW_SAMPLES }, (_, i) => openness(i * step))
+  const best = Math.max(...scores)
+  if (!(best > 0)) return currentYaw
+  if (openness(currentYaw) >= YAW_KEEP * best) return currentYaw
+
+  /** Angle between two yaws, 0..pi. */
+  const apart = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
+  let chosen = 0
+  let chosenApart = Infinity
+  scores.forEach((s, i) => {
+    if (s < (1 - YAW_TIE) * best) return
+    const gap = apart(i * step, currentYaw)
+    if (gap < chosenApart) { chosenApart = gap; chosen = i * step }
+  })
+  return chosen
+}
