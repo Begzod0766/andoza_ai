@@ -166,3 +166,29 @@ describe('the move button', () => {
     expect(screen.queryByRole('button', { name: /^Ko'chirish$/ })).toBeNull()
   })
 })
+
+describe('a release the window never sees bubble up (QA re-check R8)', () => {
+  // The press began on a model; the finger lifted over an overlay whose
+  // handler stops propagation (the ring's backdrop, the corner menu's scrim).
+  // The tracker heard no release, its timer ran on, and a second later the
+  // delete button's full-screen backdrop came up under nobody's finger — and
+  // ate the next tap or drag.
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('ends the hold anyway, so no delete button appears afterwards', () => {
+    render(<Harness onDelete={() => {}} />)
+    const swallow = document.createElement('div')
+    swallow.addEventListener('pointerup', (e) => e.stopPropagation())
+    document.body.appendChild(swallow)
+
+    act(() => {
+      screen.getByTestId('thing').dispatchEvent(pointer('pointerdown', { clientX: 200, clientY: 300, pointerId: 1 }))
+      swallow.dispatchEvent(pointer('pointerup', { pointerId: 1 }))
+    })
+    act(() => { vi.advanceTimersByTime(HOLD_DELETE_MS + 50) })
+
+    expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
+    swallow.remove()
+  })
+})
