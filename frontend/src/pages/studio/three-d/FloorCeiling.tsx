@@ -16,6 +16,7 @@ import { parquetBoardsFor, withBoardGrain } from "@/lib/parquetBoards";
 import { kelvinToHex } from "@/lib/lightCatalog";
 import { requestSharedTexture, textureFetchUrl } from "@/lib/sharedWallTexture";
 import { FLOOR_COLORS, UNCONFIGURED_FLOOR_COLOR, noRaycast } from "./constants";
+import { WallFade } from "@/features/studio/diorama";
 
 /**
  * Floor and ceiling rendering for the legacy ABCD room shell. Split out of
@@ -398,9 +399,17 @@ export function PatternFloor({ pattern, width, depth, fallbackColor, clipPolygon
  * These patches are built from the SAME pattern, width and depth as the room's
  * floor, so every plank and joint falls exactly where it would have: the only
  * difference between the two is where they are cut.
+ *
+ * Each patch fades with its wall: `fadedWalls` is the set the cutaway fades
+ * the walls by, and the patch is in a `WallFade` of its own told by it, so it
+ * ramps out with the very timing and opacity of the door lining in that wall.
+ * It used to be dropped the moment the wall started to fade, and for the
+ * ~200 ms the lining took to go the doorway stood with no floor in it.
  */
-export function DoorwayFloors({ niches, pattern, width, depth, fallbackColor, floorType, baseAngleRad }: {
-  niches: { elId: string; polygon: [number, number][] }[];
+export function DoorwayFloors({ niches, fadedWalls, pattern, width, depth, fallbackColor, floorType, baseAngleRad }: {
+  niches: { wallId: string; elId: string; polygon: [number, number][] }[];
+  /** Walls the cutaway is fading out (or has): their patches fade with them. */
+  fadedWalls?: ReadonlySet<string>;
   pattern: FloorPatternState;
   width: number;
   depth: number;
@@ -414,16 +423,17 @@ export function DoorwayFloors({ niches, pattern, width, depth, fallbackColor, fl
   return (
     <>
       {niches.map((n) => (
-        <PatternFloor
-          key={n.elId}
-          pattern={pattern}
-          width={width}
-          depth={depth}
-          fallbackColor={fallbackColor}
-          clipPolygon={n.polygon}
-          floorType={floorType}
-          baseAngleRad={baseAngleRad}
-        />
+        <WallFade key={n.elId} hidden={!!fadedWalls?.has(n.wallId)}>
+          <PatternFloor
+            pattern={pattern}
+            width={width}
+            depth={depth}
+            fallbackColor={fallbackColor}
+            clipPolygon={n.polygon}
+            floorType={floorType}
+            baseAngleRad={baseAngleRad}
+          />
+        </WallFade>
       ))}
     </>
   );

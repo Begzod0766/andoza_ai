@@ -98,11 +98,6 @@ describe('doorwayNiches', () => {
       expect(out.map((n) => n.wallId)).toEqual(['1'])
     })
 
-    it('draws no niche on a wall the cutaway has faded out', () => {
-      const out = shownNiches(doorwayNiches(scanWalls, 0, 0, defs, REVEAL), { faded: new Set(['1', '2']) })
-      expect(out).toEqual([])
-    })
-
     it('hands back the same niche objects, so their floors are not rebuilt', () => {
       const all = doorwayNiches(scanWalls, 0, 0, defs, REVEAL)
       expect(shownNiches(all, { behindCamera: new Set(['2']) })[0]).toBe(all[0])

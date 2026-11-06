@@ -88,14 +88,15 @@ export function doorwayNiches(
  * `hiddenByCamera` takes its casings away) or the cutaway faded it out, all
  * that was left of the doorway was a door-wide slab of parquet sticking out
  * past the wall line, "like a step" (QA #11, on a scanned room).
+ *
+ * A wall the cutaway fades is not one of these: its lining ramps out with it,
+ * so its niches stay and fade too (DoorwayFloors' `fadedWalls`) — dropped
+ * here, they went a moment before the lining did.
  */
 export interface NicheHidden {
   /** Walls the camera stands behind. A shared doorway keeps its niche here,
    *  exactly as it keeps its lining (flatOpenings.hiddenByCamera). */
   behindCamera?: ReadonlySet<string>
-  /** Walls faded out whole, with every opening on them (a drawn room's
-   *  cutaway `WallFade`, which takes even a shared doorway's lining). */
-  faded?: ReadonlySet<string>
 }
 
 /**
@@ -109,7 +110,6 @@ export function shownNiches(
   hidden: NicheHidden,
 ): DoorwayNiche[] {
   return niches.filter((n) => {
-    if (hidden.faded?.has(n.wallId)) return false
     // Same rule as flatOpenings.hiddenByCamera, which decides the lining.
     return !(hidden.behindCamera?.has(n.wallId) && !n.sharedPartition)
   })
