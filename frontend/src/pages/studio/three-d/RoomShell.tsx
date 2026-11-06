@@ -471,14 +471,17 @@ function NWallRoomShell({
   // ...but only those whose door lining is standing round them. A niche lies
   // behind the wall line, so with its wall culled from outside (and the lining
   // taken by hiddenByCamera below) or faded by the cutaway, it is a door-wide
-  // slab of floor sticking out of the room (QA #11).
+  // slab of floor sticking out of the room (QA #11). The camera takes the
+  // lining at once, and the niche with it; the cutaway fades the lining out
+  // with its wall (WallFade), so the niche is kept and fades with it
+  // (DoorwayFloors' `fadedWalls`) rather than going before the lining does.
   const fadedWallIds = useMemo(
     () => new Set(edges.filter((e) => hiddenEdges.has(e.index)).map((e) => e.wallId)),
     [edges, hiddenEdges],
   )
   const visibleNiches = useMemo(
-    () => shownNiches(niches, { behindCamera: hiddenAttachments, faded: fadedWallIds }),
-    [niches, hiddenAttachments, fadedWallIds],
+    () => shownNiches(niches, { behindCamera: hiddenAttachments }),
+    [niches, hiddenAttachments],
   )
 
   // The ceiling design, for an outline the rectangular builder can serve.
@@ -554,6 +557,7 @@ function NWallRoomShell({
               carry through rather than merely matching in colour. */}
           <DoorwayFloors
             niches={visibleNiches}
+            fadedWalls={fadedWallIds}
             pattern={floorPattern}
             width={patternExtents.W}
             depth={patternExtents.D}

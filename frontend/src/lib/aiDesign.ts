@@ -13,6 +13,7 @@ import { layoutFurniture } from '@/lib/furnitureLayout'
 import { WARDROBE_NAME, inferRole, isRole, type FurnitureRole } from '@/lib/furnitureRole'
 import { catalogRoomType } from '@/lib/roomType'
 import { withFlatOpenings } from '@/lib/layoutOpenings'
+import { ceilingFitSize } from '@/lib/modelSize'
 
 /** Which parts of a plan to apply. Everything is on by default; the reader may switch parts off. */
 export interface DesignParts { walls: boolean; floor: boolean; lights: boolean; furniture: boolean }
@@ -82,10 +83,19 @@ function tallOf(item: CatalogFurniture | undefined): boolean {
   return TALL_PIECES.test(`${item.category} ${item.name_uz}`)
 }
 
-/** A catalog item's footprint in metres (the catalog stores centimetres), and whether it is tall. */
-function sizeOf(item: CatalogFurniture | undefined): { w: number; d: number; tall: boolean } {
+/**
+ * A catalog item's footprint in metres (the catalog stores centimetres), and whether it is tall.
+ * It is the size the studio draws: a model taller than the ceiling (`ceilingMm`) is drawn shrunk to
+ * fit under it, footprint and all (`ceilingFitSize`), so a 3.51 m TV unit 2.75 m tall is laid out
+ * 3.04 m wide in a 2.4 m room, not dropped as too wide for a wall it fits. Only when the catalog
+ * knows the height: with none the drawn size cannot be told before the model is loaded, and the
+ * catalog's footprint is used.
+ */
+function sizeOf(item: CatalogFurniture | undefined, ceilingMm?: number): { w: number; d: number; tall: boolean } {
   const tall = tallOf(item)
-  return item?.footprint_w && item.footprint_d ? { w: item.footprint_w / 100, d: item.footprint_d / 100, tall } : { ...FALLBACK_SIZE, tall }
+  if (!(item?.footprint_w && item.footprint_d)) return { ...FALLBACK_SIZE, tall }
+  const size = { w: item.footprint_w / 100, d: item.footprint_d / 100, tall }
+  return ceilingMm ? ceilingFitSize(size, item.height_cm ? item.height_cm / 100 : undefined, ceilingMm) : size
 }
 
 /**
@@ -119,10 +129,14 @@ const KIDS_NAME = /bolalar|детск|kids/i
  * unstyled piece suits every style), then the largest, so a double bed gives way to the next size
  * down, not a cot; among those, ones made for this very room before ones for every room.
  */
-function smallerOfKind(piece: Piece, catalog: CatalogFurniture[], roomType?: string): CatalogFurniture[] {
+function smallerOfKind(piece: Piece, catalog: CatalogFurniture[], roomType?: string, ceilingMm?: number): CatalogFurniture[] {
   const styles = catalog.find((c) => c.id === piece.id)?.styles ?? []
   const room = catalogRoomType(roomType)
-  const area = (c: CatalogFurniture) => (c.footprint_w ?? 0) * (c.footprint_d ?? 0) / 1e4
+  // Drawn sizes, as `piece`'s is: smaller as the studio will draw both.
+  const area = (c: CatalogFurniture) => {
+    const { w, d } = sizeOf(c, ceilingMm)
+    return w * d
+  }
   const sameStyle = (c: CatalogFurniture) => styles.length === 0 || !c.styles?.length || c.styles.some((s) => styles.includes(s))
   return catalog
     .filter((c) => c.glb_url && c.id !== piece.id && c.footprint_w && c.footprint_d && area(c) < piece.w * piece.d - 1e-9
@@ -141,6 +155,7 @@ function smallerOfKind(piece: Piece, catalog: CatalogFurniture[], roomType?: str
  */
 function layoutWithSwaps(
   pieces: Piece[], catalog: CatalogFurniture[], roomType: string | undefined, layout: (ps: Piece[]) => Layout,
+  ceilingMm?: number,
 ): Layout & { swapped: Swap[] } {
   let current = pieces
   let best = layout(current)
@@ -148,8 +163,8 @@ function layoutWithSwaps(
   for (let i = 0; i < current.length; i++) {
     const piece = current[i]
     if (!SWAP_ROLES.includes(piece.role) || best.placed.some((p) => p.piece === piece)) continue
-    for (const c of smallerOfKind(piece, catalog, roomType).slice(0, SWAP_TRIES)) {
-      const swap: Piece = { id: c.id, name: c.name_uz, role: piece.role, ...sizeOf(c) }
+    for (const c of smallerOfKind(piece, catalog, roomType, ceilingMm).slice(0, SWAP_TRIES)) {
+      const swap: Piece = { id: c.id, name: c.name_uz, role: piece.role, ...sizeOf(c, ceilingMm) }
       const trial = current.map((p, k) => (k === i ? swap : p))
       const next = layout(trial)
       if (next.placed.some((p) => p.piece === swap) && next.weight > best.weight) {
@@ -177,9 +192,14 @@ export interface RoomDesign {
  * furniture are replaced: the user's own stay, and new pieces avoid them. Furniture is laid out in
  * groups (`layoutFurniture`), the room's main group, from `roomType`, first; the lights after it, so a
  * floor lamp keeps off the furniture.
+ *
+ * `ceilingMm` is the room's ceiling height (the store's `ceilingHeight`): pieces are laid out at the
+ * size the studio draws them, and one taller than the ceiling is drawn smaller (`sizeOf`). Without
+ * it, at the catalog's size.
  */
 export function designRoomState(
   prev: RoomDesign, geometry: RoomGeometry, plan: AiDesignPlan, parts: DesignParts, catalog: CatalogFurniture[], roomType?: string,
+  ceilingMm?: number,
 ): RoomDesign & { applied: AppliedCounts } {
   const applied: AppliedCounts = { walls: false, floor: false, lights: 0, furniture: 0, skipped: 0, dropped: [], placed: [], swapped: [], placedLights: [], droppedLights: [] }
   let designState = prev.designState
@@ -236,14 +256,14 @@ export function designRoomState(
     // crowd the new ones out; the user's own stay, and the new ones avoid them.
     const kept = furniture.filter((f) => !f.fromDesign)
     const taken: Rect[] = kept.map((f) => {
-      const size = sizeOf(byId.get(f.furniture_id))
+      const size = sizeOf(byId.get(f.furniture_id), ceilingMm)
       return { x: f.x / 1000, z: f.y / 1000, w: size.w, d: size.d, rotation: f.rotation }
     })
     const pieces: Piece[] = plan.furniture.map((p) => {
       const item = byId.get(p.id)
-      return { id: p.id, name: p.name, role: roleOf(p, item), ...sizeOf(item) }
+      return { id: p.id, name: p.name, role: roleOf(p, item), ...sizeOf(item, ceilingMm) }
     })
-    const { placed, dropped, swapped } = layoutWithSwaps(pieces, catalog, roomType, (ps) => layoutFurniture(ps, model, roomType, taken))
+    const { placed, dropped, swapped } = layoutWithSwaps(pieces, catalog, roomType, (ps) => layoutFurniture(ps, model, roomType, taken), ceilingMm)
     // Each placed piece is its own entry, chairs round a table too (they share one plan line). Each
     // carries its catalog name and price, as the store's placeFurniture snapshots them: the estimate
     // reads only the room's own saved state.
@@ -272,7 +292,7 @@ export function designRoomState(
     const solid: Rect[] = furniture.flatMap((f) => {
       const item = byId.get(f.furniture_id)
       if (item && (item.placement === 'devor' || RUG_CATEGORY.test(item.category) || inferRole(item.category, item.name_uz) === 'rug')) return []
-      const size = sizeOf(item)
+      const size = sizeOf(item, ceilingMm)
       return [{ x: f.x / 1000, z: f.y / 1000, w: size.w, d: size.d, rotation: f.rotation }]
     })
     const nthByZone = new Map<string, number>()
@@ -325,7 +345,7 @@ export function applyDesignPlan(
   const store = useRoomStore.getState()
   const prev: RoomDesign = { designState: store.designState, furniture: store.furniture, lights: store.lights }
   const geometry = flat ? withFlatOpenings(store.geometry, flat.roomId, flat.rooms, store.layoutPos) : store.geometry
-  const { applied, ...next } = designRoomState(prev, geometry, plan, parts, catalog, roomType)
+  const { applied, ...next } = designRoomState(prev, geometry, plan, parts, catalog, roomType, store.ceilingHeight)
   const changed = next.designState !== prev.designState
     || !sameItems(next.furniture, prev.furniture) || !sameItems(next.lights, prev.lights)
   if (changed) useRoomStore.setState({ ...next, isDirty: true })
