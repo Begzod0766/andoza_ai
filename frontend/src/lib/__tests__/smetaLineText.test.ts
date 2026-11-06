@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "@/i18n";
-import { localizeLabel, localizeUnit, localizeWarning } from "@/lib/smetaLineText";
+import { localizeFormula, localizeLabel, localizeUnit, localizeWarning } from "@/lib/smetaLineText";
 
 const en = i18n.getFixedT("en");
 const ru = i18n.getFixedT("ru");
@@ -59,5 +59,70 @@ describe("estimate warnings (QA #13)", () => {
     )).toBe("Approximate: confirm the amount of framing with a craftsman. No exact norm was found for this part: it is calculated with the standard rate.");
     expect(localizeWarning("Something the estimate never says", en)).toBe("Something the estimate never says");
     expect(localizeWarning("Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi.", uz)).toBe("Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi.");
+  });
+});
+
+describe("estimate formulas (QA re-check R10)", () => {
+  // Every formula shape smeta.py writes, as it is stored in a saved estimate.
+  const FORMULAS = [
+    "34.7 m² × 8.5 kg/m² = 295.1 kg → 13 qop",
+    "11.5 m² (devor 2) × 2 qatlam ÷ 9.0 m²/litr = 3 litr",
+    "20.0 m² (devor 1, 3) × 2 qatlam ÷ 9.0 m²/litr = 5 litr",
+    "Devor 0: 5.50 m × 1.10 (isrof) ÷ 1.06 m = 6 polosa; 1 rulon (10 m) = 4 polosa → 2 rulon",
+    "Devor A: 4.00 m × 1.10 (isrof) ÷ 1.06 m = 5 polosa; 1 rulon = 3 polosa → 2 rulon (teshiklar 1.89 m² polosaga ta'sir qilmaydi)",
+    "16.22 m² × 1.07 (chiqindi) = 17.36 m² ÷ 2.13 m²/quti = 9 quti",
+    "16.22 m² × 1.07 (chiqindi) = 17.36 m² ÷ 2.13 m²/quti = 9 quti = 19.17 m²",
+    "Perimetr 16.90 m − eshiklar 1.54 m = 15.36 m → 7 dona",
+    "Perimetr 16.90 m × 2 (yuqori/pastki karkas) = 34 m",
+    "Perimetr 16.90 m ≈ 17 m lenta",
+    "Perimetr 16.90 m ÷ 2 m → 9 dona",
+    "12.0 m² × 1.10 (chiqindi) ÷ 3.0 m²/list = 5 list",
+    "6 nuqta × 2.5 m × 1.15 (zaxira) = 18 m",
+    "Joylashtirilgan sxema bo'yicha o'lchangan (12.34 m, zaxira bilan) = 13 m",
+    "8.4 m² (devor B) — o'lchamiga qarab chop etiladi",
+    "2 dona × 250 000 so'm",
+  ];
+
+  it("translates the formula's words and units and leaves every number as it is", () => {
+    expect(localizeFormula(FORMULAS[0], en)).toBe("34.7 m² × 8.5 kg/m² = 295.1 kg → 13 bags");
+    expect(localizeFormula(FORMULAS[1], en)).toBe("11.5 m² (wall 2) × 2 coats ÷ 9.0 m²/L = 3 L");
+    expect(localizeFormula(FORMULAS[2], en)).toBe("20.0 m² (walls 1, 3) × 2 coats ÷ 9.0 m²/L = 5 L");
+    expect(localizeFormula(FORMULAS[3], en)).toBe(
+      "Wall 0: 5.50 m × 1.10 (waste) ÷ 1.06 m = 6 strips; 1 roll (10 m) = 4 strips → 2 rolls",
+    );
+    expect(localizeFormula(FORMULAS[4], en)).toBe(
+      "Wall A: 4.00 m × 1.10 (waste) ÷ 1.06 m = 5 strips; 1 roll = 3 strips → 2 rolls (openings of 1.89 m² do not change the strip count)",
+    );
+    expect(localizeFormula(FORMULAS[5], en)).toBe("16.22 m² × 1.07 (waste) = 17.36 m² ÷ 2.13 m²/box = 9 boxes");
+    expect(localizeFormula(FORMULAS[7], en)).toBe("Perimeter 16.90 m − doors 1.54 m = 15.36 m → 7 pcs");
+    expect(localizeFormula(FORMULAS[8], en)).toBe("Perimeter 16.90 m × 2 (top and bottom frame) = 34 m");
+    expect(localizeFormula(FORMULAS[9], en)).toBe("Perimeter 16.90 m ≈ 17 m of strip");
+    expect(localizeFormula(FORMULAS[11], en)).toBe("12.0 m² × 1.10 (waste) ÷ 3.0 m²/sheet = 5 sheets");
+    expect(localizeFormula(FORMULAS[12], en)).toBe("6 points × 2.5 m × 1.15 (reserve) = 18 m");
+    expect(localizeFormula(FORMULAS[13], en)).toBe("Measured off the placed wiring plan (12.34 m, reserve included) = 13 m");
+    expect(localizeFormula(FORMULAS[14], en)).toBe("8.4 m² (wall B) — printed to size");
+    expect(localizeFormula(FORMULAS[15], en)).toBe("2 pcs × 250 000 UZS");
+  });
+
+  it("speaks Russian with Russian plurals and units", () => {
+    expect(localizeFormula(FORMULAS[0], ru)).toBe("34.7 м² × 8.5 кг/м² = 295.1 кг → 13 мешков");
+    expect(localizeFormula(FORMULAS[1], ru)).toBe("11.5 м² (стена 2) × 2 слоя ÷ 9.0 м²/л = 3 л");
+    expect(localizeFormula(FORMULAS[3], ru)).toBe(
+      "Стена 0: 5.50 м × 1.10 (отходы) ÷ 1.06 м = 6 полос; 1 рулон (10 м) = 4 полосы → 2 рулона",
+    );
+    expect(localizeFormula(FORMULAS[7], ru)).toBe("Периметр 16.90 м − двери 1.54 м = 15.36 м → 7 шт.");
+  });
+
+  it("leaves no Uzbek formula word in English or Russian", () => {
+    const UZBEK = /(^|[^\p{L}'])(qop|dona|rulon|quti|list|litr|polosa|qatlam|nuqta|devor|Devor|isrof|chiqindi|zaxira|Perimetr|eshiklar|yuqori|pastki|karkas|lenta|teshiklar|o'lchangan|chop|so'm)(?![\p{L}'])/u;
+    for (const formula of FORMULAS) {
+      expect(localizeFormula(formula, en)).not.toMatch(UZBEK);
+      expect(localizeFormula(formula, ru)).not.toMatch(UZBEK);
+    }
+  });
+
+  it("leaves an Uzbek formula, and one it does not know, exactly as stored", () => {
+    for (const formula of FORMULAS) expect(localizeFormula(formula, uz)).toBe(formula);
+    expect(localizeFormula("Something new from the server", en)).toBe("Something new from the server");
   });
 });

@@ -106,6 +106,66 @@ export function localizeUnit(unit: string, quantity: number, t: TFunction): stri
   return unit;
 }
 
+/**
+ * The formula vocabulary: smeta.py writes the working under each line as Uzbek words around
+ * numbers ("34.7 m² × 8.5 kg/m² = 295.1 kg → 13 qop", "Devor 0: ... = 6 polosa; ..."). The
+ * numbers are the estimate's and stay exactly as stored; only the words and units around them
+ * are put in the UI language. First the fixed phrases (some carry a value of their own), then
+ * every unit that follows a number. Each Uzbek locale value equals the Uzbek source, so an
+ * Uzbek reader sees the stored text unchanged. Keep these in step with smeta.py.
+ */
+const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]) => string]> = [
+  [/Joylashtirilgan sxema bo'yicha o'lchangan \((\S+) m, zaxira bilan\)/g, (t, m) => t("smeta.formula.measured", { m })],
+  [/\(teshiklar (\S+) m² polosaga ta'sir qilmaydi\)/g, (t, area) => `(${t("smeta.formula.openings", { area })})`],
+  [/ — o'lchamiga qarab chop etiladi/g, (t) => ` — ${t("smeta.formula.printed")}`],
+  [/(\S+) m lenta(?![\p{L}'])/gu, (t, m) => t("smeta.formula.strip", { m })],
+  [/\(yuqori\/pastki karkas\)/g, (t) => `(${t("smeta.formula.frame")})`],
+  [/\((isrof|chiqindi|zaxira)\)/g, (t, word) => `(${t(`smeta.formula.${word as "isrof" | "chiqindi" | "zaxira"}`)})`],
+  // "Devor 0: ..." opens a wallpaper wall's working; "(devor 1, 3)" names the painted walls.
+  [/^Devor (\S+?):/g, (t, wall) => `${t("smeta.formula.wall_head", { wall })}:`],
+  [/\(devor ([^)]+)\)/g, (t, walls) => `(${t("smeta.formula.walls", { walls, count: walls.split(",").length })})`],
+  [/(?<![\p{L}'])Perimetr(?![\p{L}'])/gu, (t) => t("smeta.formula.perimeter")],
+  [/ − eshiklar /g, (t) => ` − ${t("smeta.formula.doors")} `],
+  [/ so'm$/g, (t) => ` ${t("smeta.formula.som")}`],
+];
+
+/** Things counted in whole units: the word takes the plural of the number before it. */
+const FORMULA_COUNTED = {
+  qop: "smeta.unit.qop", dona: "smeta.unit.dona", rulon: "smeta.unit.rulon", quti: "smeta.unit.quti",
+  list: "smeta.unit.list", polosa: "smeta.formula.polosa", qatlam: "smeta.formula.qatlam", nuqta: "smeta.formula.nuqta",
+} as const;
+
+/** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|polosa|qatlam|nuqta|litr|m²|kg|m)(?=$|[\s);,])/g;
+
+function formulaUnit(unit: string, count: number, t: TFunction): string {
+  if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });
+  const per = (name: "litr" | "quti" | "list") =>
+    name === "litr" ? t("smeta.unit.litr") : t(`smeta.unit.${name}`, { count: 1 });
+  switch (unit) {
+    case "kg/m²": return `${t("smeta.unit.kg")}/${t("smeta.unit.m2")}`;
+    case "m²/litr": return `${t("smeta.unit.m2")}/${per("litr")}`;
+    case "m²/quti": return `${t("smeta.unit.m2")}/${per("quti")}`;
+    case "m²/list": return `${t("smeta.unit.m2")}/${per("list")}`;
+    case "litr": return t("smeta.unit.litr");
+    case "m²": return t("smeta.unit.m2");
+    case "kg": return t("smeta.unit.kg");
+    case "m": return t("smeta.unit.m");
+    default: return unit;
+  }
+}
+
+/** A line's formula in the UI language, its numbers as stored. Unknown words stay as they are. */
+export function localizeFormula(formula: string, t: TFunction): string {
+  let out = formula;
+  for (const [pattern, render] of FORMULA_PHRASES) {
+    out = out.replace(pattern, (_match, ...groups: unknown[]) =>
+      render(t, ...groups.filter((g): g is string => typeof g === "string")));
+  }
+  return out.replace(FORMULA_UNIT, (_match, number: string, unit: string) =>
+    `${number} ${formulaUnit(unit, Number(number), t)}`);
+}
+
 /** Every sentence the estimate's warnings are built from (smeta.py, smeta_ai.py). */
 const WARNING_KEYS = [
   "norm_missing", "stand_in", "pick_for_exact", "paint_fallback", "pick_paint",

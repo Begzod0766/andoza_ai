@@ -460,6 +460,60 @@ describe('SmetaPage (furniture toggle, sticky total, actions)', () => {
     expect(container.textContent).not.toContain('qop')
   })
 
+  it('shows the formula in the UI language too (QA re-check R10)', async () => {
+    act(() => applyLanguage('en'))
+    previewEstimate.mockResolvedValueOnce({
+      ...ESTIMATE_RESPONSE,
+      lines: [{ label: 'Suvoq (gips) 30 kg qop', formula: '34.7 m² × 8.5 kg/m² = 295.1 kg → 13 qop', quantity: 13, unit: 'qop', unit_price: 65_000, total_uzs: 845_000, is_approximate: false, category: 'suvoq' }],
+    })
+    renderSmetaPage()
+    expect(await screen.findByText('34.7 m² × 8.5 kg/m² = 295.1 kg → 13 bags')).toBeInTheDocument()
+  })
+
+  it('shows no floor note until the estimate it depends on has loaded (QA re-check R11)', async () => {
+    // The room arrived first and the note read "the floor is not in the estimate", then
+    // switched to "priced at the shop's average" once the estimate came in.
+    const { getRoom } = await import('@/lib/api')
+    vi.mocked(getRoom).mockResolvedValueOnce({
+      id: 'room-1', apartment_id: 'apt-1', name: 'Xona', floor_area: 12,
+      surfaces: {}, state: { designState: { floorType: 'parquet', floorConfigured: true } },
+    } as never)
+    let resolve!: (value: unknown) => void
+    previewEstimate.mockReturnValueOnce(new Promise((r) => { resolve = r }))
+    renderSmetaPage()
+    expect(await screen.findByTestId('smeta-room')).toHaveTextContent('Xona')
+    expect(screen.queryByRole('status', { name: 'Pol smetaga kirmadi' })).toBeNull()
+    expect(screen.queryByRole('status', { name: 'Pol narxi taxminiy' })).toBeNull()
+    await act(async () => {
+      resolve({
+        ...ESTIMATE_RESPONSE,
+        lines: [{ label: 'Parket: Massiv parket', formula: '', quantity: 12, unit: 'm²', unit_price: 210_000, total_uzs: 2_520_000, is_approximate: true, category: 'laminat' }],
+      })
+    })
+    expect(await screen.findByRole('status', { name: 'Pol narxi taxminiy' })).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Pol smetaga kirmadi' })).toBeNull()
+  })
+
+  it('says the shop has no product for the chosen pattern and offers to choose a floor (QA re-check R12)', async () => {
+    act(() => applyLanguage('en'))
+    const { getRoom } = await import('@/lib/api')
+    vi.mocked(getRoom).mockResolvedValueOnce({
+      id: 'room-1', apartment_id: 'apt-1', name: 'Xona', floor_area: 12,
+      surfaces: {}, state: { designState: { floorType: 'parquet', floorConfigured: true, floorPattern: { id: 'chevron', settings: {} } } },
+    } as never)
+    previewEstimate.mockResolvedValueOnce({
+      ...ESTIMATE_RESPONSE,
+      lines: [{ label: 'Parket: Massiv parket', formula: '', quantity: 12, unit: 'm²', unit_price: 210_000, total_uzs: 2_520_000, is_approximate: true, category: 'laminat' }],
+    })
+    renderSmetaPage()
+    const note = await screen.findByRole('status', { name: en.smeta.floor_stand_in_aria })
+    expect(note.textContent).toContain('no Chevron product')
+    expect(note.textContent).toContain('average parquet')
+    const link = note.querySelector('a')!
+    expect(link.textContent).toBe(en.smeta.floor_pick)
+    expect(link.getAttribute('href')).toBe('/studio/room-1/ichkarida?phase=pol')
+  })
+
   it('says nothing about a bare concrete floor', async () => {
     const { getRoom } = await import('@/lib/api')
     vi.mocked(getRoom).mockResolvedValueOnce({

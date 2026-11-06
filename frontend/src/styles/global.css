@@ -163,7 +163,10 @@
     --card: 255 255 255;
     --card-soft: 244 241 251;
     --ink: 17 24 39;
-    --ink-muted: 107 114 128;
+    /* #4b5563: 7.6:1 on the card, 6.8:1 on card-soft, ~6:1 on the lavender app ground. The
+       old #6b7280 fell to 4.3:1 on card-soft and below 4.5:1 on the app ground, under WCAG AA
+       for the small grey notes (QA re-check R11; src/styles/__tests__/inkMutedContrast.test.ts). */
+    --ink-muted: 75 85 99;
     --line: 232 228 244;
     --accent: 30 64 175;
     --warn: 180 83 9;
