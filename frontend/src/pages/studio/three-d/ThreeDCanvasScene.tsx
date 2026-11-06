@@ -1164,11 +1164,7 @@ export function ThreeDCanvasScene({
     {/* Only in the flat view, where the overlap is on screen, and not while
         the rooms are being moved — the user is already doing what it asks. */}
     {aptRooms && aptRooms.length > 1 && focusedRoomId === null && roomsOverlap && !moveMode
-      && showsEditingCorners({ panorama, cameraStation }) && (
-      <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2">
-        <FlatOverlapHint />
-      </div>
-    )}
+      && showsEditingCorners({ panorama, cameraStation }) && <FlatOverlapHint />}
 
     </>
   );

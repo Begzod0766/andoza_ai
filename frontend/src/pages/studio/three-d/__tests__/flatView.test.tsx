@@ -224,4 +224,47 @@ describe('flat view: stored positions that overlap are reported, not moved', () 
     render(<FlatOverlapHint />)
     expect(screen.getByRole('status')).toHaveTextContent(i18n.t('studio.three_d.xonalar_ustma_ust'))
   })
+
+  // QA 2026-11-06 1.10 (#175): on a phone (and always in the native app) the
+  // studio header floats over the 3D view, its centred title pill at 8-48 px
+  // and z-30. The hint stood centred at top-3 (12 px), z-20 — right under the
+  // pill, so even a real overlap could not be seen. It now starts below the
+  // header row (py-2 + h-10 = 56 px).
+  it('the overlap hint stands below the floating header, not under its title', () => {
+    const { container } = render(<FlatOverlapHint />)
+    const slot = container.firstElementChild as HTMLElement
+    const cls = slot.className.split(/\s+/)
+    expect(cls).toContain('absolute')
+    expect(cls).toContain('top-16')
+    expect(cls).not.toContain('top-3')
+    expect(cls).toContain('pointer-events-none')
+    expect(slot).toContainElement(screen.getByRole('status'))
+  })
+
+  // The same report: "the rooms look like they run into each other, and no
+  // hint". The flat as saved (prod, read-only): the scan at layoutPos
+  // (4.739, 3.7), "Xona" 3.5 x 3 m at (0, 3.7), the other "Mening xonam"
+  // 3 x 4 m at (0, 0) — layoutPos is each room's CENTRE in world metres, a
+  // polygon centred on its vertex mean. Nothing overlaps: the scan's west
+  // corner stops 2 cm short of Xona's east wall (x 1.770 vs 1.750, the
+  // layout's GAP), Xona and the 3 x 4 room are 20 cm apart, and the scan is
+  // 2 m from that room. Turned 46 degrees and seen from a corner camera, the
+  // scan's corner meeting Xona's wall reads as a crossing — it is not one.
+  it.each(['scan', 'xona', 'm2'])('the reported flat does not overlap, from any room (%s open)', (open) => {
+    const rooms = [
+      scannedRoom('scan', { x: 4.739, z: 3.7 }),
+      rectRoom('xona', 3.5, 3, { x: 0, z: 3.7 }),
+      rectRoom('m2', 3, 4, { x: 0, z: 0 }),
+    ]
+    const { outlines } = flatFrom(rooms, open)
+    expect(overlappingRooms(outlines)).toEqual([])
+    expect(overlappingRooms(outlines, 0)).toEqual([])
+    // In m2's frame (it at the origin, as stored): the near corner and wall.
+    if (open === 'm2') {
+      const scan = outlines.find((o) => o.id === 'scan')!.pts
+      const xona = outlines.find((o) => o.id === 'xona')!.pts
+      expect(Math.min(...scan.map((p) => p[0]))).toBeCloseTo(1.77, 2)
+      expect(Math.max(...xona.map((p) => p[0]))).toBeCloseTo(1.75, 2)
+    }
+  })
 })

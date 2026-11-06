@@ -391,7 +391,7 @@ export function CutOutline({ outline, height = 0.08, color = '#F59E0B' }: { outl
 }
 
 /** The button beside the lock. */
-export function MoveRoomsButton({ active, onClick }: { active: boolean; onClick: () => void }) {
+export function MoveRoomsButton({ active, onClick, className = '' }: { active: boolean; onClick: () => void; className?: string }) {
   const { t } = useTranslation();
   return (
     <button
@@ -401,7 +401,7 @@ export function MoveRoomsButton({ active, onClick }: { active: boolean; onClick:
       aria-pressed={active}
       className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 transition-colors ${
         active ? 'bg-brand text-white ring-brand/40' : 'bg-white/95 text-brand ring-black/5'
-      }`}
+      } ${className}`}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

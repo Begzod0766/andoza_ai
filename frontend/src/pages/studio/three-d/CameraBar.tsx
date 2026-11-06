@@ -52,11 +52,21 @@ export interface CameraBarProps {
  *    (`cameraRowRightInset`), and what does not fit wraps UPWARD
  *    (`flex-wrap-reverse`), so nothing slides under Flat or the arc and the
  *    first line stays where it was.
+ *
+ * Because the row wraps UPWARD, on a phone whatever did not fit on the first
+ * line ("My renders", the 9:16 toggle, Render) and the "fixed" hint stand
+ * above the camera button — exactly where the list rises (QA 2026-11-06 1.2,
+ * #174). So while the list is open every other item is hidden IN PLACE
+ * (`invisible`): the row keeps its shape, nothing moves under the thumb, a
+ * hidden item takes no taps, and the list opens over clear space. Picking a
+ * camera (or tapping the button again) closes the list and brings them back.
  */
 export function CameraBar(p: CameraBarProps) {
   const { t } = useTranslation();
   const cornersShown = showsEditingCorners({ panorama: p.panorama, cameraStation: p.cameraStation });
   const inset = cameraRowRightInset({ cornersShown, flatShown: p.flatShown });
+  // Everything but the camera button, while its list is open (see above).
+  const hide = p.listOpen ? "invisible" : "";
 
   return (
     <div
@@ -66,7 +76,7 @@ export function CameraBar(p: CameraBarProps) {
       {/* A fixed camera does not turn: the shot is the same every time, so a
           drag does nothing — which looked like the view had frozen (QA #18). */}
       {p.cameraStation != null && (
-        <p className="max-w-full rounded-full bg-black/55 px-3 py-1.5 text-[12px] font-medium leading-tight text-white backdrop-blur-sm">
+        <p className={`${hide} max-w-full rounded-full bg-black/55 px-3 py-1.5 text-[12px] font-medium leading-tight text-white backdrop-blur-sm`}>
           {t("render.kadr.qotirilgan")}
         </p>
       )}
@@ -117,10 +127,10 @@ export function CameraBar(p: CameraBarProps) {
 
         {/* The lock: taps and holds in the 3D view open nothing while it
             is on, so the room can be turned without a menu popping up. */}
-        <LockButton locked={p.viewLocked} onClick={p.onToggleLock} />
+        <LockButton locked={p.viewLocked} onClick={p.onToggleLock} className={hide} />
 
         {/* Move rooms: X / Z arrows on a tapped room (RoomSlide.tsx). */}
-        {p.showMoveRooms && <MoveRoomsButton active={p.moveRoomsOn} onClick={p.onToggleMoveRooms} />}
+        {p.showMoveRooms && <MoveRoomsButton active={p.moveRoomsOn} onClick={p.onToggleMoveRooms} className={hide} />}
 
         {/* The pictures already made for this room, from any camera: looking
             at one again must not cost another render. */}
@@ -128,7 +138,7 @@ export function CameraBar(p: CameraBarProps) {
           <button
             onClick={p.onOpenGallery}
             title={t("render.saqlangan")}
-            className="px-4 h-12 rounded-full bg-white/95 text-brand text-[13px] font-bold shadow-lg ring-1 ring-black/5 flex items-center gap-1.5 whitespace-nowrap"
+            className={`${hide} px-4 h-12 rounded-full bg-white/95 text-brand text-[13px] font-bold shadow-lg ring-1 ring-black/5 flex items-center gap-1.5 whitespace-nowrap`}
           >
             {t("render.renderlarim")}
             <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-brand text-white text-[11px] leading-5 text-center">
@@ -145,7 +155,7 @@ export function CameraBar(p: CameraBarProps) {
           <button
             onClick={p.onRender360}
             title={t("render.sarlavha")}
-            className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
+            className={`${hide} px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40`}
           >
             {t("render.nomi")}
           </button>
@@ -156,7 +166,7 @@ export function CameraBar(p: CameraBarProps) {
             {/* Portrait or landscape. Both framings of the same view — the
                 horizontal angle is fixed, so switching turns the picture
                 rather than cropping the room out of its sides. */}
-            <div className="flex items-center rounded-full bg-white/95 shadow-lg ring-1 ring-black/5 overflow-hidden">
+            <div className={`${hide} flex items-center rounded-full bg-white/95 shadow-lg ring-1 ring-black/5 overflow-hidden`}>
               {RENDER_ASPECTS.map((a) => (
                 <button
                   key={a.label}
@@ -173,7 +183,7 @@ export function CameraBar(p: CameraBarProps) {
             <button
               onClick={p.onRenderStill}
               title={`${p.aspect.width} x ${p.aspect.height}`}
-              className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
+              className={`${hide} px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40`}
             >
               {t("render.nomi")}
             </button>
