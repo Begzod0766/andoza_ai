@@ -18,7 +18,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import type { RoomGeometry, WallElement } from '@/store/roomStore'
+import type { RoomGeometry } from '@/store/roomStore'
 import { resolveElementPositions } from '@/lib/wallPositions'
 import { flatRenderPlan } from '@/lib/flatOpenings'
 import { roomExtents } from '@/lib/roomDims'
@@ -34,63 +34,10 @@ vi.mock('@react-three/drei', () => ({
 import { WallOpenings } from '../WallOpenings'
 import { LEAF_FACE_DEPTH, leafWallFrames, openingCentre } from '../DoorLeaves'
 import { buildFrameWallDefs, frameGroupOrigin } from '@/pages/studio/three-d/WallComponents'
+import { door, win, rect, drawnAbcd, drawnPolygon, type Drawn } from './wallOpeningsKit'
 
-const MM = 1 / 1000
 /** How far the plane stands off the wall face into the room (WallOpenings). */
 const PUSH = { door: 0.02 - LEAF_FACE_DEPTH.door, window: 0.02 - LEAF_FACE_DEPTH.window }
-
-const door = (id: string, position: number, positionAuto?: boolean, width = 900): WallElement => ({
-  id, type: 'eshik', width, height: 2100, sill_height: 0, position, ...(positionAuto === undefined ? {} : { positionAuto }),
-})
-const win = (id: string, position: number, positionAuto?: boolean): WallElement => ({
-  id, type: 'deraza', width: 1200, height: 1400, sill_height: 900, position, ...(positionAuto === undefined ? {} : { positionAuto }),
-})
-
-interface Drawn { id: string; type: WallElement['type']; x: number; y: number; z: number; nX: number; nZ: number }
-
-/** Where RoomScene's legacy A/B/C/D branch draws each opening (frame origin on
- *  the wall face, y at the opening's middle) — hardcoded walls, lengths from
- *  `roomExtents`, positions resolved against them. */
-function drawnAbcd(geometry: RoomGeometry): Drawn[] {
-  const { W, D } = roomExtents(geometry)
-  const walls: Record<string, { x0: number; z0: number; uX: number; uZ: number; nX: number; nZ: number; len: number }> = {
-    A: { x0: -W / 2, z0: -D / 2, uX: 1, uZ: 0, nX: 0, nZ: 1, len: W },
-    B: { x0: W / 2, z0: -D / 2, uX: 0, uZ: 1, nX: -1, nZ: 0, len: D },
-    C: { x0: -W / 2, z0: D / 2, uX: 1, uZ: 0, nX: 0, nZ: -1, len: W },
-    D: { x0: -W / 2, z0: -D / 2, uX: 0, uZ: 1, nX: 1, nZ: 0, len: D },
-  }
-  return geometry.walls.flatMap((w) => {
-    const f = walls[w.id]
-    return resolveElementPositions(w.elements, f.len * 1000).map((el) => {
-      const a = (el.position + el.width / 2) * MM
-      return { id: el.id, type: el.type, x: f.x0 + f.uX * a, y: (el.sill_height + el.height / 2) * MM, z: f.z0 + f.uZ * a, nX: f.nX, nZ: f.nZ }
-    })
-  })
-}
-
-/** Where NWallRoomShell draws each opening: in edge i's group, at
- *  (mx, mz) rotated by atan2(-dz, dx), local x = centre − length / 2. */
-function drawnPolygon(geometry: RoomGeometry): Drawn[] {
-  const v = geometry.vertices!
-  const n = v.length
-  const cx = v.reduce((s, [x]) => s + x, 0) / n * MM
-  const cz = v.reduce((s, [, z]) => s + z, 0) / n * MM
-  const c = v.map(([x, z]) => [x * MM - cx, z * MM - cz])
-  return geometry.walls.flatMap((w, i) => {
-    const [x1, z1] = c[i]
-    const [x2, z2] = c[(i + 1) % n]
-    const len = Math.hypot(x2 - x1, z2 - z1)
-    const yaw = Math.atan2(-(z2 - z1), x2 - x1)
-    const mx = (x1 + x2) / 2, mz = (z1 + z2) / 2
-    // Inward normal: toward the centred room's origin.
-    let nX = -(z2 - z1) / len, nZ = (x2 - x1) / len
-    if (nX * -mx + nZ * -mz < 0) { nX = -nX; nZ = -nZ }
-    return resolveElementPositions(w.elements, len * 1000).map((el) => {
-      const local = (el.position + el.width / 2) * MM - len / 2
-      return { id: el.id, type: el.type, x: mx + Math.cos(yaw) * local, y: (el.sill_height + el.height / 2) * MM, z: mz - Math.sin(yaw) * local, nX, nZ }
-    })
-  })
-}
 
 interface Plane { x: number; y: number; z: number; ry: number }
 
@@ -132,15 +79,6 @@ function expectPlanesOnDrawn(planes: Plane[], drawn: Drawn[]) {
   }
 }
 
-const rect = (W: number, D: number, els: Partial<Record<'A' | 'B' | 'C' | 'D', WallElement[]>>, vertices?: [number, number][]): RoomGeometry => ({
-  walls: [
-    { id: 'A', length: W, elements: els.A ?? [] },
-    { id: 'B', length: D, elements: els.B ?? [] },
-    { id: 'C', length: W, elements: els.C ?? [] },
-    { id: 'D', length: D, elements: els.D ?? [] },
-  ],
-  vertices: vertices ?? [[0, 0], [W, 0], [W, D], [0, D]],
-})
 
 describe('WallOpenings hit planes', () => {
   it('an auto-placed door (RoomSettingsSheet: position 0, positionAuto) is hit where it is drawn, not at the corner', () => {
@@ -151,10 +89,13 @@ describe('WallOpenings hit planes', () => {
   })
 
   it('a door re-laid beside an auto window leaves no hit plane in the middle of the wall (#182)', () => {
-    // The door's stored position is the middle of the back wall; the auto
-    // window beside it makes resolveElementPositions lay the pair out
-    // together, so the door is drawn left of the middle and nothing is there.
-    const g = rect(5000, 4000, { A: [door('d1', 2050, false), win('w1', 0, true)] })
+    // The door's stored position is the middle of the back wall, but it is
+    // still auto-placed, like the window beside it: resolveElementPositions
+    // lays the pair out together, so the door is drawn left of the middle and
+    // nothing is there. (An EXPLICIT door is no longer re-laid by an auto
+    // sibling — wallOpeningsDrag.test — so the stale number has to be an
+    // auto placeholder's to be drawn elsewhere.)
+    const g = rect(5000, 4000, { A: [door('d1', 2050, true), win('w1', 0, true)] })
     const drawn = drawnAbcd(g)
     expect(Math.abs(drawn[0].x)).toBeGreaterThan(0.5)
     const planes = hitPlanes(g)

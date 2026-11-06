@@ -22,9 +22,13 @@ function needsAutoPlacement(el: WallElement): boolean {
 /**
  * Returns a new array of elements with their positions resolved.
  * - 1 element: centered on the wall.
- * - 2 elements: the pair is centered together with a 400mm gap between them.
- *   If both already have explicit positions they are kept as-is.
+ * - 2 elements: if both are auto, the pair is centered together with a 400mm
+ *   gap between them. An explicit one is always kept exactly where it is, and
+ *   an auto partner is centered in the larger stretch of wall beside it.
  * - 3+ elements: evenly distributed; explicit positions are kept.
+ *
+ * In every case an explicit `position` is the user's: auto placement only
+ * ever moves the auto elements around it, never the explicit one.
  */
 export function resolveElementPositions(
   elements: WallElement[],
@@ -40,7 +44,24 @@ export function resolveElementPositions(
   }
 
   if (n === 2) {
-    if (elements.every((e) => !needsAutoPlacement(e))) return elements
+    const auto = elements.map(needsAutoPlacement)
+    if (!auto[0] && !auto[1]) return elements
+    if (auto[0] !== auto[1]) {
+      // One explicit, one auto. This used to re-lay BOTH as a centred pair,
+      // so a door the user had just dragged (committed with `positionAuto:
+      // false`) jumped back to the pair's spot the moment it was dropped, if
+      // its wall still held an auto window. The explicit one stays put; the
+      // auto one goes in the middle of the wider free stretch beside it.
+      const fixed = elements[auto[0] ? 1 : 0]
+      const free = elements[auto[0] ? 0 : 1]
+      const leftRoom = fixed.position
+      const rightRoom = wallLenMm - (fixed.position + fixed.width)
+      const centre = rightRoom >= leftRoom
+        ? fixed.position + fixed.width + rightRoom / 2
+        : leftRoom / 2
+      const position = Math.max(0, Math.min(wallLenMm - free.width, Math.round(centre - free.width / 2)))
+      return elements.map((e) => (e === free ? { ...e, position } : e))
+    }
     const totalGroup = elements[0].width + GAP_MM + elements[1].width
     const groupStart = Math.max(0, Math.round((wallLenMm - totalGroup) / 2))
     return [
