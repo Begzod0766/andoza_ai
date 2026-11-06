@@ -3,6 +3,7 @@ import { roomSwitchUnderWay } from "@/lib/roomSwitch";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
+import { PINCH_ZOOM_SPEED, applyUniformZoom, pinchMinDistance } from "@/lib/orbitZoom";
 
 /**
  * Camera/orbit-control helpers: double-click-to-focus, the auto-clear
@@ -182,6 +183,74 @@ export function CameraAnimator({
     }
   });
 
+  return null;
+}
+
+
+// ─── Pinch: proportional, and stopped at the room from outside ───────────────
+
+/**
+ * Puts the touch dolly on its own footing for the length of a two-finger
+ * gesture (QA re-check 2026-11-05 R9).
+ *
+ * While two fingers are down, zoomSpeed is 1 — OrbitControls raises the
+ * fingers' spread ratio to that power, and the wheel's distance-tuned value
+ * made a small pinch leap (lib/orbitZoom PINCH_ZOOM_SPEED) — and, when the
+ * gesture starts outside the room, minDistance holds the camera at the room's
+ * shell (pinchMinDistance). Lifting a finger hands both back.
+ *
+ * `pinchingRef` is read by the controls' onChange, which retunes zoomSpeed for
+ * the wheel on every change and would otherwise undo this mid-pinch.
+ *
+ * Touches are counted on the window in the capture phase, ahead of
+ * OrbitControls' own pointerdown on the canvas, so the limits are in place
+ * before the second finger's first move. A mouse is never a second finger.
+ */
+export function ProportionalPinch({ controlsRef, pinchingRef, W, D, H }: {
+  controlsRef: RefObject<OrbitControlsImpl | null>;
+  pinchingRef: { current: boolean };
+  W: number; D: number; H: number;
+}) {
+  useEffect(() => {
+    const down = new Set<number>();
+    let savedMin: number | null = null;
+    const begin = () => {
+      const c = controlsRef.current;
+      pinchingRef.current = true;
+      if (!c) return;
+      c.zoomSpeed = PINCH_ZOOM_SPEED;
+      savedMin = c.minDistance;
+      c.minDistance = pinchMinDistance(c.object.position, c.target, { W, D, H }, c.minDistance);
+    };
+    const end = () => {
+      const c = controlsRef.current;
+      pinchingRef.current = false;
+      if (!c) { savedMin = null; return; }
+      if (savedMin != null) c.minDistance = savedMin;
+      savedMin = null;
+      applyUniformZoom(c, Math.max(W, D));
+    };
+    const press = (e: Event) => {
+      const p = e as PointerEvent;
+      if (p.pointerType !== "touch") return;
+      down.add(p.pointerId);
+      if (down.size === 2) begin();
+    };
+    const release = (e: Event) => {
+      const p = e as PointerEvent;
+      if (!down.delete(p.pointerId)) return;
+      if (down.size === 1) end();
+    };
+    window.addEventListener("pointerdown", press, true);
+    window.addEventListener("pointerup", release, true);
+    window.addEventListener("pointercancel", release, true);
+    return () => {
+      window.removeEventListener("pointerdown", press, true);
+      window.removeEventListener("pointerup", release, true);
+      window.removeEventListener("pointercancel", release, true);
+      if (pinchingRef.current) end();
+    };
+  }, [controlsRef, pinchingRef, W, D, H]);
   return null;
 }
 

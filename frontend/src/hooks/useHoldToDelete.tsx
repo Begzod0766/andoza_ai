@@ -53,10 +53,15 @@ if (typeof window !== 'undefined') {
   // another one — so a per-item listener would keep the hold alive through a
   // drag and delete what the user was moving. And a press can end anywhere,
   // including off the window, which has to stop the timer too.
+  //
+  // The release is heard in the capture phase: an overlay that stops its
+  // pointerup (the ring's backdrop, the corner menu's scrim) otherwise hid it,
+  // the timer ran on, and a second later this button's full-screen backdrop
+  // came up under nobody's finger and ate the next tap (QA re-check R8).
   window.addEventListener('pointermove', (e) => tracker.move(e.clientX, e.clientY, e.pointerId))
   const end = () => { heldThisPress = tracker.up() }
-  window.addEventListener('pointerup', end)
-  window.addEventListener('pointercancel', end)
+  window.addEventListener('pointerup', end, true)
+  window.addEventListener('pointercancel', end, true)
 }
 
 /**

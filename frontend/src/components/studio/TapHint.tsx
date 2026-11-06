@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RENO_STAGES, type PhaseKey } from "@/lib/phases";
 
@@ -40,13 +40,87 @@ export function TapHint({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-/** The phone's room line: the header hides the room's name under sm, so the view says which room and stage. */
-export function StagePill({ roomName, phase }: { roomName: string; phase: PhaseKey }) {
+/**
+ * The phone's room line: the header hides the room's name under sm, so the view says which room
+ * and stage.
+ *
+ * It is also the phone's way between stages. The stage rail is desktop-only (PhaseStageNav,
+ * `hidden lg:flex`) and the pill could not be tapped, so on a phone the stage never changed and
+ * the pill said "Paint/Wallpaper" forever (QA 2026-11-05 #17). A tap opens the stage list under
+ * it; a pick goes to that stage and closes it. Without `onPick` it is the plain label it was.
+ *
+ * A press anywhere else closes the list, heard in the capture phase and never stopped: an
+ * overlay that swallowed the press would cost the user the drag it started.
+ */
+export function StagePill({ roomName, phase, onPick }: {
+  roomName: string;
+  phase: PhaseKey;
+  onPick?: (phase: PhaseKey) => void;
+}) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const stage = RENO_STAGES.find((s) => s.key === phase);
+  const text = stage ? `${roomName} · ${t(stage.labelKey)}` : roomName;
+
+  useEffect(() => {
+    if (!open) return;
+    const onPress = (e: Event) => {
+      if (rootRef.current && e.target instanceof Node && rootRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("pointerdown", onPress, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPress, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const pillClass = "max-w-[70vw] truncate rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-ink shadow ring-1 ring-line";
+  if (!onPick) return <p className={pillClass}>{text}</p>;
+
   return (
-    <p className="max-w-[70vw] truncate rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-ink shadow ring-1 ring-line">
-      {stage ? `${roomName} · ${t(stage.labelKey)}` : roomName}
-    </p>
+    <div ref={rootRef} className="pointer-events-auto relative flex flex-col items-center">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        className={`${pillClass} flex items-center gap-1 active:scale-95`}
+      >
+        <span className="truncate">{text}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+          className="shrink-0" style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform 0.15s ease" }}>
+          <path d="M2 3.5l3 3 3-3" />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          aria-label={t("studio.three_d.bosqichni_tanlash")}
+          className="mt-1 min-w-[12rem] overflow-hidden rounded-2xl bg-card py-1 shadow-lg ring-1 ring-line"
+        >
+          {RENO_STAGES.map((s, i) => {
+            const current = s.key === phase;
+            return (
+              <li key={s.key}>
+                <button
+                  type="button"
+                  onClick={() => { setOpen(false); onPick(s.key); }}
+                  aria-current={current ? "step" : undefined}
+                  className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-semibold ${
+                    current ? "bg-brand text-white" : "text-ink hover:bg-card-soft"
+                  }`}
+                >
+                  <span aria-hidden="true" className={`w-4 text-xs tabular-nums ${current ? "text-white/80" : "text-ink-muted"}`}>{i + 1}</span>
+                  <span>{t(s.labelKey)}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

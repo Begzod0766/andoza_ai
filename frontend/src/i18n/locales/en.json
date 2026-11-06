@@ -165,6 +165,7 @@
       "bosqichlar": "Stages",
       "bosqichlar_yopish": "Close the stages panel",
       "bosqichlar_ochish": "Open the stages panel",
+      "bosqichni_tanlash": "Choose a stage",
       "oraliq": "Gap",
       "mm": "mm",
       "siljitish_tugatish": "Finish moving rooms",
@@ -234,6 +235,7 @@
       "saqlandi": "Saved",
       "ulashish": "Share",
       "xona_ochirish_sarlavha": "Confirm deleting the room",
+      "xonani_ochirish": "Delete room",
       "qaytarib_bolmaydi": "This action cannot be undone.",
       "xona_ochirilmadi": "Could not delete the room",
       "ulashish_havolasi": "Share link",
@@ -932,6 +934,8 @@
     },
     "arc": {
       "uploaded": "Uploaded",
+      "position_aria": "Item {{pos}} of {{total}} on the ring; turn it to see the rest",
+      "position": "{{pos}} of {{total}}",
       "add": "Add"
     },
     "furn": {
@@ -1020,6 +1024,7 @@
     "floor_stand_in_aria": "The floor price is approximate",
     "floor_left_out_aria": "The floor is not in the estimate",
     "floor_stand_in": "The floor type is chosen in 3D, but not a shop product: the floor is priced at the shop's average {{floor}} (approximate).",
+    "floor_stand_in_pattern": "The shop has no {{pattern}} product yet, so the floor is priced at the shop's average {{floor}} (approximate). For an exact price, choose a floor from the shop:",
     "floor_left_out": "The shop has no product of the floor type chosen in 3D yet, so the floor is not in the estimate.",
     "floor_pick": "Choose a floor",
     "ha": "Yes",
@@ -1099,6 +1104,28 @@
       "ceiling_frame": "Approximate: confirm the amount of framing with a craftsman.",
       "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
       "ai_price": "Approximate AI price (an experienced craftsman's estimate)"
+    },
+    "formula": {
+      "wall_head": "Wall {{wall}}",
+      "walls_one": "wall {{walls}}",
+      "walls_other": "walls {{walls}}",
+      "perimeter": "Perimeter",
+      "doors": "doors",
+      "isrof": "waste",
+      "chiqindi": "waste",
+      "zaxira": "reserve",
+      "frame": "top and bottom frame",
+      "measured": "Measured off the placed wiring plan ({{m}} m, reserve included)",
+      "openings": "openings of {{area}} m² do not change the strip count",
+      "printed": "printed to size",
+      "strip": "{{m}} m of strip",
+      "som": "UZS",
+      "polosa_one": "strip",
+      "polosa_other": "strips",
+      "qatlam_one": "coat",
+      "qatlam_other": "coats",
+      "nuqta_one": "point",
+      "nuqta_other": "points"
     }
   },
   "ustalar": {
@@ -1283,6 +1310,12 @@
   "render": {
     "yangi": "New render",
     "kamera_kerak": "Pick the 360 camera — a new render is taken from it",
+    "kadr": {
+      "sarlavha": "Camera {{n}} picture",
+      "maslahat": "On a phone you can also press and hold the picture to save it",
+      "saqlash": "Save",
+      "qotirilgan": "This camera is fixed — pick 360 to look around"
+    },
     "renderlarim": "My renders",
     "nomi": "Render",
     "sarlavha": "Realistic render",

@@ -165,6 +165,7 @@
       "bosqichlar": "Bosqichlar",
       "bosqichlar_yopish": "Bosqichlar panelini yopish",
       "bosqichlar_ochish": "Bosqichlar panelini ochish",
+      "bosqichni_tanlash": "Bosqichni tanlash",
       "oraliq": "Oraliq",
       "mm": "mm",
       "siljitish_tugatish": "Xonalarni siljitishni tugatish",
@@ -234,6 +235,7 @@
       "saqlandi": "Saqlandi",
       "ulashish": "Ulashish",
       "xona_ochirish_sarlavha": "Xonani o'chirishni tasdiqlaysizmi?",
+      "xonani_ochirish": "Xonani o'chirish",
       "qaytarib_bolmaydi": "Bu amalni qaytarib bo'lmaydi.",
       "xona_ochirilmadi": "Xonani o'chirib bo'lmadi",
       "ulashish_havolasi": "Ulashish havolasi",
@@ -932,6 +934,8 @@
     },
     "arc": {
       "uploaded": "Yuklangan",
+      "position_aria": "Aylanada {{total}} tadan {{pos}}-o'rin; boshqalarini ko'rish uchun aylantiring",
+      "position": "{{total}} tadan {{pos}}",
       "add": "Qo‘shish"
     },
     "furn": {
@@ -1020,6 +1024,7 @@
     "floor_stand_in_aria": "Pol narxi taxminiy",
     "floor_left_out_aria": "Pol smetaga kirmadi",
     "floor_stand_in": "Pol turi 3D'da tanlangan, lekin do'kon mahsuloti tanlanmagan: pol narxi do'kondagi o'rtacha {{floor}} narxidan olindi (taxminiy).",
+    "floor_stand_in_pattern": "3D'da tanlangan {{pattern}} naqshi uchun do'konda hali mahsulot yo'q, shuning uchun pol do'kondagi o'rtacha {{floor}} narxida hisoblandi (taxminiy). Aniq narx uchun do'kondan pol tanlang:",
     "floor_left_out": "3D'da tanlangan pol turidagi mahsulot do'konda hali yo'q, shuning uchun pol smetaga kirmadi.",
     "floor_pick": "Pol tanlash",
     "ha": "Ha",
@@ -1099,6 +1104,28 @@
       "ceiling_frame": "Taxminiy hisob — karkas miqdorini ustaga tasdiqlang.",
       "ceiling_strip": "Taxminiy hisob — lenta uzunligi dizayn shakliga qarab farq qiladi.",
       "ai_price": "AI taxminiy narx (tajribali usta bahosi)"
+    },
+    "formula": {
+      "wall_head": "Devor {{wall}}",
+      "walls_one": "devor {{walls}}",
+      "walls_other": "devor {{walls}}",
+      "perimeter": "Perimetr",
+      "doors": "eshiklar",
+      "isrof": "isrof",
+      "chiqindi": "chiqindi",
+      "zaxira": "zaxira",
+      "frame": "yuqori/pastki karkas",
+      "measured": "Joylashtirilgan sxema bo'yicha o'lchangan ({{m}} m, zaxira bilan)",
+      "openings": "teshiklar {{area}} m² polosaga ta'sir qilmaydi",
+      "printed": "o'lchamiga qarab chop etiladi",
+      "strip": "{{m}} m lenta",
+      "som": "so'm",
+      "polosa_one": "polosa",
+      "polosa_other": "polosa",
+      "qatlam_one": "qatlam",
+      "qatlam_other": "qatlam",
+      "nuqta_one": "nuqta",
+      "nuqta_other": "nuqta"
     }
   },
   "ustalar": {
@@ -1283,6 +1310,12 @@
   "render": {
     "yangi": "Yangi render",
     "kamera_kerak": "360 kamerani tanlang — yangi render shu kameradan olinadi",
+    "kadr": {
+      "sarlavha": "{{n}}-kamera kadri",
+      "maslahat": "Telefonda rasmni bosib turib ham saqlash mumkin",
+      "saqlash": "Saqlash",
+      "qotirilgan": "Bu kamera qotirilgan — atrofga qarash uchun 360 ni tanlang"
+    },
     "renderlarim": "Renderlarim",
     "nomi": "Render",
     "sarlavha": "Realistik render",

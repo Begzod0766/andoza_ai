@@ -11,7 +11,7 @@
  * `dispatch` below is that loop in miniature: handlers in ray order, stopping
  * at the first one that stops the event.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useSurfaceRadialMenu } from './useSurfaceRadialMenu'
 
@@ -39,6 +39,40 @@ describe('the nearest thing a tap hits opens its ring (QA 2026-11-05 #8)', () =>
     act(() => dispatch([wall.onClick, door.onClick]))
     expect(result.current.radial?.surface).toBe('wall')
     expect(result.current.radial?.elId).toBeUndefined()
+  })
+
+  it('a long press on a wall holds the wall, not the door behind it', () => {
+    // The press half of the same rule. The wall's onPointerDown did not stop
+    // the event either, so the hold also started on the door's niche plane
+    // behind it — its hold-to-delete and its drag included — and the door,
+    // being last, was what the ring opened for.
+    vi.useFakeTimers()
+    try {
+      const { result } = renderHook(() => useSurfaceRadialMenu({ current: null }))
+      const wall = result.current.holdBind('wall', 'A')
+      const door = result.current.holdBind('door', 'A', 'el-1')
+      act(() => dispatch([wall.onPointerDown, door.onPointerDown]))
+      act(() => { vi.advanceTimersByTime(600) })
+      expect(result.current.radial?.surface).toBe('wall')
+      expect(result.current.radial?.elId).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a long press on the door itself still holds the door', () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = renderHook(() => useSurfaceRadialMenu({ current: null }))
+      const wall = result.current.holdBind('wall', 'A')
+      const door = result.current.holdBind('door', 'A', 'el-1')
+      act(() => dispatch([door.onPointerDown, wall.onPointerDown]))
+      act(() => { vi.advanceTimersByTime(600) })
+      expect(result.current.radial?.surface).toBe('door')
+      expect(result.current.radial?.elId).toBe('el-1')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('a tap that lands on the door itself still opens the door ring', () => {
