@@ -73,7 +73,12 @@ _ROLE_BY_NAME: tuple[tuple[re.Pattern[str], str], ...] = tuple(
         (r"javon|komod|stellaj|vitrina|bookcase|стеллаж|комод|витрин", "shelf"),
     )
 )
-_ROLE_BY_CATEGORY = {"divan": "sofa", "karavot": "bed", "stol": "dining_table", "stul": "dining_chair"}
+# The admin's "shkaf" holds wardrobes and open shelving alike; one whose name says neither
+# ("LOFT", "Quadro") is read as a shelf: a shelf stands anywhere, a wardrobe in a living room or
+# study does not. A bedroom's wardrobe is picked by name (the frontend's WARDROBE_NAME), not by this.
+_ROLE_BY_CATEGORY = {
+    "divan": "sofa", "karavot": "bed", "stol": "dining_table", "stul": "dining_chair", "shkaf": "shelf",
+}
 
 
 def infer_role(category: str | None, name: str) -> str:

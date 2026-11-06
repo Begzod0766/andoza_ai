@@ -527,6 +527,13 @@ describe('design presets', () => {
       }
     })
 
+    it("a shkaf with only a model name is a living room's shelving, never a bedroom's wardrobe", () => {
+      const loft = [item('loft', 'LOFT', 'shkaf')]
+      const shelfPreset = DESIGN_PRESETS.find((p) => p.furniture.some((f) => f.kind === 'shkaf'))!.id
+      expect(presetPlan(shelfPreset, loft, 'mehmonxona')!.furniture.map((f) => [f.id, f.role])).toEqual([['loft', 'shelf']])
+      expect(presetPlan(shelfPreset, loft, 'yotoqxona')!.furniture).toEqual([])
+    })
+
     it('an armchair in the sofa category is not the sofa, even with no sofa', () => {
       const plan = presetPlan('zamonaviy', [item('ru-armchair', 'Кресло Bergen', 'divan')], 'mehmonxona')!
       expect(plan.furniture.map((f) => f.id)).toEqual([])

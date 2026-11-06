@@ -43,8 +43,11 @@ const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
   [/shkaf|garderob|wardrobe|шкаф|гардероб/i, 'wardrobe'],
   [/javon|komod|stellaj|vitrina|bookcase|стеллаж|комод|витрин/i, 'shelf'],
 ]
+// The admin's "shkaf" holds wardrobes and open shelving alike; one whose name says neither
+// ("LOFT", "Quadro") is read as a shelf: a shelf stands anywhere, a wardrobe in a living room or
+// study does not. A bedroom's wardrobe is picked by name (`WARDROBE_NAME`), not by this.
 const ROLE_BY_CATEGORY: Record<string, FurnitureRole> = {
-  divan: 'sofa', karavot: 'bed', stol: 'dining_table', stul: 'dining_chair',
+  divan: 'sofa', karavot: 'bed', stol: 'dining_table', stul: 'dining_chair', shkaf: 'shelf',
 }
 
 /**
