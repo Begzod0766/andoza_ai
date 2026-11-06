@@ -66,6 +66,7 @@ import { DesignPanelDock } from "./three-d/DesignPanelDock";
 import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
+import { ViewStillSheet, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
@@ -512,19 +513,25 @@ export default function ThreeDPage() {
     }, 'image/png');
   }, [room.name]);
 
-  /** Hands a finished still to the user as a file, named by the camera and the
-   *  shape so a set of four does not overwrite itself in the downloads folder. */
+  /** The still a fixed camera's Render just took, on screen until closed. */
+  const [viewStill, setViewStill] = useState<ViewStill | null>(null);
+  /** Puts a finished still on screen (ViewStillSheet), to be saved from there,
+   *  named by the camera and the shape so a set of four does not overwrite
+   *  itself in the downloads folder. It used to go straight to a download link,
+   *  which the phone app's WebView ignores: "Render" did nothing (QA re-check R2). */
   const saveView = useCallback((canvas: HTMLCanvasElement, aspect: RenderAspect) => {
+    const station = cameraStation ?? 1;
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${room.name || 'xona'}-kamera${cameraStation ?? 1}-${aspect.label.replace(':', 'x')}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      setViewStill({
+        blob, url: URL.createObjectURL(blob), station,
+        filename: `${room.name || 'xona'}-kamera${station}-${aspect.label.replace(':', 'x')}.png`,
+      });
     }, 'image/png');
   }, [room.name, cameraStation]);
+  const closeViewStill = useCallback(() => {
+    setViewStill((still) => { if (still) URL.revokeObjectURL(still.url); return null; });
+  }, []);
 
   /**
    * Papers the tapped wall — or every wall, when the tap carried none, or when
@@ -1207,6 +1214,7 @@ export default function ThreeDPage() {
         canRender={panorama}
         initialSaved={savedRenders}
       />
+      <ViewStillSheet still={viewStill} onClose={closeViewStill} />
 
       {/* The room that would go through the tapped wall: its shape, drawn, and
           three numbers to change it by. */}
