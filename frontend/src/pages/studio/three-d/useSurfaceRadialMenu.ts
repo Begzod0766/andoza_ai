@@ -20,6 +20,51 @@ if (typeof window !== "undefined") {
   }, true);
 }
 
+/** What `holdBind` tags a surface's wrapping group with, so a tap can tell
+ *  which surface an intersection belongs to. */
+type SurfaceTag = { surface: RadialSurface; wallId?: string; elId?: string };
+const SURFACE_TAG = "radialSurface";
+
+type RayHit = {
+  object?: { parent?: unknown; userData?: Record<string, unknown> } | null;
+  eventObject?: { parent?: unknown; userData?: Record<string, unknown> } | null;
+  distance?: number;
+  point?: { x: number; y: number; z: number };
+};
+
+function surfaceTagOf(obj: RayHit["object"]): SurfaceTag | null {
+  for (let o = obj as { parent?: unknown; userData?: Record<string, unknown> } | null | undefined; o; o = o.parent as typeof o) {
+    const tag = o.userData?.[SURFACE_TAG] as SurfaceTag | undefined;
+    if (tag) return tag;
+  }
+  return null;
+}
+
+/**
+ * The tagged surface the ray met BEFORE the object whose handler is running,
+ * if any.
+ *
+ * react-three-fiber only calls a click handler on an object the press also hit
+ * (`internal.initialHits`), and passes over anything else on the ray without
+ * stopping. So a surface whose own handler would have stopped the walk can be
+ * skipped, and the click reaches what lies behind it: the hit plane of a door
+ * set back in its niche, a few cm from where the finger actually is
+ * (QA 2026-11-06 2.6). Every surface handler stops propagation as its first
+ * act, so a tagged surface in front of the running one means exactly that: it
+ * was skipped, and it owns the tap.
+ */
+function nearerSurface(e: RayHit & { intersections?: RayHit[] }): { tag: SurfaceTag; point?: RayHit["point"] } | null {
+  const mine = e?.distance;
+  if (typeof mine !== "number" || !Array.isArray(e.intersections)) return null;
+  for (const hit of e.intersections) {
+    if (typeof hit.distance !== "number" || hit.distance >= mine - 1e-6) break;
+    if (hit.object === e.object) continue;
+    const tag = surfaceTagOf(hit.eventObject ?? hit.object);
+    if (tag) return { tag, point: hit.point };
+  }
+  return null;
+}
+
 export type RadialState = {
   surface: RadialSurface;
   wallId?: string;
@@ -92,6 +137,17 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
     // models where the categories should be (QA 2026-11-05 #8). A tap on the
     // door itself still reaches the door first, and opens its ring.
     e?.stopPropagation?.();
+    // ...and r3f does not always let the nearest one run: a surface the PRESS
+    // did not hit is skipped without stopping, and the click carries on to
+    // what is behind it — the door plane in its niche, behind the wall face
+    // the finger is on (QA 2026-11-06 2.6). The nearest surface on THIS ray
+    // owns the tap, whichever handler r3f handed it to.
+    const nearer = nearerSurface(e);
+    let point = e?.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : (holdPoint.current ?? undefined);
+    if (nearer) {
+      ({ surface, wallId, elId } = nearer.tag);
+      if (nearer.point) point = { x: nearer.point.x, y: nearer.point.y, z: nearer.point.z };
+    }
     // If a long-press already opened the menu, its trailing click must not
     // reopen/replace it.
     if (heldRef.current) { heldRef.current = false; return; }
@@ -99,7 +155,6 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
     if (pinch.multiTouchSince(pressAt.current)) return;
     const x = e?.nativeEvent?.clientX ?? e?.clientX ?? 0;
     const y = e?.nativeEvent?.clientY ?? e?.clientY ?? 0;
-    const point = e?.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : (holdPoint.current ?? undefined);
     if (controlsRef.current) controlsRef.current.enabled = false;
     openedAt.current = Date.now();
     // Opening a ring on anything else lets go of whatever was armed.
@@ -176,6 +231,9 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
   /** Pointer handlers to spread onto a surface's wrapping <group>. */
   function holdBind(surface: RadialSurface, wallId?: string, elId?: string) {
     return {
+      // Lets a tap that r3f handed to something BEHIND this surface find out
+      // that this surface was nearer (see `nearerSurface`).
+      userData: { [SURFACE_TAG]: { surface, wallId, elId } satisfies SurfaceTag },
       onClick: (e: any) => openSurfaceMenu(surface, wallId, e, elId),
       onPointerDown: (e: any) => startHold(surface, wallId, e, elId),
       onPointerMove: (e: any) => moveHold(e),
