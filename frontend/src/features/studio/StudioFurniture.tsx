@@ -27,10 +27,8 @@ import { SelectionOutline } from "./SelectionOutline";
 import type { PlacedFurniture, UserFurnitureEntry } from "@/store/roomStore";
 import { FURNITURE_CATALOG } from "@/lib/furnitureCatalog";
 import { resolveCatalogEntry } from "@/lib/furnitureEntry";
-import { planPolygon, offsetPolygon } from "@/lib/planPolygon";
-import { roomExtents } from "@/lib/roomDims";
 import {
-  halfExtentsToBounds, FUR_WALL_GAP,
+  halfExtentsToBounds,
   worldToPlan, planToWorld, type RoomBounds,
 } from "@/lib/furnitureBounds";
 import { extractSceneInfo } from "@/lib/modelConverter";
@@ -44,6 +42,7 @@ import * as THREE from "three";
 import { toDiffuseOnly } from "@/lib/modelMaterials";
 import { ceilingFitScale } from "@/lib/modelSize"
 import { turnedSize, yawRadians, type ModelYaw } from "@/lib/modelYaw";
+import { furnitureRoomBounds, measuredFootprints } from "./furnitureNudge";
 
 // ─── Shared furniture entry (catalog + user-uploaded) ─────────────────────────
 
@@ -750,29 +749,19 @@ export function DraggableFurnitureModels({
   // the notch of an L, through two walls. The outline (inset by the wall gap)
   // is the room itself; a legacy A-B-C-D rectangle has none and keeps the
   // plain per-axis clamp.
-  const roomBounds = useMemo<RoomBounds>(() => {
-    const poly = planPolygon(geometry)
-    // For a polygon the extents must come from the same call planPolygon
-    // makes, or the plan frame this converts into would be offset from the
-    // one the outline is expressed in and the clamp would fence off the
-    // wrong strip of floor. The roomW/roomD props carry a caller's fallback
-    // and are only right for the legacy rectangle, which needs no outline.
-    const ext = poly ? roomExtents(geometry) : { W: roomW, D: roomD }
-    return {
-      W: ext.W * 1000,
-      D: ext.D * 1000,
-      inner: poly ? offsetPolygon(poly, -FUR_WALL_GAP) : null,
-      outline: poly ? poly.vertices : null,
-    }
-  }, [geometry, roomW, roomD])
+  // The roomW/roomD props carry a caller's fallback and are only right for the legacy rectangle,
+  // which needs no outline; a polygon's extents come from the outline itself (furnitureRoomBounds).
+  const roomBounds = useMemo<RoomBounds>(
+    () => furnitureRoomBounds(geometry, { W: roomW, D: roomD }), [geometry, roomW, roomD])
 
   const { bind: holdBind, cancel: cancelHold } = useHoldToDelete()
   const { camera, gl } = useThree()
   const floorPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const hitPoint = useRef(new THREE.Vector3())
-  // Actual XZ half-extents reported by each item from its real geometry bounding box
-  const footprintsRef = useRef<Map<string, { hw: number; hd: number }>>(new Map())
+  // Actual XZ half-extents reported by each item from its real geometry bounding box. Shared with
+  // the toolbar's quarter turn, which has to keep the piece out of its neighbours as a drag does.
+  const footprintsRef = useRef(measuredFootprints)
   const handleFootprint = useCallback((id: string, hw: number, hd: number) => {
     footprintsRef.current.set(id, { hw, hd })
   }, [])
