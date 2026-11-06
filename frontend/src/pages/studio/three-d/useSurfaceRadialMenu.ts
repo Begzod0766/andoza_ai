@@ -114,6 +114,14 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
   function armOpening(wallId: string, elId: string) { setArmedOpening({ wallId, elId }); }
 
   function startHold(surface: RadialSurface, wallId: string | undefined, e: { nativeEvent?: PointerEvent; clientX?: number; clientY?: number; point?: { x: number; y: number; z: number }; stopPropagation?: () => void }, elId?: string) {
+    // The press follows the click's rule (openSurfaceMenu): the nearest
+    // surface the ray meets owns it. Without this, a long press on a wall also
+    // reached the hit plane of a door set back in its niche behind it — its
+    // hold-to-delete and drag with it — and the door's hold, starting last,
+    // replaced the wall's ring with the door's. react-three-fiber's
+    // stopPropagation only ends its own ray walk; the DOM event, and with it
+    // OrbitControls, is untouched.
+    e.stopPropagation?.();
     const cx = e.nativeEvent?.clientX ?? e.clientX ?? 0;
     const cy = e.nativeEvent?.clientY ?? e.clientY ?? 0;
     // The R3F event's world intersection point — where on the wall it was hit.
