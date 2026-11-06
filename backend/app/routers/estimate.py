@@ -380,7 +380,7 @@ async def preview_estimate(
     )
     norms_map = await _load_norms(db)
     current_state, floor_state, ceiling_state = await _load_stage(room_id, db)
-    catalog = await load_estimate_catalog(db)
+    catalog = await load_estimate_catalog(db, priced_room)
 
     computed: ComputedEstimate = compute_estimate(
         priced_room, materials_map, norms_map,
@@ -435,7 +435,7 @@ async def create_estimate(
     )
     norms_map = await _load_norms(db)
     current_state, floor_state, ceiling_state = await _load_stage(room_id, db)
-    catalog = await load_estimate_catalog(db)
+    catalog = await load_estimate_catalog(db, priced_room)
 
     computed: ComputedEstimate = compute_estimate(
         priced_room, materials_map, norms_map,
@@ -534,7 +534,7 @@ async def _generate_estimate_pdf(
     )
     norms_map = await _load_norms(db)
     current_state, floor_state, ceiling_state = await _load_stage(room_id, db)
-    catalog = await load_estimate_catalog(db)
+    catalog = await load_estimate_catalog(db, priced_room)
 
     computed: ComputedEstimate = compute_estimate(
         priced_room, materials_map, norms_map,

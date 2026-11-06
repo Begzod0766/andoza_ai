@@ -388,7 +388,7 @@ async def ai_build(
     furniture_list = await _load_all_furniture(db)
     norms_map = await _load_norms(db)
     wiring_meters = await _load_wiring_meters(room.id, db)
-    catalog = await load_estimate_catalog(db)
+    catalog = await load_estimate_catalog(db, room)
 
     room_state: dict = {
         "id": str(room.id),
@@ -520,7 +520,7 @@ async def smeta_ask(
 
     norms_map = await _load_norms(db)
     wiring_meters = await _load_wiring_meters(room.id, db)
-    catalog = await load_estimate_catalog(db)
+    catalog = await load_estimate_catalog(db, room)
     computed = compute_estimate(
         room, materials_map_full, norms_map, wiring_meters=wiring_meters, catalog=catalog
     )

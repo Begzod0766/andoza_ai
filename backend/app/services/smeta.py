@@ -1265,11 +1265,22 @@ def _tile_lines(
     return [tile_line, _plinth_line(room, norms_map, plinth_material)]
 
 
-def _furniture_lines(room: "Room") -> list[ComputedLine]:
+def furniture_catalog_key(furniture_id: str) -> str:
+    """The ``catalog`` key of the shop Furniture row whose id is *furniture_id* (see
+    app.services.estimate_catalog.load_furniture_catalog)."""
+    return f"furniture:{furniture_id}"
+
+
+def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
     """One line per distinct placed furniture item (qty = how many placed).
 
     Reads room.state['furniture'] — the array PlacedFurniture entries the
-    studio saves, each carrying a furniture_id slug. Pricing, in order of
+    studio saves, each carrying a furniture_id slug. A piece from a shop's
+    catalog (a Furniture row, id a UUID) handed in through ``catalog`` under
+    furniture_catalog_key(id) names its shop and is labelled from the row; it
+    is priced at the row's current ``price_uzs`` when it has one, so a shop's
+    price change reaches the estimate. A row that is inactive (or missing:
+    deleted since it was placed) is ignored. Otherwise, in order of
     preference:
       1. A per-item ``unitPriceUzs`` snapshot on the placed entry itself —
          set at import time for a user's own uploaded model, since there is
@@ -1304,11 +1315,20 @@ def _furniture_lines(room: "Room") -> list[ComputedLine]:
 
     lines: list[ComputedLine] = []
     for furniture_id, qty in sorted(counts.items()):
-        price = snapshot_prices.get(furniture_id) or FURNITURE_CATALOG_PRICES_UZS.get(furniture_id)
+        row = (catalog or {}).get(furniture_catalog_key(furniture_id))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        row_price = getattr(row, "price_uzs", None) if row is not None else None
+        price = (
+            (int(row_price) if row_price and row_price > 0 else None)
+            or snapshot_prices.get(furniture_id)
+            or FURNITURE_CATALOG_PRICES_UZS.get(furniture_id)
+        )
         is_approximate = price is None
         if price is None:
             price = FURNITURE_FALLBACK_PRICE_UZS
-        label = names.get(furniture_id) or furniture_id
+        label = (getattr(row, "name_uz", None) if row is not None else None) or names.get(furniture_id) or furniture_id
+        store_name = _store_name(row) if row is not None else None
         lines.append(_make_line(
             label=f"Jihoz: {label}",
             formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
@@ -1316,6 +1336,7 @@ def _furniture_lines(room: "Room") -> list[ComputedLine]:
             unit="dona",
             price_uzs=price,
             category="jihoz",
+            store_name=store_name,
             is_approximate=is_approximate,
             warning=(
                 "Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q."
@@ -1691,7 +1712,8 @@ def compute_estimate(
         The shop products the estimate prices its own lines from, by ``smeta_key``
         ("suvoq", "grunt", "shpatlyovka", "plintus", "kabel", "gipsokarton", "profil",
         "led_lenta", "light:<type>"): the cheapest active product for each, see
-        app.services.estimate_catalog. A line whose key is missing (or whose product
+        app.services.estimate_catalog; and, under furniture_catalog_key(id), the shop
+        Furniture rows placed in the room (priced and named from the row). A line whose key is missing (or whose product
         does not say how much a pack holds) keeps the norm/constant price and its
         "taxminiy" flag, exactly as before.
 
@@ -1859,7 +1881,7 @@ def compute_estimate(
     # ------------------------------------------------------------------ #
     # 4. Furniture ("jihoz") — every distinct item the user has placed     #
     # ------------------------------------------------------------------ #
-    lines.extend(_furniture_lines(room))
+    lines.extend(_furniture_lines(room, catalog))
 
     # ------------------------------------------------------------------ #
     # 4b. Light fixtures — the purchase price of each placed light. Separate #
