@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MoveRoomsButton } from "./three-d/RoomSlide";
+import { CameraBar } from "./three-d/CameraBar";
 import { useRoomMoveStore } from "@/store/roomMoveStore";
 import { beginRoomSwitch } from "@/lib/roomSwitch";
 import { useViewLockStore } from "@/store/viewLockStore";
@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { wallTileCovering, type TileSize, type TileFace } from "@/lib/tileCatalog";
-import { CAMERA_CHOICES, cameraLabel, cameraTitle, RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
+import { RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
 import { wallAnchorOf, type WallAnchor } from "@/lib/newRoomFromWall";
 import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
@@ -70,7 +70,7 @@ import { ViewStillSheet, type ViewStill } from "@/components/studio/ViewStillShe
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
-import { CameraButton, LockButton } from "./three-d/CanvasButtons";
+
 import { StagePill, TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
@@ -973,122 +973,27 @@ export default function ThreeDPage() {
               for it to go (2026-09-28). The corner arc offers the same things
               and the sheet is still reachable from the design panel. */}
 
-          {/* Bottom-left: the cameras.
-
-              One button, and everything else behind it. The five cameras and
-              the two picture shapes used to sit in the corner permanently —
-              nine controls lying across the room the user was trying to look
-              at, in the one view whose whole job is to be looked at. So the
-              button opens a list, the list closes the moment a camera is
-              chosen, and the only thing left on screen after that is the one
-              control that camera still needs: render. */}
-          <div className="absolute bottom-5 left-4 right-4 z-20 flex flex-wrap items-end gap-2 pointer-events-none [&>*]:pointer-events-auto">
-            <div className="flex flex-col items-start gap-2">
-              {/* The list rises from the button rather than running across the
-                  foot of the screen: a column keeps it clear of the arc menu in
-                  the opposite corner, and it reads as having come OUT of the
-                  button it is anchored to. */}
-              {cameraListOpen && (
-                <div className="flex flex-col-reverse items-start gap-1.5 animate-[radialpop_120ms_ease-out]">
-                  {CAMERA_CHOICES.map((c) => {
-                    const active = c.station == null ? panorama : cameraStation === c.station
-                    return (
-                      <button
-                        key={c.labelKey + (c.n ?? '')}
-                        onClick={() => enterCamera(c.station)}
-                        title={cameraLabel(c)}
-                        aria-pressed={active}
-                        className={`h-10 pl-3 pr-4 rounded-full flex items-center gap-2 text-[13px] font-bold shadow-lg ring-1 transition-colors ${
-                          active ? 'bg-brand text-white ring-brand/40' : 'bg-white/95 text-brand ring-black/5'
-                        }`}
-                      >
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                          active ? 'bg-white/20' : 'bg-brand/10'
-                        }`}>
-                          {c.badge}
-                        </span>
-                        {cameraTitle(c)}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              <CameraButton
-                active={cameraListOpen || !!panorama || cameraStation != null}
-                expanded={cameraListOpen}
-                onClick={() => setCameraListOpen((open) => !open)}
-              />
-            </div>
-
-            {/* The lock: taps and holds in the 3D view open nothing while it
-                is on, so the room can be turned without a menu popping up. */}
-            <LockButton locked={viewLocked} onClick={onToggleViewLock} />
-
-            {/* Move rooms: X / Z arrows on a tapped room (RoomSlide.tsx).
-                Only in a flat of several rooms, and not while locked. */}
-            {!viewLocked && (aptRooms?.length ?? 0) > 1 && (
-              <MoveRoomsButton active={moveRoomsOn} onClick={toggleMoveRooms} />
-            )}
-
-            {/* Render, once a camera is chosen — and only then, because it is
-                the picture from THAT camera it would make. The 360 camera goes
-                to the render sheet; a fixed one saves its own still, so it also
-                needs to be asked which shape. */}
-            {/* The pictures already made for this room, from any camera: looking
-                at one again must not cost another render. */}
-            {savedRenders.length > 0 && (
-              <button
-                onClick={() => { setRenderMode('gallery'); setShowRender(true); }}
-                title={t("render.saqlangan")}
-                className="px-4 h-12 rounded-full bg-white/95 text-brand text-[13px] font-bold shadow-lg ring-1 ring-black/5 flex items-center gap-1.5"
-              >
-                {t("render.renderlarim")}
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-brand text-white text-[11px] leading-5 text-center">
-                  {savedRenders.length}
-                </span>
-              </button>
-            )}
-
-            {panorama && (
-              <button
-                onClick={() => { setRenderMode('render'); setShowRender(true); }}
-                title={t("render.sarlavha")}
-                className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
-              >
-                {t("render.nomi")}
-              </button>
-            )}
-
-            {cameraStation != null && (
-              <>
-                {/* Portrait or landscape. Both framings of the same view —
-                    the horizontal angle is fixed, so switching turns the
-                    picture rather than cropping the room out of its sides. */}
-                <div className="flex items-center rounded-full bg-white/95 shadow-lg ring-1 ring-black/5 overflow-hidden">
-                  {RENDER_ASPECTS.map((a) => (
-                    <button
-                      key={a.label}
-                      onClick={() => setCameraAspect(a)}
-                      aria-pressed={cameraAspect.label === a.label}
-                      className={`px-2.5 h-12 text-[12px] font-bold transition-colors ${
-                        cameraAspect.label === a.label ? 'bg-brand text-white' : 'text-brand'
-                      }`}
-                    >
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={requestViewCapture}
-                  title={`${cameraAspect.width} x ${cameraAspect.height}`}
-                  className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
-                >
-                  {t("render.nomi")}
-                </button>
-              </>
-            )}
-          </div>
+          {/* Bottom-left: the cameras, the lock, "My renders" and the chosen
+              camera's Render — see CameraBar. */}
+          <CameraBar
+            listOpen={cameraListOpen}
+            onToggleList={() => setCameraListOpen((open) => !open)}
+            onPick={enterCamera}
+            panorama={panorama}
+            cameraStation={cameraStation}
+            aspect={cameraAspect}
+            onAspect={setCameraAspect}
+            onRender360={() => { setRenderMode('render'); setShowRender(true); }}
+            onRenderStill={requestViewCapture}
+            savedCount={savedRenders.length}
+            onOpenGallery={() => { setRenderMode('gallery'); setShowRender(true); }}
+            viewLocked={viewLocked}
+            onToggleLock={onToggleViewLock}
+            showMoveRooms={!viewLocked && (aptRooms?.length ?? 0) > 1}
+            moveRoomsOn={moveRoomsOn}
+            onToggleMoveRooms={toggleMoveRooms}
+            flatShown={(aptRooms?.length ?? 0) > 1}
+          />
 
           {/* Bottom-right corner: the arc menu, mobile only — desktop reaches
               all of this from the design panel and the tools drawer, neither
