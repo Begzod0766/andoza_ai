@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.services import model_optimize_queue
+from app.services.glb_optimizer import Outcome
 from app.tasks import media
 
 
@@ -58,7 +59,11 @@ def world(monkeypatch):
         monkeypatch.setattr("app.core.storage.download_file", download)
         monkeypatch.setattr("app.core.storage.upload_file", upload)
         monkeypatch.setattr("app.core.storage.delete_file", delete)
-        monkeypatch.setattr("app.services.glb_optimizer.optimize_glb_bytes", lambda data, **kw: optimized)
+        if isinstance(optimized, Outcome):
+            outcome = optimized
+        else:
+            outcome = Outcome("ok", data=optimized) if optimized else Outcome("not_smaller")
+        monkeypatch.setattr("app.services.glb_optimizer.optimize_glb", lambda data, **kw: outcome)
         return rows, storage
 
     return make
@@ -81,6 +86,20 @@ class TestTask:
         assert _run()["status"] == "not_smaller"
         assert storage["uploads"] == []
         assert rows.rows[("furniture", "m1")][1] is None
+
+    def test_a_broken_tool_is_reported_as_failed_not_as_not_smaller(self, world):
+        rows, storage = world(optimized=Outcome(
+            "failed", reason="exit", message='exit 1: Error: Could not load the "sharp" module using the linux-x64 runtime',
+        ))
+        result = _run()
+        assert result["status"] == "failed"
+        assert result["reason"] == "exit"
+        assert "sharp" in result["detail"]
+        assert storage["uploads"] == []
+        assert rows.rows[("furniture", "m1")][1] is None
+
+    def test_a_failure_is_not_retried(self):
+        assert media.optimize_model_glb.max_retries == 0
 
     def test_an_external_url_is_never_fetched(self, world):
         _, storage = world(original="https://cdn.example.com/a.glb")
