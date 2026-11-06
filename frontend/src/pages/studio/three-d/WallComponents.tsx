@@ -17,6 +17,7 @@ import { useRoomStore, PLASTER_BASE_COLOR } from "@/store/roomStore";
 import { DOOR_IVORY } from "@/lib/doorStyles";
 import { WALLPAPER_WIDTH_M, OPENING_REVEAL_D, openingRevealDepth, noRaycast, FLOOR_COLORS } from "./constants";
 import { architraveFaces, drawsOpeningLining, hiddenByCamera } from "@/lib/flatOpenings";
+import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
 import { floorFinish, surfaceFinish } from "@/lib/surfaceFinish";
 
 /** Paper has a weave, and its own image says where. */
@@ -886,12 +887,15 @@ export interface FrameWallDef {
  * with the wall (frames are always built axis-aligned to world X/Z, same as
  * the legacy walls), so `ry`/`normal` are intentionally not carried over.
  */
-function buildFrameWallDefs(
+export function buildFrameWallDefs(
   geometry: RoomGeometry,
   wallWidth: number,
   wallDepth: number,
 ): FrameWallDef[] {
-  if (geometry.vertices && geometry.vertices.length >= 3) {
+  // RoomScene draws an A/B/C/D room from its walls' lengths, not its stored
+  // outline, so the frames go where its holes are cut even when the two
+  // disagree (#182; lib/openingFrames makes the same choice for hit planes).
+  if (!rendersAsAbcdRectangle(geometry) && geometry.vertices && geometry.vertices.length >= 3) {
     const wallIds = geometry.walls.map((w) => w.id);
     const polyDefs = wallDefsFromVertices(geometry.vertices, wallIds);
     return geometry.walls
@@ -927,7 +931,7 @@ function buildFrameWallDefs(
  * `useFrame`, so both paths compute the exact same thing from either the
  * store-derived element or the live drag ref's values.
  */
-function frameGroupOrigin(
+export function frameGroupOrigin(
   wd: FrameWallDef,
   el: { position: number; width: number; sill_height: number },
 ): [number, number, number] {

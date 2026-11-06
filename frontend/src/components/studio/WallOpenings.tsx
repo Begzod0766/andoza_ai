@@ -18,6 +18,11 @@
  * ever writes those two numbers back via updateElement(wallId, …), so an
  * opening can never leave its wall.
  *
+ * Wall frames and positions come from lib/openingFrames — the frame RoomScene
+ * cuts the holes in, with auto-placed openings RESOLVED to where they are
+ * drawn. Placing the hit plane from the raw stored position in a frame of its
+ * own put tappable doors where none was drawn (#182).
+ *
  * Perf note: a pointer drag commits to the store via updateElement exactly
  * ONCE, on pointerup — never on every pointermove. Live drag position lives
  * in `liveDragRef` (see below) and is read directly during render (already
@@ -34,28 +39,16 @@ import { Html } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { RoomGeometry, WallElement } from '@/store/roomStore'
 import { liveOpeningDrag } from '@/lib/liveOpeningDrag'
-import { wallDefsFromVertices } from '@/lib/wallDefsFromVertices'
+import { alongWall, openingCentreOnWall, openingWallFrames, pointOnWall, type OpeningWallFrame } from '@/lib/openingFrames'
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { LEAF_FACE_DEPTH } from "./DoorLeaves";
 import { wallNumber } from "@/lib/wallLabel";
 
 export interface OpeningSel { wallId: string; elId: string }
 
-interface WallDef {
-  id: string
-  axis: 'X' | 'Z'
-  /** world position of the wall's inner face on the OTHER axis */
-  face: number
-  /** along-axis world coordinate of the wall's position-0 end (see
-   *  `PolyWallDef` in lib/wallDefsFromVertices.ts — on a polygon edge this is
-   *  `vertices[i]`, which is NOT always the axis minimum). */
-  originAlong: number
-  /** Direction of increasing position on `axis`: +1 or −1. Always +1 for the
-   *  legacy ABCD rectangle below. */
-  alongSign: 1 | -1
-  length: number
-  ry: number
-  normal: THREE.Vector3
+/** A wall in the renderer's frame (lib/openingFrames), plus the plane a drag
+ *  ray is intersected with. */
+interface WallDef extends OpeningWallFrame {
   plane: THREE.Plane
 }
 
@@ -64,25 +57,6 @@ const SNAP_M = 0.03 // 3 cm alignment threshold
 // resize steppers' existing ±100mm convention (there is no drag "grid" for
 // position; the pointer drag is continuous).
 const KEYBOARD_NUDGE_MM = 100
-
-function buildWallDefs(W: number, D: number): Record<string, WallDef> {
-  return {
-    A: { id: 'A', axis: 'X', face: -D / 2, originAlong: -W / 2, alongSign: 1, length: W, ry: 0, normal: new THREE.Vector3(0, 0, 1), plane: new THREE.Plane(new THREE.Vector3(0, 0, 1), D / 2) },
-    C: { id: 'C', axis: 'X', face: D / 2, originAlong: -W / 2, alongSign: 1, length: W, ry: Math.PI, normal: new THREE.Vector3(0, 0, -1), plane: new THREE.Plane(new THREE.Vector3(0, 0, -1), D / 2) },
-    B: { id: 'B', axis: 'Z', face: W / 2, originAlong: -D / 2, alongSign: 1, length: D, ry: -Math.PI / 2, normal: new THREE.Vector3(-1, 0, 0), plane: new THREE.Plane(new THREE.Vector3(-1, 0, 0), W / 2) },
-    D: { id: 'D', axis: 'Z', face: -W / 2, originAlong: -D / 2, alongSign: 1, length: D, ry: Math.PI / 2, normal: new THREE.Vector3(1, 0, 0), plane: new THREE.Plane(new THREE.Vector3(1, 0, 0), W / 2) },
-  }
-}
-
-/** World coordinates of a point on the wall face at along-offset `alongM` (from
- *  the wall's position-0 end) and height `yM`, nudged `push` metres into the
- *  room. */
-function toWorld(wd: WallDef, alongM: number, yM: number, push = 0): [number, number, number] {
-  const along = wd.originAlong + wd.alongSign * alongM
-  const n = wd.normal
-  if (wd.axis === 'X') return [along + n.x * push, yM, wd.face + n.z * push]
-  return [wd.face + n.x * push, yM, along + n.z * push]
-}
 
 const s = 1 / 1000
 
@@ -105,17 +79,17 @@ export function WallOpenings({
   onArm?: (wallId: string, elId: string) => void
 }) {
   const { t } = useTranslation()
-  // Real polygon data (≥3 hand-drawn vertices) uses the generalized per-edge
-  // math; a legacy 4-wall rectangle room (no `vertices`) keeps using the
-  // existing hardcoded ABCD path completely unchanged, so today's rectangle
-  // rooms behave byte-for-byte the same as before this change.
-  const defs = useMemo(
-    () =>
-      geometry.vertices && geometry.vertices.length >= 3
-        ? wallDefsFromVertices(geometry.vertices, geometry.walls.map((w) => w.id))
-        : buildWallDefs(W, D),
-    [W, D, geometry.vertices, geometry.walls],
-  )
+  // The walls as the renderer draws them — the legacy A/B/C/D table or the
+  // polygon's own edges, whichever RoomScene uses for this room — each with
+  // its openings resolved to where they are drawn (lib/openingFrames).
+  const defs = useMemo(() => {
+    const out: Record<string, WallDef> = {}
+    for (const [id, f] of Object.entries(openingWallFrames(geometry))) {
+      const normal = new THREE.Vector3(f.nX, 0, f.nZ)
+      out[id] = { ...f, plane: new THREE.Plane(normal, -(f.nX * f.x0 + f.nZ * f.z0)) }
+    }
+    return out
+  }, [geometry])
   const dragging = useRef(false)
   const [guides, setGuides] = useState<Array<{ kind: 'h' | 'v'; wallId: string; at: number }>>([])
 
@@ -158,15 +132,15 @@ export function WallOpenings({
   // ── Drag maths ───────────────────────────────────────────────────────
   function computeDrag(wd: WallDef, el: WallElement, hit: THREE.Vector3): { position: number; sill_height: number; guides: Array<{ kind: 'h' | 'v'; wallId: string; at: number }> } {
     const isDoor = el.type === 'eshik'
-    const wallLenMm = wd.length * 1000
+    const wallLenMm = wd.lengthM * 1000
     const wallHMm = H * 1000
-    const along = wd.axis === 'X' ? hit.x : hit.z
-    const uMm = (along - wd.originAlong) * wd.alongSign * 1000
+    const uMm = alongWall(wd, hit.x, hit.z) * 1000
 
     let position = uMm - el.width / 2
     let sill = isDoor ? 0 : hit.y * 1000 - el.height / 2
 
-    const siblings = (geometry.walls.find((w) => w.id === wd.id)?.elements ?? []).filter((e) => e.id !== el.id)
+    // Resolved, like the openings themselves: an auto sibling is where it is drawn.
+    const siblings = wd.elements.filter((e) => e.id !== el.id && !e.borrowedFrom)
     const activeGuides: Array<{ kind: 'h' | 'v'; wallId: string; at: number }> = []
 
     // ── Vertical (Y) snap — windows only ──
@@ -181,7 +155,7 @@ export function WallOpenings({
               const delta = sv - mv
               sill += delta
               myEdges.bottom += delta; myEdges.center += delta; myEdges.top += delta
-              activeGuides.push({ kind: 'h', wallId: wd.id, at: sv })
+              activeGuides.push({ kind: 'h', wallId: wd.wallId, at: sv })
             }
           }
         }
@@ -200,7 +174,7 @@ export function WallOpenings({
             if (Math.abs(mv - sv) < SNAP_M * 1000) {
               const delta = sv - mv
               position += delta; myL += delta; myC += delta; myR += delta
-              activeGuides.push({ kind: 'v', wallId: wd.id, at: sv })
+              activeGuides.push({ kind: 'v', wallId: wd.wallId, at: sv })
             }
           }
         }
@@ -248,11 +222,11 @@ export function WallOpenings({
     // longer happens here is a store write: the result goes into a ref, not
     // into `updateElement`, so this does not touch `geometry` at all.
     const { position, sill_height, guides: g } = computeDrag(wd, el, hit)
-    liveDragRef.current = { wallId: wd.id, elId: el.id, position, sill_height }
+    liveDragRef.current = { wallId: wd.wallId, elId: el.id, position, sill_height }
     // Second write target — see liveOpeningDrag.ts's header comment. Same
     // value, same moment, so WindowFrames/DoorFrames/OpeningLeaves never
     // desync from WallOpenings' own hit-plane/selection border/labels.
-    liveOpeningDrag.current = { wallId: wd.id, elId: el.id, position, sill_height }
+    liveOpeningDrag.current = { wallId: wd.wallId, elId: el.id, position, sill_height }
     setGuides(g)
   }
   function onUp(e: ThreeEvent<PointerEvent>) {
@@ -276,8 +250,11 @@ export function WallOpenings({
     <>
       {walls.flatMap((w) => {
         const wd = defs[w.id]
-        return w.elements.map((el) => {
+        // Resolved positions — the ones the hole, lining and leaf are drawn at.
+        return wd.elements.map((el) => {
           if (el.type !== 'deraza' && el.type !== 'eshik' && el.type !== 'balkon') return null
+          // Cut here, drawn and edited from its own room (lib/flatOpenings).
+          if (el.borrowedFrom) return null
           const isDoor = el.type === 'eshik'
           const isSel = selected?.wallId === w.id && selected?.elId === el.id
           // While THIS element is the one being dragged, render from the
@@ -288,16 +265,14 @@ export function WallOpenings({
           const liveEl: WallElement = live && live.wallId === w.id && live.elId === el.id
             ? { ...el, position: live.position, sill_height: live.sill_height }
             : el
-          const centerAlongM = (liveEl.position + liveEl.width / 2) * s
-          const centerY = (liveEl.sill_height + liveEl.height / 2) * s
           // In front of the LEAF, not of the wall. The leaf hangs at the back
           // of a 200 mm niche, so an overlay pushed 20 mm off the wall face
           // floated the better part of a foot in front of the door — which is
           // what the selection border being "in a different place from the
           // door" was. 20 mm of clearance, measured from where the leaf
           // actually is.
-          const [px, py, pz] = toWorld(
-            wd, centerAlongM, centerY,
+          const [px, py, pz] = openingCentreOnWall(
+            wd, liveEl,
             0.02 - LEAF_FACE_DEPTH[isDoor ? 'door' : 'window'],
           )
           const hold = bindHold({
@@ -313,7 +288,7 @@ export function WallOpenings({
               {/* Invisible (faint when selected) hit plane for select + drag */}
               <mesh
                 position={[px, py, pz]}
-                rotation={[0, wd.ry, 0]}
+                rotation={[0, wd.yaw, 0]}
                 onClick={(e) => {
                   e.stopPropagation()
                   // A hold that just put the delete button up is not a tap.
@@ -364,7 +339,7 @@ export function WallOpenings({
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => { e.stopPropagation(); onSelect({ wallId: w.id, elId: el.id }) }}
                   onKeyDown={(e) => {
-                    const wallLenMm = wd.length * 1000
+                    const wallLenMm = wd.lengthM * 1000
                     switch (e.key) {
                       case 'ArrowLeft':
                       case 'ArrowUp':
@@ -401,7 +376,7 @@ export function WallOpenings({
 
               {/* Selection border */}
               {isSel && (
-                <lineSegments position={[px, py, pz]} rotation={[0, wd.ry, 0]}>
+                <lineSegments position={[px, py, pz]} rotation={[0, wd.yaw, 0]}>
                   <edgesGeometry args={[getEdgesPlane(el.width * s, el.height * s)]} />
                   {/* Amber once a double tap has armed it: the border is the
                       only thing that can say "this one will move if you drag
@@ -431,14 +406,14 @@ export function WallOpenings({
         if (g.kind === 'h') {
           // horizontal line across the wall at height at/1000
           const y = g.at * s
-          const a = toWorld(wd, 0, y, 0.03)
-          const b = toWorld(wd, wd.length, y, 0.03)
+          const a = pointOnWall(wd, 0, y, 0.03)
+          const b = pointOnWall(wd, wd.lengthM, y, 0.03)
           return <GuideLine key={`g${i}`} a={a} b={b} />
         }
         // vertical line at along = at/1000, full height
         const along = g.at * s
-        const a = toWorld(wd, along, 0, 0.03)
-        const b = toWorld(wd, along, H, 0.03)
+        const a = pointOnWall(wd, along, 0, 0.03)
+        const b = pointOnWall(wd, along, H, 0.03)
         return <GuideLine key={`g${i}`} a={a} b={b} />
       })}
     </>
@@ -469,7 +444,7 @@ function GuideLine({ a, b, color = '#FF2E9A' }: { a: [number, number, number]; b
  *  door → 2 (left/right). */
 function DimensionLabels({ wd, el, H, isDoor }: { wd: WallDef; el: WallElement; W: number; D: number; H: number; isDoor: boolean }) {
   const leftM = el.position * s
-  const rightM = wd.length - (el.position + el.width) * s
+  const rightM = wd.lengthM - (el.position + el.width) * s
   const floorM = el.sill_height * s
   const ceilM = H - (el.sill_height + el.height) * s
   const cx = (el.position + el.width / 2) * s
@@ -480,13 +455,13 @@ function DimensionLabels({ wd, el, H, isDoor }: { wd: WallDef; el: WallElement; 
   const topY = (el.sill_height + el.height) * s
 
   const items: Array<{ a: [number, number, number]; b: [number, number, number]; mid: [number, number, number]; val: number }> = [
-    { a: toWorld(wd, 0, cy, 0.03), b: toWorld(wd, leftEdge, cy, 0.03), mid: toWorld(wd, leftEdge / 2, cy, 0.05), val: leftM },
-    { a: toWorld(wd, rightEdge, cy, 0.03), b: toWorld(wd, wd.length, cy, 0.03), mid: toWorld(wd, (rightEdge + wd.length) / 2, cy, 0.05), val: rightM },
+    { a: pointOnWall(wd, 0, cy, 0.03), b: pointOnWall(wd, leftEdge, cy, 0.03), mid: pointOnWall(wd, leftEdge / 2, cy, 0.05), val: leftM },
+    { a: pointOnWall(wd, rightEdge, cy, 0.03), b: pointOnWall(wd, wd.lengthM, cy, 0.03), mid: pointOnWall(wd, (rightEdge + wd.lengthM) / 2, cy, 0.05), val: rightM },
   ]
   if (!isDoor) {
     items.push(
-      { a: toWorld(wd, cx, 0, 0.03), b: toWorld(wd, cx, botY, 0.03), mid: toWorld(wd, cx, botY / 2, 0.05), val: floorM },
-      { a: toWorld(wd, cx, topY, 0.03), b: toWorld(wd, cx, H, 0.03), mid: toWorld(wd, cx, (topY + H) / 2, 0.05), val: ceilM },
+      { a: pointOnWall(wd, cx, 0, 0.03), b: pointOnWall(wd, cx, botY, 0.03), mid: pointOnWall(wd, cx, botY / 2, 0.05), val: floorM },
+      { a: pointOnWall(wd, cx, topY, 0.03), b: pointOnWall(wd, cx, H, 0.03), mid: pointOnWall(wd, cx, (topY + H) / 2, 0.05), val: ceilM },
     )
   }
 
