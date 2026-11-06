@@ -165,6 +165,7 @@
       "bosqichlar": "Bosqichlar",
       "bosqichlar_yopish": "Bosqichlar panelini yopish",
       "bosqichlar_ochish": "Bosqichlar panelini ochish",
+      "bosqichni_tanlash": "Bosqichni tanlash",
       "oraliq": "Oraliq",
       "mm": "mm",
       "siljitish_tugatish": "Xonalarni siljitishni tugatish",
@@ -231,6 +232,7 @@
       "saqlandi": "Saqlandi",
       "ulashish": "Ulashish",
       "xona_ochirish_sarlavha": "Xonani o'chirishni tasdiqlaysizmi?",
+      "xonani_ochirish": "Xonani o'chirish",
       "qaytarib_bolmaydi": "Bu amalni qaytarib bo'lmaydi.",
       "xona_ochirilmadi": "Xonani o'chirib bo'lmadi",
       "ulashish_havolasi": "Ulashish havolasi",
@@ -929,6 +931,8 @@
     },
     "arc": {
       "uploaded": "Yuklangan",
+      "position_aria": "Aylanada {{total}} tadan {{pos}}-o'rin; boshqalarini ko'rish uchun aylantiring",
+      "position": "{{total}} tadan {{pos}}",
       "add": "Qo‘shish"
     },
     "furn": {

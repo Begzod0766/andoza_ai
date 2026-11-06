@@ -353,9 +353,12 @@ export function QuarterArcMenu({
           const r = outerRing.scrollable
             ? { off: offset.outer, total: outer.length }
             : { off: offset.inner, total: categories.length }
+          const pos = wrapArcOffset(Math.round(r.off), r.total) + 1
           return (
             <div
-              className="absolute rounded-full bg-white/85 text-[9px] font-bold text-gray-600 px-1.5 py-0.5 shadow pointer-events-none"
+              role="status"
+              aria-label={t('studio.arc.position_aria', { pos, total: r.total })}
+              className="absolute whitespace-nowrap rounded-full bg-white/85 text-[9px] font-bold text-gray-600 px-1.5 py-0.5 shadow pointer-events-none"
               style={{
                 left: ARC_FAB / 2 - ARC_RADIUS_OUTER - 6,
                 top: ARC_FAB / 2 - ARC_RADIUS_OUTER - 6,
@@ -363,8 +366,9 @@ export function QuarterArcMenu({
               }}
             >
               {/* Where the ring is sitting, not how far is left: on an
-                  endless ring there is no "left". */}
-              {wrapArcOffset(Math.round(r.off), r.total) + 1}/{r.total}
+                  endless ring there is no "left". Said in words — a bare
+                  "1/21" read as a page number (QA 2026-11-05 #19). */}
+              {t('studio.arc.position', { pos, total: r.total })}
             </div>
           )
         })()}

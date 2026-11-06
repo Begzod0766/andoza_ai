@@ -165,6 +165,7 @@
       "bosqichlar": "Stages",
       "bosqichlar_yopish": "Close the stages panel",
       "bosqichlar_ochish": "Open the stages panel",
+      "bosqichni_tanlash": "Choose a stage",
       "oraliq": "Gap",
       "mm": "mm",
       "siljitish_tugatish": "Finish moving rooms",
@@ -231,6 +232,7 @@
       "saqlandi": "Saved",
       "ulashish": "Share",
       "xona_ochirish_sarlavha": "Confirm deleting the room",
+      "xonani_ochirish": "Delete room",
       "qaytarib_bolmaydi": "This action cannot be undone.",
       "xona_ochirilmadi": "Could not delete the room",
       "ulashish_havolasi": "Share link",
@@ -929,6 +931,8 @@
     },
     "arc": {
       "uploaded": "Uploaded",
+      "position_aria": "Item {{pos}} of {{total}} on the ring; turn it to see the rest",
+      "position": "{{pos}} of {{total}}",
       "add": "Add"
     },
     "furn": {
