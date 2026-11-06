@@ -61,3 +61,35 @@ describe('BottomSheet: native form controls keep their touch behaviour (#184)', 
     expect(handle!.style.touchAction).toBe('none')
   })
 })
+
+// #184, second round: the tap still did nothing on iOS, yet moving focus onto the select with the
+// keyboard's "previous field" arrow opened its picker. Radix Dialog moves focus to the first
+// tabbable element on open, which in the AI designer is the "Room type" <select>. WKWebView only
+// opens a picker (or keyboard) when focus ARRIVES by a user gesture; a tap on a control that already
+// holds programmatic focus is no new focus, so nothing opens. The sheet must not hand its first field
+// focus on open.
+describe('BottomSheet: opening does not focus a form control (#184)', () => {
+  it('focus lands on the sheet itself, not on the first select/input', () => {
+    renderSheet()
+    const dialog = screen.getByRole('dialog')
+    const active = document.activeElement as HTMLElement | null
+    expect(active?.tagName).not.toBe('SELECT')
+    expect(active?.tagName).not.toBe('INPUT')
+    expect(active?.tagName).not.toBe('TEXTAREA')
+    // Still inside the dialog, so the focus trap and Escape keep working.
+    expect(dialog.contains(active)).toBe(true)
+  })
+
+  it('a tap on the select keeps the same node from pointerdown to click (no re-mount)', () => {
+    renderSheet()
+    const before = screen.getByRole('combobox')
+    expect(fireEvent.pointerDown(before, { pointerId: 1, pointerType: 'touch', isPrimary: true })).toBe(true)
+    expect(fireEvent.mouseDown(before)).toBe(true)
+    expect(screen.getByRole('combobox')).toBe(before)
+    fireEvent.pointerUp(before, { pointerId: 1, pointerType: 'touch', isPrimary: true })
+    fireEvent.mouseUp(before)
+    expect(fireEvent.click(before)).toBe(true)
+    expect(screen.getByRole('combobox')).toBe(before)
+    expect(before.isConnected).toBe(true)
+  })
+})

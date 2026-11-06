@@ -435,6 +435,21 @@
   }
 }
 
+/* ── No iOS focus zoom on touch screens (#184) ────────────────────────────
+   iOS zooms the page onto any text field under 16px when it takes focus, and
+   leaves it zoomed. The app's fields are text-sm (14px) and smaller, so on a
+   touch screen they are 16px. `!important` because the text-* utilities on
+   the fields come later; a field already set larger keeps its size. Desktop
+   (fine pointer) is unchanged, and pinch-zoom stays on: the viewport meta is
+   left alone on purpose. */
+@media (pointer: coarse) {
+  input:not(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl),
+  select:not(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl),
+  textarea:not(.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl, .text-5xl) {
+    font-size: 16px !important;
+  }
+}
+
 /* ── Day/night app background ─────────────────────────────────────────────
    Page surfaces use the `bg-paper` utility as the visible app background.
    Drive it from --color-app-bg (set by the ThemeToggle via data-app-theme on
