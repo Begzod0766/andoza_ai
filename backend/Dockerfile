@@ -9,10 +9,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# fonts-dejavu-core: the estimate PDF's font (app/routers/estimate.py). ReportLab's built-in
+# Helvetica has no Cyrillic, so a Russian PDF would otherwise print black boxes.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
         libpq-dev \
         libffi-dev \
+        fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Compresses uploaded 3D models (meshopt geometry, WebP textures): see

@@ -34,6 +34,7 @@ Include both routers in your ``app.api.v1`` module::
 from __future__ import annotations
 
 import dataclasses
+import functools
 import io
 import uuid
 from pathlib import Path
@@ -41,12 +42,15 @@ from datetime import date, datetime, timezone
 from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
-from fastapi import APIRouter, HTTPException, Query, status
+import structlog
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     HRFlowable,
     Image,
@@ -60,6 +64,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.deps import CurrentUser, DbSession
+from app.i18n.messages import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, request_language
 from app.models.apartment import Apartment
 from app.models.electrical import RoomElectrical
 from app.models.estimate import Estimate
@@ -82,6 +87,16 @@ from app.services.room_finishes import apply_finishes_to_room
 from app.services.smeta import ComputedEstimate, ComputedLine, compute_estimate
 from app.services.smeta_ai import fill_ai_price_gaps
 from app.services.smeta_groups import GROUP_COLOUR, format_share, group_lines, share
+from app.services.smeta_text import (
+    localize_formula,
+    localize_label,
+    localize_unit,
+    localize_warning,
+    pdf_text,
+)
+from app.services.smeta_text import t as smeta_t
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/rooms/{room_id}")
 
@@ -512,6 +527,7 @@ async def _generate_estimate_pdf(
     current_user: CurrentUser,
     db: DbSession,
     market: bool = False,
+    lang: str = DEFAULT_LANGUAGE,
 ) -> StreamingResponse:
     room, priced_room, materials_map, wiring_meters = await _load_room_for_pricing(
         room_id, current_user.id, db
@@ -528,7 +544,7 @@ async def _generate_estimate_pdf(
     computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
     computed, _, _ = await _with_market_prices(computed, market, str(current_user.id))
 
-    pdf_bytes = _build_pdf(room, computed)
+    pdf_bytes = _build_pdf(room, computed, lang=lang)
 
     filename = f"smeta_{room.name.replace(' ', '_')}_{date.today()}.pdf"
     return StreamingResponse(
@@ -545,11 +561,14 @@ async def _generate_estimate_pdf(
 )
 async def get_estimate_pdf(
     room_id: uuid.UUID,
+    request: Request,
     current_user: CurrentUser,
     db: DbSession,
     market: bool = Query(default=False, description="Reprice materials with real shop prices"),
 ) -> StreamingResponse:
-    return await _generate_estimate_pdf(room_id, current_user, db, market)
+    return await _generate_estimate_pdf(
+        room_id, current_user, db, market, lang=_pdf_language(request, current_user),
+    )
 
 
 @router.get(
@@ -559,11 +578,14 @@ async def get_estimate_pdf(
 )
 async def get_estimate_pdf_alias(
     room_id: uuid.UUID,
+    request: Request,
     current_user: CurrentUser,
     db: DbSession,
     market: bool = Query(default=False, description="Reprice materials with real shop prices"),
 ) -> StreamingResponse:
-    return await _generate_estimate_pdf(room_id, current_user, db, market)
+    return await _generate_estimate_pdf(
+        room_id, current_user, db, market, lang=_pdf_language(request, current_user),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -629,9 +651,48 @@ _AMBER = colors.HexColor("#FB8C00")
 _LIGHT_GREY = colors.HexColor("#F5F5F5")
 _MID_GREY = colors.HexColor("#9E9E9E")
 
+# ReportLab's built-in Helvetica has no Cyrillic glyphs (a Russian PDF would show black boxes), so
+# the PDF uses the first TrueType font found here, regular and bold. DejaVu Sans is the Debian
+# package fonts-dejavu-core, which the backend Dockerfile installs; Arial is macOS's, for local
+# runs. With none of them the PDF keeps Helvetica, which still draws Uzbek and English.
+_FONT_CANDIDATES: tuple[tuple[str, str], ...] = (
+    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+    ("/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"),
+    ("/System/Library/Fonts/Supplemental/Arial.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+)
+_FALLBACK_FONTS = ("Helvetica", "Helvetica-Bold")
 
-def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
-    """Render *est* as a PDF and return raw bytes."""
+
+@functools.lru_cache(maxsize=1)
+def _pdf_fonts() -> tuple[str, str]:
+    """(regular, bold) font names for the PDF, registering the TrueType pair on first use."""
+    for regular_path, bold_path in _FONT_CANDIDATES:
+        if not (Path(regular_path).is_file() and Path(bold_path).is_file()):
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont("SmetaSans", regular_path))
+            pdfmetrics.registerFont(TTFont("SmetaSans-Bold", bold_path))
+            pdfmetrics.registerFontFamily("SmetaSans", normal="SmetaSans", bold="SmetaSans-Bold",
+                                          italic="SmetaSans", boldItalic="SmetaSans-Bold")
+        except Exception as exc:  # a broken font file must not take the PDF down
+            logger.warning("estimate_pdf.font_failed", path=regular_path, error=str(exc))
+            continue
+        return "SmetaSans", "SmetaSans-Bold"
+    logger.warning("estimate_pdf.no_cyrillic_font")
+    return _FALLBACK_FONTS
+
+
+def _pdf_language(request: Request, user: Any) -> str:
+    """The PDF's language: the app's (Accept-Language, which the web client always sends), else
+    the language saved on the account, else Uzbek."""
+    if request.headers.get("accept-language"):
+        return request_language(request)
+    saved = getattr(user, "language", None)
+    return saved if saved in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
+
+
+def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) -> bytes:
+    """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -640,14 +701,26 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
         leftMargin=2 * cm,
         topMargin=2.5 * cm,
         bottomMargin=2.5 * cm,
-        title=f"andoza.ai Smeta — {room.name}",
+        title=f"andoza.ai {smeta_t('sarlavha', lang)} — {room.name}",
         author="andoza.ai",
     )
+    doc.build(_pdf_story(room, est, lang, _pdf_fonts()))
+    return buf.getvalue()
+
+
+def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, str]) -> list[Any]:
+    """The PDF's flowables. Every fixed text and each line's label, unit, warning and formula are
+    in *lang* (app.services.smeta_text, the web page's vocabulary); numbers are as computed."""
+    font, font_bold = fonts
+
+    def tx(key: str, **values: object) -> str:
+        return pdf_text(key, lang, **values)
 
     styles = getSampleStyleSheet()
     h1 = ParagraphStyle(
         "SmH1",
         parent=styles["Title"],
+        fontName=font_bold,
         fontSize=18,
         textColor=_BRAND_BLUE,
         spaceAfter=4,
@@ -655,12 +728,13 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
     h2 = ParagraphStyle(
         "SmH2",
         parent=styles["Heading2"],
+        fontName=font_bold,
         fontSize=11,
         textColor=_BRAND_BLUE,
         spaceBefore=10,
         spaceAfter=4,
     )
-    normal = styles["Normal"]
+    normal = ParagraphStyle("SmNormal", parent=styles["Normal"], fontName=font)
     small = ParagraphStyle(
         "SmSmall",
         parent=normal,
@@ -689,9 +763,9 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
         logo.hAlign = "LEFT"
         story.append(logo)
         story.append(Spacer(1, 0.3 * cm))
-    story.append(Paragraph("Smeta", h1))
+    story.append(Paragraph(smeta_t("sarlavha", lang), h1))
     story.append(Paragraph(
-        f"Xona: <b>{room.name}</b> &nbsp;|&nbsp; Sana: {date.today():%d.%m.%Y}",
+        f"{tx('room')}: <b>{xml_escape(room.name)}</b> &nbsp;|&nbsp; {tx('date')}: {date.today():%d.%m.%Y}",
         normal,
     ))
     story.append(Spacer(1, 0.4 * cm))
@@ -707,15 +781,20 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
     def _fmt_num(n: int | float) -> str:
         return f"{int(n):,}".replace(",", " ")
 
+    def _group_label(g: Any) -> str:
+        label = smeta_t(f"toifa.{g.key}", lang)
+        return g.label if label == f"toifa.{g.key}" else label
+
     if groups:
-        story.append(Paragraph("Xarajat taqsimoti", h2))
-        summary = [["", "Toifa", "Ulushi", "Summa (UZS)"]]
+        story.append(Paragraph(smeta_t("taqsimot", lang), h2))
+        summary = [["", tx("category"), tx("share"), tx("amount_uzs")]]
         for g in groups:
-            summary.append(["", g.label, format_share(share(g.subtotal, grand)), _fmt_num(g.subtotal)])
+            summary.append(["", _group_label(g), format_share(share(g.subtotal, grand)), _fmt_num(g.subtotal)])
         summary_tbl = Table(summary, colWidths=[0.5 * cm, 9.5 * cm, 2.5 * cm, 4.5 * cm])
         summary_style = [
+            ("FONTNAME", (0, 0), (-1, -1), font),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 0), (-1, 0), font_bold),
             ("TEXTCOLOR", (0, 0), (-1, 0), _BRAND_BLUE),
             ("LINEBELOW", (0, 0), (-1, 0), 0.5, _BRAND_BLUE),
             ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
@@ -734,34 +813,41 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
     col_widths = [5.2 * cm, 4.4 * cm, 1.5 * cm, 1.3 * cm, 2.3 * cm, 2.3 * cm]
 
     def _header_row() -> list[str]:
-        return ["Material / Xizmat", "Formula", "Miqdor", "Birlik",
-                "Narx (UZS)", "Jami (UZS)"]
+        return [tx("col_item"), tx("col_formula"), tx("col_qty"), tx("col_unit"),
+                tx("col_price"), tx("col_total")]
 
     def _line_row(ln: ComputedLine) -> list[Any]:
         prefix = "≈ " if ln.is_approximate else ""
-        name = Paragraph(ln.label, normal)
+        label = xml_escape(localize_label(ln.label, lang))
+        name = Paragraph(label, normal)
         if ln.price_source == "market" and ln.store_name:
             checked = f", {date.fromisoformat(ln.price_checked_at):%d.%m.%Y}" if ln.price_checked_at else ""
             name = Paragraph(
-                f"{ln.label}<br/><font size='7' color='#9E9E9E'>Bozor narxi: {xml_escape(ln.store_name)}{checked}</font>",
+                f"{label}<br/><font size='7' color='#9E9E9E'>{tx('market_price')}: "
+                f"{xml_escape(ln.store_name)}{checked}</font>",
                 normal,
             )
         elif ln.store_name:
-            name = Paragraph(f"{ln.label}<br/><font size='7' color='#9E9E9E'>Do'kon: {ln.store_name}</font>", normal)
+            name = Paragraph(
+                f"{label}<br/><font size='7' color='#9E9E9E'>{smeta_t('dokon', lang)}: "
+                f"{xml_escape(ln.store_name)}</font>",
+                normal,
+            )
         return [
             name,
-            Paragraph(f"<font size='7'>{ln.formula}</font>", normal),
+            Paragraph(f"<font size='7'>{xml_escape(localize_formula(ln.formula, lang))}</font>", normal),
             _fmt_num(ln.qty),
-            ln.unit,
+            localize_unit(ln.unit, ln.qty, lang),
             _fmt_num(ln.unit_price_uzs),
             prefix + _fmt_num(ln.subtotal_uzs),
         ]
 
     def _table_style() -> TableStyle:
         return TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), font),
             ("BACKGROUND", (0, 0), (-1, 0), _BRAND_BLUE),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 0), (-1, 0), font_bold),
             ("FONTSIZE", (0, 0), (-1, 0), 8),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _LIGHT_GREY]),
             ("FONTSIZE", (0, 1), (-1, -1), 8),
@@ -773,8 +859,9 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
         ])
 
     for g in groups:
+        group_label = _group_label(g)
         story.append(Paragraph(
-            f"{g.label} <font size='9' color='#9E9E9E'>({len(g.lines)} ta qator)</font>", h2,
+            f"{group_label} <font size='9' color='#9E9E9E'>({smeta_t('qator', lang, count=len(g.lines))})</font>", h2,
         ))
 
         table_data: list[list[Any]] = [_header_row()]
@@ -783,12 +870,12 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
             if ln.warning:
                 table_data.append([
                     Paragraph(
-                        f"⚠ {ln.warning}",
+                        f"⚠ {xml_escape(localize_warning(ln.warning, lang))}",
                         warning_style,
                     ),
                     "", "", "", "", "",
                 ])
-        table_data.append([f"Jami: {g.label}", "", "", "", "", _fmt_num(g.subtotal)])
+        table_data.append([tx("group_total", group=group_label), "", "", "", "", _fmt_num(g.subtotal)])
 
         tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
         tbl.setStyle(_table_style())
@@ -796,7 +883,7 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
         tbl.setStyle(TableStyle([
             ("SPAN", (0, -1), (4, -1)),
             ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#E3F2FD")),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("FONTNAME", (0, -1), (-1, -1), font_bold),
             ("ALIGN", (0, -1), (4, -1), "RIGHT"),
         ]))
         story.append(tbl)
@@ -807,24 +894,18 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
     story.append(Spacer(1, 0.2 * cm))
 
     total_data = [
-        ["Taxminiy xarajat (jami):",
-         f"{_fmt_num(est.total_uzs)} UZS"],
-        ["Minimal variant (−10%):",
-         f"{_fmt_num(est.total_min)} UZS"],
-        ["Maksimal variant (taxminiy qismlar uchun kengroq):",
-         f"{_fmt_num(est.total_max)} UZS"],
+        [tx("total"), f"{_fmt_num(est.total_uzs)} UZS"],
+        [tx("total_min"), f"{_fmt_num(est.total_min)} UZS"],
+        [tx("total_max"), f"{_fmt_num(est.total_max)} UZS"],
     ]
     if est.total_approx_uzs > 0:
-        total_data.append([
-            "   shundan ~taxminiy:",
-            f"{_fmt_num(est.total_approx_uzs)} UZS",
-        ])
+        total_data.append([tx("total_approx"), f"{_fmt_num(est.total_approx_uzs)} UZS"])
     total_tbl = Table(
         total_data,
         colWidths=[10 * cm, 5 * cm],
     )
     total_tbl.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+        ("FONTNAME", (0, 0), (-1, -1), font_bold),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
         ("TEXTCOLOR", (0, 0), (-1, 0), _BRAND_BLUE),
@@ -834,28 +915,17 @@ def _build_pdf(room: Room, est: ComputedEstimate) -> bytes:
     story.append(total_tbl)
     story.append(Spacer(1, 0.3 * cm))
 
-    disclaimer_text = (
-        "Bu taxminiy hisob. Yakuniy narx material tanlovi, bozor o'zgarishi "
-        "va ishchi haqiga qarab farq qilishi mumkin. "
-        "\"~taxminiy\" belgili qatorlar jami summaga kiritilgan, lekin "
-        "ularning narxi aniq emas — final xarajat farq qilishi mumkin."
-    )
-    story.append(Paragraph(disclaimer_text, disclaimer))
+    story.append(Paragraph(xml_escape(tx("disclaimer")), disclaimer))
 
     # Keyed to electrical_confirmed, not has_electrical (there's always an
     # electrical line) — the warning belongs on the fallback-guess case, not
     # the case where the user already placed real points.
     if not est.electrical_confirmed:
-        story.append(Paragraph(
-            "⚠  Elektr ishlari narxi taxminiy — elektrik ustasi bilan tasdiqlang.",
-            warning_style,
-        ))
+        story.append(Paragraph(f"⚠  {xml_escape(tx('electrical_warning'))}", warning_style))
 
     story.append(Spacer(1, 0.5 * cm))
     story.append(Paragraph(
-        f"Tuzilgan: andoza.ai &nbsp;|&nbsp; {datetime.now(tz=timezone.utc):%d.%m.%Y %H:%M} UTC",
+        f"{tx('made_by')}: andoza.ai &nbsp;|&nbsp; {datetime.now(tz=timezone.utc):%d.%m.%Y %H:%M} UTC",
         small,
     ))
-
-    doc.build(story)
-    return buf.getvalue()
+    return story
