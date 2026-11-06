@@ -1205,6 +1205,7 @@ export default function ThreeDPage() {
         roomId={room.id}
         mode={renderMode}
         canRender={panorama}
+        initialSaved={savedRenders}
       />
 
       {/* The room that would go through the tapped wall: its shape, drawn, and

@@ -42,7 +42,7 @@ function Sparkle({ className = "" }: { className?: string }) {
  * the studio's own overlays, including the ⋮ menu and the edge arrows.
  */
 export function RenderSheet({
-  open, onOpenChange, roomId, mode = "render", canRender = true,
+  open, onOpenChange, roomId, mode = "render", canRender = true, initialSaved,
 }: {
   open: boolean
   onOpenChange(open: boolean): void
@@ -53,6 +53,10 @@ export function RenderSheet({
   mode?: "render" | "gallery"
   /** A new render needs the 360 camera; without it the gallery says so instead. */
   canRender?: boolean
+  /** The room's saved pictures as the page already has them (the count on its
+   *  "My renders" button comes from this list), so the gallery has something
+   *  to show before its own fetch comes back. */
+  initialSaved?: SavedRender[]
 }) {
   const { t } = useTranslation()
   const [prompt, setPrompt] = useState("")
@@ -69,10 +73,27 @@ export function RenderSheet({
   const [relightError, setRelightError] = useState("")
   const abortRef = useRef<AbortController | null>(null)
   // Every picture saved for this room, newest first.
-  const [saved, setSaved] = useState<SavedRender[]>([])
+  const [fetched, setSaved] = useState<SavedRender[] | null>(null)
+  const saved = fetched ?? initialSaved ?? []
+  /** Set when the sheet opens as the gallery and cleared once the newest
+   *  picture is on screen: the list it is shown from may still be on its way. */
+  const galleryWantsNewest = useRef(false)
 
   // Stop polling if the page goes away mid-render.
   useEffect(() => () => abortRef.current?.abort(), [])
+
+  // Every opening of the gallery starts on the newest picture. The sheet stays
+  // mounted between openings, so whatever the last one left behind — a failed
+  // render's error, an empty frame — would otherwise still be what it shows:
+  // "My renders (3)" opened on "The result will appear here" (QA 2026-11-05
+  // re-check R4). The page's own list is used at once when it has one.
+  useEffect(() => {
+    if (!open || mode !== "gallery") return
+    galleryWantsNewest.current = true
+    const newest = saved[0]
+    if (newest && showSaved(newest)) galleryWantsNewest.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on opening only
+  }, [open, mode])
 
   // The saved pictures: loaded when the sheet opens and again after each new
   // one lands (the task records it just before the job reports done).
@@ -83,15 +104,18 @@ export function RenderSheet({
       if (stale) return
       setSaved(rows)
       // The gallery opens on the newest picture rather than an empty frame.
-      if (mode === "gallery" && phase === "idle" && rows[0]) showSaved(rows[0])
+      if (mode === "gallery" && galleryWantsNewest.current && rows[0] && showSaved(rows[0])) {
+        galleryWantsNewest.current = false
+      }
     }).catch(() => {})
     return () => { stale = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- showSaved only sets state
   }, [open, roomId, phase, mode])
 
-  /** Show a picture from the saved list; it can be relit or made 4K like a fresh one. */
-  function showSaved(row: SavedRender) {
-    if (phase === "capturing" || phase === "rendering" || phase === "relighting" || phase === "upscaling") return
+  /** Show a picture from the saved list; it can be relit or made 4K like a fresh one.
+   *  False when a job is running and the picture was not shown. */
+  function showSaved(row: SavedRender): boolean {
+    if (phase === "capturing" || phase === "rendering" || phase === "relighting" || phase === "upscaling") return false
     setError("")
     setRelightError("")
     setVersions([{
@@ -100,6 +124,7 @@ export function RenderSheet({
     }])
     setActive(0)
     setPhase("done")
+    return true
   }
 
   // Opened from the 360 camera: the panorama is taken and sent at once, with
