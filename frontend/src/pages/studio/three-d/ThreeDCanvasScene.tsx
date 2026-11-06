@@ -306,9 +306,9 @@ export function ThreeDCanvasScene({
   const flatBoxesRef = useRef(flatBoxes);
   flatBoxesRef.current = flatBoxes;
   const framedCamRaw = useMemo(
-    () => focusFraming(cam, flatBoxesRef.current, focusedRoomId),
+    () => focusFraming(cam, flatBoxesRef.current, focusedRoomId, H),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cam, room.id, focusedRoomId, aptRooms ? aptRooms.length : 0],
+    [cam, room.id, focusedRoomId, aptRooms ? aptRooms.length : 0, H],
   );
 
   // ── Moving rooms (lib/slideRoom, lib/moveRoom) ─────────────────────────

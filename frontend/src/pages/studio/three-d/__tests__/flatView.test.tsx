@@ -100,6 +100,26 @@ const noneStored = () => [
   scannedRoom('mening2', null),
 ]
 
+/** Where the rooms' corners (floor and wall tops) land across the screen, as
+ *  tan of the angle off the view's centre line: -left edge … right edge. */
+function screenSpan(f: { position: number[]; target: number[] }, boxes: RoomBox[], h: number) {
+  const [px, py, pz] = f.position
+  const fw = [f.target[0] - px, f.target[1] - py, f.target[2] - pz]
+  const fl = Math.hypot(fw[0], fw[1], fw[2])
+  const fwd = fw.map((v) => v / fl)
+  const rl = Math.hypot(fwd[0], fwd[2])
+  const right = [-fwd[2] / rl, 0, fwd[0] / rl]
+  const xs: number[] = []
+  for (const room of boxes) for (const b of room.parts?.length ? room.parts : [room]) {
+    for (const x of [b.cx - b.w / 2, b.cx + b.w / 2]) for (const z of [b.cz - b.d / 2, b.cz + b.d / 2]) for (const y of [0, h]) {
+      const rel = [x - px, y - py, z - pz]
+      const depth = rel[0] * fwd[0] + rel[1] * fwd[1] + rel[2] * fwd[2]
+      xs.push((rel[0] * right[0] + rel[2] * right[2]) / depth)
+    }
+  }
+  return { left: Math.min(...xs), right: Math.max(...xs) }
+}
+
 describe('flat view: scanned rooms are laid out at their real size', () => {
   for (const [label, flat] of [['kitchen stored', unpositioned], ['none stored', noneStored]] as const) for (const activeId of ['oshxona', 'mening1', 'mening2']) {
     it(`no two rooms overlap (${label}), opened from ${activeId}`, () => {
@@ -132,13 +152,29 @@ describe('flat view: scanned rooms are laid out at their real size', () => {
     for (const activeId of ['oshxona', 'mening1', 'mening2']) {
       const { boxes, outlines, W, D } = flatFrom(noneStored(), activeId)
       const cam = getCamera('corner', W, D, 2.7)
-      const framed = focusFraming(cam, boxes, null)
+      const framed = focusFraming(cam, boxes, null, 2.7)
       const xs = outlines.flatMap((o) => o.pts.map((p) => p[0]))
       const zs = outlines.flatMap((o) => o.pts.map((p) => p[1]))
       // The pivot moves from the open room's to the centre of the walls'
-      // bounding box (the corner preset aims a hair past its room's middle).
-      expect(framed.target[0] - cam.target[0]).toBeCloseTo((Math.min(...xs) + Math.max(...xs)) / 2, 6)
-      expect(framed.target[2] - cam.target[2]).toBeCloseTo((Math.min(...zs) + Math.max(...zs)) / 2, 6)
+      // bounding box (the corner preset aims a hair past its room's middle)...
+      const mid = [cam.target[0] + (Math.min(...xs) + Math.max(...xs)) / 2, cam.target[2] + (Math.min(...zs) + Math.max(...zs)) / 2]
+      // ...slid only sideways across the view, to centre the flat's picture (below).
+      const off = [framed.target[0] - mid[0], framed.target[2] - mid[1]]
+      const look = [framed.target[0] - framed.position[0], framed.target[2] - framed.position[2]]
+      expect(Math.abs(off[0] * look[0] + off[1] * look[1]) / Math.hypot(look[0], look[1])).toBeLessThan(1e-6)
+      expect(Math.hypot(off[0], off[1])).toBeLessThan(1.5)
+    }
+  })
+
+  // QA re-check R15: the flat still sat right of the middle of the screen. The
+  // pivot was the flat's middle, but from a corner, in perspective, the near
+  // rooms come out bigger than the far ones and the picture leans their way.
+  it('"Flat" puts the picture of the flat in the middle of the screen, from every room', () => {
+    for (const activeId of ['oshxona', 'mening1', 'mening2']) {
+      const { boxes, W, D } = flatFrom(noneStored(), activeId)
+      const cam = getCamera('corner', W, D, 2.7)
+      const { left, right } = screenSpan(focusFraming(cam, boxes, null, 2.7), boxes, 2.7)
+      expect(Math.abs(left + right)).toBeLessThan(0.01 * (right - left))
     }
   })
 })
