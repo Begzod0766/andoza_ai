@@ -20,6 +20,7 @@ import {
 import { holdCameraStill, swallowPickClick } from '@/lib/pickEvents'
 import { multiTouchGuard } from '@/lib/multiTouchGuard'
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
+import { useInViewCard } from "./useInViewCard";
 import { showToast } from "@/components/ui/Toast";
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
@@ -508,6 +509,10 @@ export function DraggableFurnitureItem({
     }
   })
 
+  // The selection card stays inside the view by a wall (#185).
+  const cardRef = useRef<HTMLDivElement>(null)
+  useInViewCard(cardRef)
+
   if (!entry || !modelPath) return null
 
   const so = item.scaleOverride ?? 1
@@ -674,6 +679,7 @@ export function DraggableFurnitureItem({
       {isSelected && (
         <Html position={[0, buttonH + 0.22, 0]} center zIndexRange={[110, 0]} style={{ pointerEvents: 'none' }}>
           <div
+            ref={cardRef}
             // The hold-to-delete menu keeps off this card (QA re-check R14), see holdMenuSide.
             data-hold-avoid=""
             onPointerDown={(e) => e.stopPropagation()}
