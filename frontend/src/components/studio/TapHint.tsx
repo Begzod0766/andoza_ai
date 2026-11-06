@@ -52,13 +52,18 @@ export function TapHint({ onDismiss }: { onDismiss: () => void }) {
  * A press anywhere else closes the list, heard in the capture phase and never stopped: an
  * overlay that swallowed the press would cost the user the drag it started.
  */
-export function StagePill({ roomName, phase, onPick }: {
+export function StagePill({ roomName, phase, onPick, onOpenChange }: {
   roomName: string;
   phase: PhaseKey;
   onPick?: (phase: PhaseKey) => void;
+  /** Told each time the stage list opens or closes (StagePillLayer lifts itself while it is open). */
+  onOpenChange?: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const onOpenChangeRef = useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
+  useEffect(() => { onOpenChangeRef.current?.(open); }, [open]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const stage = RENO_STAGES.find((s) => s.key === phase);
   const text = stage ? `${roomName} · ${t(stage.labelKey)}` : roomName;
@@ -121,6 +126,30 @@ export function StagePill({ roomName, phase, onPick }: {
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Above every label the 3D scene floats over the canvas. Those are drei <Html> overlays with
+ * zIndexRange tops up to 210 (the room's blue focus button is 90) and they share a stacking
+ * context with the pill's layer, so at z-20 the open list was drawn under them: the focus
+ * button showed between "Light fixtures" and "Furniture" (Begzod0766/andoza_ai#181). A test
+ * scans the sources so a new, higher label cannot slip back over it.
+ */
+export const STAGE_LIST_Z = 300;
+
+/**
+ * The phone's pill in its place at the top of the view. It sits at z-20 with the other corner
+ * controls, and rises to STAGE_LIST_Z only while its list is open — permanently that high, it
+ * would also cover the panels and the drop overlay (z-40/50) that are meant to cover it.
+ */
+export function StagePillLayer(props: { roomName: string; phase: PhaseKey; onPick: (phase: PhaseKey) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center lg:hidden"
+      style={open ? { zIndex: STAGE_LIST_Z } : undefined}>
+      <StagePill {...props} onOpenChange={setOpen} />
     </div>
   );
 }
