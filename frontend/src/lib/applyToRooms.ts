@@ -41,6 +41,9 @@ function targetOf(room: Room): (TargetRoom & { roomType: string; guessed: boolea
   }
 }
 
+/** The room's ceiling height in mm, as the studio opens it (`loadRoom`: 2.7 m when it has none). */
+const ceilingMmOf = (room: Room): number => Math.round((room.ceiling_h ?? 2.7) * 1000)
+
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 function listOr<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : []
@@ -127,7 +130,9 @@ export async function applyToOtherRooms(args: {
       const plan = planForRoom(source, target, catalog)
       // Laid out round the doors its neighbours store in the walls they share with it, too.
       const layout = withFlatOpenings(target.geometry, room.id, flat, roomLayoutPos(room))
-      const { designState, furniture, lights, applied } = designRoomState(savedDesign(room), layout, plan, parts, catalog, target.roomType)
+      const { designState, furniture, lights, applied } = designRoomState(
+        savedDesign(room), layout, plan, parts, catalog, target.roomType, ceilingMmOf(room),
+      )
       const state = { ...(isObject(room.state) ? room.state : {}), designState, furniture, lights }
       const dropped = applied.dropped.map((d) => d.name)
       return [{ room, state, guard: room.updated_at, ...(dropped.length > 0 && { dropped }) }]

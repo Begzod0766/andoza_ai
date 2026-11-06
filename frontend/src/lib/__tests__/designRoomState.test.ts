@@ -115,4 +115,37 @@ describe('designRoomState', () => {
     // The plan's floor lamps came into it: one corner is clear of the door and the sofa, or is left out.
     expect(applied.placedLights.length + applied.droppedLights.reduce((n, d) => n + d.count, 0)).toBe(4)
   })
+
+  describe('sizes pieces as the studio draws them', () => {
+    /** 3.2 m square, no doors: a wall too short for the TV unit at its catalog width (3.51 m). */
+    const square = (): RoomGeometry => ({
+      walls: ['A', 'B', 'C', 'D'].map((id) => ({ id, length: 3200, elements: [] })),
+    }) as RoomGeometry
+    // "Televizor 2": 351 x 43 cm, 275 cm tall. Under a 2.4 m ceiling it is drawn ~3.04 m wide.
+    const tv = { ...item('tv', 'Televizor 2', 351, 43, 'tv'), height_cm: 275 }
+    const tvPlan = (): AiDesignPlan => ({ ...plan(), lights: [], furniture: [{ id: 'tv', name: 'Televizor 2', zone: 'wall_A' }] })
+    const empty = () => ({ ...prevRoom(), furniture: [], lights: [] })
+
+    it('a TV unit taller than the ceiling is laid out at its drawn, smaller width, and fits', () => {
+      const next = designRoomState(empty(), square(), tvPlan(), ALL_PARTS, [tv], 'mehmonxona', 2400)
+      expect(next.applied.dropped).toEqual([])
+      expect(next.applied.furniture).toBe(1)
+    })
+
+    it('in a room tall enough it is laid out at its catalog width, and still does not fit', () => {
+      const next = designRoomState(empty(), square(), tvPlan(), ALL_PARTS, [tv], 'mehmonxona', 3000)
+      expect(next.applied.furniture).toBe(0)
+      expect(next.applied.dropped.map((d) => d.name)).toEqual(['Televizor 2'])
+    })
+
+    it("applyDesignPlan lays out under the open room's own ceiling (the store's ceilingHeight)", () => {
+      useRoomStore.setState({ ...empty(), geometry: square(), ceilingHeight: 2400 })
+      expect(applyDesignPlan(tvPlan(), ALL_PARTS, [tv], 'mehmonxona').furniture).toBe(1)
+    })
+
+    it('with no height in the catalog the drawn size is not known: it stays at its catalog size', () => {
+      const next = designRoomState(empty(), square(), tvPlan(), ALL_PARTS, [{ ...tv, height_cm: null }], 'mehmonxona', 2400)
+      expect(next.applied.furniture).toBe(0)
+    })
+  })
 })
