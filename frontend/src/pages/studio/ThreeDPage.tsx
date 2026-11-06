@@ -66,7 +66,7 @@ import { DesignPanelDock } from "./three-d/DesignPanelDock";
 import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
-import { ViewStillSheet, type ViewStill } from "@/components/studio/ViewStillSheet";
+import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
@@ -525,7 +525,7 @@ export default function ThreeDPage() {
       if (!blob) return;
       setViewStill({
         blob, url: URL.createObjectURL(blob), station,
-        filename: `${room.name || 'xona'}-kamera${station}-${aspect.label.replace(':', 'x')}.png`,
+        filename: viewStillFilename(room.name, station, aspect.label),
       });
     }, 'image/png');
   }, [room.name, cameraStation]);

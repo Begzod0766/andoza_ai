@@ -12,6 +12,26 @@ export interface ViewStill {
 }
 
 /**
+ * The file a fixed camera's still is saved as: `<room>-cam<n>-<shape>.png`, e.g.
+ * "Mening xonam-cam3-9x16.png", named by camera and shape so a set of four does
+ * not overwrite itself.
+ *
+ * "cam" and not a translated word: it used to be the Uzbek "kamera" in every
+ * language (Begzod0766/andoza_ai#180), and a file name outlives the session —
+ * it is shared and kept, read in whatever language the reader has. A short
+ * neutral tag reads the same everywhere and needs no keys. The room's name is
+ * the user's own and stays as typed, less what a file name cannot hold
+ * (/ \ : * ? " < > | and control characters, each run made one "-").
+ */
+export function viewStillFilename(roomName: string, station: number, aspectLabel: string): string {
+  const room = roomName
+    // eslint-disable-next-line no-control-regex
+    .replace(/[/\\:*?"<>|\u0000-\u001f]+/g, "-")
+    .replace(/^[\s.-]+|[\s.-]+$/g, "")
+  return `${room || "xona"}-cam${station}-${aspectLabel.replace(":", "x")}.png`
+}
+
+/**
  * Hands a picture to the user as a file, in the way the device can take it.
  *
  * The share sheet first, where the device offers one for files: it is how a
