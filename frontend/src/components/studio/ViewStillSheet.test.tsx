@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { ViewStillSheet, saveStill } from './ViewStillSheet'
+import { ViewStillSheet, saveStill, viewStillFilename } from './ViewStillSheet'
 
 const blob = new Blob(['png'], { type: 'image/png' })
 
@@ -20,7 +20,7 @@ afterEach(() => {
 
 describe('ViewStillSheet', () => {
   it('shows the picture the camera just took', () => {
-    render(<ViewStillSheet still={{ blob, url: 'blob:still', filename: 'xona-kamera3-9x16.png', station: 3 }} onClose={() => {}} />)
+    render(<ViewStillSheet still={{ blob, url: 'blob:still', filename: 'xona-cam3-9x16.png', station: 3 }} onClose={() => {}} />)
     expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:still')
     expect(screen.getByRole('button', { name: 'Saqlash' })).toBeInTheDocument()
   })
@@ -65,5 +65,26 @@ describe('saveStill', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     await expect(saveStill(blob, 'a.png')).resolves.toBe('cancelled')
     expect(click).not.toHaveBeenCalled()
+  })
+})
+
+// Begzod0766/andoza_ai#180: with the app in English the saved still was
+// "Mening xonam-kamera3-9x16.png" — "kamera" was hard-coded Uzbek. The name now
+// says "cam", the same in every language, and the room's own name is made safe
+// to be a file name.
+describe('viewStillFilename (#180)', () => {
+  it('names the camera the same way in every language', () => {
+    expect(viewStillFilename('Mening xonam', 3, '9:16')).toBe('Mening xonam-cam3-9x16.png')
+  })
+
+  it('keeps no character a file name cannot hold', () => {
+    expect(viewStillFilename('Zal/Oshxona', 1, '16:9')).toBe('Zal-Oshxona-cam1-16x9.png')
+    expect(viewStillFilename('A:B*?"<>|\\C', 1, '16:9')).toBe('A-B-C-cam1-16x9.png')
+    expect(viewStillFilename('Мой зал?', 4, '4:3')).toBe('Мой зал-cam4-4x3.png')
+  })
+
+  it('a room with no usable name is still a room', () => {
+    expect(viewStillFilename('', 2, '1:1')).toBe('xona-cam2-1x1.png')
+    expect(viewStillFilename('  /:*  ', 2, '1:1')).toBe('xona-cam2-1x1.png')
   })
 })

@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, renderHook, act } from '@testing-library/react'
 import i18n from '@/i18n'
-import { TapHint, StagePill, useTapHintSeen } from './TapHint'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { TapHint, StagePill, StagePillLayer, STAGE_LIST_Z, useTapHintSeen } from './TapHint'
 
 afterEach(() => { vi.restoreAllMocks(); try { localStorage.clear() } catch { /* ignore */ } })
 
@@ -63,5 +65,46 @@ describe('StagePill', () => {
     fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.lib.stage.pol') }))
     expect(onPick).toHaveBeenCalledWith('pol')
     expect(screen.queryByRole('list')).toBeNull()
+  })
+})
+
+// Begzod0766/andoza_ai#181: the room's blue focus button (a drei <Html> label,
+// zIndexRange up to 90) showed on top of the open stage list, between "Light
+// fixtures" and "Furniture". The scene's labels share a stacking context with
+// the pill's layer (z-20), so the layer has to rise above every label while
+// the list is open.
+describe('StagePillLayer (#181)', () => {
+  function sources(dir: string): string[] {
+    return readdirSync(dir).flatMap((name) => {
+      const p = join(dir, name)
+      if (statSync(p).isDirectory()) return sources(p)
+      return /\.tsx$/.test(name) && !/\.test\./.test(name) ? [p] : []
+    })
+  }
+
+  it('the open list sits above every scene label', () => {
+    const tops = sources(join(__dirname, '..', '..')).flatMap((f) =>
+      [...readFileSync(f, 'utf8').matchAll(/zIndexRange=\{\[(\d+)/g)].map((m) => Number(m[1])))
+    expect(tops.length).toBeGreaterThan(0)
+    expect(STAGE_LIST_Z).toBeGreaterThan(Math.max(...tops))
+  })
+
+  it('rises only while the list is open, and drops back on a pick', () => {
+    const { container } = render(<StagePillLayer roomName="Zal" phase="boyoq" onPick={() => {}} />)
+    const layer = container.firstElementChild as HTMLElement
+    expect(layer.style.zIndex).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: /Zal/ }))
+    expect(layer.style.zIndex).toBe(String(STAGE_LIST_Z))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.lib.stage.pol') }))
+    expect(layer.style.zIndex).toBe('')
+  })
+
+  it('drops back when a press outside closes the list', () => {
+    const { container } = render(<StagePillLayer roomName="Zal" phase="boyoq" onPick={() => {}} />)
+    const layer = container.firstElementChild as HTMLElement
+    fireEvent.click(screen.getByRole('button', { name: /Zal/ }))
+    act(() => { fireEvent.pointerDown(document.body) })
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(layer.style.zIndex).toBe('')
   })
 })
