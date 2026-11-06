@@ -28,25 +28,53 @@ export function nextFurnitureOffsetMm(existingCount: number): { x: number; y: nu
   return { x: offset, y: offset }
 }
 
+/** How far a new light keeps from every light already in the room, mm. */
+export const LIGHT_GAP_MM = 600
+/** The step of the grid of spots a new light is tried at, metres. */
+const LIGHT_STEP = 0.25
+/** The footprint a light's spot must have inside the room, metres. */
+const LIGHT_PROBE = 0.2
+
 /**
- * Drop point (mm) for the next light fixture — centred in the room (so it
- * starts somewhere sensible regardless of room size, unlike a hardcoded
- * point that can land past a wall in a small room) and nudged off however
- * many lights already exist so a run of them stays individually clickable
- * instead of stacking into one hitbox.
+ * Drop point (plan mm, from the room's corner) for the next light fixture: the middle of the room
+ * when it is free, else the spot nearest the middle that keeps `LIGHT_GAP_MM` from every light
+ * already there, always over the room's own floor (a scanned or L-shaped room's box is not).
  *
- * @param existingCount how many lights are already placed (0 for the first).
+ * It used to count the lights and step 125-250 mm off a fixed point near the middle, whatever
+ * stood there: a chandelier added under the AI design's pendant, which hangs dead centre, landed
+ * on it (QA re-check R6). When no spot keeps the gap (a small room full of lights), the one
+ * furthest from its nearest light is taken, so the new one is still added and still clickable.
  */
 export function nextLightPositionMm(
   geometry: RoomGeometry,
-  existingCount: number,
+  lights: ReadonlyArray<{ xMm: number; zMm: number }>,
 ): { xMm: number; zMm: number } {
-  const { W, D } = roomExtents(geometry)
-  const jitter = (existingCount % 4) * 250
-  return {
-    xMm: Math.round((W * 1000) / 2 + jitter - 375),
-    zMm: Math.round((D * 1000) / 2 + (existingCount % 3) * 250 - 250),
+  const model = roomModel(geometry)
+  const spots: Array<[number, number]> = [[0, 0]]
+  const { box } = model
+  for (let x = box.minX + LIGHT_STEP / 2; x < box.maxX; x += LIGHT_STEP) {
+    for (let z = box.minZ + LIGHT_STEP / 2; z < box.maxZ; z += LIGHT_STEP) spots.push([x, z])
   }
+  spots.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))
+  const toMm = ([x, z]: [number, number]) => ({
+    xMm: Math.round(x * 1000 + model.offsetMm.x),
+    zMm: Math.round(z * 1000 + model.offsetMm.z),
+  })
+  const nearest = (p: { xMm: number; zMm: number }) =>
+    lights.reduce((m, l) => Math.min(m, Math.hypot(p.xMm - l.xMm, p.zMm - l.zMm)), Infinity)
+  let best: { xMm: number; zMm: number } | null = null
+  let bestGap = -1
+  for (const s of spots) {
+    if (!model.inside({ x: s[0], z: s[1], w: LIGHT_PROBE, d: LIGHT_PROBE, rotation: 0 })) continue
+    const p = toMm(s)
+    const g = nearest(p)
+    if (g >= LIGHT_GAP_MM) return p
+    if (g > bestGap) { best = p; bestGap = g }
+  }
+  if (best) return best
+  // No floor found at all (a degenerate room): its middle, as before.
+  const { W, D } = roomExtents(geometry)
+  return { xMm: Math.round((W * 1000) / 2), zMm: Math.round((D * 1000) / 2) }
 }
 
 

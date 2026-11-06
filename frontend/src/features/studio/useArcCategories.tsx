@@ -124,7 +124,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
       onSelect: () => addLight({
         id: nanoid(),
         type: lt.id,
-        ...nextLightPositionMm(geometry, lights.length),
+        ...nextLightPositionMm(geometry, lights),
         ...(lt.mount === 'wall' ? { wallId: 'A' as const } : {}),
       }),
     }))
