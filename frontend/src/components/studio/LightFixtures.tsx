@@ -112,30 +112,43 @@ export function LightFixture({ light, on, drop }: { light: PlacedLight; on: bool
       )
 
     case 'chandelier': {
-      const arms = 6
+      // One fixture, not six floating lamps: a central column (the hub) under the cord, an arm
+      // from it out and down to each candle cup, and a ring tying the arms together. Everything
+      // sits at or below the body's origin, so a hub shortened up to the ceiling in a low room
+      // (hangingDropM) never pokes through it. The bulbs keep their old places — the emitters
+      // (LightEmitters) and the catalogue size are unchanged.
+      const parts = chandelierParts(w, h)
       return (
         <group>
           <Cord length={drop ?? light.dropM ?? t.dropM ?? 0} />
-          <mesh position={[0, -0.06, 0]}>
-            <cylinderGeometry args={[0.05, 0.07, 0.12, 16]} />
+          <mesh name="chandelier-hub" position={[0, -parts.hubH / 2, 0]}>
+            <cylinderGeometry args={[CHANDELIER_HUB_R * 0.8, CHANDELIER_HUB_R, parts.hubH, 16]} />
             {METAL}
           </mesh>
-          {Array.from({ length: arms }, (_, i) => {
-            const a = (i / arms) * Math.PI * 2
-            const r = w / 2
-            return (
-              <group key={i} position={[Math.cos(a) * r, -h * 0.55, Math.sin(a) * r]}>
-                <mesh position={[0, 0.1, 0]}>
-                  <cylinderGeometry args={[0.012, 0.012, 0.2, 8]} />
-                  {METAL}
-                </mesh>
-                <mesh>
-                  <sphereGeometry args={[0.05, 14, 10]} />
-                  {emitterMaterial(hex, lit, 2)}
-                </mesh>
-              </group>
-            )
-          })}
+          <mesh position={[0, -parts.hubH - 0.025, 0]}>
+            <sphereGeometry args={[0.03, 12, 8]} />
+            {METAL}
+          </mesh>
+          <mesh position={[0, parts.ringY, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[parts.ringR, 0.007, 6, 36]} />
+            {METAL}
+          </mesh>
+          {parts.arms.map((arm, i) => (
+            <group key={i}>
+              <mesh name="chandelier-arm" position={arm.mid} quaternion={arm.quaternion}>
+                <cylinderGeometry args={[0.009, 0.009, arm.length, 8]} />
+                {METAL}
+              </mesh>
+              <mesh position={arm.cup}>
+                <cylinderGeometry args={[0.035, 0.02, 0.03, 12]} />
+                {METAL}
+              </mesh>
+              <mesh position={arm.bulb}>
+                <sphereGeometry args={[0.05, 14, 10]} />
+                {emitterMaterial(hex, lit, 2)}
+              </mesh>
+            </group>
+          ))}
         </group>
       )
     }
@@ -312,9 +325,46 @@ export function LightFixture({ light, on, drop }: { light: PlacedLight; on: bool
 function Cord({ length }: { length: number }) {
   if (length <= 0.01) return null
   return (
-    <mesh position={[0, length / 2, 0]}>
+    <mesh name="cord" position={[0, length / 2, 0]}>
       <cylinderGeometry args={[0.006, 0.006, length, 6]} />
       {DARK}
     </mesh>
   )
+}
+
+const CHANDELIER_ARMS = 6
+const CHANDELIER_HUB_R = 0.05
+
+/**
+ * The chandelier's layout in its own frame (origin where the cord meets it, y up): bulbs on a
+ * circle of radius w/2 at y = -h*0.55 (where the emitters are), each standing in a cup, and
+ * a straight arm from inside the hub column out and down to that cup.
+ */
+export function chandelierParts(w: number, h: number) {
+  const r = w / 2
+  const bulbY = -h * 0.55
+  const cupY = bulbY - 0.065
+  const hubH = h * 0.55
+  /** Where the arms leave the column: inside it, below its top. */
+  const innerR = CHANDELIER_HUB_R * 0.6
+  const innerY = -hubH * 0.4
+  const up = new THREE.Vector3(0, 1, 0)
+  const arms = Array.from({ length: CHANDELIER_ARMS }, (_, i) => {
+    const a = (i / CHANDELIER_ARMS) * Math.PI * 2
+    const cx = Math.cos(a), cz = Math.sin(a)
+    const inner = new THREE.Vector3(cx * innerR, innerY, cz * innerR)
+    const outer = new THREE.Vector3(cx * r, cupY, cz * r)
+    const dir = outer.clone().sub(inner)
+    const length = dir.length()
+    return {
+      mid: inner.clone().add(outer).multiplyScalar(0.5).toArray() as [number, number, number],
+      quaternion: new THREE.Quaternion().setFromUnitVectors(up, dir.normalize()),
+      length,
+      cup: [cx * r, cupY, cz * r] as [number, number, number],
+      bulb: [cx * r, bulbY, cz * r] as [number, number, number],
+    }
+  })
+  // The ring crosses every arm at 55% of its run from the hub.
+  const k = 0.55
+  return { hubH, arms, ringR: innerR + (r - innerR) * k, ringY: innerY + (cupY - innerY) * k }
 }
