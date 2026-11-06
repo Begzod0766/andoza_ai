@@ -111,15 +111,17 @@ export function BottomSheet({
                   'flex flex-col overflow-hidden',
                   'outline-none',
                 )}
-                style={{
-                  paddingBottom: 'env(safe-area-inset-bottom)',
-                  touchAction: 'none',
-                }}
+                // No `touch-action: none` here: it would sit over every native control in the
+                // sheet, and iOS WebKit then does not open a <select>'s picker (#184). The drag only
+                // ever starts from the grab handle (dragListener={false}), so only it needs one.
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
               >
                 {/* Grab handle */}
                 <div
                   className="flex-shrink-0 flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing"
                   onPointerDown={(e) => dragControls.start(e)}
+                  data-sheet-handle=""
+                  style={{ touchAction: 'none' }}
                   aria-hidden="true"
                 >
                   <div className="w-12 h-1.5 rounded-full bg-neutral-300 transition-colors" />
