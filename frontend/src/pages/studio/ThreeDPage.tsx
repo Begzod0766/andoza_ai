@@ -17,6 +17,7 @@ import { useCompactStudio } from "@/lib/compactStudio";
 import { PlanViewToggle } from "@/components/studio/PlanViewToggle";
 import { QuarterArcMenu } from "@/components/studio/QuarterArcMenu";
 import { showsEditingCorners } from "./three-d/cameraViewChrome";
+import { useQiblaVisible } from "./three-d/useQiblaVisible";
 import { useArcCategories } from "@/features/studio/useArcCategories";
 import { deleteRoom, updateRoom, listCatalogFurniture, listRenders, pinParam } from "@/lib/api";
 import type { Room } from "@/lib/api";
@@ -219,7 +220,8 @@ export default function ThreeDPage() {
   // useState lazy initializer here would freeze at false. Sync it in an
   // effect instead, once, the first time scan data actually arrives.
   const [showScan, setShowScan] = useState(false);
-  const [showQibla, setShowQibla] = useState(false);
+  // The room's own, saved with it (issue #183).
+  const [showQibla, setShowQibla] = useQiblaVisible();
   const hasScan = !!room.room_scan;
   const scanAutoShownRef = useRef(false);
   useEffect(() => {
