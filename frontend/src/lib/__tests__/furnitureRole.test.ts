@@ -51,6 +51,13 @@ describe('furniture roles', () => {
     // a bare Latin name has nothing to go on: the category decides
     ['stol', 'Horizon', 'dining_table'],
     ['stul', 'Стул Axis', 'dining_chair'],
+    // a shkaf with a bare model name (Loftbek): the category makes it storage, open shelving by default
+    ['shkaf', 'LOFT', 'shelf'],
+    ['shkaf', 'Practical PRO', 'shelf'],
+    ['shkaf', 'Quadro', 'shelf'],
+    // the name still decides when it says what the piece is
+    ['shkaf', 'Шкаф Quadro', 'wardrobe'],
+    ['shkaf', 'Kiyim shkafi', 'wardrobe'],
   ])('%s / %s is %s', (category, name, role) => {
     expect(inferRole(category, name)).toBe(role)
   })

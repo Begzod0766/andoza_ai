@@ -38,27 +38,43 @@ const KIND_ROLE: Record<Kind, FurnitureRole> = {
  */
 const KIND_ROLE_WINS: ReadonlySet<Kind> = new Set<Kind>(['oshxona_shkafi', 'hammom_shkafi'])
 
-const text = (pattern: RegExp) => (c: CatalogFurniture) => pattern.test(`${c.category} ${c.name_uz}`)
 const roleIs = (role: FurnitureRole) => (c: CatalogFurniture) => inferRole(c.category, c.name_uz) === role
 /** A cupboard of any kind (`inferRole` reads a "shkaf" as a wardrobe, a "javon" as a shelf). */
 const storage = (c: CatalogFurniture) => ROLE_GROUP[inferRole(c.category, c.name_uz)] === 'storage'
+/**
+ * A piece of this role, or one `inferRole` reads as nothing (decor) whose category or name still says
+ * the kind (a "Sofa" filed under "boshqa", a "Model T" in "table"). By role, so a Russian name counts
+ * ("Кресло ..." under divan is an armchair, not a sofa); never a piece the name makes something else.
+ */
+const kindOf = (role: FurnitureRole, words: RegExp) => (c: CatalogFurniture) => {
+  const r = inferRole(c.category, c.name_uz)
+  return r === role || (r === 'decor' && words.test(`${c.category} ${c.name_uz}`))
+}
+/** A chest of drawers: the shelf to `inferRole`, a low cabinet a TV can stand on. */
+const KOMOD_NAME = /komod|комод/i
 /** A bookcase named as a book cupboard, which `inferRole` reads as a wardrobe. */
 const BOOKCASE_NAME = /kitob|книжн|bookcase/i
 /** A side table: `inferRole` has no role for one (its category makes it a dining table). */
 const SIDE_TABLE_NAME = /yon stol|side table|приставн/i
 
 /**
- * What a kind looks like in the catalog (category and Uzbek name). The bedroom kinds are the roles
- * the layout reads the piece as, so a "Kompyuter stuli" is no desk; a wardrobe is one for clothes
- * (`WARDROBE_NAME`), not any "shkaf" such as a bookcase.
+ * What a kind looks like in the catalog. Every kind goes by the role the layout reads the piece as
+ * (`inferRole`, which reads Latin, Uzbek and Russian names), so a "Kompyuter stuli" is no desk and a
+ * "Кресло" filed under divan no sofa; a wardrobe is one for clothes (`WARDROBE_NAME`), not any
+ * "shkaf" such as a bookcase.
+ *
+ * A living room's stand-ins, as before: a dining table for the coffee table (a coffee table is
+ * preferred, `KIND_PREFER`), a bedside table or a chest of drawers for the TV unit. An office desk is
+ * none: the online store's many "Стол <model>" are desks a metre and a half long.
  */
 const KIND_MATCH: Record<Kind, (c: CatalogFurniture) => boolean> = {
-  divan: text(/divan|sofa/i),
-  stol: text(/kofe|jurnal|stol|table/i),
-  kreslo: text(/kreslo|armchair|chair/i),
-  tumba: text(/tumba|televizor|\btv\b|komod/i),
-  gilam: text(/gilam|rug|carpet|kovrolin/i),
-  shkaf: text(/shkaf|javon|bookcase|stellaj/i),
+  divan: kindOf('sofa', /divan|sofa|диван/i),
+  stol: (c) => kindOf('coffee_table', /kofe|jurnal|stol|table/i)(c) || roleIs('dining_table')(c),
+  kreslo: kindOf('armchair', /kreslo|armchair|chair/i),
+  tumba: (c) => kindOf('tv_unit', /tumba|televizor|\btv\b/i)(c) || roleIs('nightstand')(c) || KOMOD_NAME.test(c.name_uz),
+  gilam: kindOf('rug', /gilam|rug|carpet|kovrolin/i),
+  // A bookcase or open shelving: any cupboard but one for clothes.
+  shkaf: (c) => (storage(c) && !WARDROBE_NAME.test(c.name_uz)) || kindOf('shelf', /shkaf|javon|bookcase|stellaj/i)(c),
   karavot: roleIs('bed'),
   tumbochka: roleIs('nightstand'),
   garderob: (c) => WARDROBE_NAME.test(c.name_uz),
@@ -183,13 +199,15 @@ function roomSummary(summary: string, roomType: string | undefined, labelKey: TK
 const KIDS_NAME = /bolalar|детск|kids/i
 
 /**
- * Names that make the best piece of a kind, tried before the generic KIND_MATCH: a TV stand rather
- * than a bedside "tumbochka", a coffee table rather than a dining or writing table.
+ * What makes the best piece of a kind, tried before the generic KIND_MATCH: a TV stand rather than
+ * a bedside "tumbochka", a coffee table rather than a dining table (by role, so in Russian too).
  */
-const KIND_PREFER: Partial<Record<Kind, RegExp>> = {
-  tumba: /^(?!.*tumbochka).*(tumba|televizor|\btv\b)/i,
-  stol: /kofe|jurnal|coffee/i,
-  javon: /kitob|книжн|bookcase|javon|stellaj/i,
+const KIND_PREFER: Partial<Record<Kind, (c: CatalogFurniture) => boolean>> = {
+  tumba: roleIs('tv_unit'),
+  stol: roleIs('coffee_table'),
+  // Open shelving or a bookcase over a plain cupboard ("Шкаф", a wardrobe to `inferRole`).
+  shkaf: (c) => roleIs('shelf')(c) || BOOKCASE_NAME.test(c.name_uz),
+  javon: (c) => /kitob|книжн|bookcase|javon|stellaj|стеллаж/i.test(c.name_uz),
 }
 
 interface Preset {
@@ -320,7 +338,7 @@ function pick(
     const score: Score = [
       kids && roomType !== 'bolalar' ? 0 : 1,
       kids && roomType === 'bolalar' ? 1 : 0,
-      KIND_PREFER[kind]?.test(c.name_uz) ? 1 : 0,
+      KIND_PREFER[kind]?.(c) ? 1 : 0,
       room === undefined || c.room_type === null || c.room_type === room ? 1 : 0,
       sizeFit(kind, c, roomSize, roomType),
       styles.includes(style) ? 2 : styles.length === 0 ? 1 : 0,
