@@ -884,10 +884,11 @@ export default function ThreeDPage() {
           onPointerDownCapture={() => { if (shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })) markTapHintSeen(); }}
         >
 
-          {/* Phone only: which room and stage (the header hides the name under sm),
-              and, once, how to reach the tools — tap a surface. */}
-          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center sm:hidden">
-            <StagePill roomName={room.name} phase={activePhase} />
+          {/* Below lg: which room and stage (the header hides the name under sm),
+              and, once, how to reach the tools — tap a surface. The pill is
+              also where the stage is changed: the rail is lg-only (QA #17). */}
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center lg:hidden">
+            <StagePill roomName={room.name} phase={activePhase} onPick={setActivePhase} />
           </div>
           {shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked }) && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">

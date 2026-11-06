@@ -175,6 +175,7 @@
       "bosqichlar": "Этапы",
       "bosqichlar_yopish": "Закрыть панель этапов",
       "bosqichlar_ochish": "Открыть панель этапов",
+      "bosqichni_tanlash": "Выбрать этап",
       "oraliq": "Зазор",
       "mm": "мм",
       "siljitish_tugatish": "Закончить перемещение комнат",
@@ -241,6 +242,7 @@
       "saqlandi": "Сохранено",
       "ulashish": "Поделиться",
       "xona_ochirish_sarlavha": "Подтвердите удаление комнаты",
+      "xonani_ochirish": "Удалить комнату",
       "qaytarib_bolmaydi": "Это действие нельзя отменить.",
       "xona_ochirilmadi": "Не удалось удалить комнату",
       "ulashish_havolasi": "Ссылка для доступа",
@@ -957,6 +959,8 @@
     },
     "arc": {
       "uploaded": "Загруженные",
+      "position_aria": "Позиция {{pos}} из {{total}} на круге; прокрутите, чтобы увидеть остальные",
+      "position": "{{pos}} из {{total}}",
       "add": "Добавить"
     },
     "furn": {

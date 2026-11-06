@@ -39,4 +39,29 @@ describe('StagePill', () => {
     render(<StagePill roomName="Mening xonam" phase="boyoq" />)
     expect(screen.getByText(/^Mening xonam · .+/)).toBeInTheDocument()
   })
+
+  // QA 2026-11-05 #17: on a phone the stage list is hidden (`hidden lg:flex`)
+  // and the pill could not be tapped, so it said "Paint/Wallpaper" forever and
+  // there was no way to the next stage.
+  it('says the stage it is given', () => {
+    render(<StagePill roomName="Zal" phase="pol" />)
+    expect(screen.getByText(`Zal · ${i18n.t('studio.lib.stage.pol')}`)).toBeInTheDocument()
+  })
+
+  it('opens the stage list on a tap, and a pick goes to that stage', () => {
+    const onPick = vi.fn()
+    render(<StagePill roomName="Zal" phase="boyoq" onPick={onPick} />)
+    const pill = screen.getByRole('button', { name: /Zal/ })
+    expect(pill).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(pill)
+    expect(pill).toHaveAttribute('aria-expanded', 'true')
+
+    const list = screen.getByRole('list', { name: i18n.t('studio.three_d.bosqichni_tanlash') })
+    expect(list.querySelectorAll('button')).toHaveLength(7)
+    expect(screen.getByRole('button', { name: i18n.t('studio.lib.stage.boyoq') })).toHaveAttribute('aria-current', 'step')
+
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.lib.stage.pol') }))
+    expect(onPick).toHaveBeenCalledWith('pol')
+    expect(screen.queryByRole('list')).toBeNull()
+  })
 })

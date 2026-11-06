@@ -53,15 +53,22 @@ export function swallowPickClick(e: { stopPropagation: () => void }): void {
  *
  * Switching the controls back on is tied to the release rather than to a
  * drag's commit, because on this path there is no drag to commit.
+ *
+ * The release is heard on the window in the CAPTURE phase. In the bubble
+ * phase any overlay whose handler stops propagation hid it — the ring's
+ * backdrop, the corner menu's scrim and the hold-to-delete backdrop all stop
+ * their pointerup — and the camera stayed off until some later release
+ * happened to bubble: the first drag after a menu closed did nothing
+ * (QA re-check 2026-11-05 R8).
  */
 export function holdCameraStill(controls: { enabled: boolean } | null | undefined): void {
   if (!controls) return
   controls.enabled = false
   const release = () => {
     controls.enabled = true
-    window.removeEventListener('pointerup', release)
-    window.removeEventListener('pointercancel', release)
+    window.removeEventListener('pointerup', release, true)
+    window.removeEventListener('pointercancel', release, true)
   }
-  window.addEventListener('pointerup', release)
-  window.addEventListener('pointercancel', release)
+  window.addEventListener('pointerup', release, true)
+  window.addEventListener('pointercancel', release, true)
 }

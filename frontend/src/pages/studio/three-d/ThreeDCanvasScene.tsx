@@ -52,7 +52,7 @@ import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } fro
 import { RealismEffects, SceneLighting, MoonriseSky, SUN_INTENSITY } from "./SceneEnvironment";
 import { MOONRISE_FOG_COLOR, STUDIO_TONE_MAPPING_EXPOSURE } from "@/lib/moonriseSky";
 import { skyPinnedSun } from "@/lib/skyPinnedSun";
-import { DoubleClickFocus, KeepAutoClear, DevSceneHandle, CameraAnimator } from "./CameraControls";
+import { DoubleClickFocus, KeepAutoClear, DevSceneHandle, CameraAnimator, ProportionalPinch } from "./CameraControls";
 import { WallsBehindCamera } from "./useWallsBehindCamera";
 import { Panorama360 } from "./Panorama360";
 import { RoomCameras } from "./RoomCameras";
@@ -321,6 +321,8 @@ export function ThreeDCanvasScene({
   const setMoveMode = useRoomMoveStore((st) => st.set);
   const [slidingId, setSlidingId] = useState<string | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
+  /** Two fingers are down: the controls' zoomSpeed belongs to ProportionalPinch. */
+  const pinchingRef = useRef(false);
   /** Where the selected room stands mid-drag (open room's frame); null when
    *  it stands where it is saved. */
   const [slideLive, setSlideLive] = useState<{ cx: number; cz: number } | null>(null);
@@ -1129,8 +1131,11 @@ export function ThreeDCanvasScene({
           onChange={(e) => applyUniformZoom(
             (e?.target ?? controlsRef.current) as unknown as { getDistance(): number; zoomSpeed: number },
             Math.max(W, D),
+            pinchingRef.current,
           )}
         />
+        {/* A pinch zooms 1:1 with the fingers, and from outside stops at the room (R9). */}
+        <ProportionalPinch controlsRef={controlsRef} pinchingRef={pinchingRef} W={W} D={D} H={H} />
         {/* Three-finger drag pans, matching the two-finger pan's speed. */}
         <MultiTouchPan panSpeed={0.9} />
 
