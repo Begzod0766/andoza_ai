@@ -3,9 +3,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   PANO_EYE_HEIGHT, PANO_WIDTH, PANO_HEIGHT,
-  panoramaSizeFor, renderPanorama, flipRows, meshesAroundEye, panoramaLookFov,
+  panoramaSizeFor, renderPanorama, flipRows, meshesAroundEye, panoramaLookFov, panoramaLookSpeed,
 } from "@/lib/panorama360";
-import { roomCentreWorld } from "@/lib/roomCentre";
+import { panoramaStartYaw, roomCentreWorld } from "@/lib/roomCentre";
 import type { RoomGeometry } from "@/store/roomStore";
 
 /**
@@ -28,10 +28,6 @@ import type { RoomGeometry } from "@/store/roomStore";
  * "middle" and why.
  */
 
-/** How far a drag turns the view. Tuned so a full turn is a comfortable
- *  sweep of a phone screen rather than three of them. */
-const LOOK_SPEED = 0.0042;
-
 /** Looking straight up or down flips the horizon over; stop just short. */
 const PITCH_LIMIT = Math.PI / 2 - 0.02;
 
@@ -51,6 +47,15 @@ export function Panorama360({ active, geometry, onCaptured }: {
   const look = useRef({ yaw: 0, pitch: 0 });
   const dragging = useRef<{ x: number; y: number } | null>(null);
   const restore = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion; fov: number | null } | null>(null);
+  // Read when the mode is entered rather than depended on: a change to the
+  // room while standing in it must not turn the user round.
+  const geometryRef = useRef(geometry);
+  geometryRef.current = geometry;
+  // How far a drag turns the view: half way round across the canvas's width,
+  // so looking behind you is the same two swipes on a phone and on a desktop
+  // (panoramaLookSpeed, QA 2026-11-05 #18).
+  const lookSpeed = useRef(panoramaLookSpeed(size.width));
+  lookSpeed.current = panoramaLookSpeed(size.width);
 
   /**
    * Where the camera stands, world metres. Memoised on the vertex and wall
@@ -79,10 +84,11 @@ export function Panorama360({ active, geometry, onCaptured }: {
     };
     camera.position.copy(eye);
     // Start facing the way the camera already faced, so entering the mode does
-    // not spin the room.
+    // not spin the room — unless that way is a near wall, in which case down
+    // the room's most open direction instead (panoramaStartYaw, QA re-check R7).
     const dir = new THREE.Vector3();
     restore.current.quaternion && camera.getWorldDirection(dir);
-    look.current = { yaw: Math.atan2(-dir.x, -dir.z), pitch: 0 };
+    look.current = { yaw: panoramaStartYaw(geometryRef.current, Math.atan2(-dir.x, -dir.z)), pitch: 0 };
     invalidate();
 
     return () => {
@@ -134,8 +140,8 @@ export function Panorama360({ active, geometry, onCaptured }: {
     const move = (e: PointerEvent) => {
       const from = dragging.current;
       if (!from) return;
-      look.current.yaw -= (e.clientX - from.x) * LOOK_SPEED;
-      look.current.pitch -= (e.clientY - from.y) * LOOK_SPEED;
+      look.current.yaw -= (e.clientX - from.x) * lookSpeed.current;
+      look.current.pitch -= (e.clientY - from.y) * lookSpeed.current;
       look.current.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.current.pitch));
       dragging.current = { x: e.clientX, y: e.clientY };
       invalidate();
