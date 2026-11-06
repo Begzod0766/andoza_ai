@@ -11,6 +11,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, WallElement } from "@/store/roomStore";
 import { resolveElementPositions } from "@/lib/wallPositions";
 import { drawsOpeningLeaf, hiddenByCamera } from "@/lib/flatOpenings";
+import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
 import { WINDOW_STYLES, layoutPanes, resolveWindowStyle } from "@/lib/windowStyles";
 import { WindowElevation } from "@/features/studio/WindowElevation";
 import { liveOpeningDrag } from "@/lib/liveOpeningDrag";
@@ -174,6 +175,22 @@ export function wallFramesFromVertices(vertices: [number, number][], wallIds: st
   return out;
 }
 
+/**
+ * The walls a room's leaves hang on — chosen the way `RoomScene` chooses how
+ * to draw the room (`rendersAsAbcdRectangle`), so a leaf is always in the
+ * hole that is cut: the legacy A/B/C/D rectangle is drawn from its walls'
+ * lengths whatever its stored `vertices` say, and only a polygon room is drawn
+ * from its outline. Reading the outline for every room that had one hung a
+ * rectangle's leaves, after its walls changed length, on an outline nobody
+ * draws (#182; the hit planes follow the same choice, lib/openingFrames).
+ */
+export function leafWallFrames(geometry: RoomGeometry, wallWidth: number, wallDepth: number): WallFrame[] {
+  if (rendersAsAbcdRectangle(geometry)) return wallFrames(wallWidth, wallDepth);
+  return geometry.vertices && geometry.vertices.length >= 3
+    ? wallFramesFromVertices(geometry.vertices, geometry.walls.map((w) => w.id))
+    : wallFrames(wallWidth, wallDepth);
+}
+
 /** World-space centre of a door sitting at `position` mm along its wall:
  *  the wall centre displaced along the wall's own direction by how far the
  *  opening's midpoint sits from that centre. */
@@ -296,20 +313,11 @@ export function OpeningLeaves({
   const dragRef = useRef<DragState | null>(null);
   const [dragging, setDragging] = useState(false);
 
-  const wallIds = useMemo(() => geometry.walls.map((w) => w.id), [geometry.walls]);
-
-  // Polygon rooms (rectilinear hand-drawing feature, >4 walls) carry
-  // `geometry.vertices` — and so, since `RoomGeometry._normalize_polygon`
-  // (backend/app/schemas/room.py) fills them in for every four-wall room, does
-  // a saved legacy ABCD rectangle. Both therefore take the polygon path here;
-  // what keeps the rectangle on its own older convention is
-  // `wallDefsFromVertices`' `legacyAbcd` exception, which makes the frames it
-  // returns for an A/B/C/D room identical to `wallFrames`' hardcoded four.
-  const frames = useMemo(() => {
-    return geometry.vertices && geometry.vertices.length >= 3
-      ? wallFramesFromVertices(geometry.vertices, wallIds)
-      : wallFrames(wallWidth, wallDepth);
-  }, [geometry.vertices, wallIds, wallWidth, wallDepth]);
+  // The walls as RoomScene draws this room — see `leafWallFrames`.
+  const frames = useMemo(
+    () => leafWallFrames(geometry, wallWidth, wallDepth),
+    [geometry, wallWidth, wallDepth],
+  );
 
   // Every door on every visible wall, already position-resolved
   const doors = useMemo(() => {
