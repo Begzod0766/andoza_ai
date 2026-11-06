@@ -90,7 +90,19 @@ export function BottomSheet({
             </Dialog.Overlay>
 
             {/* Sheet */}
-            <Dialog.Content asChild>
+            <Dialog.Content
+              asChild
+              // Radix would focus the first tabbable element on open: in the AI designer that is the
+              // "Room type" <select>. iOS WKWebView opens a picker or keyboard only when focus ARRIVES
+              // by the user's gesture, so a tap on a field that already holds focus opened nothing
+              // (#184: the select ignored taps but opened when reached with the keyboard's arrow).
+              // Focus the sheet itself instead; the focus trap and Escape still work from there.
+              onOpenAutoFocus={(e) => {
+                e.preventDefault()
+                const sheet = sheetRef.current
+                if (sheet && !sheet.contains(document.activeElement)) sheet.focus({ preventScroll: true })
+              }}
+            >
               <motion.div
                 ref={sheetRef}
                 key="sheet"

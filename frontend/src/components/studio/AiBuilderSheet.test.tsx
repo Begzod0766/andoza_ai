@@ -570,6 +570,32 @@ describe('a ready-made style in this room', () => {
   })
 })
 
+// #184: the "Room type" select is the sheet's first field. It must not be focused on open (iOS then
+// ignores a tap on it: focus is already there, so no picker), and a tap on it must reach it untouched.
+describe('AiBuilderSheet room type select takes a tap (#184)', () => {
+  const roomTypeSelect = () => screen.getByRole('dialog').querySelector('select')!
+
+  it('is not focused when the sheet opens', () => {
+    renderSheet()
+    expect(roomTypeSelect()).not.toBeNull()
+    expect(document.activeElement).not.toBe(roomTypeSelect())
+  })
+
+  it('no handler cancels a pointerdown / touchstart / mousedown / click on it, and it is not re-mounted', () => {
+    renderSheet()
+    const select = roomTypeSelect()
+    const at = [{ clientX: 10, clientY: 10 }]
+    expect(fireEvent.pointerDown(select, { pointerId: 1, pointerType: 'touch', isPrimary: true })).toBe(true)
+    expect(fireEvent.touchStart(select, { touches: at, changedTouches: at })).toBe(true)
+    expect(fireEvent.mouseDown(select)).toBe(true)
+    expect(roomTypeSelect()).toBe(select)
+    expect(fireEvent.pointerUp(select, { pointerId: 1, pointerType: 'touch', isPrimary: true })).toBe(true)
+    expect(fireEvent.touchEnd(select, { changedTouches: at })).toBe(true)
+    expect(fireEvent.click(select)).toBe(true)
+    expect(roomTypeSelect()).toBe(select)
+  })
+})
+
 describe('zoneLabel', () => {
   it('names zones for a person', () => {
     expect(zoneLabel('center')).toBe('markaz')
