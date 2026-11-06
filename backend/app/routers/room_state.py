@@ -178,7 +178,7 @@ async def get_room_delta(room_id: UUID, db: DbSession, current_user: CurrentUser
 
     wiring_meters = await _load_wiring_meters(room.id, db)
 
-    catalog = await load_estimate_catalog(db)
+    catalog = await load_estimate_catalog(db, room)
     result = compute_delta(room, state, materials_map, norms_map, wiring_meters, catalog)
 
     return DeltaResponse(
