@@ -34,10 +34,16 @@ export function nextFurnitureSpot(item: {
       ?? FURNITURE_CATALOG.find((e) => e.id === id)?.sizeM
     return size && ceilingFitSize(size, row?.height_cm ? row.height_cm / 100 : undefined, s.ceilingHeight)
   }
+  const roleOf = (id: string) => {
+    const row = s.catalogFurniture.find((c) => c.id === id)
+    if (row) return inferRole(row.category, row.name_uz)
+    const name = s.userFurniture.find((e) => e.id === id)?.name ?? FURNITURE_CATALOG.find((e) => e.id === id)?.name
+    return name ? inferRole(null, name) : undefined
+  }
   const placed: PlacedBox[] = s.furniture.map((f) => {
     const size = sizeOf(f.furniture_id) ?? UNKNOWN
     const k = f.scaleOverride ?? 1
-    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k }
+    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k, role: roleOf(f.furniture_id) }
   })
   const known = item.sizeM && item.sizeM.w > 0 && item.sizeM.d > 0 ? item.sizeM : null
   const size = known ? ceilingFitSize(known, item.heightM, s.ceilingHeight) : UNKNOWN
