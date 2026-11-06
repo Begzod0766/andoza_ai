@@ -24,11 +24,11 @@ export function CameraButton({ active, expanded, onClick }: { active: boolean; e
  * The lock: while it is on, taps and holds in the 3D view open nothing, so the room can be
  * turned without a menu popping up. From md up it says so in words ("Tahrirlash: yopiq").
  */
-export function LockButton({ locked, onClick }: { locked: boolean; onClick: () => void }) {
+export function LockButton({ locked, onClick, className = "" }: { locked: boolean; onClick: () => void; className?: string }) {
   const { t } = useTranslation();
   const action = locked ? t("studio.three_d.tahrirlashni_yoqish") : t("studio.three_d.tahrirlashni_qulflash");
   return (
-    <button onClick={onClick} title={action} aria-label={action} aria-pressed={locked} className={`${round} ${locked ? on : off}`}>
+    <button onClick={onClick} title={action} aria-label={action} aria-pressed={locked} className={`${round} ${locked ? on : off} ${className}`}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="5" y="11" width="14" height="9" rx="2" />

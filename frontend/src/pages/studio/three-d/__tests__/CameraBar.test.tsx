@@ -84,4 +84,30 @@ describe('CameraBar', () => {
     fireEvent.click(screen.getByTitle('Saqlangan renderlar'))
     expect(onOpenGallery).toHaveBeenCalledTimes(1)
   })
+
+  // QA 2026-11-06 1.2 (#174): on a phone the row wraps upward, so "My renders",
+  // the 9:16 toggle and the "fixed" hint stand ABOVE the camera button — right
+  // where the list rises. While the list is open everything but the camera
+  // button is hidden in place (`invisible`: no reflow, and no taps reach it),
+  // so the list opens over empty space instead of over other buttons.
+  it.each([
+    ['a fixed camera', { cameraStation: 2 }],
+    ['the 360 camera', { panorama: true }],
+    ['the free view', {}],
+  ])('hides the rest of the bottom panel while the list is open (%s)', (_name, over) => {
+    const { rerender } = render(<CameraBar {...props(over)} />)
+    const bar = screen.getByTestId('camera-bar')
+    const others = () => [
+      ...Array.from(row().children).slice(1),
+      ...Array.from(bar.children).filter((el) => el !== row()),
+    ]
+    expect(others().length).toBeGreaterThan(1)
+    for (const el of others()) expect(el.getAttribute('class')).not.toMatch(/\binvisible\b/)
+
+    rerender(<CameraBar {...props({ ...over, listOpen: true })} />)
+    // The camera button and its list stay; nothing else in the panel shows.
+    expect(row().children[0].className).not.toMatch(/\binvisible\b/)
+    expect(row().children[0]).toContainElement(screen.getByTestId('camera-list'))
+    for (const el of others()) expect(el.getAttribute('class')).toMatch(/\binvisible\b/)
+  })
 })
