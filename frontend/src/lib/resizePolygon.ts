@@ -154,3 +154,23 @@ function narrowest(p: [number, number][]): number {
   }
   return min
 }
+
+/**
+ * The strip wall `edge` of an outline in the flat (metres) sweeps when it
+ * moves out by `deltaM` along `outward`, widened all round by `padM` — what a
+ * neighbour it reaches is cut by (lib/clipRoom), so the neighbour keeps that
+ * offset from the room. Null when the wall moves in: that cuts nothing.
+ */
+export function edgeSweep(
+  world: readonly (readonly [number, number])[], edge: number,
+  outward: { x: number; z: number }, deltaM: number, padM: number,
+): { x0: number; x1: number; z0: number; z1: number } | null {
+  if (!(deltaM > 0)) return null
+  const [x1, z1] = world[edge], [x2, z2] = world[(edge + 1) % world.length]
+  const xs = [x1, x2, x1 + outward.x * deltaM, x2 + outward.x * deltaM]
+  const zs = [z1, z2, z1 + outward.z * deltaM, z2 + outward.z * deltaM]
+  return {
+    x0: Math.min(...xs) - padM, x1: Math.max(...xs) + padM,
+    z0: Math.min(...zs) - padM, z1: Math.max(...zs) + padM,
+  }
+}

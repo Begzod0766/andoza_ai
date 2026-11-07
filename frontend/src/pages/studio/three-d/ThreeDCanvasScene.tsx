@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useViewLockStore } from "@/store/viewLockStore";
 import { shiftedPose } from "@/lib/roomSwitch";
 import { CameraRefBridge, CutOutline, DoorDimensions, GapField, PolygonGhost, ResizeGhost, ResizeHandles, RoomMoveArrows, RoomMoveInput, handlePoints, type WallHandle } from "./RoomSlide";
-import { isRectilinear, moveEdge, outwardNormal, polygonCentre, type EdgeMove } from "@/lib/resizePolygon";
+import { edgeSweep, isRectilinear, moveEdge, outwardNormal, polygonCentre, type EdgeMove } from "@/lib/resizePolygon";
 import { keepContentInPlace, type RoomThings } from "@/lib/keepContent";
 import { clipRoom, outlineOf, type RoomContent } from "@/lib/clipRoom";
 import { flatBoxOf, flatBounds } from "@/lib/flatBoxes";
@@ -503,7 +503,11 @@ export function ThreeDCanvasScene({
     const delta = sizeMm - (across ? selBox.w : selBox.d) * 1000;
     void persistMove(selBox.id, shiftM.dx, shiftM.dz, next,
       keepContentInPlace(thingsOf(selBox.id), shiftM, before, after, sideWallShiftMm(side, delta)));
-    // Each room it grew into, cut — its new shape, its things moved inside.
+    persistCuts(cuts);
+  };
+  /** Each room the selected one grew into, cut — its new shape, its things
+   *  moved inside. */
+  const persistCuts = (cuts: RoomCut[]) => {
     for (const c of cuts) {
       const { furniture, lights, electricals, designState } = c.content;
       void persistMove(c.id, c.content.centre.x - c.from.x, c.content.centre.z - c.from.z, c.content.geometry, {
@@ -514,25 +518,51 @@ export function ThreeDCanvasScene({
   };
 
   /** A polygon room's wall `edge` moved out by `deltaM`, or as far towards
-   *  it as allowed: the outline valid (lib/resizePolygon), not into another
-   *  room, within 500 mm of the nearest one. */
+   *  it as allowed: the outline valid (lib/resizePolygon), within 500 mm of
+   *  the nearest room. A rectangle it reaches is cut where the wall sweeps,
+   *  keeping its offset, just as a rectangle's side cuts it ("it should make
+   *  a new corner in another room"); it used to stop dead at any room. A room
+   *  that cannot be cut there — or is not a rectangle — stops it short. */
   const polyMove = (edge: number, deltaM: number): ResizeLive | null => {
     if (!selBox || !selGeometry) return null;
+    const nrm = outwardNormal(selGeometry, edge);
+    const world = polyWorld(selGeometry, selOrigin);
+    const others = flatBoxes.filter((b) => b.id !== selBox.id);
+    // The offset each neighbour keeps: its gap, or the default partition
+    // when it was further than the 500 mm limit (as cutsAt does).
+    const padOf = (o: RoomBox) => {
+      const was = nearestNeighbour(selBox, [o])?.gapM ?? Infinity;
+      return was <= 0.5 ? was : 0.2;
+    };
+    const overlaps = (a: RoomBox, o: RoomBox) => partsOf(a).some((p) => partsOf(o).some((q) =>
+      Math.min(p.cx + p.w / 2, q.cx + q.w / 2) - Math.max(p.cx - p.w / 2, q.cx - q.w / 2) > 0.01 &&
+      Math.min(p.cz + p.d / 2, q.cz + q.d / 2) - Math.max(p.cz - p.d / 2, q.cz - q.d / 2) > 0.01));
+    let refused: string | undefined;
     const valid = (dMm: number) => {
+      refused = undefined;
       const m = moveEdge(selGeometry, edge, dMm);
       if (!m) return null;
       const box = flatBoxOf(selBox.id, m.geometry, selOrigin.x + m.shiftM.dx, selOrigin.z + m.shiftM.dz);
-      const others = flatBoxes.filter((b) => b.id !== selBox.id);
-      const clash = partsOf(box).some((a) => others.flatMap(partsOf).some((o) =>
-        Math.min(a.cx + a.w / 2, o.cx + o.w / 2) - Math.max(a.cx - a.w / 2, o.cx - o.w / 2) > 0.01 &&
-        Math.min(a.cz + a.d / 2, o.cz + o.d / 2) - Math.max(a.cz - a.d / 2, o.cz - o.d / 2) > 0.01));
-      if (clash) return null;
+      const cuts: RoomCut[] = [];
+      for (const o of others) {
+        if (!cuttable(o.id)) {
+          if (overlaps(box, o)) return null;
+          continue;
+        }
+        const cutter = edgeSweep(world, edge, nrm, dMm / 1000, padOf(o));
+        const content = cutter && contentOf(o.id);
+        if (!cutter || !content) continue;
+        const r = clipRoom(content, cutter);
+        if (r.kind === 'refused') { refused = r.reason; return null; }
+        if (r.kind === 'cut') cuts.push({ id: o.id, from: content.centre, content: r.content });
+      }
       if (others.length && (nearestNeighbour(box, others)?.gapM ?? 0) > 0.5 + 1e-6) return null;
-      return { box, move: m };
+      return { box, move: m, cuts };
     };
     // Whole centimetres while dragging.
     const want = Math.round(deltaM * 100) * 10;
     let hit = valid(want);
+    const blocked = hit ? undefined : refused;
     let at = want;
     if (!hit) {
       let good = 0, bad = want;
@@ -544,14 +574,25 @@ export function ThreeDCanvasScene({
       hit = valid(at);
     }
     if (!hit || Math.abs(at) < 1) return null;
-    return { side: 'A', box: hit.box, cuts: [], poly: { edge, move: hit.move } };
+    return {
+      side: 'A', box: hit.box, cuts: hit.cuts, poly: { edge, move: hit.move },
+      ...(blocked ? { blocked: blockedSays(blocked) } : {}),
+    };
   };
-  const commitPolyResize = (live: ResizeLive) => {
+  const commitPolyResize = async (live: ResizeLive) => {
     setResizeLive(null);
     if (!selBox || !live.poly) return;
+    if (live.cuts.length) {
+      const ok = await confirm({
+        title: i18n.t('studio.three_d.qoshni_shakli_sarlavha'),
+        description: i18n.t('studio.three_d.qoshni_shakli_matn'),
+      });
+      if (!ok) return;
+    }
     const { move } = live.poly;
     void persistMove(selBox.id, move.shiftM.dx, move.shiftM.dz, move.geometry,
       keepContentInPlace(thingsOf(selBox.id), move.shiftM, { W: selBox.w, D: selBox.d }, { W: live.box.w, D: live.box.d }, move.positionShiftMm));
+    persistCuts(live.cuts);
   };
   /** The selected room's wall handles: four sides, or every wall of a
    *  right-angled polygon, each a little inside its wall's middle. */
@@ -948,7 +989,7 @@ export function ThreeDCanvasScene({
               const live = resizeLiveRef.current;
               resizeLiveRef.current = null;
               if (!live) return;
-              if (live.poly) commitPolyResize(live);
+              if (live.poly) void commitPolyResize(live);
               else void commitResize(live.side, live.box, live.cuts);
             }}
             onSelect={(id) => setSlidingId(id)}
@@ -979,7 +1020,12 @@ export function ThreeDCanvasScene({
                 const [x1, z1] = pts[k], [x2, z2] = pts[(k + 1) % n];
                 return { x: (x1 + x2) / 2, z: (z1 + z2) / 2, text: `${formatDecimal(move.geometry.walls[k].length / 1000, 2)} ${i18n.t('common.m')}` };
               });
-              return <PolygonGhost outline={pts} labels={labels} />;
+              return (
+                <>
+                  <PolygonGhost outline={pts} labels={labels} note={resizeLive.blocked} />
+                  {resizeLive.cuts.map((c) => <CutOutline key={c.id} outline={outlineOf(c.content)} />)}
+                </>
+              );
             })()
             : resizeLive
             ? (

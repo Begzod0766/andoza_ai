@@ -357,10 +357,23 @@ export function ResizeGhost({ box, side, height, note }: {
 
 /** A polygon room's new outline while one of its walls is dragged, with the
  *  new lengths of the walls either side of it. */
-export function PolygonGhost({ outline, labels }: { outline: [number, number][]; labels: { x: number; z: number; text: string }[] }) {
+export function PolygonGhost({ outline, labels, note }: {
+  outline: [number, number][]; labels: { x: number; z: number; text: string }[];
+  /** Why the wall stopped short, said over the room. */
+  note?: string;
+}) {
+  const cx = outline.reduce((a, p) => a + p[0], 0) / (outline.length || 1);
+  const cz = outline.reduce((a, p) => a + p[1], 0) / (outline.length || 1);
   return (
     <>
       <CutOutline outline={outline} color="#2E5BFF" />
+      {note && (
+        <Html position={[cx, 0.3, cz]} center zIndexRange={[61, 0]} style={{ pointerEvents: 'none' }}>
+          <span style={{ padding: '3px 9px', borderRadius: 999, background: '#F59E0B', color: '#111827', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}>
+            {note}
+          </span>
+        </Html>
+      )}
       {labels.map((l, i) => (
         <Html key={i} position={[l.x, 0.12, l.z]} center zIndexRange={[60, 0]} style={{ pointerEvents: 'none' }}>
           <span style={{ padding: '3px 9px', borderRadius: 999, background: '#FF2E9A', color: '#fff', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}>
