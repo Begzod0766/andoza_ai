@@ -29,7 +29,7 @@ from app.models.norm import Norm
 from app.models.room import Room
 from app.schemas.estimate import EstimateResponse
 from app.services.ai_builder import RoomDraft, run_ai_builder
-from app.services.ai_designer import DesignError, design_room
+from app.services.ai_designer import DesignError, design_room, room_type_in_prompt
 from app.services.design_image import (
     DESIGN_IMAGE_TYPES,
     MAX_DESIGN_IMAGE_BYTES,
@@ -140,13 +140,15 @@ class AiDesignRequest(BaseModel):
     room_type: str | None = Field(default=None, max_length=20)
 
 
-def _design_room_type(requested: str | None, room: Room) -> str | None:
+def _design_room_type(requested: str | None, room: Room, prompt: str = "") -> str | None:
     """The room type the designer works with: the request's when it is a known type, otherwise
-    the room's stored one. An unknown value is ignored rather than refused: the field is free
-    text, and an older client may send a name the type list no longer has."""
+    the room's stored one, otherwise the one the prompt names ("zamonaviy mehmonxona"). An
+    unknown value is ignored rather than refused: the field is free text, and an older client
+    may send a name the type list no longer has. Many rooms never get a type; without the
+    prompt's, a request for a sofa was offered no sofa at all."""
     if requested in ROOM_TYPES:
         return requested
-    return getattr(room, "room_type", None)
+    return getattr(room, "room_type", None) or room_type_in_prompt(prompt)
 
 
 def _room_summary(room: Room, room_type: str | None) -> dict:
@@ -208,7 +210,7 @@ async def _run_design(
     ]
     try:
         plan = await design_room(
-            prompt, _room_summary(room, _design_room_type(room_type, room)), furniture, user_id=user_id, image=image,
+            prompt, _room_summary(room, _design_room_type(room_type, room, prompt)), furniture, user_id=user_id, image=image,
         )
     except BudgetExceededError as exc:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc))
