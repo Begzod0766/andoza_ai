@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -402,6 +402,40 @@ function CreateProjectDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
+
+// ─── Phone pages ──────────────────────────────────────────────────────────────
+
+/** Projects a phone shows at once: a long list was a long scroll past the hero. */
+const PROJECTS_PER_PAGE = 5;
+
+/** ‹ 1 2 3 › under the phone's list; nothing with one page, nothing on a desktop. */
+function ProjectsPager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
+  const { t } = useTranslation();
+  if (pages <= 1) return null;
+  const go = (p: number) => {
+    onPage(p);
+    document.querySelector("[data-project-card]")?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  };
+  const btn = "flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-semibold transition-colors disabled:opacity-40";
+  return (
+    <nav aria-label={t("projects.sahifalar")} className="mt-4 flex items-center justify-center gap-1.5 lg:hidden">
+      <button type="button" aria-label={t("projects.oldingi_sahifa")} disabled={page === 0} onClick={() => go(page - 1)} className={`${btn} bg-card text-ink`}>‹</button>
+      {Array.from({ length: pages }, (_, p) => (
+        <button
+          key={p}
+          type="button"
+          aria-current={p === page ? "page" : undefined}
+          onClick={() => go(p)}
+          className={`${btn} ${p === page ? "bg-brand text-white" : "bg-card text-ink hover:bg-card-soft"}`}
+        >
+          {p + 1}
+        </button>
+      ))}
+      <button type="button" aria-label={t("projects.keyingi_sahifa")} disabled={page === pages - 1} onClick={() => go(page + 1)} className={`${btn} bg-card text-ink`}>›</button>
+    </nav>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
@@ -423,6 +457,12 @@ export default function ProjectsPage() {
   });
 
   const latest = apartments.find(a => a.rooms && a.rooms.length > 0) ?? apartments[0];
+
+  // The phone's page of projects; back to a page that exists when the list shrinks or changes.
+  const pages = Math.max(1, Math.ceil(apartments.length / PROJECTS_PER_PAGE));
+  const [pageState, setPage] = useState(0);
+  const page = Math.min(pageState, pages - 1);
+  useEffect(() => { setPage(0); }, [showDeleted]);
 
   return (
     <div className="relative min-h-screen bg-paper pb-20 lg:h-screen lg:overflow-hidden lg:pb-0">
@@ -476,11 +516,17 @@ export default function ProjectsPage() {
             ) : apartments.length === 0 ? (
               <EmptyProjects onCreateClick={() => setShowCreateDialog(true)} />
             ) : (
-              <div className="flex flex-col gap-3">
-                {apartments.map((apt) => (
-                  <ProjectCard key={apt.id} apt={apt} />
-                ))}
-              </div>
+              <>
+                <div className="flex flex-col gap-3">
+                  {/* A phone shows a page of them; the desktop column scrolls through all. */}
+                  {apartments.map((apt, i) => (
+                    <div key={apt.id} data-project-card={apt.id} className={Math.floor(i / PROJECTS_PER_PAGE) === page ? "" : "hidden lg:block"}>
+                      <ProjectCard apt={apt} />
+                    </div>
+                  ))}
+                </div>
+                <ProjectsPager page={page} pages={pages} onPage={setPage} />
+              </>
             )}
           </div>
         </div>
