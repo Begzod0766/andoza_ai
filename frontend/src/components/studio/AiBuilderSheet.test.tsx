@@ -101,7 +101,10 @@ describe('AiBuilderSheet room type from the studio store', () => {
     renderSheet({ roomType: undefined })
     await generate()
     expect(aiDesign).toHaveBeenCalledWith('room-1', "qorong'i xona", 'oshxona')
-    expect(screen.getByText('Taxmin: Oshxona')).toBeInTheDocument()
+    // The guess is shown picked, marked as a guess (nothing is saved until the user picks).
+    expect((screen.getByLabelText('Xona turi') as HTMLSelectElement).value).toBe('oshxona')
+    expect(screen.getByText(/xona nomidan taxmin qilindi/i)).toBeInTheDocument()
+    expect(updateRoom).not.toHaveBeenCalled()
   })
 })
 

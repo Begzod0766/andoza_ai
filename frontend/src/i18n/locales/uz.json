@@ -2460,6 +2460,7 @@
       "balkon": "Balkon"
     },
     "type_guess": "Taxmin: {{type}}",
+    "type_guess_preselected": "Xona nomidan taxmin qilindi. Boshqasini tanlasangiz, xonaga saqlanadi.",
     "type_save_failed": "Xona turini saqlab bo'lmadi",
     "type_guess_mark": "(taxmin)",
     "type_choose": "Xona turini tanlang"

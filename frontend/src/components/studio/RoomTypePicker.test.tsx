@@ -43,6 +43,31 @@ describe('RoomTypePicker and the room it belongs to', () => {
     expect(useRoomStore.getState().roomType).toBe('oshxona')
   })
 
+  it('with preselectGuess, a room of no type shows the guess picked, marked as a guess, and saves nothing', () => {
+    useRoomStore.getState().loadRoom({ id: 'A', name: 'Mehmonxona', room_type: null })
+    render(<RoomTypePicker roomId="A" preselectGuess />)
+    const select = screen.getByLabelText('Xona turi') as HTMLSelectElement
+    expect(select.value).toBe('mehmonxona')
+    expect(screen.getByText(/xona nomidan taxmin qilindi/i)).toBeInTheDocument()
+    expect(updateRoom).not.toHaveBeenCalled()
+    expect(useRoomStore.getState().roomType).toBeNull()
+  })
+
+  it('with preselectGuess, picking another type saves it and drops the guess mark', async () => {
+    useRoomStore.getState().loadRoom({ id: 'A', name: 'Mehmonxona', room_type: null })
+    render(<RoomTypePicker roomId="A" preselectGuess />)
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'yotoqxona' } })
+    expect(updateRoom).toHaveBeenCalledWith('A', { room_type: 'yotoqxona' })
+    expect((screen.getByLabelText('Xona turi') as HTMLSelectElement).value).toBe('yotoqxona')
+    expect(screen.queryByText(/xona nomidan taxmin qilindi/i)).toBeNull()
+  })
+
+  it('without preselectGuess, a room of no type still shows "not set" with the guess below', () => {
+    useRoomStore.getState().loadRoom({ id: 'A', name: 'Mehmonxona', room_type: null })
+    render(<RoomTypePicker roomId="A" />)
+    expect((screen.getByLabelText('Xona turi') as HTMLSelectElement).value).toBe('')
+  })
+
   it("a saved pick refreshes the room's copy and the apartment's room list", async () => {
     const qc = new QueryClient()
     const spy = vi.spyOn(qc, 'invalidateQueries')

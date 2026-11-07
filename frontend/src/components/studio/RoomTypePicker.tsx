@@ -18,7 +18,7 @@ import { useRoomStore } from '@/store/roomStore'
  * pick would PATCH that room with what was read off the other. A failed PATCH is reverted only while
  * the store still holds the room it was for, never onto the room opened since.
  */
-export function RoomTypePicker({ roomId, fallback, disabled, themed = false, onPicked }: {
+export function RoomTypePicker({ roomId, fallback, disabled, themed = false, onPicked, preselectGuess = false }: {
   roomId?: string | null
   /** The guess the AI designer uses while the room has no kind of its own. */
   fallback?: string | null
@@ -27,6 +27,11 @@ export function RoomTypePicker({ roomId, fallback, disabled, themed = false, onP
   themed?: boolean
   /** Told right after a pick is kept in the store (before any PATCH), e.g. to close a popover. */
   onPicked?: () => void
+  /**
+   * Show the guess as the picked type while the room has none (marked as a guess, nothing saved):
+   * the AI designer already works with it, and "not set" above "Guess: living room" read as two answers.
+   */
+  preselectGuess?: boolean
 }) {
   const { t } = useTranslation()
   // Optional: the picker also renders outside a query provider (tests, the wizard's draft).
@@ -36,6 +41,7 @@ export function RoomTypePicker({ roomId, fallback, disabled, themed = false, onP
   const name = useRoomStore((s) => s.name)
   const setRoomType = useRoomStore((s) => s.setRoomType)
   const guess = isRoomType(fallback) ? fallback : guessRoomType(name)
+  const shownGuess = preselectGuess && !stored && !!guess
   const otherRoom = !!roomId && roomId !== 'local' && !!storeRoomId && storeRoomId !== roomId
 
   async function change(raw: string) {
@@ -61,8 +67,8 @@ export function RoomTypePicker({ roomId, fallback, disabled, themed = false, onP
     <Select
       themed={themed}
       label={t('rooms.type_label')}
-      helperText={!stored && guess ? t('rooms.type_guess', { type: t(`rooms.type.${guess}`) }) : undefined}
-      value={stored ?? ''}
+      helperText={!stored && guess ? (shownGuess ? t('rooms.type_guess_preselected') : t('rooms.type_guess', { type: t(`rooms.type.${guess}`) })) : undefined}
+      value={stored ?? (shownGuess ? guess : '')}
       disabled={disabled || otherRoom}
       onChange={(e) => void change(e.target.value)}
     >
