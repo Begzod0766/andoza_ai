@@ -1953,7 +1953,10 @@
     "dokon": "Shop",
     "dokon_matn": "Compare material and furniture prices across shops.",
     "dokon_ochish": "Open the shop",
-    "ustalar_korish": "View craftsmen"
+    "ustalar_korish": "View craftsmen",
+    "sahifalar": "Project pages",
+    "oldingi_sahifa": "Previous page",
+    "keyingi_sahifa": "Next page"
   },
   "wizard": {
     "devor_nomi": "Wall {{id}}",

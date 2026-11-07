@@ -1953,7 +1953,10 @@
     "dokon": "Do'kon",
     "dokon_matn": "Material va mebel narxlarini do'konlar bo'yicha solishtiring.",
     "dokon_ochish": "Do'konni ochish",
-    "ustalar_korish": "Ustalarni ko'rish"
+    "ustalar_korish": "Ustalarni ko'rish",
+    "sahifalar": "Loyihalar sahifalari",
+    "oldingi_sahifa": "Oldingi sahifa",
+    "keyingi_sahifa": "Keyingi sahifa"
   },
   "wizard": {
     "devor_nomi": "{{id}} devor",
