@@ -93,9 +93,10 @@ MAX_LIGHTS = 6
 MAX_FURNITURE = 8
 MAX_PER_ITEM = 2
 # A room has one of these; a second sofa or bed is a repeat, not a design.
-ONE_PER_ROOM = ("divan", "karavot")
+# By what the piece is for, not its shop category: the shops file armchairs under "divan".
+ONE_PER_ROOM = ("sofa", "bed")
 # Light fittings sold as furniture: the plan's own lights already cover them.
-_LIGHT_LIKE = re.compile(r"torsher|lyustra|\bbra\b|chiroq|lampa|svetilnik|светиль", re.I)
+_LIGHT_LIKE = re.compile(r"torsher|lyustra|\bbra\b|chiroq|lampa|svetilnik|светиль|люстр|\bбра\b|торшер", re.I)
 
 
 def furniture_budget(area: float) -> tuple[int, int]:
@@ -284,15 +285,15 @@ def validate_plan(
             warn("Chiroq turidagi mebel o'tkazib yuborildi")
             continue
         category = item.get("category")
-        if category in ONE_PER_ROOM and any(c == category for c in kinds):
+        role = raw.get("role") if raw.get("role") in FURNITURE_ROLES else infer_role(category, item["name"])
+        if role in ONE_PER_ROOM and role in kinds:
             warn("Bir xil turdagi ikkinchi mebel o'tkazib yuborildi")
             continue
         if counts.get(label, 0) >= MAX_PER_ITEM:
             continue
         counts[label] = counts.get(label, 0) + 1
-        role = raw.get("role") if raw.get("role") in FURNITURE_ROLES else infer_role(category, item["name"])
         plan.furniture.append({"id": item["id"], "name": item["name"], "role": role})
-        kinds.append(category)
+        kinds.append(role)
 
     plan.trim = _validate_trim(data.get("trim"), warn)
     # The model names the ceiling by design only; kept from the starting style, it keeps that
@@ -432,6 +433,30 @@ def _starting_choice(prompt: str) -> tuple[str, dict] | None:
 
 # The ready-made style a room type starts from when the request names no style or mood: only a
 # suggestion, the request's own colours and materials come first (_DEFAULT_PLAN_RULE).
+# The room a request names ("zamonaviy mehmonxona", "уютная гостиная", "cozy bedroom"), for a room
+# whose own type is unset. First match wins, as in room_type.GUESS_RULES ("bolalar yotoqxonasi" is
+# bolalar). Not GUESS_RULES itself: it matches a bare "zal", and a request says "go'zal" (beautiful).
+_PROMPT_ROOM_TYPES: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (room_type, re.compile(pattern, re.I)) for room_type, pattern in (
+        ("bolalar", r"bolalar|детск|\bkids?\b|children|nursery"),
+        ("yotoqxona", r"yotoq|спальн|bedroom"),
+        ("oshxona", r"oshxona|кухн|kitchen"),
+        ("kabinet", r"kabinet|ish xona|кабинет|\bstudy\b|home office"),
+        ("hammom", r"hammom|\bvanna|ванн|санузел|bathroom"),
+        ("balkon", r"balkon|балкон|balcony"),
+        ("mehmonxona", rf"mehmon|(?<![\w{_APOS[1:-1]}])zal(?:da|ga|ni|i)?\b|гостин|living room|lounge"),
+    )
+)
+
+
+def room_type_in_prompt(prompt: str) -> str | None:
+    """The room type a request names, or None."""
+    for room_type, pattern in _PROMPT_ROOM_TYPES:
+        if pattern.search(prompt or ""):
+            return room_type
+    return None
+
+
 _ROOM_TYPE_PRESETS: dict[str, str] = {
     "mehmonxona": "zamonaviy", "oshxona": "zamonaviy",
     "yotoqxona": "skandinav", "bolalar": "skandinav", "balkon": "skandinav",
@@ -510,7 +535,7 @@ _ALWAYS_ROLES = {"kabinet": ("desk", "desk_chair", "shelf")}
 MAX_ALWAYS_PER_ROLE = 3
 # A study's shelf is one for books: not a chest of drawers or a display case (infer_role's "shelf"
 # takes those too), and not a kitchen's or a bathroom's. A book cupboard ("kitob shkafi") is one.
-_STUDY_SHELF = re.compile(r"javon|stellaj|kitob|bookcase", re.I)
+_STUDY_SHELF = re.compile(r"javon|stellaj|kitob|bookcase|стеллаж|книж|для книг", re.I)
 _WET_ROOM_NAME = re.compile(r"oshxona|hammom|vanna|кухон|ванн", re.I)
 
 
@@ -564,7 +589,8 @@ def furniture_menu(
         return 0 if i["id"] in always else 1
 
     def rank(i: dict) -> int:
-        return 0 if i.get("room_type") in (None, catalog_type) or always_rank(i) == 0 else 1
+        # A room of no known type is any room: every room's pieces fit it.
+        return 0 if catalog_type is None or i.get("room_type") in (None, catalog_type) or always_rank(i) == 0 else 1
 
     def preferred_rank(i: dict) -> int:
         return 0 if preferred and preferred(i) else 1
