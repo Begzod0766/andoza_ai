@@ -38,3 +38,10 @@ describe('SmetaSectionNav: the estimate sections as a row under the sticky total
     expect(container).toBeEmptyDOMElement()
   })
 })
+
+describe('SmetaSectionNav row', () => {
+  it('scrolls sideways without showing a scrollbar under the links', () => {
+    render(<SmetaSectionNav groups={GROUPS} active={null} onPick={() => {}} fmt={fmt} />)
+    expect(screen.getByRole('navigation').className).toMatch(/scrollbar-width:none/)
+  })
+})

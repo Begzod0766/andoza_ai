@@ -11,6 +11,7 @@ import type { EstimateResponse } from "@/lib/api";
 import { SmetaAskDrawer } from "@/components/smeta/SmetaAskDrawer";
 import { CategorySection } from "@/components/smeta/CategorySection";
 import { SmetaSectionNav } from "@/components/smeta/SmetaSectionNav";
+import { activeSection } from "@/lib/smetaActiveSection";
 import { CostBreakdown } from "@/components/smeta/CostBreakdown";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { StudioMenu } from "@/components/studio/StudioMenu";
@@ -264,21 +265,30 @@ export default function SmetaPage() {
 
   const allFolded = groups.length > 0 && groups.every((g) => folded.has(g.key));
 
-  // The section being read: the last whose top has passed under the sticky bar.
+  // The section being read (activeSection), worked out from where the sections are as the page scrolls.
   const [activeGroup, setActiveGroup] = useState<GroupKey | null>(null);
+  const stickyBarRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (typeof IntersectionObserver === "undefined" || groups.length < 2) return;
-    const seen = new Map<string, boolean>();
-    const observer = new IntersectionObserver((entries) => {
-      for (const e of entries) seen.set((e.target as HTMLElement).dataset.group ?? "", e.isIntersecting);
-      const first = groups.find((g) => seen.get(g.key));
-      if (first) setActiveGroup(first.key);
-    }, { rootMargin: "-120px 0px -55% 0px" });
-    for (const g of groups) {
-      const el = document.getElementById(`smeta-section-${g.key}`);
-      if (el) observer.observe(el);
-    }
-    return () => observer.disconnect();
+    if (groups.length < 2) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const tops = groups.flatMap((g): Array<[GroupKey, number]> => {
+        const el = document.getElementById(`smeta-section-${g.key}`);
+        return el ? [[g.key, el.getBoundingClientRect().top]] : [];
+      });
+      const atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+      setActiveGroup(activeSection(tops, stickyBarRef.current?.getBoundingClientRect().bottom ?? 0, atEnd));
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [groups]);
 
   /** Opens a folded section and brings it under the sticky bar. */
@@ -291,7 +301,7 @@ export default function SmetaPage() {
   return (
     <div className="min-h-screen bg-paper">
       {estimate && view && !heroVisible && (
-        <div className="fixed inset-x-0 top-0 z-30 border-b border-line bg-card/95 shadow-panel backdrop-blur">
+        <div ref={stickyBarRef} className="fixed inset-x-0 top-0 z-30 border-b border-line bg-card/95 shadow-panel backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-2.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{t("smeta.jami")}</span>
             <span className="text-lg font-extrabold tabular-nums text-accent">{fmt(view.total)}</span>

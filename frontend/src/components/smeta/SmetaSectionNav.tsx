@@ -20,7 +20,7 @@ export function SmetaSectionNav({ groups, active, onPick, fmt }: {
   }, [active]);
   if (groups.length < 2) return null;
   return (
-    <nav aria-label={t("smeta.bolimlar")} className="overflow-x-auto">
+    <nav aria-label={t("smeta.bolimlar")} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="flex gap-1.5 pb-0.5">
         {groups.map((g) => {
           const on = g.key === active;
