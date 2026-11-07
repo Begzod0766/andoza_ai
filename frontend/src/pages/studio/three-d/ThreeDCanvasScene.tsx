@@ -470,9 +470,11 @@ export function ThreeDCanvasScene({
     const st = (r.state ?? {}) as Partial<CutExtras>;
     return { geometry: sp.geometry, centre: { x: sp.offsetXM, z: sp.offsetZM }, furniture: st.furniture, lights: st.lights, electricals: st.electricals, designState: st.designState };
   };
+  /** A rectangle, or a right-angled polygon — one already cut into an L by
+   *  an earlier push, so the next push goes on into it (lib/clipRoom). */
   const cuttable = (id: string) => {
     const c = id === selBox?.id ? null : contentOf(id);
-    return !!c && isResizable(c.geometry);
+    return !!c && (isResizable(c.geometry) || isRectilinear(c.geometry));
   };
   /**
    * The rooms the selected room cuts at `box`, each keeping the offset it
@@ -577,7 +579,12 @@ export function ThreeDCanvasScene({
     // front of the wall, its nearest gap to the room. Over the 500 mm limit,
     // the default partition (as cutsAt does).
     const padOf = (o: RoomBox) => {
-      const facing = facingGap(world, edge, nrm, { x0: o.cx - o.w / 2, x1: o.cx + o.w / 2, z0: o.cz - o.d / 2, z1: o.cz + o.d / 2 });
+      // Against the parts of it that face the wall: a room already cut has
+      // its facing wall at the notch, not at the edge of its outer box.
+      const gaps = partsOf(o)
+        .map((q) => facingGap(world, edge, nrm, { x0: q.cx - q.w / 2, x1: q.cx + q.w / 2, z0: q.cz - q.d / 2, z1: q.cz + q.d / 2 }))
+        .filter((x): x is number => x !== null);
+      const facing = gaps.length ? Math.min(...gaps) : null;
       const was = facing ?? nearestNeighbour(selBox, [o])?.gapM ?? Infinity;
       return was <= 0.5 ? was : 0.2;
     };

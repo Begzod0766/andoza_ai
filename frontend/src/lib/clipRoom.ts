@@ -21,7 +21,8 @@
  *    part of; furniture and lights keep their place in the flat, and those in
  *    the part that was cut off move just inside what is left.
  *
- * Only an A-B-C-D rectangle is cut; a polygon room is left as it is.
+ * A right-angled polygon room — one already cut, drawn or scanned — is cut
+ * the same way, so a second push goes on into it.
  * World coordinates (the flat's frame, metres) throughout.
  */
 import { resolveElementPositions } from '@/lib/wallPositions'
@@ -76,9 +77,17 @@ function rectLines(r: Rect): Line[] {
 
 export function clipRoom(room: RoomContent, asked: Rect): ClipResult {
   const g = room.geometry
-  if (!isAbcd(g)) return { kind: 'refused', reason: 'shape' }
-  const W = lengthOf(g, 'A') / 1000, D = lengthOf(g, 'B') / 1000
-  const R: Rect = { x0: room.centre.x - W / 2, x1: room.centre.x + W / 2, z0: room.centre.z - D / 2, z1: room.centre.z + D / 2 }
+  const abcd = isAbcd(g)
+  // A room already cut (or drawn, or scanned) into a right-angled polygon is
+  // cut the same way: "in the first attempt it is working but next the same
+  // problem happening" — once a neighbour was an L, the next push stopped at it.
+  if (!abcd && !isRightAngled(g)) return { kind: 'refused', reason: 'shape' }
+  const poly = outlineOf(room)
+  const R: Rect = {
+    x0: Math.min(...poly.map((p) => p[0])), x1: Math.max(...poly.map((p) => p[0])),
+    z0: Math.min(...poly.map((p) => p[1])), z1: Math.max(...poly.map((p) => p[1])),
+  }
+  const W = R.x1 - R.x0, D = R.z1 - R.z0
   const ox = Math.min(R.x1, asked.x1) - Math.max(R.x0, asked.x0)
   const oz = Math.min(R.z1, asked.z1) - Math.max(R.z0, asked.z0)
   if (ox <= EPS || oz <= EPS) return { kind: 'unchanged' }
@@ -93,67 +102,88 @@ export function clipRoom(room: RoomContent, asked: Rect): ClipResult {
   if (cutter.z0 > R.z0 + EPS && cutter.z0 - R.z0 < MIN_ARM_M) cutter.z0 = R.z0
   if (cutter.z1 < R.z1 - EPS && R.z1 - cutter.z1 < MIN_ARM_M) cutter.z1 = R.z1
 
-  // Which of the room's sides the cutter reaches past.
-  const past = {
-    D: cutter.x0 <= R.x0 + EPS, B: cutter.x1 >= R.x1 - EPS,
-    A: cutter.z0 <= R.z0 + EPS, C: cutter.z1 >= R.z1 - EPS,
-  }
-  const n = Object.values(past).filter(Boolean).length
-  if (n === 4) return { kind: 'refused', reason: 'gone' }
-  if (n === 0) return { kind: 'refused', reason: 'hole' }
-  if ((past.D && past.B && !past.A && !past.C) || (past.A && past.C && !past.D && !past.B)) return { kind: 'refused', reason: 'split' }
+  if (abcd) {
+    // Which of the room's sides the cutter reaches past.
+    const past = {
+      D: cutter.x0 <= R.x0 + EPS, B: cutter.x1 >= R.x1 - EPS,
+      A: cutter.z0 <= R.z0 + EPS, C: cutter.z1 >= R.z1 - EPS,
+    }
+    const n = Object.values(past).filter(Boolean).length
+    if (n === 4) return { kind: 'refused', reason: 'gone' }
+    if (n === 0) return { kind: 'refused', reason: 'hole' }
+    if ((past.D && past.B && !past.A && !past.C) || (past.A && past.C && !past.D && !past.B)) return { kind: 'refused', reason: 'split' }
 
-  // A whole side taken: what is left is still a rectangle.
-  if (n === 3) {
-    const side = (['A', 'B', 'C', 'D'] as Side[]).find((s) => !past[oppositeOf(s)])!
-    const size = side === 'B' ? cutter.x0 - R.x0 : side === 'D' ? R.x1 - cutter.x1 : side === 'C' ? cutter.z0 - R.z0 : R.z1 - cutter.z1
-    if (size < MIN_ARM_M - EPS) return { kind: 'refused', reason: 'thin' }
-    const sizeMm = Math.round(size * 1000)
-    if (sizeMm < minSizeMm(g, side)) return { kind: 'refused', reason: 'opening' }
-    const { geometry, shiftM } = resizeGeometry(g, side, sizeMm)
-    const centre = { x: room.centre.x + shiftM.dx, z: room.centre.z + shiftM.dz }
-    const keep: Rect = side === 'B' || side === 'D'
-      ? { ...R, x0: side === 'B' ? R.x0 : cutter.x1, x1: side === 'B' ? cutter.x0 : R.x1 }
-      : { ...R, z0: side === 'C' ? R.z0 : cutter.z1, z1: side === 'C' ? cutter.z0 : R.z1 }
-    return {
-      kind: 'cut',
-      content: {
-        ...room, geometry, centre,
-        furniture: room.furniture && moveFurniture(room.furniture, room.centre, centre, [keep]),
-        lights: room.lights && moveLights(room.lights, room.centre, { W, D }, centre, { W: keep.x1 - keep.x0, D: keep.z1 - keep.z0 }, [keep]),
-      },
+    // A whole side taken: what is left is still a rectangle.
+    if (n === 3) {
+      const side = (['A', 'B', 'C', 'D'] as Side[]).find((s) => !past[oppositeOf(s)])!
+      const size = side === 'B' ? cutter.x0 - R.x0 : side === 'D' ? R.x1 - cutter.x1 : side === 'C' ? cutter.z0 - R.z0 : R.z1 - cutter.z1
+      if (size < MIN_ARM_M - EPS) return { kind: 'refused', reason: 'thin' }
+      const sizeMm = Math.round(size * 1000)
+      if (sizeMm < minSizeMm(g, side)) return { kind: 'refused', reason: 'opening' }
+      const { geometry, shiftM } = resizeGeometry(g, side, sizeMm)
+      const centre = { x: room.centre.x + shiftM.dx, z: room.centre.z + shiftM.dz }
+      const keep: Rect = side === 'B' || side === 'D'
+        ? { ...R, x0: side === 'B' ? R.x0 : cutter.x1, x1: side === 'B' ? cutter.x0 : R.x1 }
+        : { ...R, z0: side === 'C' ? R.z0 : cutter.z1, z1: side === 'C' ? cutter.z0 : R.z1 }
+      return {
+        kind: 'cut',
+        content: {
+          ...room, geometry, centre,
+          furniture: room.furniture && moveFurniture(room.furniture, room.centre, centre, [keep]),
+          lights: room.lights && moveLights(room.lights, room.centre, { W, D }, centre, { W: keep.x1 - keep.x0, D: keep.z1 - keep.z0 }, [keep]),
+        },
+      }
     }
   }
 
-  // An L or a notch: trace what is left.
-  const xs = uniq([R.x0, clamp(cutter.x0, R.x0, R.x1), clamp(cutter.x1, R.x0, R.x1), R.x1])
-  const zs = uniq([R.z0, clamp(cutter.z0, R.z0, R.z1), clamp(cutter.z1, R.z0, R.z1), R.z1])
-  const kept: boolean[][] = xs.slice(0, -1).map((x, i) => zs.slice(0, -1).map((z, j) => {
-    const cx = (x + xs[i + 1]) / 2, cz = (z + zs[j + 1]) / 2
-    return !(cx > cutter.x0 && cx < cutter.x1 && cz > cutter.z0 && cz < cutter.z1)
+  // What is left, over a grid of the outline's own lines and the cutter's.
+  const xs = uniq([...poly.map((p) => p[0]), clamp(cutter.x0, R.x0, R.x1), clamp(cutter.x1, R.x0, R.x1)])
+  const zs = uniq([...poly.map((p) => p[1]), clamp(cutter.z0, R.z0, R.z1), clamp(cutter.z1, R.z0, R.z1)])
+  const mid = (v: number[], i: number) => (v[i] + v[i + 1]) / 2
+  const inRoom: boolean[][] = xs.slice(0, -1).map((_, i) => zs.slice(0, -1).map((__, j) => insidePoly(mid(xs, i), mid(zs, j), poly)))
+  const kept: boolean[][] = inRoom.map((col, i) => col.map((k, j) => {
+    const cx = mid(xs, i), cz = mid(zs, j)
+    return k && !(cx > cutter.x0 && cx < cutter.x1 && cz > cutter.z0 && cz < cutter.z1)
   }))
-  // Thickness: every kept cell's run of kept cells, across and along.
+  const cells = (m: boolean[][]) => m.reduce((s, col) => s + col.filter(Boolean).length, 0)
+  const keptCount = cells(kept)
+  if (keptCount === cells(inRoom)) return { kind: 'unchanged' }
+  if (keptCount === 0) return { kind: 'refused', reason: 'gone' }
+  if (!connected(kept)) return { kind: 'refused', reason: 'split' }
+  // Thickness: no part of what is left thinner than a metre — unless it
+  // already was before this cut (an L may have a narrow arm of its own).
+  const runs = (m: boolean[][], i: number, j: number) => {
+    let a = i, b = i, c = j, e = j
+    while (a > 0 && m[a - 1][j]) a--
+    while (b < m.length - 1 && m[b + 1][j]) b++
+    while (c > 0 && m[i][c - 1]) c--
+    while (e < m[i].length - 1 && m[i][e + 1]) e++
+    return { across: xs[b + 1] - xs[a], along: zs[e + 1] - zs[c] }
+  }
   for (let i = 0; i < kept.length; i++) for (let j = 0; j < kept[i].length; j++) {
     if (!kept[i][j]) continue
-    let a = i, b = i
-    while (a > 0 && kept[a - 1][j]) a--
-    while (b < kept.length - 1 && kept[b + 1][j]) b++
-    let c = j, e = j
-    while (c > 0 && kept[i][c - 1]) c--
-    while (e < kept[i].length - 1 && kept[i][e + 1]) e++
-    if (xs[b + 1] - xs[a] < MIN_ARM_M - EPS || zs[e + 1] - zs[c] < MIN_ARM_M - EPS) return { kind: 'refused', reason: 'thin' }
+    const now = runs(kept, i, j), was = runs(inRoom, i, j)
+    if ((now.across < MIN_ARM_M - EPS && now.across < was.across - EPS) ||
+        (now.along < MIN_ARM_M - EPS && now.along < was.along - EPS)) return { kind: 'refused', reason: 'thin' }
   }
   const loop = traceLoop(kept, xs, zs)
+  if (!loop) return { kind: 'refused', reason: 'hole' }
   const keepRects: Rect[] = []
   kept.forEach((col, i) => col.forEach((k, j) => { if (k) keepRects.push({ x0: xs[i], x1: xs[i + 1], z0: zs[j], z1: zs[j + 1] }) }))
 
   // The new walls, each with the old wall it lies on (if any).
-  const lines = rectLines(R)
+  const lines = abcd ? rectLines(R) : polyLines(poly, g)
   const m = loop.length
   const edges = loop.map(([x1, z1], i) => {
     const [x2, z2] = loop[(i + 1) % m]
     const ux = Math.sign(x2 - x1), uz = Math.sign(z2 - z1)
-    const from = lines.find((l) => (l.ux !== 0 ? uz === 0 && Math.abs(z1 - l.oz) < EPS : ux === 0 && Math.abs(x1 - l.ox) < EPS))
+    const from = lines.find((l) => {
+      if (l.ux !== 0 ? !(uz === 0 && Math.abs(z1 - l.oz) < EPS) : !(ux === 0 && Math.abs(x1 - l.ox) < EPS)) return false
+      // Collinear, and the two overlap: a polygon can have two walls on one line.
+      const [a0, a1] = l.ux !== 0 ? [Math.min(x1, x2), Math.max(x1, x2)] : [Math.min(z1, z2), Math.max(z1, z2)]
+      const s0 = l.ux !== 0 ? l.ox : l.oz, s1 = s0 + (l.ux !== 0 ? l.ux : l.uz) * l.len
+      return Math.min(a1, Math.max(s0, s1)) - Math.max(a0, Math.min(s0, s1)) > EPS
+    })
     return { id: `W${i + 1}`, x1, z1, x2, z2, ux, uz, len: Math.hypot(x2 - x1, z2 - z1), from: from?.id ?? null }
   })
   // Along an edge, how far a world point is from its start.
@@ -226,9 +256,56 @@ const oppositeOf = (s: Side): Side => ({ A: 'C', C: 'A', B: 'D', D: 'B' } as con
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 const uniq = (v: number[]) => [...new Set(v.map((x) => Math.round(x * 1e6) / 1e6))].sort((a, b) => a - b)
 
+/** Every wall of a polygon room's outline runs along x or z. */
+function isRightAngled(g: RoomGeometry): boolean {
+  const v = g.vertices
+  if (!v || v.length < 4 || v.length !== g.walls.length) return false
+  return v.every(([x1, z1], i) => {
+    const [x2, z2] = v[(i + 1) % v.length]
+    return Math.abs(x1 - x2) < 1e-6 || Math.abs(z1 - z2) < 1e-6
+  })
+}
+
+/** A polygon room's walls as world lines: wall i from vertex i towards
+ *  vertex i + 1, its openings measured from vertex i (lib/wallDefsFromVertices). */
+function polyLines(poly: [number, number][], g: RoomGeometry): Line[] {
+  return poly.map(([x1, z1], i) => {
+    const [x2, z2] = poly[(i + 1) % poly.length]
+    const len = Math.hypot(x2 - x1, z2 - z1)
+    return { id: g.walls[i].id, ox: x1, oz: z1, ux: Math.sign(x2 - x1), uz: Math.sign(z2 - z1), len }
+  })
+}
+
+/** Even-odd point in polygon. */
+function insidePoly(x: number, z: number, poly: [number, number][]): boolean {
+  let hit = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i], [xj, zj] = poly[j]
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) hit = !hit
+  }
+  return hit
+}
+
+/** Whether the kept cells are one piece, side to side (a corner touch is not). */
+function connected(kept: boolean[][]): boolean {
+  const all: [number, number][] = []
+  kept.forEach((col, i) => col.forEach((k, j) => { if (k) all.push([i, j]) }))
+  if (!all.length) return true
+  const seen = new Set<string>([all[0].join(',')])
+  const stack = [all[0]]
+  while (stack.length) {
+    const [i, j] = stack.pop()!
+    for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+      if (kept[a]?.[b] && !seen.has(`${a},${b}`)) { seen.add(`${a},${b}`); stack.push([a, b]) }
+    }
+  }
+  return seen.size === all.length
+}
+
 /** The outline of the kept cells, one loop, corners only — in the same
- *  winding as an A-B-C-D rectangle's [[0,0],[W,0],[W,D],[0,D]]. */
-function traceLoop(kept: boolean[][], xs: number[], zs: number[]): [number, number][] {
+ *  winding as an A-B-C-D rectangle's [[0,0],[W,0],[W,D],[0,D]]. Null when
+ *  the outline is not one simple loop: a hole in it, or two corners touching. */
+function traceLoop(kept: boolean[][], xs: number[], zs: number[]): [number, number][] | null {
   // Every kept cell's four edges, one way round; an edge two kept cells
   // share appears once each way and cancels, leaving the outline.
   const all = new Set<string>()
@@ -246,6 +323,7 @@ function traceLoop(kept: boolean[][], xs: number[], zs: number[]): [number, numb
   // On a simple outline each corner has exactly one way on.
   const next = new Map<string, string>()
   for (const e of all) { const [a, b] = e.split('>'); next.set(a, b) }
+  if (next.size !== all.size) return null
   const start = [...next.keys()].sort()[0]
   const pts: [number, number][] = []
   let at = start
@@ -254,6 +332,7 @@ function traceLoop(kept: boolean[][], xs: number[], zs: number[]): [number, numb
     pts.push([xs[i], zs[j]])
     at = next.get(at)!
   } while (at !== start && pts.length <= next.size)
+  if (at !== start || pts.length !== next.size) return null
   // Drop the points in the middle of a straight run.
   return pts.filter((p, k) => {
     const a = pts[(k - 1 + pts.length) % pts.length], b = pts[(k + 1) % pts.length]
