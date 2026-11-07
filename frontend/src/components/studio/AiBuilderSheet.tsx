@@ -157,6 +157,9 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   // A Pinterest pin link: the other inspiration source. One source at a time.
   const [pinUrl, setPinUrl] = React.useState<string | null>(initialPinUrl ?? null)
   const [pinInput, setPinInput] = React.useState("")
+  // Three ways to a design, one at a time: a ready-made style, the user's own words, or a picture.
+  // A picture or pin attached from anywhere (a pin pasted into the request box) shows its tab.
+  const [tab, setTab] = React.useState<"styles" | "words" | "image">(initialPinUrl ? "image" : "styles")
   const fileInput = React.useRef<HTMLInputElement>(null)
   const [running, setRunning] = React.useState(false)
   const [plan, setPlan] = React.useState<AiDesignPlan | null>(null)
@@ -248,6 +251,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     setPinUrl(null)
     setImage(file)
     setPreviewUrl(URL.createObjectURL(file))
+    setTab("image")
   }
 
   function takePin(text: string) {
@@ -255,6 +259,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     setImageError("")
     setPinInput("")
     setPinUrl(text.trim())
+    setTab("image")
   }
 
   /** The link is taken when it is complete: pasted, or left with blur / Enter. Checking
@@ -476,86 +481,102 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   const body = (
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-4">
         <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} preselectGuess />
-        <div className="space-y-1.5">
+        <div role="tablist" aria-label={t("ai.tab_list")} className="flex gap-1 rounded-full bg-gray-100 p-1">
+          {([["styles", t("ai.tab_styles")], ["words", t("ai.tab_words")], ["image", t("ai.tab_image")]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`ai-tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls={`ai-panel-${id}`}
+              onClick={() => setTab(id)}
+              className={`flex-1 rounded-full px-2 py-1.5 text-xs font-semibold transition ${
+                tab === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel" id="ai-panel-styles" aria-labelledby="ai-tab-styles" hidden={tab !== "styles"} className="space-y-1.5">
           <p className="text-xs font-semibold text-gray-500">{t("ai.tayyor_uslublar")}</p>
           <PresetCards narrow={wide} onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy} />
         </div>
 
-        <form onSubmit={generate} className="space-y-2">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onPaste={pastePrompt}
-            placeholder={image || pinUrl ? t("ai.rasm_placeholder") : t("ai.builder_placeholder")}
-            disabled={running}
-            rows={3}
-            maxLength={500}
-            aria-label={t("ai.dizayn_tavsifi")}
-            className="w-full resize-none rounded-2xl bg-soft px-3 py-2 text-sm shadow-soft-pressed focus:outline-none focus:shadow-soft-pressed-deep disabled:opacity-60"
-          />
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInput}
-              type="file"
-              accept={IMAGE_TYPES.join(",")}
-              aria-label={t("ai.rasm_input")}
-              className="hidden"
-              onChange={(e) => pickImage(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              disabled={running}
-              onClick={() => fileInput.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-[#3B63DE] hover:text-[#3B63DE] disabled:opacity-60"
-            >
-              <ImagePlus size={14} aria-hidden="true" />
-              {t("ai.rasm_qoshish")}
-            </button>
-            {previewUrl && (
-              <div className="relative">
-                <img src={previewUrl} alt={t("ai.rasm_preview")} className="h-12 w-12 rounded-xl object-cover" />
+        <form
+          onSubmit={generate}
+          role="tabpanel"
+          id={tab === "image" ? "ai-panel-image" : "ai-panel-words"}
+          aria-labelledby={tab === "image" ? "ai-tab-image" : "ai-tab-words"}
+          hidden={tab === "styles"}
+          className="space-y-2"
+        >
+          <div hidden={tab !== "image"} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInput}
+                type="file"
+                accept={IMAGE_TYPES.join(",")}
+                aria-label={t("ai.rasm_input")}
+                className="hidden"
+                onChange={(e) => pickImage(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                disabled={running}
+                onClick={() => fileInput.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-[#3B63DE] hover:text-[#3B63DE] disabled:opacity-60"
+              >
+                <ImagePlus size={14} aria-hidden="true" />
+                {t("ai.rasm_qoshish")}
+              </button>
+              {previewUrl && (
+                <div className="relative">
+                  <img src={previewUrl} alt={t("ai.rasm_preview")} className="h-12 w-12 rounded-xl object-cover" />
+                  <button
+                    type="button"
+                    aria-label={t("ai.rasm_olib_tashlash")}
+                    onClick={removeImage}
+                    disabled={running}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+            {pinUrl ? (
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-[#E60023]/10 px-3 py-1.5 text-xs font-semibold text-[#B8001C]">{t("ai.pin_chip")}</span>
                 <button
                   type="button"
-                  aria-label={t("ai.rasm_olib_tashlash")}
-                  onClick={removeImage}
+                  aria-label={t("ai.pin_olib_tashlash")}
+                  onClick={() => setPinUrl(null)}
                   disabled={running}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
                 >
                   ✕
                 </button>
               </div>
+            ) : (
+              <input
+                type="url"
+                value={pinInput}
+                onChange={(e) => { setPinInput(e.target.value); setImageError("") }}
+                onPaste={pastePin}
+                onBlur={() => commitPinInput()}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitPinInput() } }}
+                placeholder={t("ai.pin_placeholder")}
+                aria-label={t("ai.pin_label")}
+                disabled={running}
+                className="w-full rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#3B63DE]/40"
+              />
             )}
           </div>
-          {pinUrl ? (
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#E60023]/10 px-3 py-1.5 text-xs font-semibold text-[#B8001C]">{t("ai.pin_chip")}</span>
-              <button
-                type="button"
-                aria-label={t("ai.pin_olib_tashlash")}
-                onClick={() => setPinUrl(null)}
-                disabled={running}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <input
-              type="url"
-              value={pinInput}
-              onChange={(e) => { setPinInput(e.target.value); setImageError("") }}
-              onPaste={pastePin}
-              onBlur={() => commitPinInput()}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitPinInput() } }}
-              placeholder={t("ai.pin_placeholder")}
-              aria-label={t("ai.pin_label")}
-              disabled={running}
-              className="w-full rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#3B63DE]/40"
-            />
-          )}
           {imageError && <p role="alert" className="text-xs text-red-600">{imageError}</p>}
-          <p className="pt-1 text-xs font-semibold text-gray-500">{t("ai.ai_namunalari")}</p>
-          <div className="flex flex-wrap gap-1.5">
+          <p hidden={tab !== "words"} className="pt-1 text-xs font-semibold text-gray-500">{t("ai.ai_namunalari")}</p>
+          <div hidden={tab !== "words"} className="flex flex-wrap gap-1.5">
             {t("ai.dizayner_misollar", { returnObjects: true }).map((example) => (
               <button
                 key={example}
@@ -568,6 +589,17 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
               </button>
             ))}
           </div>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onPaste={pastePrompt}
+            placeholder={image || pinUrl ? t("ai.rasm_placeholder") : t("ai.builder_placeholder")}
+            disabled={running}
+            rows={3}
+            maxLength={500}
+            aria-label={t("ai.dizayn_tavsifi")}
+            className="w-full resize-none rounded-2xl bg-soft px-3 py-2 text-sm shadow-soft-pressed focus:outline-none focus:shadow-soft-pressed-deep disabled:opacity-60"
+          />
           <button
             type="submit"
             disabled={!canSend}
