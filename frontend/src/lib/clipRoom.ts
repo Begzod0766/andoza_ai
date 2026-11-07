@@ -82,7 +82,7 @@ export function clipRoom(room: RoomContent, asked: Rect): ClipResult {
   // cut the same way: "in the first attempt it is working but next the same
   // problem happening" — once a neighbour was an L, the next push stopped at it.
   if (!abcd && !isRightAngled(g)) return { kind: 'refused', reason: 'shape' }
-  const poly = outlineOf(room)
+  let poly = outlineOf(room)
   const R: Rect = {
     x0: Math.min(...poly.map((p) => p[0])), x1: Math.max(...poly.map((p) => p[0])),
     z0: Math.min(...poly.map((p) => p[1])), z1: Math.max(...poly.map((p) => p[1])),
@@ -101,6 +101,16 @@ export function clipRoom(room: RoomContent, asked: Rect): ClipResult {
   if (cutter.x1 < R.x1 - EPS && R.x1 - cutter.x1 < MIN_ARM_M) cutter.x1 = R.x1
   if (cutter.z0 > R.z0 + EPS && cutter.z0 - R.z0 < MIN_ARM_M) cutter.z0 = R.z0
   if (cutter.z1 < R.z1 - EPS && R.z1 - cutter.z1 < MIN_ARM_M) cutter.z1 = R.z1
+
+  // Rooms stand at float positions (a centre of −4.329999866…), so a cutter
+  // edge meant to fall on one of the room's lines lands a micron off it. That
+  // left a micron-wide strip of room which, rounded to millimetres, became a
+  // corner lost and a diagonal wall. Within a millimetre, one line.
+  const sx = snapAxis(poly.map((p) => p[0]), [cutter.x0, cutter.x1])
+  const sz = snapAxis(poly.map((p) => p[1]), [cutter.z0, cutter.z1])
+  cutter.x0 = sx(cutter.x0); cutter.x1 = sx(cutter.x1)
+  cutter.z0 = sz(cutter.z0); cutter.z1 = sz(cutter.z1)
+  poly = poly.map(([x, z]) => [sx(x), sz(z)] as [number, number])
 
   if (abcd) {
     // Which of the room's sides the cutter reaches past.
@@ -254,6 +264,12 @@ export function clipRoom(room: RoomContent, asked: Rect): ClipResult {
 
 const oppositeOf = (s: Side): Side => ({ A: 'C', C: 'A', B: 'D', D: 'B' } as const)[s]
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
+/** Snaps a coordinate to the first of `lines` (then `extra`) within `tol`. */
+function snapAxis(lines: number[], extra: number[], tol = 1e-3): (v: number) => number {
+  const reps: number[] = []
+  for (const v of [...lines, ...extra]) if (!reps.some((r) => Math.abs(r - v) < tol)) reps.push(v)
+  return (v) => reps.find((r) => Math.abs(r - v) < tol) ?? v
+}
 const uniq = (v: number[]) => [...new Set(v.map((x) => Math.round(x * 1e6) / 1e6))].sort((a, b) => a - b)
 
 /** Every wall of a polygon room's outline runs along x or z. */

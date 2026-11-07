@@ -146,3 +146,24 @@ describe('cutting a room that is already cut', () => {
     expect(Math.min(left.z, right.z)).toBeCloseTo(-0.5)
   })
 })
+
+// The second push in the app left the cut room with five corners and a
+// diagonal wall: its centre (−4.329999866…) put the cutter a micron off the
+// room's own line, and that micron-wide strip broke the outline.
+describe('float noise', () => {
+  it('keeps every corner when the rooms stand at float positions', () => {
+    const world: [number, number][] = [[-5.95,-2.75],[-4.85,-2.75],[-4.85,-2.42],[-2.45,-2.42],[-2.45,1.5],[-5.95,1.5]]
+    const mx = Math.min(...world.map(p=>p[0])), mz = Math.min(...world.map(p=>p[1]))
+    const v = world.map(([x,z]) => [Math.round((x-mx)*1000), Math.round((z-mz)*1000)] as [number,number])
+    const centre = { x: world.reduce((s,p)=>s+p[0],0)/6 + 1.3e-7, z: world.reduce((s,p)=>s+p[1],0)/6 - 3e-7 }
+    const room: RoomContent = { geometry: { vertices: v, walls: v.map((p,i)=>{const q=v[(i+1)%6];return {id:`W${i+1}`,length:Math.abs(q[0]-p[0])+Math.abs(q[1]-p[1]),elements:[]}}) }, centre }
+    for (const nx of [-4e-6, -2e-6, -1e-6, -5e-7, 0, 5e-7, 1e-6, 2e-6, 4e-6]) {
+      const r = clipRoom(room, { x0: -4.85 + nx, x1: -1.9, z0: -3.02, z1: -2.08 })
+      expect(r.kind, String(nx)).toBe('cut')
+      if (r.kind !== 'cut') continue
+      const vv = r.content.geometry.vertices!
+      const right = vv.every(([x1, z1], i) => { const [x2, z2] = vv[(i + 1) % vv.length]; return x1 === x2 || z1 === z2 })
+      expect({ nx, n: vv.length, right, short: Math.min(...r.content.geometry.walls.map(w => w.length)) }).toEqual({ nx, n: 6, right: true, short: 670 })
+    }
+  })
+})
