@@ -30,7 +30,8 @@ import { TILE_SIZES, TILE_FACES, TILE_PATTERN_ID, tileSettings } from '@/lib/til
 import { TileThumb } from '@/components/studio/TileThumb'
 import { trimLabel, trimProfilesOf, type TrimProfileDef } from '@/lib/trimProfiles'
 import { PatternThumb, TrimThumb } from '@/components/studio/design-panel/FloorControls'
-import { furniturePlacementMm, nextLightPositionMm } from '@/lib/placement'
+import { nextLightPositionMm } from '@/lib/placement'
+import { nextFurnitureSpot } from './nextFurnitureSpot'
 import { resolveTargetWall } from '@/components/studio/design-panel/shared'
 import type { ArcCategory, ArcItem } from '@/components/studio/QuarterArcMenu'
 
@@ -77,8 +78,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         onSelect: () => placeFurniture({
           id: nanoid(),
           furniture_id: e.id,
-          ...furniturePlacementMm(geometry, furniture.filter((f) => f.furniture_id === e.id).length, e.sizeM),
-          rotation: 0,
+          ...nextFurnitureSpot({ name: e.name, category: e.category, sizeM: e.sizeM }),
         }),
       })),
     ]
@@ -97,9 +97,11 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
           onSelect: () => placeFurniture({
             id: nanoid(),
             furniture_id: f.id,
-            ...furniturePlacementMm(geometry, furniture.filter((x) => x.furniture_id === f.id).length,
-              { w: (f.footprint_w ?? 0) / 100, d: (f.footprint_d ?? 0) / 100 }),
-            rotation: 0,
+            ...nextFurnitureSpot({
+              name: f.name_uz, category: f.category,
+              sizeM: { w: (f.footprint_w ?? 0) / 100, d: (f.footprint_d ?? 0) / 100 },
+              heightM: f.height_cm ? f.height_cm / 100 : undefined,
+            }),
           }),
         }))
 
@@ -122,7 +124,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
       onSelect: () => addLight({
         id: nanoid(),
         type: lt.id,
-        ...nextLightPositionMm(geometry, lights.length),
+        ...nextLightPositionMm(geometry, lights),
         ...(lt.mount === 'wall' ? { wallId: 'A' as const } : {}),
       }),
     }))

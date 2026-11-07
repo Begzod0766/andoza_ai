@@ -107,9 +107,18 @@ Normal path — just push to `master`:
 git push origin master
 ```
 
-GitHub Actions `deploy.yml` SSHes into the VPS and runs
-`docker compose -f docker-compose.prod.yml up -d --build`, which rebuilds the
-frontend image (picking up `VITE_API_URL`) and the backend, then restarts them.
+GitHub Actions `deploy.yml` builds the two images on GitHub — `backend` (api,
+worker, styles-worker, converter, beat) and `frontend` (with `VITE_API_URL`,
+repo variable, default `/api/v1`) — and pushes them to
+`ghcr.io/<repository owner>/andoza_ai-{backend,frontend}:<commit>`. It then SSHes into the
+VPS, logs Docker into ghcr.io with the run's own token, and runs
+`deploy/remote-deploy.sh` with `IMAGE_TAG=<commit>`: the checkout is reset to that
+commit, `docker compose -f docker-compose.prod.yml -f docker-compose.images.yml
+pull` brings only the changed layers, `up -d --no-build` restarts, then the seeds
+run. Nothing is built on the VPS any more — apt-get and npm over its slow uplink
+were what killed the deploys of 2026-11-02. A failed pull stops the deploy with
+the old containers still serving. A non-x86_64 server, or the script run by hand
+without `IMAGE_TAG`, builds locally as before.
 Media survives via the named `media_data` volume.
 
 > ⚠️ Any push to `master` deploys prod. Review before merging.
@@ -119,6 +128,9 @@ Manual redeploy on the VPS (if needed):
 ssh root@189.74.96.11
 cd /opt/andoza_ai
 docker compose -f docker-compose.prod.yml up -d --build frontend
+# or the CI images of a given commit (after `docker login ghcr.io`):
+IMAGE_TAG=<commit> docker compose -f docker-compose.prod.yml -f docker-compose.images.yml pull frontend
+IMAGE_TAG=<commit> docker compose -f docker-compose.prod.yml -f docker-compose.images.yml up -d --no-build frontend
 ```
 
 ---

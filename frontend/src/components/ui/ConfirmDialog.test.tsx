@@ -65,3 +65,26 @@ describe('showToast', () => {
     expect(await screen.findByText("Qismni ajratib bo'lmadi")).toBeInTheDocument()
   })
 })
+
+describe('toast viewport', () => {
+  // QA 2026-11-06 4.4 (#174): the viewport stood at bottom-24 right-4 with
+  // 280-380 px toasts, i.e. across the studio's bottom-left camera row on a
+  // phone ("My renders"): the refusal could not be read and the toast sat on
+  // the controls. On a phone it now drops in from the top, under the header;
+  // from lg it keeps the bottom-right corner, where nothing else stands.
+  it('sits at the top on a phone and bottom-right only from lg, above the studio panels', () => {
+    render(<FeedbackProvider><div /></FeedbackProvider>)
+    const viewport = screen.getByRole('region').querySelector('ol')!
+    const cls = viewport.className.split(/\s+/)
+    expect(cls).toContain('fixed')
+    expect(cls).toContain('z-[100]')
+    expect(cls).toContain('inset-x-4')
+    expect(cls.some((c) => c.startsWith('top-'))).toBe(true)
+    // Nothing anchors it to the bottom below lg.
+    expect(cls.filter((c) => c.startsWith('bottom-'))).toEqual([])
+    expect(cls).toContain('lg:bottom-24')
+    expect(cls).toContain('lg:top-auto')
+    // The full-width (empty) list must not swallow taps meant for the scene.
+    expect(cls).toContain('pointer-events-none')
+  })
+})

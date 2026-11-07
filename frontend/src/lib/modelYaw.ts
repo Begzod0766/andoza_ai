@@ -20,6 +20,8 @@ const NOT_DETECTED: YawGuess = { yaw: 0, detected: false }
 
 // Only these have a back tall enough to tell it from the front.
 const BACKED_ROLES = new Set<FurnitureRole>(['bed', 'sofa', 'armchair', 'dining_chair', 'desk_chair'])
+// These stand against a wall: their back is the side they stand flush on (see wallYawFromPoints).
+const WALL_ROLES = new Set<FurnitureRole>(['tv_unit', 'wardrobe', 'shelf'])
 
 /** The top share of the model's height read as its back (a headboard, a sofa's back). */
 const BACK_SHARE = 0.25
@@ -60,12 +62,56 @@ export function yawFromPoints(points: ReadonlyArray<readonly [number, number, nu
 }
 
 /**
- * The yaw of a loaded model, for the pieces with a tall back; any other gets 0. It reads the model in
+ * The yaw of a piece that stands against a wall (a TV unit, a wardrobe, a shelf), from its points.
+ * Its depth is its thinner side across the floor. Its back is flat against the wall, so the top
+ * quarter reaches that side, while it falls short of the front (a console or a plinth juts out
+ * under it). The top quarter's mean, which `yawFromPoints` reads, does not work here: a tall
+ * cabinet at one end pulls it along the width.
+ *
+ * With no such step the front is not known, but a piece lying sideways (deeper than wide) is still
+ * turned a quarter, so its long side goes along the wall; that is reported as detected, since the
+ * turn is what matters for a box with two like faces. Mirrors `wallYawFromPoints` in
+ * backend/scripts/model_yaw_detect.mjs: keep the two in step.
+ */
+export function wallYawFromPoints(points: ReadonlyArray<readonly [number, number, number]>): YawGuess {
+  if (points.length === 0) return NOT_DETECTED
+  const min = [Infinity, Infinity, Infinity]
+  const max = [-Infinity, -Infinity, -Infinity]
+  for (const p of points) {
+    for (let i = 0; i < 3; i++) {
+      if (p[i] < min[i]) min[i] = p[i]
+      if (p[i] > max[i]) max[i] = p[i]
+    }
+  }
+  const [sizeX, sizeY, sizeZ] = [max[0] - min[0], max[1] - min[1], max[2] - min[2]]
+  if (!(sizeY > 0) || sizeX === sizeZ) return NOT_DETECTED
+
+  const axis = sizeX < sizeZ ? 0 : 2
+  const depth = axis === 0 ? sizeX : sizeZ
+  const top = max[1] - BACK_SHARE * sizeY
+  let lo = Infinity, hi = -Infinity
+  for (const p of points) {
+    if (p[1] < top) continue
+    if (p[axis] < lo) lo = p[axis]
+    if (p[axis] > hi) hi = p[axis]
+  }
+  const gapMin = (lo - min[axis]) / depth
+  const gapMax = (max[axis] - hi) / depth
+  if (Math.abs(gapMin - gapMax) < MIN_OFFSET) return axis === 0 ? { yaw: 90, detected: true } : NOT_DETECTED
+
+  const backOnMin = gapMin < gapMax
+  if (axis === 0) return { yaw: backOnMin ? 270 : 90, detected: true }
+  return { yaw: backOnMin ? 0 : 180, detected: true }
+}
+
+/**
+ * The yaw of a loaded model, for the pieces with a tall back or that stand against a wall; any other gets 0. It reads the model in
  * its own frame (the parents that place or turn it on screen are left out), so a preview that already
  * shows it turned does not turn it twice.
  */
 export function detectModelYaw(scene: THREE.Object3D, role: FurnitureRole | null): YawGuess {
-  if (!role || !BACKED_ROLES.has(role)) return NOT_DETECTED
+  const wall = role != null && WALL_ROLES.has(role)
+  if (!role || (!wall && !BACKED_ROLES.has(role))) return NOT_DETECTED
   scene.updateWorldMatrix(true, true)
   const toModel = scene.parent ? scene.parent.matrixWorld.clone().invert() : new THREE.Matrix4()
   const points: [number, number, number][] = []
@@ -82,7 +128,7 @@ export function detectModelYaw(scene: THREE.Object3D, role: FurnitureRole | null
       points.push([v.x, v.y, v.z])
     }
   })
-  return yawFromPoints(points)
+  return wall ? wallYawFromPoints(points) : yawFromPoints(points)
 }
 
 /** A width and depth after turning by the yaw: a quarter turn swaps them. */

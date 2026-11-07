@@ -19,8 +19,20 @@ export interface AdminOrder {
   lines: OrderLine[];
 }
 
-export async function listAdminOrders(status?: OrderStatus, page = 1, perPage = 50): Promise<AdminOrder[]> {
-  const q = new URLSearchParams({ page: String(page), per_page: String(perPage), ...(status ? { status } : {}) });
+export interface AdminOrderFilters {
+  status?: OrderStatus;
+  store_id?: string;
+  /** ISO datetime: orders placed at or after it. */
+  since?: string;
+  /** Order number (the start of its id) or phone digits. */
+  q?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export async function listAdminOrders({ page = 1, perPage = 50, ...filters }: AdminOrderFilters = {}): Promise<AdminOrder[]> {
+  const q = new URLSearchParams({ page: String(page), per_page: String(perPage) });
+  for (const [key, value] of Object.entries(filters)) if (value) q.set(key, value);
   return apiClient<AdminOrder[]>(`/admin/orders?${q}`);
 }
 

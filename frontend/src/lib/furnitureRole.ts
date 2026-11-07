@@ -27,21 +27,27 @@ export function isRole(v: unknown): v is FurnitureRole {
   return typeof v === 'string' && Object.prototype.hasOwnProperty.call(ROLE_GROUP, v)
 }
 
-// Name rules, first match wins. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
+// Name rules, first match wins; Latin, Uzbek and Russian names. Cyrillic "тв" is matched with
+// lookarounds, not \b: JavaScript's \b knows only ASCII letters. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
 // "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
+// A Russian name that is just "Стол <model>" is an office shop's desk: a dining table says
+// "обеденный" or "кухонный", and "Стол-книжка" / "Стол-трансформер" are folding tables.
 const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
-  [/gilam|rug|carpet|kovrolin/i, 'rug'],
-  [/jurnal|kofe|coffee/i, 'coffee_table'],
-  [/tumbochka|nightstand|prikrovat/i, 'nightstand'],
-  [/\btv\b|televizor|tumba/i, 'tv_unit'],
+  [/gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас/i, 'rug'],
+  [/jurnal|kofe|coffee|журнальн|кофейн/i, 'coffee_table'],
+  [/tumbochka|nightstand|prikrovat|тумбочк|прикроватн/i, 'nightstand'],
+  [/\btv\b|televizor|tumba|(?<![а-яё])тв(?![а-яё])|телевизор|тумб/i, 'tv_unit'],
   [/\bish stuli|ofis stuli|kompyuter stuli|kreslo-kompyuter|office chair|desk chair|(офисн|компьютерн)\S*\s+(стул|кресл)/i, 'desk_chair'],
-  [/yozuv|kompyuter|desk|\bish stoli|компьютерн\S*\s+стол/i, 'desk'],
-  [/kreslo|armchair/i, 'armchair'],
-  [/shkaf|garderob|wardrobe/i, 'wardrobe'],
-  [/javon|komod|stellaj|vitrina|bookcase/i, 'shelf'],
+  [/yozuv|kompyuter|desk|\bish stoli|(компьютерн|письменн|офисн|рабоч)\S*\s+стол|^\s*стол(?![-а-яё])(?!.*(?:обеден|кухон))/i, 'desk'],
+  [/kreslo|armchair|кресл/i, 'armchair'],
+  [/shkaf|garderob|wardrobe|шкаф|гардероб/i, 'wardrobe'],
+  [/javon|komod|stellaj|vitrina|bookcase|стеллаж|комод|витрин/i, 'shelf'],
 ]
+// The admin's "shkaf" holds wardrobes and open shelving alike; one whose name says neither
+// ("LOFT", "Quadro") is read as a shelf: a shelf stands anywhere, a wardrobe in a living room or
+// study does not. A bedroom's wardrobe is picked by name (`WARDROBE_NAME`), not by this.
 const ROLE_BY_CATEGORY: Record<string, FurnitureRole> = {
-  divan: 'sofa', karavot: 'bed', stol: 'dining_table', stul: 'dining_chair',
+  divan: 'sofa', karavot: 'bed', stol: 'dining_table', stul: 'dining_chair', shkaf: 'shelf',
 }
 
 /**

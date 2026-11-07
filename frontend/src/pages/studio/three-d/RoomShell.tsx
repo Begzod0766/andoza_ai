@@ -22,7 +22,7 @@ import { WALL_T, FLOOR_COLORS, UNCONFIGURED_FLOOR_COLOR, noRaycast, OPENING_REVE
 import { wallDefsFromVertices } from "@/lib/wallDefsFromVertices";
 import { shadeCovering, boardSegments, trimSegments } from "./helpers";
 import { WoodFloor, Ceiling, PatternFloor, CeilingProfile, DoorwayFloors } from "./FloorCeiling";
-import { doorwayNiches } from "@/lib/doorwayNiches";
+import { doorwayNiches, shownNiches } from "@/lib/doorwayNiches";
 import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
 import { drawsOpeningLining, hiddenByCamera } from "@/lib/flatOpenings";
 import { rectangleFrame } from "@/lib/roomOutline";
@@ -33,6 +33,7 @@ import { Wall, WindowFrames, DoorFrames, Baseboard, Cornice, WindowFrameItem, Do
 import { resolveTrim } from "@/lib/trimProfiles";
 import { CeilingLights } from "./LightingComponents";
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
+import { useWallFocusStore } from "@/store/wallFocusStore";
 
 /**
  * The full room shell: the legacy 4-wall ABCD room (floor, ceiling, walls,
@@ -289,6 +290,10 @@ function NWallRoomShell({
    *  only one drawing them. */
   partitionWalls?: ReadonlySet<string>;
 }) {
+  // The panel's hovered wall belongs to the room being edited: a read-only neighbour (no
+  // onWallClick) shares wall ids like "0" and must not light up with it.
+  // A read-only room (a sibling) never subscribes, so a chip hover re-renders only the edited one.
+  const hoveredWall = useWallFocusStore((st) => (onWallClick ? st.hovered : null));
   // Skirting: undefined means the user never touched it, which still renders
   // the default board; only an explicit null takes it off.
   const trim = designState.skirting === null ? null : resolveTrim(designState.skirting, 'skirting')
@@ -463,6 +468,21 @@ function NWallRoomShell({
     )
     return doorwayNiches(geometry.walls, 0, 0, defs, OPENING_REVEAL_D)
   }, [filteredCentred, geometry.walls])
+  // ...but only those whose door lining is standing round them. A niche lies
+  // behind the wall line, so with its wall culled from outside (and the lining
+  // taken by hiddenByCamera below) or faded by the cutaway, it is a door-wide
+  // slab of floor sticking out of the room (QA #11). The camera takes the
+  // lining at once, and the niche with it; the cutaway fades the lining out
+  // with its wall (WallFade), so the niche is kept and fades with it
+  // (DoorwayFloors' `fadedWalls`) rather than going before the lining does.
+  const fadedWallIds = useMemo(
+    () => new Set(edges.filter((e) => hiddenEdges.has(e.index)).map((e) => e.wallId)),
+    [edges, hiddenEdges],
+  )
+  const visibleNiches = useMemo(
+    () => shownNiches(niches, { behindCamera: hiddenAttachments }),
+    [niches, hiddenAttachments],
+  )
 
   // The ceiling design, for an outline the rectangular builder can serve.
   //
@@ -536,7 +556,8 @@ function NWallRoomShell({
           {/* ...and on under each door, from the same pattern, so the joints
               carry through rather than merely matching in colour. */}
           <DoorwayFloors
-            niches={niches}
+            niches={visibleNiches}
+            fadedWalls={fadedWallIds}
             pattern={floorPattern}
             width={patternExtents.W}
             depth={patternExtents.D}
@@ -582,6 +603,7 @@ function NWallRoomShell({
               ceilingDesign(designState.ceiling?.design ?? DEFAULT_CEILING_DESIGN),
               designState.ceiling?.settings,
             ).stripK}
+            ceilingY={H}
           />
         </group>
       )}
@@ -665,7 +687,7 @@ function NWallRoomShell({
                 cx={0}
                 cz={0}
                 innerFaceDir={e.faceDir}
-                isSelected={selectedWall === e.wallId}
+                isSelected={selectedWall === e.wallId || hoveredWall === e.wallId}
                 onClick={() => onWallClick?.(e.wallId)}
                 panelSettings={resolveWallPanel(designState.wallPanels, e.wallId)}
               />
@@ -836,6 +858,10 @@ export const RoomScene = memo(function RoomScene({
    *  only one drawing them. */
   partitionWalls?: ReadonlySet<string>;
 }) {
+  // The panel's hovered wall belongs to the room being edited: a read-only neighbour (no
+  // onWallClick) shares wall ids like "0" and must not light up with it.
+  // A read-only room (a sibling) never subscribes, so a chip hover re-renders only the edited one.
+  const hoveredWall = useWallFocusStore((st) => (onWallClick ? st.hovered : null));
   // Legacy 4-wall ABCD rectangle — use the existing precise rendering.
   // Any other layout (N-wall from RoomPlan) uses NWallRoomShell.
   // The test lives in lib/borrowedOpenings, which must decide a wall's
@@ -1023,6 +1049,12 @@ export const RoomScene = memo(function RoomScene({
     () => doorwayNiches(geometry.walls, W, D, {}, OPENING_REVEAL_D),
     [geometry.walls, W, D],
   )
+  // Only under doors whose lining is drawn — the same `hiddenWalls` the
+  // DoorFrames below are hidden by; see the drawn shell's `visibleNiches`.
+  const shownAbcdNiches = useMemo(
+    () => shownNiches(abcdNiches, { behindCamera: hiddenWalls }),
+    [abcdNiches, hiddenWalls],
+  )
 
   return (
     <group>
@@ -1042,7 +1074,7 @@ export const RoomScene = memo(function RoomScene({
                 carry through rather than merely matching in colour. */}
             {designState.floorPattern && (
               <DoorwayFloors
-                niches={abcdNiches}
+                niches={shownAbcdNiches}
                 pattern={designState.floorPattern}
                 width={W}
                 depth={D}
@@ -1080,7 +1112,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'A') ?? {})}>
               <Wall plaster={plasterWalls} wallId="A" length={W} height={H} thickness={T} covering={coveringA}
                 elements={wallA?.elements ?? EMPTY_ELEMENTS} axis="X" cx={0} cz={-(D / 2 + T / 2)}
-                isSelected={selectedWall === 'A'} onClick={handleWallClickA}
+                isSelected={selectedWall === 'A' || hoveredWall === 'A'} onClick={handleWallClickA}
                 panelSettings={panelsA} />
             </group>
           </WallFade>
@@ -1090,7 +1122,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'B') ?? {})}>
               <Wall plaster={plasterWalls} wallId="B" length={D + 2 * T} height={H} thickness={T} covering={coveringB}
                 elements={elementsBOuter} axis="Z" cx={W / 2 + T / 2} cz={0}
-                isSelected={selectedWall === 'B'} onClick={handleWallClickB}
+                isSelected={selectedWall === 'B' || hoveredWall === 'B'} onClick={handleWallClickB}
                 panelSettings={panelsB} />
             </group>
           </WallFade>
@@ -1100,7 +1132,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'C') ?? {})}>
               <Wall plaster={plasterWalls} wallId="C" length={W} height={H} thickness={T} covering={coveringC}
                 elements={wallC?.elements ?? EMPTY_ELEMENTS} axis="X" cx={0} cz={D / 2 + T / 2}
-                isSelected={selectedWall === 'C'} onClick={handleWallClickC}
+                isSelected={selectedWall === 'C' || hoveredWall === 'C'} onClick={handleWallClickC}
                 panelSettings={panelsC} />
             </group>
           </WallFade>
@@ -1110,7 +1142,7 @@ export const RoomScene = memo(function RoomScene({
             <group {...(holdBind?.('wall', 'D') ?? {})}>
               <Wall plaster={plasterWalls} wallId="D" length={D + 2 * T} height={H} thickness={T} covering={coveringD}
                 elements={elementsDOuter} axis="Z" cx={-(W / 2 + T / 2)} cz={0}
-                isSelected={selectedWall === 'D'} onClick={handleWallClickD}
+                isSelected={selectedWall === 'D' || hoveredWall === 'D'} onClick={handleWallClickD}
                 panelSettings={panelsD} />
             </group>
           </WallFade>

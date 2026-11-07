@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MoveRoomsButton } from "./three-d/RoomSlide";
+import { CameraBar } from "./three-d/CameraBar";
 import { useRoomMoveStore } from "@/store/roomMoveStore";
 import { beginRoomSwitch } from "@/lib/roomSwitch";
 import { useViewLockStore } from "@/store/viewLockStore";
@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { wallTileCovering, type TileSize, type TileFace } from "@/lib/tileCatalog";
-import { CAMERA_CHOICES, cameraLabel, cameraTitle, RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
+import { RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
 import { wallAnchorOf, type WallAnchor } from "@/lib/newRoomFromWall";
 import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
@@ -16,6 +16,8 @@ import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { PlanViewToggle } from "@/components/studio/PlanViewToggle";
 import { QuarterArcMenu } from "@/components/studio/QuarterArcMenu";
+import { showsEditingCorners } from "./three-d/cameraViewChrome";
+import { useQiblaVisible } from "./three-d/useQiblaVisible";
 import { useArcCategories } from "@/features/studio/useArcCategories";
 import { deleteRoom, updateRoom, listCatalogFurniture, listRenders, pinParam } from "@/lib/api";
 import type { Room } from "@/lib/api";
@@ -65,9 +67,12 @@ import { DesignPanelDock } from "./three-d/DesignPanelDock";
 import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
+import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
+
+import { StagePillLayer, TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -215,7 +220,8 @@ export default function ThreeDPage() {
   // useState lazy initializer here would freeze at false. Sync it in an
   // effect instead, once, the first time scan data actually arrives.
   const [showScan, setShowScan] = useState(false);
-  const [showQibla, setShowQibla] = useState(false);
+  // The room's own, saved with it (issue #183).
+  const [showQibla, setShowQibla] = useQiblaVisible();
   const hasScan = !!room.room_scan;
   const scanAutoShownRef = useRef(false);
   useEffect(() => {
@@ -315,6 +321,7 @@ export default function ThreeDPage() {
         ? (phaseParam as PhaseKey)
         : 'boyoq'
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
+  const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -508,19 +515,25 @@ export default function ThreeDPage() {
     }, 'image/png');
   }, [room.name]);
 
-  /** Hands a finished still to the user as a file, named by the camera and the
-   *  shape so a set of four does not overwrite itself in the downloads folder. */
+  /** The still a fixed camera's Render just took, on screen until closed. */
+  const [viewStill, setViewStill] = useState<ViewStill | null>(null);
+  /** Puts a finished still on screen (ViewStillSheet), to be saved from there,
+   *  named by the camera and the shape so a set of four does not overwrite
+   *  itself in the downloads folder. It used to go straight to a download link,
+   *  which the phone app's WebView ignores: "Render" did nothing (QA re-check R2). */
   const saveView = useCallback((canvas: HTMLCanvasElement, aspect: RenderAspect) => {
+    const station = cameraStation ?? 1;
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${room.name || 'xona'}-kamera${cameraStation ?? 1}-${aspect.label.replace(':', 'x')}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
+      setViewStill({
+        blob, url: URL.createObjectURL(blob), station,
+        filename: viewStillFilename(room.name, station, aspect.label),
+      });
     }, 'image/png');
   }, [room.name, cameraStation]);
+  const closeViewStill = useCallback(() => {
+    setViewStill((still) => { if (still) URL.revokeObjectURL(still.url); return null; });
+  }, []);
 
   /**
    * Papers the tapped wall — or every wall, when the tap carried none, or when
@@ -868,7 +881,20 @@ export default function ThreeDPage() {
           // inside this box, so they stay under the header and its ⋮ menu,
           // which float over the scene inside the app.
           className={`flex-1 min-w-0 min-h-0 relative isolate overflow-hidden ${(isMebelTab && mebelView === '2d') || (isChiroqTab && chiroqView === '2d') ? 'hidden' : ''}`}
+          // The first tap on the view also closes the phone hint; it does not stop
+          // the tap, so the surface's menu still opens.
+          onPointerDownCapture={() => { if (shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })) markTapHintSeen(); }}
         >
+
+          {/* Below lg: which room and stage (the header hides the name under sm),
+              and, once, how to reach the tools — tap a surface. The pill is
+              also where the stage is changed: the rail is lg-only (QA #17). */}
+          <StagePillLayer roomName={room.name} phase={activePhase} onPick={setActivePhase} />
+          {shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked }) && (
+            <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
+              <TapHint onDismiss={markTapHintSeen} />
+            </div>
+          )}
 
           {/* View mode — relocated here from the tools drawer's old
               "Ko'rinish" chips + cutaway button. One segmented control pinned
@@ -948,161 +974,40 @@ export default function ThreeDPage() {
               for it to go (2026-09-28). The corner arc offers the same things
               and the sheet is still reachable from the design panel. */}
 
-          {/* Bottom-left: the cameras.
-
-              One button, and everything else behind it. The five cameras and
-              the two picture shapes used to sit in the corner permanently —
-              nine controls lying across the room the user was trying to look
-              at, in the one view whose whole job is to be looked at. So the
-              button opens a list, the list closes the moment a camera is
-              chosen, and the only thing left on screen after that is the one
-              control that camera still needs: render. */}
-          <div className="absolute bottom-5 left-4 z-20 flex items-end gap-2">
-            <div className="flex flex-col items-start gap-2">
-              {/* The list rises from the button rather than running across the
-                  foot of the screen: a column keeps it clear of the arc menu in
-                  the opposite corner, and it reads as having come OUT of the
-                  button it is anchored to. */}
-              {cameraListOpen && (
-                <div className="flex flex-col-reverse items-start gap-1.5 animate-[radialpop_120ms_ease-out]">
-                  {CAMERA_CHOICES.map((c) => {
-                    const active = c.station == null ? panorama : cameraStation === c.station
-                    return (
-                      <button
-                        key={c.labelKey + (c.n ?? '')}
-                        onClick={() => enterCamera(c.station)}
-                        title={cameraLabel(c)}
-                        aria-pressed={active}
-                        className={`h-10 pl-3 pr-4 rounded-full flex items-center gap-2 text-[13px] font-bold shadow-lg ring-1 transition-colors ${
-                          active ? 'bg-brand text-white ring-brand/40' : 'bg-white/95 text-brand ring-black/5'
-                        }`}
-                      >
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                          active ? 'bg-white/20' : 'bg-brand/10'
-                        }`}>
-                          {c.badge}
-                        </span>
-                        {cameraTitle(c)}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              <button
-                onClick={() => setCameraListOpen((open) => !open)}
-                title={t('studio.three_d.kameralar')}
-                aria-label={t('studio.three_d.kameralar')}
-                aria-expanded={cameraListOpen}
-                className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 transition-colors ${
-                  cameraListOpen || panorama || cameraStation != null
-                    ? 'bg-brand text-white ring-brand/40'
-                    : 'bg-white/95 text-brand ring-black/5'
-                }`}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2L8 5h8l1.5 2h2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z" />
-                  <circle cx="12" cy="12.5" r="3.5" />
-                </svg>
-              </button>
-            </div>
-
-            {/* The lock: taps and holds in the 3D view open nothing while it
-                is on, so the room can be turned without a menu popping up. */}
-            <button
-              onClick={onToggleViewLock}
-              title={viewLocked ? t('studio.three_d.tahrirlashni_yoqish') : t('studio.three_d.tahrirlashni_qulflash')}
-              aria-label={viewLocked ? t('studio.three_d.tahrirlashni_yoqish') : t('studio.three_d.tahrirlashni_qulflash')}
-              aria-pressed={viewLocked}
-              className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg ring-1 transition-colors ${
-                viewLocked ? 'bg-brand text-white ring-brand/40' : 'bg-white/95 text-brand ring-black/5'
-              }`}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="5" y="11" width="14" height="9" rx="2" />
-                {viewLocked ? <path d="M8 11V8a4 4 0 0 1 8 0v3" /> : <path d="M8 11V8a4 4 0 0 1 7.5-1.9" />}
-              </svg>
-            </button>
-
-            {/* Move rooms: X / Z arrows on a tapped room (RoomSlide.tsx).
-                Only in a flat of several rooms, and not while locked. */}
-            {!viewLocked && (aptRooms?.length ?? 0) > 1 && (
-              <MoveRoomsButton active={moveRoomsOn} onClick={toggleMoveRooms} />
-            )}
-
-            {/* Render, once a camera is chosen — and only then, because it is
-                the picture from THAT camera it would make. The 360 camera goes
-                to the render sheet; a fixed one saves its own still, so it also
-                needs to be asked which shape. */}
-            {/* The pictures already made for this room, from any camera: looking
-                at one again must not cost another render. */}
-            {savedRenders.length > 0 && (
-              <button
-                onClick={() => { setRenderMode('gallery'); setShowRender(true); }}
-                title={t("render.saqlangan")}
-                className="px-4 h-12 rounded-full bg-white/95 text-brand text-[13px] font-bold shadow-lg ring-1 ring-black/5 flex items-center gap-1.5"
-              >
-                {t("render.renderlarim")}
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-brand text-white text-[11px] leading-5 text-center">
-                  {savedRenders.length}
-                </span>
-              </button>
-            )}
-
-            {panorama && (
-              <button
-                onClick={() => { setRenderMode('render'); setShowRender(true); }}
-                title={t("render.sarlavha")}
-                className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
-              >
-                {t("render.nomi")}
-              </button>
-            )}
-
-            {cameraStation != null && (
-              <>
-                {/* Portrait or landscape. Both framings of the same view —
-                    the horizontal angle is fixed, so switching turns the
-                    picture rather than cropping the room out of its sides. */}
-                <div className="flex items-center rounded-full bg-white/95 shadow-lg ring-1 ring-black/5 overflow-hidden">
-                  {RENDER_ASPECTS.map((a) => (
-                    <button
-                      key={a.label}
-                      onClick={() => setCameraAspect(a)}
-                      aria-pressed={cameraAspect.label === a.label}
-                      className={`px-2.5 h-12 text-[12px] font-bold transition-colors ${
-                        cameraAspect.label === a.label ? 'bg-brand text-white' : 'text-brand'
-                      }`}
-                    >
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={requestViewCapture}
-                  title={`${cameraAspect.width} x ${cameraAspect.height}`}
-                  className="px-4 h-12 rounded-full bg-brand text-white text-[13px] font-bold shadow-lg ring-1 ring-brand/40"
-                >
-                  {t("render.nomi")}
-                </button>
-              </>
-            )}
-          </div>
+          {/* Bottom-left: the cameras, the lock, "My renders" and the chosen
+              camera's Render — see CameraBar. */}
+          <CameraBar
+            listOpen={cameraListOpen}
+            onToggleList={() => setCameraListOpen((open) => !open)}
+            onPick={enterCamera}
+            panorama={panorama}
+            cameraStation={cameraStation}
+            aspect={cameraAspect}
+            onAspect={setCameraAspect}
+            onRender360={() => { setRenderMode('render'); setShowRender(true); }}
+            onRenderStill={requestViewCapture}
+            savedCount={savedRenders.length}
+            onOpenGallery={() => { setRenderMode('gallery'); setShowRender(true); }}
+            viewLocked={viewLocked}
+            onToggleLock={onToggleViewLock}
+            showMoveRooms={!viewLocked && (aptRooms?.length ?? 0) > 1}
+            moveRoomsOn={moveRoomsOn}
+            onToggleMoveRooms={toggleMoveRooms}
+            flatShown={(aptRooms?.length ?? 0) > 1}
+          />
 
           {/* Bottom-right corner: the arc menu, mobile only — desktop reaches
               all of this from the design panel and the tools drawer, neither
               of which a phone shows without a detour. Sits beside the CTA
               above rather than replacing it: that button adds whatever suits
               the current phase, this one names the three outright. */}
-          <div className="lg:hidden">
+          {showsEditingCorners({ panorama, cameraStation }) && <div className="lg:hidden">
             <QuarterArcMenu
               className="bottom-5 right-4"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
             />
-          </div>
+          </div>}
 
           <ThreeDCanvasScene
           armedOpeningId={armedOpening?.elId ?? null}
@@ -1213,7 +1118,9 @@ export default function ThreeDPage() {
         roomId={room.id}
         mode={renderMode}
         canRender={panorama}
+        initialSaved={savedRenders}
       />
+      <ViewStillSheet still={viewStill} onClose={closeViewStill} />
 
       {/* The room that would go through the tapped wall: its shape, drawn, and
           three numbers to change it by. */}

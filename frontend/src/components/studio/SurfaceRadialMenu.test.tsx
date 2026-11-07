@@ -157,6 +157,30 @@ describe('tapping a wall-menu button', () => {
     expect(buttons.filter((o) => o <= 0.05).length).toBeGreaterThan(0)
   })
 
+  it('picks a faded edge button on the first tap, and turns it to the middle (QA 2026-11-05 #7)', () => {
+    // A tap on the half-faded pair used to only turn the ring one step, so
+    // every pick off-centre took two or three taps and read as a dead menu.
+    for (const side of [0, 1]) {
+      // A fresh ring for each side: turning it re-keys the buttons.
+      cleanup()
+      const { onDevice } = mount()
+      tap(screen.getByText('Elektr').closest('button')!)
+      const faded = [...document.querySelectorAll('button')]
+        .filter((b) => DEVICES.includes(b.textContent!.trim()))
+        .filter((b) => { const o = Number(b.style.opacity || 1); return o > 0.05 && o <= 0.9 })
+      expect(faded).toHaveLength(2)
+      const btn = faded[side]
+      const label = btn.textContent!.trim()
+      tap(btn)
+      expect(onDevice).toHaveBeenCalledTimes(1)
+      expect(onDevice).toHaveBeenCalledWith(label)
+      // ...and it comes round to the centre slot, where it is plainly the pick.
+      const now = [...document.querySelectorAll('button')]
+        .filter((b) => b.textContent!.trim() === label && Number(b.style.opacity || 1) > 0.9)
+      expect(now).toHaveLength(1)
+    }
+  })
+
   it('still dismisses when the backdrop itself is tapped', () => {
     const { onClose, onPaint } = mount()
     const backdrop = document.querySelector('div.fixed.inset-0')!

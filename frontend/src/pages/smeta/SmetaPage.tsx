@@ -10,8 +10,11 @@ import { useTranslation } from "react-i18next";
 import type { EstimateResponse } from "@/lib/api";
 import { SmetaAskDrawer } from "@/components/smeta/SmetaAskDrawer";
 import { CategorySection } from "@/components/smeta/CategorySection";
+import { SmetaSectionNav } from "@/components/smeta/SmetaSectionNav";
 import { CostBreakdown } from "@/components/smeta/CostBreakdown";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
+import { StudioMenu } from "@/components/studio/StudioMenu";
+import { MENU_ROW } from "@/components/studio/menuRow";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 
@@ -41,20 +44,55 @@ const secondaryButton =
 
 /** The floor type is chosen in the studio (by hand, by the AI designer or a ready-made
  *  style) but no shop product for it. The estimate prices it from the median shop product
- *  when there is one ("stand_in": the price is approximate) and otherwise leaves it out
- *  ("left_out"); either way the page says so rather than show a total that looks settled.
- *  A bare concrete floor has nothing to buy. */
-type FloorNote = "left_out" | "stand_in" | null
+ *  of that floor type when there is one ("stand_in": the price is approximate) and otherwise
+ *  leaves it out ("left_out"); either way the page says so rather than show a total that
+ *  looks settled. A bare concrete floor has nothing to buy.
+ *
+ *  To the user, picking "Floor -> Parquet -> Chevron" in 3D is choosing the floor (QA #12),
+ *  so the stand-in note names the floor type it was priced as ("the shop's average
+ *  parquet") instead of saying flatly that no product is chosen. That type is read off the
+ *  priced line, not the design: a parquet floor with no parquet in the shop is priced from
+ *  laminate (smeta.py's _DESIGNED_FLOORS), and the note must say what was really done. */
+type FloorKind = "parket" | "laminat" | "plitka"
+/** The board patterns the studio lays a parquet or laminate floor in (lib/floorGeometry's
+ *  FLOOR_PATTERN_DEFS, minus the tile's stake bond). Listed here rather than imported so this
+ *  page does not pull three.js in with floorGeometry. */
+const BOARD_PATTERNS = ["herringbone", "double_herringbone", "chevron", "wood_strip", "brick_bond"] as const
+type BoardPattern = (typeof BOARD_PATTERNS)[number]
+type FloorNote =
+  | { kind: "left_out" }
+  | { kind: "stand_in"; floor: FloorKind; pattern: BoardPattern | null }
+  | null
 
 const FLOOR_LINE_CATEGORIES = new Set(["laminat", "parket", "plitka"])
 
+/** Which floor a priced floor line is: tile by its category; parquet and laminate share the
+ *  "laminat" category and differ only by the label's head ("Parket: ..." / "Laminat: ..."). */
+function floorKindOf(line: EstimateResponse["lines"][number]): FloorKind {
+  if (line.category === "plitka") return "plitka";
+  return line.category === "parket" || line.label.startsWith("Parket") ? "parket" : "laminat";
+}
+
+/** Which note the estimate calls for. Nothing until the estimate has come in (QA re-check
+ *  R11): the room loads first, and deciding from the room alone read "the floor is not in the
+ *  estimate", then swapped to "priced at the shop's average" a moment later. */
 function floorNote(
   room: { surfaces?: Record<string, unknown> | null; state?: Record<string, unknown> | null } | undefined,
   lines: EstimateResponse["lines"] | undefined,
 ): FloorNote {
-  const design = (room?.state as { designState?: { floorType?: string | null; floorConfigured?: boolean } } | null)?.designState;
+  if (!lines) return null;
+  const design = (room?.state as {
+    designState?: { floorType?: string | null; floorConfigured?: boolean; floorPattern?: { id?: string } | null }
+  } | null)?.designState;
   if (!design?.floorConfigured || !design.floorType || design.floorType === "concrete" || room?.surfaces?.floor) return null;
-  return (lines ?? []).some((l) => FLOOR_LINE_CATEGORIES.has(l.category ?? "")) ? "stand_in" : "left_out";
+  const priced = lines.find((l) => FLOOR_LINE_CATEGORIES.has(l.category ?? ""));
+  if (!priced) return { kind: "left_out" };
+  const floor = floorKindOf(priced);
+  // A board pattern picked in 3D (Floor -> Parquet -> Chevron) has no shop product behind it
+  // yet (QA re-check R12): the note names the pattern so the reader knows why it is approximate.
+  const id = design.floorPattern?.id;
+  const pattern = floor !== "plitka" && BOARD_PATTERNS.includes(id as BoardPattern) ? (id as BoardPattern) : null;
+  return { kind: "stand_in", floor, pattern };
 }
 
 export default function SmetaPage() {
@@ -65,6 +103,7 @@ export default function SmetaPage() {
   const compact = useCompactStudio();
   const [estimate, setEstimate] = useState<EstimateResponse | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
   const [askOpen, setAskOpen] = useState(false);
   const [highlightedLines, setHighlightedLines] = useState<Set<string>>(new Set());
@@ -225,6 +264,30 @@ export default function SmetaPage() {
 
   const allFolded = groups.length > 0 && groups.every((g) => folded.has(g.key));
 
+  // The section being read: the last whose top has passed under the sticky bar.
+  const [activeGroup, setActiveGroup] = useState<GroupKey | null>(null);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined" || groups.length < 2) return;
+    const seen = new Map<string, boolean>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const e of entries) seen.set((e.target as HTMLElement).dataset.group ?? "", e.isIntersecting);
+      const first = groups.find((g) => seen.get(g.key));
+      if (first) setActiveGroup(first.key);
+    }, { rootMargin: "-120px 0px -55% 0px" });
+    for (const g of groups) {
+      const el = document.getElementById(`smeta-section-${g.key}`);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [groups]);
+
+  /** Opens a folded section and brings it under the sticky bar. */
+  function jumpToGroup(key: GroupKey) {
+    setFolded((prev) => (prev.has(key) ? new Set([...prev].filter((k) => k !== key)) : prev));
+    setActiveGroup(key);
+    requestAnimationFrame(() => document.getElementById(`smeta-section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
   return (
     <div className="min-h-screen bg-paper">
       {estimate && view && !heroVisible && (
@@ -241,6 +304,9 @@ export default function SmetaPage() {
               ↑
             </button>
           </div>
+          <div className="mx-auto max-w-3xl px-4 pb-2">
+            <SmetaSectionNav groups={groups} active={activeGroup} onPick={jumpToGroup} fmt={fmt} />
+          </div>
         </div>
       )}
 
@@ -249,20 +315,36 @@ export default function SmetaPage() {
           page and leads back, and the screen is better spent on the smeta. */}
       {!compact && (
       <header className="border-b border-line bg-card">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            to={`/studio/${roomId}`}
-            className="text-ink-muted hover:text-ink text-sm"
-          >
-            ← {t("common.orqaga")}
-          </Link>
-          <h1 className="text-xl font-bold text-ink">{t("smeta.sarlavha")}</h1>
-          {room && (
-            <span className="ml-auto text-sm text-ink-muted">
-              {room.name}
-              {room.floor_area != null && ` · ${Math.round(room.floor_area * 10) / 10} m²`}
-            </span>
-          )}
+        {/* The same row as the 3D tab's header: back and the room on the left, the
+            3D | Smeta control in the middle. */}
+        <div className="mx-auto grid max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to={`/studio/${roomId}`} className="shrink-0 text-sm text-ink-muted hover:text-ink">
+              ← {t("common.orqaga")}
+            </Link>
+            <div className="min-w-0">
+              <h1 data-testid="smeta-room" className="truncate text-base font-extrabold text-ink">{room?.name ?? t("smeta.sarlavha")}</h1>
+              <p className="text-[11px] text-ink-muted">
+                {t("smeta.sarlavha")}
+                {room?.floor_area != null && ` · ${Math.round(room.floor_area * 10) / 10} m²`}
+              </p>
+            </div>
+          </div>
+          {roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
+          {/* The ⋮ menu, where the 3D tab has it: the smeta's own actions, so a long
+              smeta does not have to be scrolled to its end to get the file. */}
+          <div className="relative justify-self-end">
+            <StudioMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <button type="button" className={MENU_ROW} disabled={!estimate || pdfLoading}
+                onClick={() => { setMenuOpen(false); void handlePDF(); }}>
+                <span>{t("smeta.pdf_yuklab")}</span>
+              </button>
+              <button type="button" className={MENU_ROW} disabled={mutation.isPending}
+                onClick={() => { setMenuOpen(false); mutation.mutate(); }}>
+                <span>{t("smeta.qayta_hisoblash")}</span>
+              </button>
+            </StudioMenu>
+          </div>
         </div>
       </header>
       )}
@@ -271,17 +353,22 @@ export default function SmetaPage() {
         {/* Stories-style tab navigation — Smeta is a regular scrolling page
             (a top-level route outside StudioPage's layout), so the strip
             renders as a normal-flow row here instead of a viewport overlay. */}
-        {roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
+        {compact && roomId && <StudioTabStrip roomId={roomId} variant="inline" />}
 
         {floorNoteKind && (
           <div
             role="status"
-            aria-label={floorNoteKind === "stand_in" ? t("smeta.floor_stand_in_aria") : t("smeta.floor_left_out_aria")}
+            aria-label={floorNoteKind.kind === "stand_in" ? t("smeta.floor_stand_in_aria") : t("smeta.floor_left_out_aria")}
             className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-ink"
           >
-            {floorNoteKind === "stand_in"
-              ? t("smeta.floor_stand_in")
-              : t("smeta.floor_left_out")}{" "}
+            {floorNoteKind.kind === "left_out"
+              ? t("smeta.floor_left_out")
+              : floorNoteKind.pattern
+                ? t("smeta.floor_stand_in_pattern", {
+                    pattern: t(`studio.lib.floor_pattern.${floorNoteKind.pattern}`),
+                    floor: t(`smeta.floor_kind.${floorNoteKind.floor}`),
+                  })
+                : t("smeta.floor_stand_in", { floor: t(`smeta.floor_kind.${floorNoteKind.floor}`) })}{" "}
             <Link to={`/studio/${roomId}/ichkarida?phase=pol`} className="font-semibold text-accent hover:underline">
               {t("smeta.floor_pick")}
             </Link>
@@ -293,7 +380,12 @@ export default function SmetaPage() {
         {!estimate && (
           <div className="text-center py-12">
             {mutation.isPending ? (
-              <p className="text-ink-muted animate-pulse">{t("common.yuklanmoqda")}</p>
+              <div data-testid="smeta-skeleton" className="space-y-3 text-left" aria-busy="true">
+                <span className="sr-only">{t("common.yuklanmoqda")}</span>
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-14 animate-pulse rounded-2xl bg-card" />
+                ))}
+              </div>
             ) : (
               <>
                 <p className="text-ink-muted mb-6">{t("empty.smeta_yoq")}</p>

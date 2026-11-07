@@ -41,6 +41,8 @@ export interface ConstructionDefaults {
   kerf: number
   /** Factory edge cut off each side of a sheet, mm. */
   trim: number
+  /** Fill pieces from the workshop's offcut store before whole sheets. Old projects: off. */
+  useOffcuts?: boolean
   /** Doors: LDSP cut in the workshop, MDF ordered from a facade shop, or none. */
   facade: { kind: 'ldsp' | 'mdf' | 'none'; materialId: string | null; thickness: 16 | 18 | 19; gap: number }
 }
@@ -62,17 +64,38 @@ export interface CabinetSpec {
   position: { x: number; z: number }
 }
 
+/** A band on one side of a free part: the project's visible or hidden band, or none. */
+export type Band = 'visible' | 'hidden' | null
+
+/** A part entered by hand, belonging to no cabinet (a worktop, a plinth strip, a loose panel). */
+export interface FreePartSpec {
+  id: string
+  /** "D1", "D2"…, numbered like cabinets. */
+  label: string
+  name: string
+  /** Finished size, whole mm. */
+  length: number
+  width: number
+  qty: number
+  /** LDSP at the board thickness, HDF, or the door LDSP. */
+  material: 'board' | 'back' | 'facade'
+  grain: 'length' | 'none'
+  edges: { L1: Band; L2: Band; W1: Band; W2: Band }
+}
+
 export interface FurnitureProject {
   schemaVersion: 1
   name: string
   defaults: ConstructionDefaults
   cabinets: CabinetSpec[]
+  /** Saved before free parts existed: none. */
+  freeParts?: FreePartSpec[]
 }
 
 /** null: this side is not banded. */
 export type EdgeSide = { band: 'visible' | 'hidden'; thickness: number } | null
 
-export type PartRole = 'side_left' | 'side_right' | 'bottom' | 'top' | 'rail_front' | 'rail_back' | 'shelf' | 'back' | 'door' | 'drawer_front' | 'drawer_side' | 'drawer_end' | 'drawer_bottom'
+export type PartRole = 'side_left' | 'side_right' | 'bottom' | 'top' | 'rail_front' | 'rail_back' | 'shelf' | 'back' | 'door' | 'drawer_front' | 'drawer_side' | 'drawer_end' | 'drawer_bottom' | 'free'
 
 /** A hole on a part, mm on its finished size: `u` along its length, `v` along its width
  *  (on an end edge, `u` along the edge from the front and `v` across the thickness).
@@ -102,6 +125,8 @@ export interface Part {
   /** L1/L2 run along the length (L1 = front), W1/W2 along the width (W1 = top). */
   edges: { L1: EdgeSide; L2: EdgeSide; W1: EdgeSide; W2: EdgeSide }
   qty: number
+  /** A free part's own name; cabinet parts are named by their role. */
+  name?: string
   /** Centre and size of the part in the room, mm: x = width, y = height, z = depth (front is +z). */
   placement: { x: number; y: number; z: number; sx: number; sy: number; sz: number }
   holes?: Hole[]
@@ -121,6 +146,8 @@ export interface CutGroup {
   edges: Part['edges']
   qty: number
   partIds: string[]
+  /** The distinct names of the free parts on this line. */
+  names: string[]
 }
 
 export interface EdgeTotal {
@@ -144,7 +171,21 @@ export interface NestCut {
   direction: 'along' | 'across'; offset: number
 }
 export interface NestRect { x: number; y: number; length: number; width: number }
-export interface NestedSheet { placements: NestPlacement[]; cuts: NestCut[]; offcuts: NestRect[]; utilization: number }
+/** A piece from the offcut store: a sawn rectangle of one board. */
+export interface StockPiece {
+  id: string
+  material: 'board' | 'back' | 'facade'
+  materialId: string | null
+  thickness: number
+  length: number
+  width: number
+}
+/** One bin of the layout: a whole sheet, or a stock piece (`stockId`, no trim). `size` is the bin's. */
+export interface NestedSheet {
+  placements: NestPlacement[]; cuts: NestCut[]; offcuts: NestRect[]; utilization: number
+  size: { length: number; width: number }
+  stockId?: string
+}
 /** The cutting layout of one board (material + materialId + thickness). */
 export interface NestResult {
   material: 'board' | 'back' | 'facade'
@@ -180,6 +221,9 @@ export interface PriceBook {
     slide?: number | null
   }
   markupPercent: number
+  /** The workshop's sheet prices, used when no catalogue material is chosen (or it has no price).
+   *  LDSP doors are cut from the LDSP sheets. */
+  sheets?: { board16: number | null; board18: number | null; back: number | null; mdfM2: number | null }
 }
 
 export interface Warning {
@@ -234,6 +278,13 @@ const NEW_SIZE: Record<CabinetSpec['type'], Pick<CabinetSpec, 'width' | 'height'
 
 export function newCabinet(label: string, x: number, type: CabinetSpec['type'] = 'base'): CabinetSpec {
   return { id: crypto.randomUUID(), type, label, ...NEW_SIZE[type], position: { x, z: 0 } }
+}
+
+export function newFreePart(label: string): FreePartSpec {
+  return {
+    id: crypto.randomUUID(), label, name: label, length: 600, width: 400, qty: 1,
+    material: 'board', grain: 'length', edges: { L1: null, L2: null, W1: null, W2: null },
+  }
 }
 
 export function newProject(name: string): FurnitureProject {

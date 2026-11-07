@@ -53,7 +53,25 @@ describe('computeProject', () => {
     p.defaults.board.thickness = 16
     expect(codes(computeProject(p, EMPTY_PRICE_BOOK, {}).warnings)).toContain('shelf_sag')
     p.defaults.board.thickness = 18
+    // an 18 mm shelf holds to 900 mm: 962 sags, 862 does not
+    const w = computeProject(p, EMPTY_PRICE_BOOK, {}).warnings.find(x => x.code === 'shelf_sag')
+    expect(w?.params).toEqual({ length: 962, t: 18 })
+    p.cabinets[0].width = 900
     expect(codes(computeProject(p, EMPTY_PRICE_BOOK, {}).warnings)).not.toContain('shelf_sag')
+  })
+
+  it('one sag warning per cabinet, however many shelves sag', () => {
+    const p = newProject('x')
+    p.cabinets[0] = { ...p.cabinets[0], width: 1000, shelves: 3 }
+    expect(codes(computeProject(p, EMPTY_PRICE_BOOK, {}).warnings).filter(c => c === 'shelf_sag')).toHaveLength(1)
+  })
+
+  it('a cabinet placed at a negative or missing position is an error', () => {
+    const p = newProject('x')
+    p.cabinets[0].position = { x: -10, z: 0 }
+    expect(codes(validateProject(p).errors)).toContain('position_range')
+    p.cabinets[0].position = { x: Number.NaN, z: 0 }
+    expect(codes(validateProject(p).errors)).toContain('position_range')
   })
 
   it('a part bigger than the sheet warns but still computes', () => {

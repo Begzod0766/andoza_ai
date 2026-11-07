@@ -32,7 +32,7 @@ export function ShopPickList({ smetaKey, title }: { smetaKey: PickableSmetaKey; 
 
   return (
     <div>
-      <span className="text-xs text-gray-600 font-medium block mb-1.5">{title}</span>
+      <span className="text-xs text-ink-muted font-medium block mb-1.5">{title}</span>
       <div className="flex flex-col gap-2" role="listbox" aria-label={title}>
         {products.map((product: Material) => {
           const isActive = picked === product.id;
@@ -43,12 +43,12 @@ export function ShopPickList({ smetaKey, title }: { smetaKey: PickableSmetaKey; 
               role="option"
               aria-selected={isActive}
               className={`w-full flex items-center gap-3 p-2.5 rounded-card text-left border-2 transition-colors ${
-                isActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-brand/40"
+                isActive ? "border-brand bg-brand/10" : "border-line hover:border-brand/40"
               }`}
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{product.name_uz}</p>
-                <p className="text-xs text-muted">
+                <p className="text-sm font-semibold text-ink truncate">{product.name_uz}</p>
+                <p className="text-xs text-ink-muted">
                   {t("common.price_per_unit", { price: product.price_uzs.toLocaleString(intlLocale()), unit: product.unit })}
                   {product.store_name ? ` · ${product.store_name}` : ""}
                 </p>

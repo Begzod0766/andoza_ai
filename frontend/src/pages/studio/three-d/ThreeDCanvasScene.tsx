@@ -9,7 +9,7 @@ import { CameraRefBridge, CutOutline, DoorDimensions, GapField, PolygonGhost, Re
 import { edgeSweep, isRectilinear, moveEdge, outwardNormal, polygonCentre, type EdgeMove } from "@/lib/resizePolygon";
 import { keepContentInPlace, type RoomThings } from "@/lib/keepContent";
 import { clipRoom, outlineOf, type RoomContent } from "@/lib/clipRoom";
-import { flatBoxOf, flatBounds } from "@/lib/flatBoxes";
+import { flatBoxOf, flatBounds, flatOutlineOf, overlappingRooms } from "@/lib/flatBoxes";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { isResizable, minSizeMm, resizeBox, resizeGeometry, sideWallShiftMm, type Side } from "@/lib/resizeRoom";
 import { storeGeometryToApiGeometry } from "@/lib/apiRoomGeometry";
@@ -52,7 +52,7 @@ import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } fro
 import { RealismEffects, SceneLighting, MoonriseSky, SUN_INTENSITY } from "./SceneEnvironment";
 import { MOONRISE_FOG_COLOR, STUDIO_TONE_MAPPING_EXPOSURE } from "@/lib/moonriseSky";
 import { skyPinnedSun } from "@/lib/skyPinnedSun";
-import { DoubleClickFocus, KeepAutoClear, DevSceneHandle, CameraAnimator } from "./CameraControls";
+import { DoubleClickFocus, KeepAutoClear, DevSceneHandle, CameraAnimator, ProportionalPinch } from "./CameraControls";
 import { WallsBehindCamera } from "./useWallsBehindCamera";
 import { Panorama360 } from "./Panorama360";
 import { RoomCameras } from "./RoomCameras";
@@ -61,7 +61,13 @@ import { PanoramaSnap } from "./PanoramaSnap";
 import { SwapButtons, RoomScene } from "./RoomShell";
 import type { RoomSide } from "./constants";
 import { applyUniformZoom, fitRoomDistance } from "@/lib/orbitZoom";
-import { initialRoomFocus, isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { useRoomFocus } from "./useRoomFocus";
+import { useWallFocusStore } from "@/store/wallFocusStore";
+import { useCameraGoal } from "./useCameraGoal";
+import { showsEditingCorners } from "./cameraViewChrome";
+import { FlatToggle } from "./FlatToggle";
+import { FlatOverlapHint } from "./FlatOverlapHint";
 import { SceneLoadingOverlay } from "./SceneLoadingOverlay";
 
 /**
@@ -107,6 +113,14 @@ function OrbitZoomLimit({ controlsRef, W, D, H }: {
       invalidate()
     }
   }, [controlsRef, W, D, H, size.width, size.height, invalidate])
+  return null
+}
+
+/** Reports the canvas's width / height (two decimals, so a resize settles) to the scene that renders the Canvas. */
+function ViewAspect({ onChange }: { onChange: (aspect: number) => void }) {
+  const { size } = useThree()
+  const aspect = Math.round((size.width / Math.max(size.height, 1)) * 100) / 100
+  useEffect(() => { onChange(aspect) }, [aspect, onChange])
   return null
 }
 
@@ -224,7 +238,7 @@ export function ThreeDCanvasScene({
 }) {
   /** Which room the user is looking at alone, or null for the whole flat.
    *  Local to the canvas: nothing outside it cares which room is focused. */
-  const [focusedRoomId, setFocusedRoomId] = useState<string | null>(null);
+  const [focusedRoomId, setFocusedRoomId] = useRoomFocus(room.id, window.location.search);
   // Focus is a way of looking at THIS flat from THIS room, so it must not
   // outlive the room — and it would. `/studio/:roomId` has no key on its route
   // element, so switching rooms only changes the param: React Router keeps
@@ -238,7 +252,7 @@ export function ThreeDCanvasScene({
   // different way, so the focus is dropped whenever the room changes.
   // The one exception is a link that asks for it (`?focus=1`, used right after
   // a scan), which opens that room alone.
-  useEffect(() => { setFocusedRoomId(initialRoomFocus(window.location.search, room.id)); }, [room.id]);
+  // (useRoomFocus sets the focus again on every room change: the room just opened, alone.)
   /**
    * "that door between should be visible in both rooms": what every room of
    * the flat draws for its openings, the active room included — one plan,
@@ -275,6 +289,16 @@ export function ThreeDCanvasScene({
     flatBoxOf(room.id, geometry, 0, 0),
     ...siblingsPlaced.map((s) => flatBoxOf(s.id, s.geometry, s.offsetXM, s.offsetZM)),
   ], [room.id, geometry, siblingsPlaced]);
+  /** Whether any two rooms' SAVED positions put them inside each other. The
+   *  layout pass packs unpositioned rooms clear of each other at their real
+   *  size, but a stored `layoutPos` is used as it is — it is the user's own
+   *  arrangement, or one saved by an older layout that read a scanned room as
+   *  4 x 3 m (QA 2026-11-05 item 9). Rather than shuffle rooms behind the
+   *  user's back, the flat view says so and points at "Move rooms". */
+  const roomsOverlap = useMemo(() => overlappingRooms([
+    flatOutlineOf(room.id, geometry, 0, 0),
+    ...siblingsPlaced.map((s) => flatOutlineOf(s.id, s.geometry, s.offsetXM, s.offsetZM)),
+  ]).length > 0, [room.id, geometry, siblingsPlaced]);
   // Read, not depended on: a room slid along its neighbour changes the flat's
   // footprint, and re-framing the camera for that would yank the view away
   // from the room the user just placed. The framing follows focus and the
@@ -282,9 +306,9 @@ export function ThreeDCanvasScene({
   const flatBoxesRef = useRef(flatBoxes);
   flatBoxesRef.current = flatBoxes;
   const framedCamRaw = useMemo(
-    () => focusFraming(cam, flatBoxesRef.current, focusedRoomId),
+    () => focusFraming(cam, flatBoxesRef.current, focusedRoomId, H),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cam, room.id, focusedRoomId, aptRooms ? aptRooms.length : 0],
+    [cam, room.id, focusedRoomId, aptRooms ? aptRooms.length : 0, H],
   );
 
   // ── Moving rooms (lib/slideRoom, lib/moveRoom) ─────────────────────────
@@ -297,6 +321,8 @@ export function ThreeDCanvasScene({
   const setMoveMode = useRoomMoveStore((st) => st.set);
   const [slidingId, setSlidingId] = useState<string | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
+  /** Two fingers are down: the controls' zoomSpeed belongs to ProportionalPinch. */
+  const pinchingRef = useRef(false);
   /** Where the selected room stands mid-drag (open room's frame); null when
    *  it stands where it is saved. */
   const [slideLive, setSlideLive] = useState<{ cx: number; cz: number } | null>(null);
@@ -615,9 +641,26 @@ export function ThreeDCanvasScene({
     const f = focusedRoomId ? flatBoxes.find((b) => b.id === focusedRoomId) : null;
     return f ? { W: f.w, D: f.d } : flatBounds(flatBoxes);
   }, [flatBoxes, focusedRoomId]);
+  // A wall chip pressed in the design panel turns the camera to face that wall
+  // (lib/wallFraming); "Hamma devorlar" — turnTo null — gives the room's framing back.
+  // A wall tapped in the view only selects it: the camera stays where the user put it.
+  const resetWallFocus = useWallFocusStore((st) => st.reset);
+  useEffect(() => { resetWallFocus(); }, [room.id, resetWallFocus]);
+  const reducedMotion = useMemo(
+    () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
   const framedCamKey = JSON.stringify(framedCamRaw);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const framedCam = useMemo(() => framedCamRaw, [framedCamKey]);
+  // A wall chip press aims the camera at that wall until the next framing request
+  // (useCameraGoal); a wall tapped in the view only selects it.
+  const wallIds = useMemo(() => geometry.walls.map((w) => w.id), [geometry.walls]);
+  const [viewAspect, setViewAspect] = useState(1);
+  const cameraGoal = useCameraGoal({
+    framedCam, framedKey: framedCamKey, presetVersion,
+    vertices: geometry.vertices, wallIds, height: H, fovDeg: CAMERA_FOV, aspect: viewAspect,
+  });
   /** The room's own openings, carrying their partition marks so a shared
    *  door's leaf hangs at the end of its measured lining — the editable layer. */
   const ownOpeningGeometry = flatPlan.active.leaves[0].geometry;
@@ -872,7 +915,8 @@ export function ThreeDCanvasScene({
           <ActiveRoomFocusButton
             H={H}
             focused={focusedRoomId === room.id}
-            onClick={() => setFocusedRoomId((cur) => toggleRoomFocus(cur, room.id))}
+            onClick={() => setFocusedRoomId(toggleRoomFocus(focusedRoomId, room.id))}
+            name={focusedRoomId === null ? room.name : undefined}
           />
         )}
         <SwapButtons W={W} D={D} H={H} />
@@ -1076,6 +1120,7 @@ export function ThreeDCanvasScene({
         <RoomSwitchCamera controlsRef={controlsRef} />
         {/* Fitted to what the camera orbits (lib/focusFraming): the focused
             room, or the box round the whole flat — and not a step further. */}
+        <ViewAspect onChange={setViewAspect} />
         <OrbitZoomLimit
           controlsRef={controlsRef}
           W={zoomFit.W}
@@ -1132,16 +1177,20 @@ export function ThreeDCanvasScene({
           onChange={(e) => applyUniformZoom(
             (e?.target ?? controlsRef.current) as unknown as { getDistance(): number; zoomSpeed: number },
             Math.max(W, D),
+            pinchingRef.current,
           )}
         />
+        {/* A pinch zooms 1:1 with the fingers, and from outside stops at the room (R9). */}
+        <ProportionalPinch controlsRef={controlsRef} pinchingRef={pinchingRef} W={W} D={D} H={H} />
         {/* Three-finger drag pans, matching the two-finger pan's speed. */}
         <MultiTouchPan panSpeed={0.9} />
 
         <CameraAnimator
-          position={framedCam.position}
-          target={framedCam.target}
+          position={cameraGoal.position}
+          target={cameraGoal.target}
           controlsRef={controlsRef}
-          version={presetVersion}
+          version={cameraGoal.version}
+          instant={reducedMotion}
         />
 
         {/* Double-click to focus; empty double-click recenters the room */}
@@ -1153,6 +1202,15 @@ export function ThreeDCanvasScene({
     </Canvas>
     </CanvasErrorBoundary>
     <SceneLoadingOverlay />
+    {aptRooms && aptRooms.length > 1 && showsEditingCorners({ panorama, cameraStation }) && (
+      <div className="pointer-events-auto absolute bottom-5 right-20 z-20">
+        <FlatToggle flat={focusedRoomId === null} onToggle={() => setFocusedRoomId(focusedRoomId === null ? room.id : null)} />
+      </div>
+    )}
+    {/* Only in the flat view, where the overlap is on screen, and not while
+        the rooms are being moved — the user is already doing what it asks. */}
+    {aptRooms && aptRooms.length > 1 && focusedRoomId === null && roomsOverlap && !moveMode
+      && showsEditingCorners({ panorama, cameraStation }) && <FlatOverlapHint />}
 
     </>
   );

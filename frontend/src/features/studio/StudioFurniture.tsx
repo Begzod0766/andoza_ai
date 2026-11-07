@@ -18,7 +18,9 @@ import {
   type Obstacle, type OrientedFootprint,
 } from '@/lib/furnitureCollision'
 import { holdCameraStill, swallowPickClick } from '@/lib/pickEvents'
+import { multiTouchGuard } from '@/lib/multiTouchGuard'
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
+import { useInViewCard } from "./useInViewCard";
 import { showToast } from "@/components/ui/Toast";
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
@@ -26,10 +28,8 @@ import { SelectionOutline } from "./SelectionOutline";
 import type { PlacedFurniture, UserFurnitureEntry } from "@/store/roomStore";
 import { FURNITURE_CATALOG } from "@/lib/furnitureCatalog";
 import { resolveCatalogEntry } from "@/lib/furnitureEntry";
-import { planPolygon, offsetPolygon } from "@/lib/planPolygon";
-import { roomExtents } from "@/lib/roomDims";
 import {
-  halfExtentsToBounds, FUR_WALL_GAP,
+  halfExtentsToBounds,
   worldToPlan, planToWorld, type RoomBounds,
 } from "@/lib/furnitureBounds";
 import { extractSceneInfo } from "@/lib/modelConverter";
@@ -41,7 +41,9 @@ import { saveModelToDb, arrayBufferToBlobUrl } from "@/lib/modelDb";
 import { nanoid } from "nanoid";
 import * as THREE from "three";
 import { toDiffuseOnly } from "@/lib/modelMaterials";
+import { ceilingFitScale } from "@/lib/modelSize"
 import { turnedSize, yawRadians, type ModelYaw } from "@/lib/modelYaw";
+import { furnitureRoomBounds, measuredFootprints } from "./furnitureNudge";
 
 // ─── Shared furniture entry (catalog + user-uploaded) ─────────────────────────
 
@@ -86,6 +88,27 @@ const REPORT_LIMIT = 40
 
 /** Set shadows on every mesh + strip its materials down to colour.
  *  Preserves single-vs-array structure. */
+/**
+ * Where a model's root goes, in its own parent's frame (inside the yaw and the scale), so that the
+ * middle of its footprint stands on the placement point rather than the GLB's own origin.
+ *
+ * Every placement takes the point as that middle: the menus' and the AI's layouts, the collision
+ * resolver, the drag clamp, a detached part's `worldCenter`. A GLB's origin is wherever it was
+ * modelled: "Televizor 2" has it on its back edge, 22 cm behind its middle and 18 cm to one side,
+ * and some catalog models have it metres away, so they stood off the wall they were put against or
+ * outside the room altogether (QA re-check R1). Height is left alone: the bottom is aligned apart.
+ *
+ * `box` must be the root's own box, taken before react-three-fiber moves it.
+ */
+export function footprintCentredRoot(root: THREE.Object3D, box: THREE.Box3): [number, number, number] {
+  if (box.isEmpty()) return [root.position.x, root.position.y, root.position.z]
+  return [
+    root.position.x - (box.min.x + box.max.x) / 2,
+    root.position.y,
+    root.position.z - (box.min.z + box.max.z) / 2,
+  ]
+}
+
 function prepareMesh(obj: THREE.Object3D, debugLabel?: string) {
   const report: Record<string, unknown>[] = []
   let parts = 0
@@ -174,10 +197,15 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
 
   // Compute bottom offset ONCE per clone, before R3F touches the object's position.
   // Storing scale-independent value so it stays correct when scaleOverride changes.
-  const yOffUnit = useMemo(() => {
+  const { yOffUnit, rawHeight, rootAt } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
-    return isFinite(box.min.y) ? -box.min.y : 0
+    const ok = isFinite(box.min.y)
+    return {
+      yOffUnit: ok ? -box.min.y : 0, rawHeight: ok ? box.max.y - box.min.y : 0,
+      rootAt: footprintCentredRoot(cloned, box),
+    }
   }, [cloned]);
+  const ceilingHeight = useRoomStore((st) => st.ceilingHeight);
 
   // A do'kon catalog model has no authored scale — detect it from the loaded
   // GLB's own geometry, same heuristic a fresh user import goes through.
@@ -192,7 +220,8 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   }, [cloned, item.colorOverrides])
 
   if (!entry || !modelPath) return null;
-  const s = (autoScale ?? entry.scale) * (item.scaleOverride ?? 1);
+  // Never through the ceiling: the model's own scale is brought under it (QA 2026-11-05 #3).
+  const s = ceilingFitScale(autoScale ?? entry.scale, rawHeight, ceilingHeight) * (item.scaleOverride ?? 1);
   // The model's own yaw turns it to face the room first; the placement's
   // rotation turns it from there. Bottom alignment is unaffected: a turn
   // about Y leaves box.min.y where it was.
@@ -203,7 +232,7 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
       scale={s}
     >
       <group rotation={[0, yawRadians(entry.modelYaw), 0]}>
-        <primitive object={cloned} />
+        <primitive object={cloned} position={rootAt} />
       </group>
     </group>
   );
@@ -381,10 +410,11 @@ export function DraggableFurnitureItem({
   }
 
   // Compute Y offset and XZ footprint ONCE per clone, before R3F sets position.
-  const { yOffUnit, rawHW, rawHD, geomHH } = useMemo(() => {
+  const { yOffUnit, rawHW, rawHD, geomHH, rootAt } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
     const ok = isFinite(box.min.x)
     return {
+      rootAt: footprintCentredRoot(cloned, box),
       yOffUnit: ok ? -box.min.y : 0,
       rawHW: ok ? (box.max.x - box.min.x) / 2 : 0.3,
       rawHD: ok ? (box.max.z - box.min.z) / 2 : 0.3,
@@ -399,10 +429,16 @@ export function DraggableFurnitureItem({
 
   // A do'kon catalog model has no authored scale — detect it from the loaded
   // GLB's own geometry, same heuristic a fresh user import goes through.
+  const ceilingHeight = useRoomStore((st) => st.ceilingHeight)
+  // The model's own scale, brought under the ceiling when it is taller than the room
+  // (QA 2026-11-05 #3); the user's own resize (scaleOverride) still applies on top.
   const effScale = useMemo(() => {
-    if (!entry?.autoScale) return entry?.scale ?? 1
-    try { return extractSceneInfo(cloned).scale } catch { return 1 }
-  }, [entry, cloned])
+    const base = (() => {
+      if (!entry?.autoScale) return entry?.scale ?? 1
+      try { return extractSceneInfo(cloned).scale } catch { return 1 }
+    })()
+    return ceilingFitScale(base, geomHH * 2, ceilingHeight)
+  }, [entry, cloned, geomHH, ceilingHeight])
 
   // Report actual footprint to parent for collision detection
   useEffect(() => {
@@ -432,6 +468,19 @@ export function DraggableFurnitureItem({
     }
   })
 
+  // A drag moves, turns and scales these nodes directly, every frame. When it ends the store has
+  // the result and the props carry it, but react-three-fiber only writes a prop that CHANGED: a
+  // drag that was called off (the system cancelled the touch, a second finger landed) leaves the
+  // props as they were, and the model would stay drawn where the finger let go of it.
+  useLayoutEffect(() => {
+    if (isDragging) return
+    groupRef.current?.position.set(item.x / 1000, 0, item.y / 1000)
+    primitiveRef.current?.rotation.set(0, item.rotation, 0)
+    primitiveRef.current?.scale.setScalar(effScale * (item.scaleOverride ?? 1))
+    selRef.current?.rotation.set(0, item.rotation, 0)
+    invalidate()
+  }, [isDragging, item.x, item.y, item.rotation, item.scaleOverride, effScale, invalidate])
+
   useFrame(() => {
     if (!isDragging) {
       // restore the outline after a live-scale drag hid it
@@ -460,6 +509,10 @@ export function DraggableFurnitureItem({
     }
   })
 
+  // The selection card stays inside the view by a wall (#185).
+  const cardRef = useRef<HTMLDivElement>(null)
+  useInViewCard(cardRef)
+
   if (!entry || !modelPath) return null
 
   const so = item.scaleOverride ?? 1
@@ -487,6 +540,7 @@ export function DraggableFurnitureItem({
         <group rotation={[0, yawRadians(modelYaw), 0]}>
           <primitive
             object={cloned}
+            position={rootAt}
             onPointerDown={toolMode === 'part' ? handlePartClick : onMeshPointerDown}
             onClick={swallowPickClick}
             onPointerEnter={() => { document.body.style.cursor = meshCursor }}
@@ -550,7 +604,7 @@ export function DraggableFurnitureItem({
           same frame loop while a live scale drag is in flight. */}
       {isSelected && (
         <group ref={selRef} rotation={[0, item.rotation, 0]}>
-          <SelectionOutline object={cloned} scale={s} position={[0, yOff, 0]} rotationY={yawRadians(modelYaw)} />
+          <SelectionOutline object={cloned} scale={s} position={[0, yOff, 0]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
         </group>
       )}
       {toolMode === 'move' && (
@@ -625,6 +679,9 @@ export function DraggableFurnitureItem({
       {isSelected && (
         <Html position={[0, buttonH + 0.22, 0]} center zIndexRange={[110, 0]} style={{ pointerEvents: 'none' }}>
           <div
+            ref={cardRef}
+            // The hold-to-delete menu keeps off this card (QA re-check R14), see holdMenuSide.
+            data-hold-avoid=""
             onPointerDown={(e) => e.stopPropagation()}
             style={{
               pointerEvents: 'all', background: 'white', borderRadius: 12, padding: '10px 12px', minWidth: 150,
@@ -675,6 +732,11 @@ export function DraggableFurnitureModels({
   const dragRotRef = useRef(0)
   const dragScaleRef = useRef(1)
   const draggingIdRef = useRef<string | null>(null)
+  /** The finger (or mouse) the drag follows, and when its press began. Undefined for a mouse
+   *  event that carries no pointer id, which then matches every move as before. */
+  const dragPointerRef = useRef<{ id: number | undefined; at: number }>({ id: undefined, at: 0 })
+  // Made on mount, so the guard is already counting when the first finger of a pinch lands.
+  const pinch = useMemo(() => multiTouchGuard(), [])
   const furnitureRef = useRef(furniture)
   furnitureRef.current = furniture
   /** The dragged model's own half-extents, metres, UNROTATED. The resolver
@@ -693,29 +755,35 @@ export function DraggableFurnitureModels({
   // the notch of an L, through two walls. The outline (inset by the wall gap)
   // is the room itself; a legacy A-B-C-D rectangle has none and keeps the
   // plain per-axis clamp.
-  const roomBounds = useMemo<RoomBounds>(() => {
-    const poly = planPolygon(geometry)
-    // For a polygon the extents must come from the same call planPolygon
-    // makes, or the plan frame this converts into would be offset from the
-    // one the outline is expressed in and the clamp would fence off the
-    // wrong strip of floor. The roomW/roomD props carry a caller's fallback
-    // and are only right for the legacy rectangle, which needs no outline.
-    const ext = poly ? roomExtents(geometry) : { W: roomW, D: roomD }
-    return {
-      W: ext.W * 1000,
-      D: ext.D * 1000,
-      inner: poly ? offsetPolygon(poly, -FUR_WALL_GAP) : null,
-      outline: poly ? poly.vertices : null,
-    }
-  }, [geometry, roomW, roomD])
+  // The roomW/roomD props carry a caller's fallback and are only right for the legacy rectangle,
+  // which needs no outline; a polygon's extents come from the outline itself (furnitureRoomBounds).
+  const roomBounds = useMemo<RoomBounds>(
+    () => furnitureRoomBounds(geometry, { W: roomW, D: roomD }), [geometry, roomW, roomD])
 
-  const { bind: holdBind } = useHoldToDelete()
+  const { bind: holdBind, cancel: cancelHold } = useHoldToDelete()
   const { camera, gl } = useThree()
   const floorPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const hitPoint = useRef(new THREE.Vector3())
-  // Actual XZ half-extents reported by each item from its real geometry bounding box
-  const footprintsRef = useRef<Map<string, { hw: number; hd: number }>>(new Map())
+  /** Piece centre minus the floor point under the finger when the drag began, metres (XZ). The
+   *  piece follows the finger by its travel, keeping this offset: snapping the centre to the finger
+   *  made a piece grabbed off its centre jump by that distance on the first move (issue #176). */
+  const grabOffsetRef = useRef({ x: 0, z: 0 })
+
+  /** The floor point under a screen position, written into `out`; false when the ray misses it. */
+  function floorHitAt(clientX: number, clientY: number, out: THREE.Vector3): boolean {
+    const rect = gl.domElement.getBoundingClientRect()
+    if (!rect.width || !rect.height) return false
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    )
+    raycaster.setFromCamera(ndc, camera)
+    return raycaster.ray.intersectPlane(floorPlane, out) !== null
+  }
+  // Actual XZ half-extents reported by each item from its real geometry bounding box. Shared with
+  // the toolbar's quarter turn, which has to keep the piece out of its neighbours as a drag does.
+  const footprintsRef = useRef(measuredFootprints)
   const handleFootprint = useCallback((id: string, hw: number, hd: number) => {
     footprintsRef.current.set(id, { hw, hd })
   }, [])
@@ -782,8 +850,9 @@ export function DraggableFurnitureModels({
     return { ...halfExtentsToBounds(w * 1000, d * 1000), rotation }
   }
 
-  function activateDrag(item: PlacedFurniture, clientX: number, clientY = 0) {
+  function activateDrag(item: PlacedFurniture, clientX: number, clientY = 0, pointerId?: number) {
     onSelectItem(item.id)
+    dragPointerRef.current = { id: pointerId, at: Date.now() }
     // 'select' mode reaching here only happens via the already-selected-item
     // bypass above — there's no rotate/scale affordance in that mode, so a
     // plain drag always means reposition, exactly like 'move' mode.
@@ -819,6 +888,13 @@ export function DraggableFurnitureModels({
     // Position and angle are both live in every mode: a move has to know which
     // way the model faces, and a turn may have to shift it to find the room.
     dragPosRef.current.set(item.x / 1000, 0, item.y / 1000)
+    grabOffsetRef.current = { x: 0, z: 0 }
+    if ((toolMode === 'move' || toolMode === 'select') && floorHitAt(clientX, clientY, hitPoint.current)) {
+      grabOffsetRef.current = {
+        x: dragPosRef.current.x - hitPoint.current.x,
+        z: dragPosRef.current.z - hitPoint.current.z,
+      }
+    }
     dragRotRef.current = item.rotation
     draggingIdRef.current = item.id
     setDraggingId(item.id)
@@ -842,12 +918,45 @@ export function DraggableFurnitureModels({
       onDelete: () => onDelete(item.id),
     }).onPointerDown(e)
     if (toolMode === 'select' && selectedId !== item.id) {
-      onSelectItem(item.id)
       // The press that selects must not also orbit the camera.
       holdCameraStill(controlsRef.current)
+      // A finger selects when it lifts, not when it lands: the first finger of a pinch lands on
+      // whatever is under it, and selecting there turned every zoom over a piece into picking it.
+      if (e.pointerType === 'touch') selectOnRelease(item.id, e.pointerId)
+      else onSelectItem(item.id)
       return
     }
-    activateDrag(item, e.clientX, e.clientY)
+    activateDrag(item, e.clientX, e.clientY, e.pointerId)
+  }
+
+  /**
+   * Select `id` when the finger that pressed it lifts, unless a second finger joined in on the way:
+   * that press was a pinch, and the camera (held still for the press) is handed back to it at once.
+   * A cancelled touch selects nothing.
+   */
+  function selectOnRelease(id: string, pointerId: number) {
+    const at = Date.now()
+    const controls = controlsRef.current
+    const done = () => {
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+    }
+    const onDown = (ev: PointerEvent) => {
+      if (ev.pointerType !== 'touch' || ev.pointerId === pointerId) return
+      done()
+      cancelHold()
+      if (controls) controls.enabled = true
+    }
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return
+      done()
+      if (!pinch.multiTouchSince(at)) onSelectItem(id)
+    }
+    const onCancel = (ev: PointerEvent) => { if (ev.pointerId === pointerId) done() }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
   }
 
   function startDragFromButton(item: PlacedFurniture, e: React.PointerEvent) {
@@ -864,7 +973,7 @@ export function DraggableFurnitureModels({
       holdCameraStill(controlsRef.current)
       return
     }
-    activateDrag(item, e.clientX, e.clientY)
+    activateDrag(item, e.clientX, e.clientY, e.pointerId)
   }
 
   function commitDrag() {
@@ -882,6 +991,11 @@ export function DraggableFurnitureModels({
         resizeFurniture(id, dragScaleRef.current)
       }
     }
+    endDrag()
+  }
+
+  /** Lets go without moving anything: the piece stays where it was before the press. */
+  function endDrag() {
     draggingIdRef.current = null
     setDraggingId(null)
     if (controlsRef.current) controlsRef.current.enabled = true
@@ -890,17 +1004,20 @@ export function DraggableFurnitureModels({
 
   useEffect(() => {
     if (!draggingId) return
-    const canvas = gl.domElement
+
+    /** A pointer other than the one dragging: a second finger's moves must not drag the piece. */
+    const otherPointer = (e: PointerEvent) =>
+      dragPointerRef.current.id !== undefined && e.pointerId !== dragPointerRef.current.id
+    /** Two fingers were down since the press: it is a pinch now, and the drag is called off. */
+    const pinched = () => pinch.multiTouchSince(dragPointerRef.current.at)
 
     const handleMove = (e: PointerEvent) => {
+      if (otherPointer(e) || !draggingIdRef.current) return
+      if (pinched()) { endDrag(); return }
       if (toolMode === 'move' || toolMode === 'select') {
-        const rect = canvas.getBoundingClientRect()
-        const ndc = new THREE.Vector2(
-          ((e.clientX - rect.left) / rect.width) * 2 - 1,
-          -((e.clientY - rect.top) / rect.height) * 2 + 1,
-        )
-        raycaster.setFromCamera(ndc, camera)
-        if (!raycaster.ray.intersectPlane(floorPlane, hitPoint.current)) return
+        if (!floorHitAt(e.clientX, e.clientY, hitPoint.current)) return
+        // Where the finger asks the centre to be: its floor point plus the grab offset.
+        const grab = grabOffsetRef.current
         // No grid snap: the model follows the finger, and the resolver below
         // is what stops it. Rounding to 50 mm first put a model up to half a
         // step away from the wall it was pushed against and made a slow drag
@@ -910,7 +1027,7 @@ export function DraggableFurnitureModels({
         // the drag works in world metres about the room's centre.
         const fitted = resolveFurnitureMove(
           worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds),
-          worldToPlan({ x: hitPoint.current.x, z: hitPoint.current.z }, roomBounds),
+          worldToPlan({ x: hitPoint.current.x + grab.x, z: hitPoint.current.z + grab.z }, roomBounds),
           dragBox(dragRotRef.current),
           roomBounds,
           obstaclesFor(draggingIdRef.current!),
@@ -952,11 +1069,29 @@ export function DraggableFurnitureModels({
     // pointermove whose target is one of those never reaches a listener on the
     // canvas, so the dragged thing froze the moment the finger crossed its own
     // label and started again on the far side. That is the drag "lag".
+    //
+    // A touch can also end in `pointercancel` with no `pointerup` (iOS does this when the system
+    // takes the gesture over). Nothing listened for it: the drag stayed live, the camera stayed
+    // switched off, and the next touch anywhere carried the piece on. A cancel lets go of the
+    // drag without moving the piece, and so does a second finger landing: that is a pinch.
+    const handleUp = (e: PointerEvent) => {
+      if (otherPointer(e)) return
+      if (pinched()) endDrag()
+      else commitDrag()
+    }
+    const handleCancel = (e: PointerEvent) => { if (!otherPointer(e)) endDrag() }
+    const handleDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' && otherPointer(e)) { cancelHold(); endDrag() }
+    }
     window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', commitDrag)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleCancel)
+    window.addEventListener('pointerdown', handleDown, true)
     return () => {
       window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', commitDrag)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleCancel)
+      window.removeEventListener('pointerdown', handleDown, true)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draggingId, toolMode, roomBounds])

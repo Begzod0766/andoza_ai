@@ -26,10 +26,10 @@ export function PhaseStageNav({
   return (
     <>
       {/* ── Desktop: left phase stepper sidebar, collapsible ── */}
-      <div className="relative hidden lg:block shrink-0">
+      <div className="relative hidden lg:block shrink-0 lg:self-stretch">
       <nav
         aria-hidden={!leftOpen}
-        className="hidden lg:flex bg-surface border-r border-gray-200 flex-col pt-3 select-none overflow-hidden"
+        className="hidden lg:flex h-full bg-card border-r border-line flex-col pt-3 select-none overflow-hidden"
         style={{
           width: leftOpen ? 144 : 0,
           // `visibility` (not just width/overflow) so the collapsed rail's
@@ -44,7 +44,7 @@ export function PhaseStageNav({
             : 'width 0.2s ease, visibility 0s linear 0.2s',
         }}
       >
-        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest px-4 mb-2">{t('studio.three_d.bosqichlar')}</p>
+        <p className="text-[9px] font-bold text-ink-muted uppercase tracking-widest px-4 mb-2">{t('studio.three_d.bosqichlar')}</p>
         {RENO_STAGES.map((stage, i) => {
           const status = i < activeIdx ? 'done' : i === activeIdx ? 'current' : 'pending';
           return (
@@ -58,8 +58,8 @@ export function PhaseStageNav({
                 status === 'current'
                   ? 'bg-brand text-white'
                   : status === 'done'
-                  ? 'text-emerald-700 hover:bg-gray-50'
-                  : 'text-gray-500 hover:bg-gray-50'
+                  ? 'text-ok hover:bg-card-soft'
+                  : 'text-ink-muted hover:bg-card-soft'
               }`}
             >
               {status === 'done' && (
@@ -68,10 +68,10 @@ export function PhaseStageNav({
                 </svg>
               )}
               {status === 'current' && (
-                <span className="w-2 h-2 rounded-full bg-white/90 animate-pulse inline-block shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-current animate-pulse inline-block shrink-0" />
               )}
               {status === 'pending' && (
-                <span className="w-2 h-2 rounded-full bg-gray-300 inline-block shrink-0" />
+                <span className="w-2 h-2 rounded-full bg-ink/10 inline-block shrink-0" />
               )}
               <span className="leading-tight">{t(stage.labelKey)}</span>
             </button>
@@ -85,7 +85,7 @@ export function PhaseStageNav({
         onClick={() => setLeftOpen(v => !v)}
         title={leftOpen ? t('studio.three_d.bosqichlar_yopish') : t('studio.three_d.bosqichlar_ochish')}
         aria-label={leftOpen ? t('studio.three_d.bosqichlar_yopish') : t('studio.three_d.bosqichlar_ochish')}
-        className="hidden lg:flex items-center justify-center bg-white border border-gray-200 shadow-md rounded-full hover:bg-gray-50 transition-colors"
+        className="hidden lg:flex items-center justify-center bg-card border border-line shadow-md rounded-full hover:bg-card-soft transition-colors"
         style={{
           position: 'absolute',
           top: '50%',

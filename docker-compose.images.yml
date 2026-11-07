@@ -1,0 +1,24 @@
+# Overlay for docker-compose.prod.yml: run the images GitHub Actions built and
+# pushed (.github/workflows/deploy.yml) instead of building them on the server.
+#
+#   IMAGE_TAG=<commit sha> docker compose -f docker-compose.prod.yml \
+#     -f docker-compose.images.yml pull <services> && ... up -d --no-build
+#
+# Building on the VPS meant apt-get and npm over its slow uplink: on 2026-11-02
+# four deploys in a row died there (one stuck in apt-get for an hour, the SSH
+# session broke on another). Pulled images bring only the changed layers.
+# Without this file, `up -d --build` still builds locally as before.
+# IMAGE_OWNER is the repository's owner, lower case (set by the workflow).
+services:
+  api:
+    image: ghcr.io/${IMAGE_OWNER:-begzod10}/andoza_ai-backend:${IMAGE_TAG:?set IMAGE_TAG to the commit to deploy}
+  worker:
+    image: ghcr.io/${IMAGE_OWNER:-begzod10}/andoza_ai-backend:${IMAGE_TAG:?set IMAGE_TAG to the commit to deploy}
+  styles-worker:
+    image: ghcr.io/${IMAGE_OWNER:-begzod10}/andoza_ai-backend:${IMAGE_TAG:?set IMAGE_TAG to the commit to deploy}
+  converter:
+    image: ghcr.io/${IMAGE_OWNER:-begzod10}/andoza_ai-backend:${IMAGE_TAG:?set IMAGE_TAG to the commit to deploy}
+  beat:
+    image: ghcr.io/${IMAGE_OWNER:-begzod10}/andoza_ai-backend:${IMAGE_TAG:?set IMAGE_TAG to the commit to deploy}
+  frontend:
+    image: ghcr.io/${IMAGE_OWNER:-begzod10}/andoza_ai-frontend:${IMAGE_TAG:?set IMAGE_TAG to the commit to deploy}

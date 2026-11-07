@@ -1,3 +1,4 @@
+import type React from "react";
 import { useTranslation } from "react-i18next";
 import type { Result } from "@/features/mebel/engine";
 import { CutListTable } from "@/features/mebel/ui/CutListTable";
@@ -17,6 +18,15 @@ const PRINT_PAGE_CSS = "@page { size: A4 landscape; margin: 10mm }";
  * What the PDF holds: the browser's print dialog saves this as a PDF. Hidden
  * on screen, the only thing shown when printing (the page hides the rest).
  */
+/**
+ * The day theme's tokens, for paper: the tables the printout shares with the editor colour their
+ * text with theme tokens, and a night theme must not print light ink on white.
+ */
+export const PRINT_TOKENS = {
+  "--card": "255 255 255", "--card-soft": "244 241 251", "--ink": "17 24 39",
+  "--ink-muted": "107 114 128", "--line": "232 228 244",
+} as React.CSSProperties;
+
 export function PrintView({
   name, result, snapshot, trim, materialName, labelOf = (id: string) => id, cabinets = [],
 }: {
@@ -34,15 +44,27 @@ export function PrintView({
 }) {
   const { t } = useTranslation();
   return (
-    <div data-testid="mebel-print" aria-hidden="true" className="hidden flex-col gap-6 p-6 text-black print:flex">
+    <div data-testid="mebel-print" aria-hidden="true" className="hidden flex-col gap-6 p-6 text-black print:flex" style={PRINT_TOKENS}>
       <style>{PRINT_PAGE_CSS}</style>
       <h1 className="text-xl font-bold">{t("mebel.print_title", { name })}</h1>
       {snapshot && <img src={snapshot} alt="" className="max-h-[80mm] self-start" />}
-      <CutListTable groups={result.groups} showCut selectedPartId={null} onSelect={() => {}}
+      <CutListTable groups={result.groups} showCut grouped={false} selectedPartId={null} onSelect={() => {}}
         materialName={(g) => materialName(g.materialId) ?? t(`mebel.material.${g.material}`)} />
       <EdgeTable totals={result.edgeTotals} materialName={materialName} />
       <BomPanel bom={result.bom} total={result.total} hasUnpriced={result.hasUnpriced} nesting={result.nesting}
         materialName={materialName} />
+
+      {/* A part no sheet holds is on no sheet page below: say so up front. */}
+      {result.nesting.some((n) => n.unplaced.length > 0) && (
+        <section data-testid="print-unplaced" className="border-2 border-black p-3">
+          <h2 className="text-lg font-bold">{t("mebel.nest.unplaced_title")}</h2>
+          <ul>
+            {result.nesting.flatMap((n) => n.unplaced).map((id) => (
+              <li key={id}>{`${id} — ${t("mebel.nest.unplaced_reason")}`}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {result.facadeOrder.length > 0 && (
         <FacadeOrder lines={result.facadeOrder} labelOf={labelOf} materialName={materialName} />
@@ -52,7 +74,7 @@ export function PrintView({
       {result.nesting.flatMap((n) => {
         const board = materialName(n.materialId) ?? t(`mebel.material.${n.material}`);
         return n.sheets.map((s, i) => {
-          const label = t("mebel.nest.sheet_label", { i: i + 1, n: n.sheets.length, p: Math.round(s.utilization * 100) });
+          const label = `${s.stockId ? `${t("mebel.offcuts.bin", { l: s.size.length, w: s.size.width })} · ` : ""}${t("mebel.nest.sheet_label", { i: i + 1, n: n.sheets.length, p: Math.round(s.utilization * 100) })}`;
           return (
             <section key={`${n.material}|${n.materialId}|${n.thickness}|${i}`} data-testid="print-sheet"
               style={{ breakBefore: "page" }} className="flex flex-col gap-3">
@@ -99,7 +121,7 @@ export function PrintView({
       {/* Drilling: a page per drilled part, then each cabinet's assembly drawing. */}
       {result.parts.filter((p) => (p.holes ?? []).length > 0).map((p) => (
         <section key={p.id} data-testid="print-part" style={{ breakBefore: "page" }} className="flex flex-col gap-3">
-          <h2 className="text-lg font-bold">{`${p.id} — ${partName(p.role)}`}</h2>
+          <h2 className="text-lg font-bold">{`${p.id} — ${partName(p.role, p.name)}`}</h2>
           <PartDrawing part={p} print />
           <HoleTable part={p} print />
         </section>

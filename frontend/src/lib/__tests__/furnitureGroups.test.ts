@@ -275,6 +275,22 @@ describe('sleep', () => {
     const c = groupCandidates('sleep', SLEEP, model, [ns[1]])
     const one = c.filter((x) => byRole(x, 'nightstand').length === 1)
     expect(one.length).toBeGreaterThan(0)
+    // The one that did not fit is named as left out, not lost.
+    for (const x of one) expect(x.dropped.filter((p) => p.role === 'nightstand')).toHaveLength(1)
+  })
+
+  it('a single nightstand goes to the other side of the head when a door swing takes its first side', () => {
+    // The bed's side floor may reach into a door swing; a nightstand may not. Side +1 is tried first,
+    // so a nightstand on side −1 only comes from the fallback.
+    const single = [piece('bed', 'bed', 1.6, 2.0), piece('ns1', 'nightstand', 0.5, 0.4)]
+    const sides = (model: RoomModel) => groupCandidates('sleep', single, model, []).flatMap((c) => {
+      const b = byRole(c, 'bed')[0].rect, n = byRole(c, 'nightstand')[0]
+      if (!n) return []
+      const wall = wallOf(b, model)
+      return [Math.sign(dot([n.rect.x - b.x, n.rect.z - b.z], [wall.dirX, wall.dirZ]))]
+    })
+    expect(sides(roomModel(box(3000, 3000)))).not.toContain(-1)
+    expect(sides(roomModel(box(3000, 3000, { B: [el('eshik', 600, 2300)] })))).toContain(-1)
   })
 
   it('nightstands beside the head', () => {

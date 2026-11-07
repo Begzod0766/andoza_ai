@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from app.services import glb_optimizer
-from app.services.glb_optimizer import optimize_glb_bytes
+from app.services.glb_optimizer import Outcome, optimize_glb, optimize_glb_bytes
 
 ORIGINAL = b"glTF" + b"\0" * 996  # 1000 bytes
 
@@ -58,6 +58,57 @@ def test_timeout_returns_none(monkeypatch):
 def test_missing_cli_returns_none(monkeypatch):
     _fake_cli(monkeypatch, raises=FileNotFoundError("gltf-transform"))
     assert optimize_glb_bytes(ORIGINAL) is None
+
+
+# What gltf-transform 4.1.1 prints when sharp cannot load: on STDOUT, after its progress
+# lines, with nothing on stderr (checked in the server image with sharp's binary removed).
+SHARP_ERROR = (
+    "❯ resample\n✔ resample\n❯ textureCompress\n\n"
+    'error: Could not load the "sharp" module using the linux-x64 runtime\n'
+    "       ERR_DLOPEN_FAILED: libvips-cpp.so.42: cannot open shared object file\n"
+    "       Possible solutions:\n" + "       - hint\n" * 200 + "           npm install --os=linux --cpu=x64 sharp\n"
+).encode()
+
+
+class TestOutcome:
+    """A tool that does not work is `failed`, never mistaken for `not_smaller`."""
+
+    def test_smaller_is_ok(self, monkeypatch):
+        _fake_cli(monkeypatch, out=b"x" * 400)
+        assert optimize_glb(ORIGINAL) == Outcome("ok", data=b"x" * 400)
+
+    def test_bigger_is_not_smaller(self, monkeypatch):
+        _fake_cli(monkeypatch, out=b"x" * 1000)
+        assert optimize_glb(ORIGINAL) == Outcome("not_smaller")
+
+    def test_nonzero_exit_is_failed_with_the_cause(self, monkeypatch):
+        def run(argv, **kwargs):
+            return subprocess.CompletedProcess(argv, 1, stdout=SHARP_ERROR, stderr=b"")
+
+        monkeypatch.setattr(glb_optimizer.subprocess, "run", run)
+        got = optimize_glb(ORIGINAL)
+        assert (got.status, got.reason, got.data) == ("failed", "exit", None)
+        assert got.message.startswith('exit 1: error: Could not load the "sharp" module')  # progress lines dropped
+        assert "ERR_DLOPEN_FAILED" in got.message  # the cause, not just the install hints
+        assert got.message.endswith("--cpu=x64 sharp")
+        assert len(got.message) < 1400
+
+    def test_a_node_crash_on_stderr_is_kept(self, monkeypatch):
+        def run(argv, **kwargs):
+            return subprocess.CompletedProcess(argv, 134, stdout=b"", stderr=b"FATAL ERROR: heap out of memory")
+
+        monkeypatch.setattr(glb_optimizer.subprocess, "run", run)
+        assert optimize_glb(ORIGINAL).message == "exit 134: FATAL ERROR: heap out of memory"
+
+    def test_timeout_is_failed(self, monkeypatch):
+        _fake_cli(monkeypatch, raises=subprocess.TimeoutExpired(cmd="gltf-transform", timeout=300))
+        got = optimize_glb(ORIGINAL)
+        assert (got.status, got.reason) == ("failed", "timeout")
+
+    def test_missing_cli_is_failed(self, monkeypatch):
+        _fake_cli(monkeypatch, raises=FileNotFoundError("gltf-transform"))
+        got = optimize_glb(ORIGINAL)
+        assert (got.status, got.reason) == ("failed", "cli_missing")
 
 
 def test_command_is_exactly_the_spec(monkeypatch):

@@ -4,7 +4,8 @@
     docker compose exec -T converter python scripts/model_yaw_backfill.py [--only <furniture id>] [--limit N]
 
 Only rows still at model_yaw 0, with a model stored here (not an http link) and a role with a tall
-back (bed, sofa, armchair, chairs) are read. Each model goes through scripts/model_yaw_detect.mjs,
+back (bed, sofa, armchair, chairs) or that stands against a wall (TV unit, wardrobe, shelf; read with
+the detector's --wall) are read. Each model goes through scripts/model_yaw_detect.mjs,
 the same algorithm the upload form runs; when it finds the back, the yaw is set and a quarter turn
 swaps footprint_w/d (app.services.model_yaw.apply_model_yaw). A dry run prints the same lines and
 writes nothing. A turned row is no longer at 0, so a second run leaves it alone.
@@ -28,8 +29,10 @@ from app.services.model_yaw import apply_model_yaw
 
 DETECTOR = Path(__file__).with_name("model_yaw_detect.mjs")
 DETECT_TIMEOUT_S = 60
-# The roles the upload form detects for (frontend/src/lib/modelYaw.ts BACKED_ROLES).
+# The roles the upload form detects for (frontend/src/lib/modelYaw.ts BACKED_ROLES and WALL_ROLES).
 BACKED_ROLES = frozenset({"bed", "sofa", "armchair", "dining_chair", "desk_chair"})
+# Read by where they stand flush against the wall (the detector's --wall), not by a tall back.
+WALL_ROLES = frozenset({"tv_unit", "wardrobe", "shelf"})
 
 
 class DetectError(Exception):
@@ -43,13 +46,13 @@ def pick_candidates(rows: list, only: str | None) -> list:
         if (not only or str(r.id) == only)
         and (r.model_yaw or 0) == 0
         and r.glb_key and not r.glb_key.startswith("http")
-        and infer_role(r.category, r.name_uz) in BACKED_ROLES
+        and infer_role(r.category, r.name_uz) in BACKED_ROLES | WALL_ROLES
     ]
 
 
-def detect(path: Path) -> dict:
-    """``{yaw, detected, size}`` for one GLB, from the Node detector."""
-    cmd = [shutil.which("node") or "node", str(DETECTOR), str(path)]
+def detect(path: Path, wall: bool = False) -> dict:
+    """``{yaw, detected, size}`` for one GLB, from the Node detector; *wall* for a piece against a wall."""
+    cmd = [shutil.which("node") or "node", str(DETECTOR), *(["--wall"] if wall else []), str(path)]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=DETECT_TIMEOUT_S)
     except subprocess.TimeoutExpired as exc:
@@ -125,7 +128,8 @@ async def main(argv: list[str] | None = None) -> None:
     changed = 0
     for row in todo:
         try:
-            guess = detect(Path(settings.MEDIA_ROOT) / row.glb_key)
+            wall = infer_role(row.category, row.name_uz) in WALL_ROLES
+            guess = detect(Path(settings.MEDIA_ROOT) / row.glb_key, wall=wall)
         except Exception as exc:  # noqa: BLE001 — one bad file must not stop the rest
             print(f"  {row.name_uz}  {row.glb_key}  xato: {exc}")
             continue

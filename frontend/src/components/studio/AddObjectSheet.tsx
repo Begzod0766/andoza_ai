@@ -7,7 +7,8 @@ import { getMaterials } from "@/lib/api";
 import type { Material, CatalogFurniture } from "@/lib/api";
 import { useRoomStore, type FloorType } from "@/store/roomStore";
 import { LIGHT_TYPES } from "@/lib/lightCatalog";
-import { furniturePlacementMm, nextLightPositionMm } from "@/lib/placement";
+import { nextLightPositionMm } from "@/lib/placement";
+import { nextFurnitureSpot } from "@/features/studio/nextFurnitureSpot";
 import { buildFurnitureGroups } from "@/lib/furnitureSwapGroups";
 import { useDebounce } from "@/hooks/useDebounce";
 import { LightSymbol } from "@/lib/catalogIcons";
@@ -122,7 +123,7 @@ export function AddObjectSheet({
   // used to blow away desktop customization with a single tap.
   const [targetWall, setTargetWall] = useState<WallTarget>("ALL");
   const {
-    setWallCovering, applySurface, addLight, placeFurniture, catalogFurniture, geometry, lights, furniture,
+    setWallCovering, applySurface, addLight, placeFurniture, catalogFurniture, geometry, lights,
     designState, setDesignState, setFloorTexture, surfaces,
   } = useRoomStore();
   // ALL + one entry per actual wall in the room's own geometry (no
@@ -400,7 +401,7 @@ export function AddObjectSheet({
                   <p className="text-[12px] text-muted mt-0.5">{t("studio.light.lm_k", { lm: lt.lumens, k: lt.colorK })}</p>
                   <button
                     onClick={() => {
-                      addLight({ id: `light_${lt.id}_${Date.now()}`, type: lt.id, ...nextLightPositionMm(geometry, lights.length) });
+                      addLight({ id: `light_${lt.id}_${Date.now()}`, type: lt.id, ...nextLightPositionMm(geometry, lights) });
                       onClose();
                     }}
                     className="mt-2 w-full py-1.5 bg-brand text-white rounded-xl text-[13px] font-semibold active:scale-95 transition-transform"
@@ -481,14 +482,13 @@ export function AddObjectSheet({
               <button
                 onClick={() => {
                   const item = pendingFurniture;
-                  const count = furniture.filter((f) => f.furniture_id === item.id).length;
                   const scaleOverride = item.footprint_w ? furnitureWidthCm / item.footprint_w : 1;
                   placeFurniture({
                     id: `furn_${item.id}_${Date.now()}`, furniture_id: item.id,
-                    ...furniturePlacementMm(geometry, count, {
+                    ...nextFurnitureSpot({ name: item.name_uz, category: item.category, sizeM: {
                       w: ((item.footprint_w ?? 0) / 100) * scaleOverride,
                       d: ((item.footprint_d ?? 0) / 100) * scaleOverride,
-                    }), rotation: 0, scaleOverride,
+                    }, heightM: item.height_cm ? (item.height_cm / 100) * scaleOverride : undefined }), scaleOverride,
                   });
                   setPendingFurniture(null);
                   onClose();

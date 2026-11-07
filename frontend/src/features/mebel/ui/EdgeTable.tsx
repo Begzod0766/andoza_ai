@@ -6,7 +6,7 @@ export function EdgeTable({ totals, materialName }: { totals: EdgeTotal[]; mater
   const { t } = useTranslation();
   return (
     <table aria-label={t("mebel.tab.edges")} className="w-full text-left text-sm">
-      <thead className="text-xs text-neutral-500">
+      <thead className="text-xs text-ink-muted">
         <tr>
           <th className="px-2 py-2 font-medium">{t("mebel.col.band")}</th>
           <th className="px-2 py-2 text-right font-medium">{t("mebel.col.meters")}</th>
@@ -15,10 +15,10 @@ export function EdgeTable({ totals, materialName }: { totals: EdgeTotal[]; mater
       </thead>
       <tbody>
         {totals.map((e) => (
-          <tr key={e.bandKey} className="border-t border-neutral-100">
+          <tr key={e.bandKey} className="border-t border-line">
             <td className="px-2 py-2">
               <span className="font-medium">{t(e.band === "visible" ? "mebel.edge_visible" : "mebel.edge_hidden")}</span>{" "}
-              <span className="text-neutral-500">
+              <span className="text-ink-muted">
                 {formatBand(e.thickness)}×{e.width} {t("mebel.mm")}{materialName(e.materialId) ? ` · ${materialName(e.materialId)}` : ""}
               </span>
             </td>

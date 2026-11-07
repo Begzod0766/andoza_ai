@@ -38,6 +38,22 @@ def test_detector_matches_frontend_cases():
     assert json.loads(out) == [{"name": c["name"], "yaw": c["yaw"], "detected": c["detected"]} for c in cases]
 
 
+def test_detector_matches_frontend_wall_cases():
+    """A TV unit, a wardrobe, a shelf: read by where they stand flush, as the upload form reads them."""
+    root = next((d for d in DETECTOR.parents if (d / "frontend").is_dir() and (d / "backend").is_dir()), None)
+    if root is None:
+        pytest.skip("frontend checkout not available (api container)")
+    cases_path = root / "frontend/src/lib/__tests__/fixtures/modelWallYawCases.json"
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node not installed")
+
+    out = subprocess.run([node, str(DETECTOR), "--wall-points", str(cases_path)],
+                         capture_output=True, text=True, timeout=60, check=True).stdout
+    cases = json.loads(cases_path.read_text())
+    assert json.loads(out) == [{"name": c["name"], "yaw": c["yaw"], "detected": c["detected"]} for c in cases]
+
+
 # A bed whose back is at -Z in the mesh, on a node turned +90° about Y under a moved parent: in the
 # model's frame the back is at -X, so the yaw is 270 and the size is the turned one.
 _MAKE_GLB = r"""
@@ -93,13 +109,14 @@ def _row(name="Karavot 1", category="karavot", yaw=0, w=232, d=197, key="furnitu
 @pytest.fixture
 def stubbed(monkeypatch):
     """The DB is a list of rows; save() writes into it as an UPDATE would."""
-    db = {"rows": [], "detected": [], "saved": []}
+    db = {"rows": [], "detected": [], "wall": [], "saved": []}
 
     async def rows():
         return db["rows"]
 
-    def detect(path):
+    def detect(path, wall=False):
         db["detected"].append(path)
+        db["wall"].append(wall)
         return {"yaw": 270, "detected": True, "size": [2.32, 1.22, 1.97]}
 
     async def placements(furniture_id):
@@ -151,6 +168,15 @@ def test_backfill_skips_roles_without_a_back(stubbed):
     assert stubbed["detected"] == [] and stubbed["saved"] == []
 
 
+def test_backfill_reads_wall_pieces_by_where_they_stand_flush(stubbed):
+    stubbed["rows"] = [_row("Televizor 1", category="boshqa", key="furniture/tv.glb"),
+                       _row("Шкаф-купе", category="boshqa", key="furniture/sh.glb"),
+                       _row("Karavot 1")]
+    asyncio.run(script.main([]))
+    assert stubbed["wall"] == [True, True, False]
+    assert stubbed["rows"][0].model_yaw == 270
+
+
 def test_backfill_skips_remote_and_missing_models(stubbed):
     stubbed["rows"] = [_row(key="https://cdn.example.com/k.glb"), _row("Karavot 3", key=None)]
     asyncio.run(script.main([]))
@@ -168,7 +194,7 @@ def test_backfill_only_and_limit(stubbed):
 def test_backfill_leaves_an_undetected_model_and_reports_errors(stubbed, monkeypatch, capsys):
     stubbed["rows"] = [_row("Puf", category="divan"), _row("Singan", category="divan")]
 
-    def detect(path):
+    def detect(path, wall=False):
         if "Singan" in str(path):
             raise script.DetectError("bad glb")
         return {"yaw": 0, "detected": False, "size": [1, 1, 1]}
@@ -193,6 +219,9 @@ def test_detect_runs_node_with_a_timeout(monkeypatch, tmp_path):
     monkeypatch.setattr(script.subprocess, "run", run)
     assert script.detect(tmp_path / "x.glb")["yaw"] == 90
     assert seen["cmd"][1:] == [str(script.DETECTOR), str(tmp_path / "x.glb")] and seen["timeout"] == 60
+
+    script.detect(tmp_path / "x.glb", wall=True)
+    assert seen["cmd"][1:] == [str(script.DETECTOR), "--wall", str(tmp_path / "x.glb")]
 
 
 def test_detect_turns_failures_into_detect_errors(monkeypatch, tmp_path):

@@ -90,7 +90,19 @@ export function BottomSheet({
             </Dialog.Overlay>
 
             {/* Sheet */}
-            <Dialog.Content asChild>
+            <Dialog.Content
+              asChild
+              // Radix would focus the first tabbable element on open: in the AI designer that is the
+              // "Room type" <select>. iOS WKWebView opens a picker or keyboard only when focus ARRIVES
+              // by the user's gesture, so a tap on a field that already holds focus opened nothing
+              // (#184: the select ignored taps but opened when reached with the keyboard's arrow).
+              // Focus the sheet itself instead; the focus trap and Escape still work from there.
+              onOpenAutoFocus={(e) => {
+                e.preventDefault()
+                const sheet = sheetRef.current
+                if (sheet && !sheet.contains(document.activeElement)) sheet.focus({ preventScroll: true })
+              }}
+            >
               <motion.div
                 ref={sheetRef}
                 key="sheet"
@@ -111,15 +123,17 @@ export function BottomSheet({
                   'flex flex-col overflow-hidden',
                   'outline-none',
                 )}
-                style={{
-                  paddingBottom: 'env(safe-area-inset-bottom)',
-                  touchAction: 'none',
-                }}
+                // No `touch-action: none` here: it would sit over every native control in the
+                // sheet, and iOS WebKit then does not open a <select>'s picker (#184). The drag only
+                // ever starts from the grab handle (dragListener={false}), so only it needs one.
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
               >
                 {/* Grab handle */}
                 <div
                   className="flex-shrink-0 flex justify-center pt-4 pb-2 cursor-grab active:cursor-grabbing"
                   onPointerDown={(e) => dragControls.start(e)}
+                  data-sheet-handle=""
+                  style={{ touchAction: 'none' }}
                   aria-hidden="true"
                 >
                   <div className="w-12 h-1.5 rounded-full bg-neutral-300 transition-colors" />

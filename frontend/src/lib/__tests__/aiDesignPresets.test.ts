@@ -490,6 +490,54 @@ describe('design presets', () => {
     it('a lone dining table becomes the coffee table', () => {
       expect(roleOf(presetPlan(tablePreset, [item('ovqat', 'Ovqat stoli', 'stol')]), 'ovqat')).toBe('coffee_table')
     })
+
+    it('an office desk is never the coffee table', () => {
+      for (const desk of [item('desk', 'Yozuv stoli', 'stol'), item('desk', 'Стол Axis', 'stol')]) {
+        expect(roleOf(presetPlan(tablePreset, [desk]), 'desk'), desk.name_uz).toBeUndefined()
+      }
+    })
+  })
+
+  describe('a catalog of Russian-named pieces (the online store), in the admin categories', () => {
+    // Listed so that a piece that must lose comes first: catalog order breaks a tie.
+    const RU = [
+      item('ru-armchair', 'Кресло Bergen', 'divan', 'mehmonxona'),
+      item('ru-sofa', 'Диван Oslo', 'divan', 'mehmonxona'),
+      item('ru-dining', 'Обеденный стол Maria', 'stol', 'mehmonxona'),
+      item('ru-coffee', 'Журнальный стол Lunar', 'stol', 'mehmonxona'),
+      item('ru-nightstand', 'Тумбочка Nord', 'boshqa', 'mehmonxona'),
+      item('ru-tv', 'Тумба под ТВ Line', 'boshqa', 'mehmonxona'),
+      item('ru-wardrobe', 'Шкаф для одежды Ross', 'shkaf', 'mehmonxona'),
+      item('ru-shelf', 'Стеллаж Loft', 'shkaf', 'mehmonxona'),
+      item('ru-rug', 'Ковёр Persia', 'boshqa', 'mehmonxona'),
+    ]
+    const WANT: Record<string, [string, string]> = {
+      divan: ['ru-sofa', 'sofa'], kreslo: ['ru-armchair', 'armchair'], stol: ['ru-coffee', 'coffee_table'],
+      tumba: ['ru-tv', 'tv_unit'], gilam: ['ru-rug', 'rug'], shkaf: ['ru-shelf', 'shelf'],
+    }
+
+    it.each(DESIGN_PRESETS.map((p) => p.id))('%s picks each living-room kind it wants', (id) => {
+      const kinds = DESIGN_PRESETS.find((p) => p.id === id)!.furniture.map((f) => f.kind)
+      expect(presetPlan(id, RU, 'mehmonxona')!.furniture.map((f) => [f.id, f.role])).toEqual(kinds.map((k) => WANT[k]))
+    })
+
+    it('a dining table is not the coffee table while a coffee table is there', () => {
+      for (const p of DESIGN_PRESETS) {
+        expect(presetPlan(p.id, RU, 'mehmonxona')!.furniture.map((f) => f.id), p.id).not.toContain('ru-dining')
+      }
+    })
+
+    it("a shkaf with only a model name is a living room's shelving, never a bedroom's wardrobe", () => {
+      const loft = [item('loft', 'LOFT', 'shkaf')]
+      const shelfPreset = DESIGN_PRESETS.find((p) => p.furniture.some((f) => f.kind === 'shkaf'))!.id
+      expect(presetPlan(shelfPreset, loft, 'mehmonxona')!.furniture.map((f) => [f.id, f.role])).toEqual([['loft', 'shelf']])
+      expect(presetPlan(shelfPreset, loft, 'yotoqxona')!.furniture).toEqual([])
+    })
+
+    it('an armchair in the sofa category is not the sofa, even with no sofa', () => {
+      const plan = presetPlan('zamonaviy', [item('ru-armchair', 'Кресло Bergen', 'divan')], 'mehmonxona')!
+      expect(plan.furniture.map((f) => f.id)).toEqual([])
+    })
   })
 })
 

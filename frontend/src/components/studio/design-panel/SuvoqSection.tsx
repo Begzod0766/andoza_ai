@@ -86,8 +86,8 @@ export function SuvoqSection({
     return (
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">{t("studio.dp.suvoq_title")}</h3>
-          <p className="text-[11px] text-gray-500 leading-snug">
+          <h3 className="text-sm font-semibold text-ink mb-1">{t("studio.dp.suvoq_title")}</h3>
+          <p className="text-[11px] text-ink-muted leading-snug">
             {t("studio.dp.suvoq_text")}
           </p>
         </div>
@@ -102,7 +102,7 @@ export function SuvoqSection({
 
         <button
           onClick={() => removeSuvoqTexture?.()}
-          className="w-full py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-500 hover:text-gray-700"
+          className="w-full py-1.5 rounded-lg border border-line text-[11px] font-semibold text-ink-muted hover:text-ink"
         >
           {t('studio.dp.remove_texture')}
         </button>
@@ -137,15 +137,15 @@ export function SuvoqSection({
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900 mb-1">{t("studio.dp.putty_title")}</h3>
-        <p className="text-[11px] text-gray-500 leading-snug">
+        <h3 className="text-sm font-semibold text-ink mb-1">{t("studio.dp.putty_title")}</h3>
+        <p className="text-[11px] text-ink-muted leading-snug">
           {t("studio.dp.putty_text")}
         </p>
       </div>
 
       {/* Which wall the finish lands on */}
       <div>
-        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5">
+        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1.5">
           {t("studio.dp.which_wall")}
         </span>
         <div className="flex flex-wrap gap-1" role="listbox" aria-label={t("studio.dp.which_wall")}>
@@ -158,7 +158,7 @@ export function SuvoqSection({
               className={`px-2 py-1 rounded-lg text-[11px] font-semibold border-2 transition-colors ${
                 targetWall === w.key
                   ? 'border-brand bg-brand text-white'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  : 'border-line bg-card text-ink-muted hover:border-line'
               }`}
             >
               {targetLabel(w)}
@@ -169,7 +169,7 @@ export function SuvoqSection({
 
       {/* The finishes */}
       <div>
-        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-1.5">
+        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1.5">
           {t("studio.dp.concrete_texture")}
         </span>
         <div className="grid grid-cols-2 gap-2" role="listbox" aria-label={t("studio.dp.concrete_texture")}>
@@ -184,14 +184,14 @@ export function SuvoqSection({
                 role="option"
                 aria-selected={active}
                 className={`rounded-xl border-2 overflow-hidden text-left transition-all ${
-                  active ? 'border-brand ring-2 ring-brand/25' : 'border-gray-200 hover:border-brand/50'
+                  active ? 'border-brand ring-2 ring-brand/25' : 'border-line hover:border-brand/50'
                 }`}
               >
                 <span
                   className="block h-12 w-full"
                   style={{ backgroundImage: `url("${url}")`, backgroundSize: '120px 120px' }}
                 />
-                <span className="block px-1.5 py-1 text-[11px] font-semibold text-gray-800 bg-white">
+                <span className="block px-1.5 py-1 text-[11px] font-semibold text-ink bg-card">
                   {t(f.nameKey)}
                 </span>
               </button>
@@ -202,7 +202,7 @@ export function SuvoqSection({
 
       {/* Own image — goes to the shared library so the URL keeps resolving */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-gray-900">{t("studio.dp.putty_image")}</h3>
+        <h3 className="text-sm font-semibold text-ink">{t("studio.dp.putty_image")}</h3>
         {renderTexturePicker(
           'plaster',
           (url) => applyWallCovering(plasterUploadCovering(url)),
@@ -212,7 +212,7 @@ export function SuvoqSection({
 
       <button
         onClick={() => handleSetPaintColor('#D8D3C8')}
-        className="w-full py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-500 hover:text-gray-700"
+        className="w-full py-1.5 rounded-lg border border-line text-[11px] font-semibold text-ink-muted hover:text-ink"
       >
         {t('studio.dp.remove_texture')}
       </button>

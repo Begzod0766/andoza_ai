@@ -21,6 +21,7 @@ import { nextLightPositionMm } from '@/lib/placement'
 import {
   LIGHT_TYPES,
   LIGHT_LIMITS,
+  hangingDropM,
   lightType,
   kelvinToHex,
   type LightType,
@@ -81,11 +82,11 @@ export function LightPanel({ selectedId, onSelect, armedType, onArm, planMode }:
 
   function place(type: LightType) {
     // Drop it in the middle of the room; dragging in the 3D view moves it.
-    // Nudge each new fixture off the last so a stack of them stays clickable.
+    // Clear of the lights already there, so a new one never hangs on top of another.
     const light: PlacedLight = {
       id: nanoid(),
       type: type.id,
-      ...nextLightPositionMm(geometry, lights.length),
+      ...nextLightPositionMm(geometry, lights),
       ...(type.mount === 'wall' ? { wallId: 'A' as const } : {}),
     }
     addLight(light)
@@ -284,10 +285,11 @@ function LightSettings({ light, ceilingHeight, onPatch, onDelete }: {
       {(t.mount === 'ceiling' || t.mount === 'track') && (
         <Slider
           label={tr('studio.light.drop')}
-          value={light.dropM ?? t.dropM ?? 0}
-          display={`${formatDecimal(light.dropM ?? t.dropM ?? 0, 2)} m`}
+          value={hangingDropM(light, t, ceilingHeight / 1000)}
+          display={`${formatDecimal(hangingDropM(light, t, ceilingHeight / 1000), 2)} m`}
           min={LIGHT_LIMITS.dropM.min}
-          max={Math.min(LIGHT_LIMITS.dropM.max, Math.max(0.1, ceilingHeight - 0.4))}
+          // ceilingHeight is millimetres; the cord can be let down to 0.4 m above the floor.
+          max={Math.min(LIGHT_LIMITS.dropM.max, Math.max(0.1, ceilingHeight / 1000 - 0.4))}
           step={LIGHT_LIMITS.dropM.step}
           onChange={(v) => onPatch({ dropM: v })}
           onReset={light.dropM === undefined ? undefined : () => onPatch({ dropM: undefined })}

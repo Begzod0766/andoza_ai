@@ -3,9 +3,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import {
   PANO_EYE_HEIGHT, PANO_WIDTH, PANO_HEIGHT,
-  panoramaSizeFor, renderPanorama, flipRows,
+  panoramaSizeFor, renderPanorama, flipRows, meshesAroundEye, panoramaLookFov, panoramaLookSpeed,
 } from "@/lib/panorama360";
-import { roomCentreWorld } from "@/lib/roomCentre";
+import { panoramaStartYaw, roomCentreWorld } from "@/lib/roomCentre";
 import type { RoomGeometry } from "@/store/roomStore";
 
 /**
@@ -28,10 +28,6 @@ import type { RoomGeometry } from "@/store/roomStore";
  * "middle" and why.
  */
 
-/** How far a drag turns the view. Tuned so a full turn is a comfortable
- *  sweep of a phone screen rather than three of them. */
-const LOOK_SPEED = 0.0042;
-
 /** Looking straight up or down flips the horizon over; stop just short. */
 const PITCH_LIMIT = Math.PI / 2 - 0.02;
 
@@ -47,10 +43,19 @@ export function Panorama360({ active, geometry, onCaptured }: {
    *  GPU would not grant it. */
   onCaptured?: (canvas: HTMLCanvasElement) => void;
 }) {
-  const { camera, gl, scene, invalidate } = useThree();
+  const { camera, gl, scene, invalidate, size } = useThree();
   const look = useRef({ yaw: 0, pitch: 0 });
   const dragging = useRef<{ x: number; y: number } | null>(null);
-  const restore = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion } | null>(null);
+  const restore = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion; fov: number | null } | null>(null);
+  // Read when the mode is entered rather than depended on: a change to the
+  // room while standing in it must not turn the user round.
+  const geometryRef = useRef(geometry);
+  geometryRef.current = geometry;
+  // How far a drag turns the view: half way round across the canvas's width,
+  // so looking behind you is the same two swipes on a phone and on a desktop
+  // (panoramaLookSpeed, QA 2026-11-05 #18).
+  const lookSpeed = useRef(panoramaLookSpeed(size.width));
+  lookSpeed.current = panoramaLookSpeed(size.width);
 
   /**
    * Where the camera stands, world metres. Memoised on the vertex and wall
@@ -75,13 +80,15 @@ export function Panorama360({ active, geometry, onCaptured }: {
     restore.current = {
       position: camera.position.clone(),
       quaternion: camera.quaternion.clone(),
+      fov: camera instanceof THREE.PerspectiveCamera ? camera.fov : null,
     };
     camera.position.copy(eye);
     // Start facing the way the camera already faced, so entering the mode does
-    // not spin the room.
+    // not spin the room — unless that way is a near wall, in which case down
+    // the room's most open direction instead (panoramaStartYaw, QA re-check R7).
     const dir = new THREE.Vector3();
     restore.current.quaternion && camera.getWorldDirection(dir);
-    look.current = { yaw: Math.atan2(-dir.x, -dir.z), pitch: 0 };
+    look.current = { yaw: panoramaStartYaw(geometryRef.current, Math.atan2(-dir.x, -dir.z)), pitch: 0 };
     invalidate();
 
     return () => {
@@ -89,10 +96,38 @@ export function Panorama360({ active, geometry, onCaptured }: {
       if (!prev) return;
       camera.position.copy(prev.position);
       camera.quaternion.copy(prev.quaternion);
+      if (prev.fov != null && camera instanceof THREE.PerspectiveCamera) {
+        camera.fov = prev.fov;
+        camera.updateProjectionMatrix();
+      }
       restore.current = null;
       invalidate();
     };
   }, [active, camera, eye, invalidate]);
+
+  // Wide enough across on a portrait phone to see the room, not one wall; the fov the
+  // camera came in with is put back on the way out (above). Re-run when the canvas resizes.
+  useEffect(() => {
+    if (!active || !(camera instanceof THREE.PerspectiveCamera)) return;
+    const base = restore.current?.fov ?? camera.fov;
+    camera.fov = panoramaLookFov(size.width / size.height, base);
+    camera.updateProjectionMatrix();
+    invalidate();
+  }, [active, camera, size.width, size.height, invalidate]);
+
+  // Whatever hangs round the eye (a pendant's shade from the middle of a low ceiling) is put
+  // out of sight while the camera stands here, for the live view and the captured picture
+  // alike, and back on the way out (QA 2026-11-05 #2: the "dark floor" was the shade's inside).
+  useEffect(() => {
+    if (!active) return;
+    const hidden = meshesAroundEye(scene, eye);
+    for (const m of hidden) m.visible = false;
+    invalidate();
+    return () => {
+      for (const m of hidden) m.visible = true;
+      invalidate();
+    };
+  }, [active, scene, eye, invalidate]);
 
   // Drag to turn. On the canvas itself rather than through R3F's object
   // events: there is nothing to hit — the point is to look around the room,
@@ -105,8 +140,8 @@ export function Panorama360({ active, geometry, onCaptured }: {
     const move = (e: PointerEvent) => {
       const from = dragging.current;
       if (!from) return;
-      look.current.yaw -= (e.clientX - from.x) * LOOK_SPEED;
-      look.current.pitch -= (e.clientY - from.y) * LOOK_SPEED;
+      look.current.yaw -= (e.clientX - from.x) * lookSpeed.current;
+      look.current.pitch -= (e.clientY - from.y) * lookSpeed.current;
       look.current.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, look.current.pitch));
       dragging.current = { x: e.clientX, y: e.clientY };
       invalidate();

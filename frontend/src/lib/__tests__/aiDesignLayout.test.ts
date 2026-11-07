@@ -86,6 +86,14 @@ describe('furnitureSpot in a four-wall room', () => {
 describe('a drawn L-shaped room (walls W1..W6)', () => {
   const m = () => roomModel(LROOM())
 
+  it('refuses a turned piece whose corners are all in the room but which covers the inner corner', () => {
+    // A 2 x 2 m piece at 45°, just off the inner corner (world 0, 0.25): every corner lies in the L,
+    // yet the notch's tip is under it.
+    expect(m().inside({ x: -0.3, z: -0.3, w: 2, d: 2, rotation: Math.PI / 4 })).toBe(false)
+    // The same piece square to the walls, clear of the corner, is in.
+    expect(m().inside({ x: -1.2, z: -1, w: 1.5, d: 1.5, rotation: 0 })).toBe(true)
+  })
+
   it('knows its walls by their own ids, and refuses the four-wall names', () => {
     expect(m().walls.map((w) => w.id)).toEqual(['W1', 'W2', 'W3', 'W4', 'W5', 'W6'])
     expect(parseZone('wall_W3', m())?.kind).toBe('wall')

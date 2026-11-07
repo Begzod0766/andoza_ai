@@ -1,7 +1,9 @@
 import * as React from "react"
-import { ImagePlus } from "lucide-react"
+import { Check, ImagePlus } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BottomSheet } from "@/components/ui/BottomSheet"
+import { SidePanel } from "@/components/ui/SidePanel"
+import { useWideStudio } from "@/lib/compactStudio"
 import { Dialog } from "@/components/ui/Dialog"
 import { useTranslation } from "react-i18next"
 import i18n from "@/i18n"
@@ -11,7 +13,8 @@ import { useRoomStore } from "@/store/roomStore"
 import { ALL_PARTS, applyDesignPlan, restoreDesign, snapshotDesign } from "@/lib/aiDesign"
 import type { AppliedCounts, DesignParts, DesignSnapshot } from "@/lib/aiDesign"
 import { lightType } from "@/lib/lightCatalog"
-import { DESIGN_PRESETS, presetPlan, roomSizeOf } from "@/lib/aiDesignPresets"
+import { presetPlan, roomSizeOf } from "@/lib/aiDesignPresets"
+import { PresetCards } from "@/components/studio/PresetCards"
 import { summaryWithout } from "@/lib/aiSummary"
 import { ceilingDesign } from "@/lib/ceilingDesigns"
 import { effectiveRoomType } from "@/lib/roomType"
@@ -154,10 +157,16 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   // A Pinterest pin link: the other inspiration source. One source at a time.
   const [pinUrl, setPinUrl] = React.useState<string | null>(initialPinUrl ?? null)
   const [pinInput, setPinInput] = React.useState("")
+  // Three ways to a design, one at a time: a ready-made style, the user's own words, or a picture.
+  // A picture or pin attached from anywhere (a pin pasted into the request box) shows its tab.
+  const [tab, setTab] = React.useState<"styles" | "words" | "image">(initialPinUrl ? "image" : "styles")
   const fileInput = React.useRef<HTMLInputElement>(null)
   const [running, setRunning] = React.useState(false)
   const [plan, setPlan] = React.useState<AiDesignPlan | null>(null)
   const [parts, setParts] = React.useState<DesignParts>(ALL_PARTS)
+  // What the user wants changed, chosen before a design: a style or an AI design touches only these.
+  const [wanted, setWanted] = React.useState<DesignParts>(ALL_PARTS)
+  const wantsSomething = wanted.walls || wanted.floor || wanted.lights || wanted.furniture
   const [error, setError] = React.useState("")
   const [notice, setNotice] = React.useState("")
   // What the last design really put in the room: what did not fit, what stood in for what, and what was
@@ -203,6 +212,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   // Saves go one after another: a second design applied while the first is still being saved must not be skipped.
   const saveChain = React.useRef<Promise<unknown>>(Promise.resolve())
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture)
+  const wide = useWideStudio()
   const wallIds = useRoomStore((s) => s.geometry.walls.map((w) => w.id).join('|'))
 
   /** Saves the room; true when it did (the studio clears its unsaved mark only on success). */
@@ -244,6 +254,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     setPinUrl(null)
     setImage(file)
     setPreviewUrl(URL.createObjectURL(file))
+    setTab("image")
   }
 
   function takePin(text: string) {
@@ -251,6 +262,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     setImageError("")
     setPinInput("")
     setPinUrl(text.trim())
+    setTab("image")
   }
 
   /** The link is taken when it is complete: pasted, or left with blur / Enter. Checking
@@ -284,7 +296,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   }
 
   // No new design while the other rooms are being written from this one.
-  const canSend = !running && !roomsBusy && (pinUrl !== null || image !== null || prompt.trim().length >= 3)
+  const canSend = !running && !roomsBusy && wantsSomething && (pinUrl !== null || image !== null || prompt.trim().length >= 3)
 
   async function generate(e?: React.FormEvent) {
     e?.preventDefault()
@@ -308,28 +320,32 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
       setRunning(false)
     }
     const nextParts = {
-      walls: !!next.walls.main, floor: !!next.floor, lights: next.lights.length > 0, furniture: next.furniture.length > 0,
+      walls: wanted.walls && !!next.walls.main, floor: wanted.floor && !!next.floor,
+      lights: wanted.lights && next.lights.length > 0, furniture: wanted.furniture && next.furniture.length > 0,
     }
+    setFurnitureOffByUser(!wanted.furniture)
     setPlan(next)
     setParts(nextParts)
     newSource({ kind: "ai", plan: next, wallIds: wallIds ? wallIds.split("|") : [] })
-    close() // the sheet covers and dims the room: show the design
+    // The sheet covers and dims the room: close it to show the design. The side panel leaves it in view.
+    if (!wide) close()
     await commit(next, nextParts)
   }
 
   /** A ready-made style: no request, so it works with the AI down and costs nothing. */
   async function usePreset(id: string) {
-    if (roomsBusy) return
+    if (roomsBusy || !wantsSomething) return
     // The bed is picked to fit the room's size, read as the backend reads it for the AI.
     const roomSize = roomSizeOf(useRoomStore.getState().geometry)
     const next = presetPlan(id, catalogFurniture, roomType, wallIds ? wallIds.split('|') : undefined, roomSize)
     if (!next) return
     setError("")
-    const nextParts = { walls: true, floor: true, lights: true, furniture: next.furniture.length > 0 }
+    const nextParts = { ...wanted, furniture: wanted.furniture && next.furniture.length > 0 }
+    setFurnitureOffByUser(!wanted.furniture)
     setPlan(next)
     setParts(nextParts)
     newSource({ kind: "preset", id })
-    close()
+    if (!wide) close()
     await commit(next, nextParts)
   }
 
@@ -468,29 +484,124 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     [confirmRooms, source, aptRooms, roomId, catalogFurniture],
   )
 
-  return (
-    <>
-    <BottomSheet open={open} onOpenChange={close} title={t("ai.builder_title")} defaultSnap="full">
+  const body = (
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-4">
-        <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} />
+        <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} preselectGuess />
         <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-gray-500">{t("ai.tayyor_uslublar")}</p>
+          <p className="text-xs font-semibold text-gray-500">{t("ai.nimani_ozgartirsin")}</p>
           <div className="flex flex-wrap gap-1.5">
-            {DESIGN_PRESETS.map((preset) => (
+            {([["walls", t("ai.qism_devor")], ["floor", t("ai.qism_pol")], ["lights", t("ai.qism_chiroq")], ["furniture", t("ai.qism_mebel")]] as const).map(([id, label]) => (
               <button
-                key={preset.id}
+                key={id}
                 type="button"
-                disabled={roomsBusy}
-                onClick={() => void usePreset(preset.id)}
-                className="rounded-full bg-[#3B63DE]/10 px-3.5 py-1.5 text-xs font-semibold text-[#2F55D4] hover:bg-[#3B63DE]/20 disabled:opacity-60"
+                aria-pressed={wanted[id]}
+                disabled={running}
+                onClick={() => setWanted((w) => ({ ...w, [id]: !w[id] }))}
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                  wanted[id] ? "border-[#3B63DE] bg-[#3B63DE]/10 text-[#2F55D4]" : "border-gray-200 bg-white text-gray-500"
+                }`}
               >
-                {t(preset.labelKey)}
+                {wanted[id] && <Check size={12} aria-hidden="true" />}
+                {label}
               </button>
             ))}
           </div>
+          {!wantsSomething && <p role="status" className="text-xs text-amber-700">{t("ai.kamida_bitta_qism")}</p>}
+        </div>
+        <div role="tablist" aria-label={t("ai.tab_list")} className="flex gap-1 rounded-full bg-gray-100 p-1">
+          {([["styles", t("ai.tab_styles")], ["words", t("ai.tab_words")], ["image", t("ai.tab_image")]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`ai-tab-${id}`}
+              aria-selected={tab === id}
+              aria-controls={`ai-panel-${id}`}
+              onClick={() => setTab(id)}
+              className={`flex-1 rounded-full px-2 py-1.5 text-xs font-semibold transition ${
+                tab === id ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel" id="ai-panel-styles" aria-labelledby="ai-tab-styles" hidden={tab !== "styles"} className="space-y-1.5">
+          <p className="text-xs font-semibold text-gray-500">{t("ai.tayyor_uslublar")}</p>
+          <PresetCards narrow={wide} onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy || !wantsSomething} />
         </div>
 
-        <form onSubmit={generate} className="space-y-2">
+        <form
+          onSubmit={generate}
+          role="tabpanel"
+          id={tab === "image" ? "ai-panel-image" : "ai-panel-words"}
+          aria-labelledby={tab === "image" ? "ai-tab-image" : "ai-tab-words"}
+          hidden={tab === "styles"}
+          className="space-y-2"
+        >
+          <div hidden={tab !== "image"} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInput}
+                type="file"
+                accept={IMAGE_TYPES.join(",")}
+                aria-label={t("ai.rasm_input")}
+                className="hidden"
+                onChange={(e) => pickImage(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                disabled={running}
+                onClick={() => fileInput.current?.click()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-[#3B63DE] hover:text-[#3B63DE] disabled:opacity-60"
+              >
+                <ImagePlus size={14} aria-hidden="true" />
+                {t("ai.rasm_qoshish")}
+              </button>
+              {previewUrl && (
+                <div className="relative">
+                  <img src={previewUrl} alt={t("ai.rasm_preview")} className="h-12 w-12 rounded-xl object-cover" />
+                  <button
+                    type="button"
+                    aria-label={t("ai.rasm_olib_tashlash")}
+                    onClick={removeImage}
+                    disabled={running}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
+            {pinUrl ? (
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-[#E60023]/10 px-3 py-1.5 text-xs font-semibold text-[#B8001C]">{t("ai.pin_chip")}</span>
+                <button
+                  type="button"
+                  aria-label={t("ai.pin_olib_tashlash")}
+                  onClick={() => setPinUrl(null)}
+                  disabled={running}
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <input
+                type="url"
+                value={pinInput}
+                onChange={(e) => { setPinInput(e.target.value); setImageError("") }}
+                onPaste={pastePin}
+                onBlur={() => commitPinInput()}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitPinInput() } }}
+                placeholder={t("ai.pin_placeholder")}
+                aria-label={t("ai.pin_label")}
+                disabled={running}
+                className="w-full rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#3B63DE]/40"
+              />
+            )}
+          </div>
+          {imageError && <p role="alert" className="text-xs text-red-600">{imageError}</p>}
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -502,69 +613,8 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
             aria-label={t("ai.dizayn_tavsifi")}
             className="w-full resize-none rounded-2xl bg-soft px-3 py-2 text-sm shadow-soft-pressed focus:outline-none focus:shadow-soft-pressed-deep disabled:opacity-60"
           />
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInput}
-              type="file"
-              accept={IMAGE_TYPES.join(",")}
-              aria-label={t("ai.rasm_input")}
-              className="hidden"
-              onChange={(e) => pickImage(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              disabled={running}
-              onClick={() => fileInput.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-[#3B63DE] hover:text-[#3B63DE] disabled:opacity-60"
-            >
-              <ImagePlus size={14} aria-hidden="true" />
-              {t("ai.rasm_qoshish")}
-            </button>
-            {previewUrl && (
-              <div className="relative">
-                <img src={previewUrl} alt={t("ai.rasm_preview")} className="h-12 w-12 rounded-xl object-cover" />
-                <button
-                  type="button"
-                  aria-label={t("ai.rasm_olib_tashlash")}
-                  onClick={removeImage}
-                  disabled={running}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-          </div>
-          {pinUrl ? (
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#E60023]/10 px-3 py-1.5 text-xs font-semibold text-[#B8001C]">{t("ai.pin_chip")}</span>
-              <button
-                type="button"
-                aria-label={t("ai.pin_olib_tashlash")}
-                onClick={() => setPinUrl(null)}
-                disabled={running}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <input
-              type="url"
-              value={pinInput}
-              onChange={(e) => { setPinInput(e.target.value); setImageError("") }}
-              onPaste={pastePin}
-              onBlur={() => commitPinInput()}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitPinInput() } }}
-              placeholder={t("ai.pin_placeholder")}
-              aria-label={t("ai.pin_label")}
-              disabled={running}
-              className="w-full rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#3B63DE]/40"
-            />
-          )}
-          {imageError && <p role="alert" className="text-xs text-red-600">{imageError}</p>}
-          <p className="pt-1 text-xs font-semibold text-gray-500">{t("ai.ai_namunalari")}</p>
-          <div className="flex flex-wrap gap-1.5">
+          <p hidden={tab !== "words"} className="pt-1 text-xs font-semibold text-gray-500">{t("ai.ai_namunalari")}</p>
+          <div hidden={tab !== "words"} data-part="examples" className={`${tab === "words" ? "flex" : "hidden"} flex-wrap gap-1.5`}>
             {t("ai.dizayner_misollar", { returnObjects: true }).map((example) => (
               <button
                 key={example}
@@ -600,6 +650,11 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
               {/* Told before the layout: a sentence about a piece that did not fit would describe a room that is not there. */}
               <p className="mt-1 text-sm leading-snug text-gray-700">{applied ? summaryWithout(plan.summary, leftOut, [...applied.placed.map((p) => p.name), ...applied.swapped.map((s) => s.from)]) : plan.summary}</p>
               {plan.image_notes && <p className="mt-2 text-xs leading-snug text-gray-600">{plan.image_notes}</p>}
+              {applied && applied.ownLightsKept.length > 0 && (
+                <p className="mt-2 text-xs leading-snug text-gray-600">
+                  {t("ai.oz_chirogingiz_qoldi", { list: applied.ownLightsKept.map((l) => t(lightType(l.type).nameKey)).join(", ") })}
+                </p>
+              )}
               {leftOut.length > 0 && (
                 <p className="mt-2 text-xs leading-snug text-amber-800">{t("ai.joy_yetmadi_royxat", { list: countedNames(leftOut) })}</p>
               )}
@@ -677,7 +732,16 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
         {notice && <p role="status" className="text-sm font-medium text-green-700">{notice}</p>}
         {roomsNotice && <p role="status" className="text-sm font-medium text-gray-700">{roomsNotice}</p>}
       </div>
-    </BottomSheet>
+  )
+
+  return (
+    <>
+    {/* Desktop: a panel beside the room, so a style shows in the room as it is picked. Phone and app: the sheet. */}
+    {wide ? (
+      <SidePanel open={open} onOpenChange={close} title={t("ai.builder_title")} closeLabel={t("common.yopish")}>{body}</SidePanel>
+    ) : (
+      <BottomSheet open={open} onOpenChange={close} title={t("ai.builder_title")} defaultSnap="full">{body}</BottomSheet>
+    )}
 
     {/* With the sheet closed the design is on screen; this says what was done and keeps undo within reach.
         Once undone, it stays while it has the other rooms to tell of. */}

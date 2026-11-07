@@ -89,6 +89,18 @@ describe('applyToOtherRooms', () => {
     expect(outcomes.find((o) => o.roomId === 'liv')?.dropped).toBeUndefined()
   })
 
+  it("lays a room's pieces out at the size it draws them under its own ceiling", async () => {
+    // 4.5 m wide and 3 m tall: too wide for the 4 m walls at its catalog size, drawn ~3.57 m wide
+    // under a 2.4 m ceiling. Only the room with the low ceiling finds it a wall.
+    const tall = { ...item('wardrobe', 'Kiyim shkafi', 'shkaf', 'yotoqxona'), footprint_w: 450, footprint_d: 60, height_cm: 300 }
+    const catalog = CATALOG.map((c) => (c.id === 'wardrobe' ? tall : c))
+    const low = room('low', 'Yotoqxona 2', { room_type: 'yotoqxona', state: SAVED_STATE, ceiling_h: 2.4 })
+    api.getRooms.mockResolvedValue([CURRENT, BEDROOM, low])
+    const { outcomes } = await applyToOtherRooms({ ...args, catalog })
+    expect(outcomes.find((o) => o.roomId === 'low')?.dropped ?? []).not.toContain('Kiyim shkafi')
+    expect(outcomes.find((o) => o.roomId === 'bed')?.dropped).toContain('Kiyim shkafi')
+  })
+
   it('PATCHes every other room with its merged state and the guard', async () => {
     const { outcomes } = await applyToOtherRooms(args)
     expect(api.getRooms).toHaveBeenCalledWith('apt')

@@ -299,9 +299,11 @@ export default function SurfaceRadialMenu({ x, y, surface, items, onClose, onDis
               e.stopPropagation()
               // A turn that ended here is not a pick.
               if (didDrag.current) return
-              // The faded pair is a hint, not a target: tapping one brings it
-              // round to the middle rather than choosing something half-hidden.
-              if (edge) { setOffset((o) => wrapArcOffset(Math.round(o + (deg < -90 ? -1 : 1)), n)); return }
+              // A faded edge button turns round to the middle — and is picked
+              // by that same tap. Only turning it made every off-centre pick
+              // two or three taps, which read as a menu that did not work
+              // (QA 2026-11-05 #7): whatever is visible is a target.
+              if (edge) setOffset((o) => wrapArcOffset(Math.round(o + (deg < -90 ? -1 : 1)), n))
               // An item with children opens them in place; only a leaf acts
               // and dismisses. The submenu opens turned to the choice last
               // made IN IT — the last paper, the last colour — which is where

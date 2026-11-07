@@ -1,4 +1,4 @@
-import type { CutGroup, NestCut, NestedSheet, NestPlacement, NestRect, NestResult } from './model'
+import type { CutGroup, NestCut, NestedSheet, NestPlacement, NestRect, NestResult, StockPiece } from './model'
 
 /**
  * The cutting layout: each board's parts on as few sheets as a panel saw can
@@ -11,7 +11,7 @@ import type { CutGroup, NestCut, NestedSheet, NestPlacement, NestRect, NestResul
 const MIN_OFFCUT = 200
 
 interface Item { partId: string; length: number; width: number; canRotate: boolean; index: number }
-interface Sheet { free: NestRect[]; placements: NestPlacement[]; cuts: NestCut[]; area: number }
+interface Sheet { free: NestRect[]; placements: NestPlacement[]; cuts: NestCut[]; area: number; size: { length: number; width: number }; stockId?: string }
 type Order = (a: Item, b: Item) => number
 type Fit = 'baf' | 'bssf'
 type Split = 'sas' | 'las'
@@ -80,9 +80,16 @@ function place(sheet: Sheet, item: Item, spot: { rect: number; l: number; w: num
   }
 }
 
-function packOnce(items: Item[], sheet: { length: number; width: number }, kerf: number, trim: number, fit: Fit, split: Split) {
+function packOnce(
+  items: Item[], sheet: { length: number; width: number }, kerf: number, trim: number, fit: Fit, split: Split,
+  stock: StockPiece[] = [],
+) {
   const work: NestRect = { x: trim, y: trim, length: sheet.length - 2 * trim, width: sheet.width - 2 * trim }
-  const sheets: Sheet[] = []
+  // Stock pieces are tried before any whole sheet is opened. A sawn edge needs no trim.
+  const sheets: Sheet[] = stock.map((p) => ({
+    free: [{ x: 0, y: 0, length: p.length, width: p.width }], placements: [], cuts: [], area: 0,
+    size: { length: p.length, width: p.width }, stockId: p.id,
+  }))
   const unplaced: Item[] = []
   for (const item of items) {
     let done = false
@@ -91,19 +98,21 @@ function packOnce(items: Item[], sheet: { length: number; width: number }, kerf:
       if (spot) { place(s, item, spot, split, kerf); done = true; break }
     }
     if (done) continue
-    const fresh: Sheet = { free: work.length > 0 && work.width > 0 ? [{ ...work }] : [], placements: [], cuts: [], area: 0 }
+    const fresh: Sheet = { free: work.length > 0 && work.width > 0 ? [{ ...work }] : [], placements: [], cuts: [], area: 0, size: { ...sheet } }
     const spot = bestSpot(fresh, item, fit)
     if (!spot) { unplaced.push(item); continue }
     place(fresh, item, spot, split, kerf)
     sheets.push(fresh)
   }
-  return { sheets, unplaced }
+  // a stock piece no part landed on is not used
+  return { sheets: sheets.filter((x) => !x.stockId || x.placements.length > 0), unplaced }
 }
 
 export function nestSheets(
   groups: CutGroup[],
   sheet: { length: number; width: number },
   opts: { kerf: number; trim: number },
+  stock: StockPiece[] = [],
 ): NestResult[] {
   const boards = new Map<string, { head: CutGroup; items: Item[] }>()
   for (const g of groups) {
@@ -114,8 +123,11 @@ export function nestSheets(
     }
     boards.set(key, b)
   }
-  const sheetArea = sheet.length * sheet.width
   return [...boards.values()].map(({ head, items }) => {
+    // this board's stock, largest first
+    const pieces = stock
+      .filter((p) => p.material === head.material && (p.materialId ?? null) === (head.materialId ?? null) && p.thickness === head.thickness)
+      .sort((a, b) => b.length * b.width - a.length * a.width)
     let best: ReturnType<typeof packOnce> | null = null
     // Every attempt also runs with turning off: turning a plain part can only be offered,
     // never cost a sheet.
@@ -125,10 +137,20 @@ export function nestSheets(
       const sorted = [...pool].sort((a, b) => order(a, b) || a.index - b.index)
       for (const fit of FITS) {
         for (const split of SPLITS) {
-          const run = packOnce(sorted, sheet, opts.kerf, opts.trim, fit, split)
-          if (!best || run.sheets.length < best.sheets.length
-            || (run.sheets.length === best.sheets.length && run.sheets.length > 0
-              && run.sheets[run.sheets.length - 1].area < best.sheets[best.sheets.length - 1].area)) {
+          const run = packOnce(sorted, sheet, opts.kerf, opts.trim, fit, split, pieces)
+          // Placing every part comes first: a run that leaves a part out can look
+          // a sheet cheaper only because that part is missing. Then fewest whole
+          // sheets bought (stock is free), then the emptiest last whole sheet.
+          const rb = run.sheets.filter((x) => !x.stockId)
+          const bb = best ? best.sheets.filter((x) => !x.stockId) : []
+          if (!best || run.unplaced.length < best.unplaced.length
+            || (run.unplaced.length === best.unplaced.length && rb.length < bb.length)
+            // fewer stock pieces opened keeps the store from breaking up
+            || (run.unplaced.length === best.unplaced.length && rb.length === bb.length
+              && run.sheets.length - rb.length < best.sheets.length - bb.length)
+            || (run.unplaced.length === best.unplaced.length && rb.length === bb.length
+              && run.sheets.length - rb.length === best.sheets.length - bb.length && rb.length > 0
+              && rb[rb.length - 1].area < bb[bb.length - 1].area)) {
             best = run
           }
         }
@@ -140,15 +162,18 @@ export function nestSheets(
       placements: s.placements,
       cuts: s.cuts,
       offcuts: s.free.filter((r) => r.length >= MIN_OFFCUT && r.width >= MIN_OFFCUT),
-      utilization: s.area / sheetArea,
+      utilization: s.area / (s.size.length * s.size.width),
+      size: { ...s.size },
+      ...(s.stockId ? { stockId: s.stockId } : {}),
     }))
+    const binArea = run.sheets.reduce((n, s) => n + s.size.length * s.size.width, 0)
     return {
       material: head.material,
       materialId: head.materialId,
       thickness: head.thickness,
       sheet: { ...sheet },
       sheets,
-      utilization: sheets.length ? used / (sheets.length * sheetArea) : 0,
+      utilization: binArea ? used / binArea : 0,
       unplaced: run.unplaced.map((i) => i.partId),
     }
   })

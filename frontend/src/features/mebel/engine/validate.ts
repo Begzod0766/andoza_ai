@@ -7,6 +7,8 @@ export const LIMITS = {
   depth: [250, 700],
   shelves: [0, 4],
   cabinets: 30,
+  freeParts: 100,
+  freePieces: 1000,
 } as const
 
 /** Size and shelf limits per cabinet type. */
@@ -27,6 +29,18 @@ export function validateCabinets(
 ): { errors: Warning[] } {
   const errors: Warning[] = []
   if (p.cabinets.length > LIMITS.cabinets) errors.push({ code: 'too_many_cabinets', params: { max: LIMITS.cabinets } })
+  const free = p.freeParts ?? []
+  if (free.length > LIMITS.freeParts) errors.push({ code: 'too_many_free', params: { max: LIMITS.freeParts } })
+  // every piece is nested on every keystroke: keep the total within reach
+  const pieces = free.reduce((n, f) => n + (Number.isFinite(f.qty) ? f.qty : 0), 0)
+  if (pieces > LIMITS.freePieces) errors.push({ code: 'free_pieces', params: { max: LIMITS.freePieces } })
+  if (p.cabinets.length === 0 && free.length === 0) errors.push({ code: 'empty_project' })
+  const whole = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi
+  for (const f of free) {
+    if (!whole(f.length, 10, 3000) || !whole(f.width, 10, 3000)) errors.push({ code: 'free_size', cabinetId: f.id, params: { min: 10, max: 3000 } })
+    if (!whole(f.qty, 1, 100)) errors.push({ code: 'free_qty', cabinetId: f.id, params: { min: 1, max: 100 } })
+    if (!f.name?.trim()) errors.push({ code: 'free_name', cabinetId: f.id })
+  }
   const d0 = p.defaults
   const s = d0.sheet
   const trimOk = finite(d0.trim) && d0.trim <= 50
@@ -62,6 +76,7 @@ export function validateCabinets(
         if (Math.min(...frontHeights(c, d, nDrawers)) - 40 < MIN_BOX_HEIGHT) errors.push({ code: 'drawer_low', cabinetId: c.id, params: { min: MIN_BOX_HEIGHT } })
       }
     }
+    if (!(Number.isFinite(c.position?.x) && c.position.x >= 0)) errors.push({ code: 'position_range', cabinetId: c.id })
     // a saved "auto" may come back as null
     if (c.doors != null && ![0, 1, 2].includes(c.doors)) errors.push({ code: 'doors_range', cabinetId: c.id, params: { min: 0, max: 2 } })
     // the server stores whole millimetres
@@ -79,9 +94,14 @@ export function validateCabinets(
 /** Warnings about computed parts: the calculation still stands. */
 export function partWarnings(parts: Part[]): Warning[] {
   const warnings: Warning[] = []
-  for (const p of parts) {
-    if (p.role === 'shelf' && p.thickness === 16 && p.finished.length > 800) {
-      warnings.push({ code: 'shelf_sag', cabinetId: p.cabinetId, params: { length: p.finished.length } })
+  // one warning per cabinet: the longest of its sagging shelves
+  const seen = new Set<string>()
+  for (const p of [...parts].sort((a, b) => b.finished.length - a.finished.length)) {
+    // longest unsupported span a shelf of this thickness holds without sagging
+    const span = p.thickness === 16 ? 800 : p.thickness === 18 ? 900 : null
+    if (p.role === 'shelf' && span != null && p.finished.length > span && !seen.has(p.cabinetId)) {
+      seen.add(p.cabinetId)
+      warnings.push({ code: 'shelf_sag', cabinetId: p.cabinetId, params: { length: p.finished.length, t: p.thickness } })
     }
   }
   return warnings

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { useEmbeddedApp } from '@/lib/embedded'
 import { logoutApi } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { isNativeScanAvailable } from '@/lib/native/roomScan'
@@ -155,6 +156,15 @@ function IconProfile() {
   )
 }
 
+function IconRuler() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21.3 15.3a2.4 2.4 0 010 3.4l-2.6 2.6a2.4 2.4 0 01-3.4 0L2.7 8.7a2.4 2.4 0 010-3.4l2.6-2.6a2.4 2.4 0 013.4 0z"/>
+      <path d="M14.5 12.5l2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"/>
+    </svg>
+  )
+}
+
 function IconLogout() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -167,13 +177,16 @@ function IconLogout() {
 
 const SIDEBAR_NAV: Array<{
   to: string
-  label: 'layout.uy' | 'layout.dokon' | 'layout.ustalar' | 'nav.profil'
+  label: 'layout.uy' | 'layout.dokon' | 'layout.ustalar' | 'nav.profil' | 'profile.mebel'
   icon: (active: boolean) => React.ReactNode
 }> = [
   { to: '/projects', label: 'layout.uy',      icon: (a) => <IconHome filled={a} /> },
   { to: '/dokon',    label: 'layout.dokon',   icon: (a) => <IconShop filled={a} /> },
   { to: '/ustalar',  label: 'layout.ustalar', icon: () => <IconWorkers /> },
   { to: '/profile',  label: 'nav.profil',     icon: () => <IconProfile /> },
+  // Desktop only: the phone bar has no room, and the workshop tool is used at a desk.
+  // On a phone it stays under Profil.
+  { to: '/mebel',    label: 'profile.mebel',  icon: () => <IconRuler /> },
 ]
 
 // ─── Desktop Sidebar ──────────────────────────────────────────────────────────
@@ -327,21 +340,24 @@ export function AppShell() {
 
   // Drive the CSS var (global.css) that recolors ONLY the app background.
   useAppThemeAttribute()
+  // Inside the native app's WebView (e.g. /mebel?app=1) the app draws its own
+  // navigation; a web bar under it would be a second one.
+  const embedded = useEmbeddedApp()
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: 'var(--color-app-bg)' }}>
       {/* Desktop: fixed sidebar */}
-      <DesktopSidebar onNew={() => setSheetOpen(true)} />
+      {!embedded && <DesktopSidebar onNew={() => setSheetOpen(true)} />}
 
       {/* Content shifts right on desktop */}
-      <div className="flex-1 lg:ml-[92px] flex flex-col min-h-screen">
-        <main className="flex-1 pb-[94px] lg:pb-0">
+      <div className={`flex-1 min-w-0 flex flex-col min-h-screen ${embedded ? '' : 'lg:ml-[92px]'}`}>
+        <main className={`flex-1 ${embedded ? '' : 'pb-[94px] lg:pb-0'}`}>
           <Outlet />
         </main>
       </div>
 
       {/* Mobile: bottom nav */}
-      <BottomNav onFab={() => setSheetOpen(true)} />
+      {!embedded && <BottomNav onFab={() => setSheetOpen(true)} />}
 
       {sheetOpen && (
         <NewProjectSheet onClose={() => setSheetOpen(false)} />

@@ -106,6 +106,25 @@ def test_create_and_list_own_projects(client):
     assert "data" not in r.json()[0]  # the list is light; the editor fetches one project
 
 
+def test_list_reports_counts_and_cut_at(client):
+    user = _user()
+    cut = datetime(2026, 11, 2, 18, 0, tzinfo=timezone.utc)
+    data = _data()
+    data["cabinets"] = data["cabinets"] * 2
+    data["freeParts"] = [{"id": "d1"}]
+    _as(user, _db(_Result(many=[_project(user.id, data=data, cut_at=cut)])))
+    body = client.get("/api/v1/mebel/projects").json()[0]
+    assert body["cabinets"] == 2 and body["free_parts"] == 1
+    assert body["cut_at"].startswith("2026-11-02T18:00")
+
+
+def test_list_handles_old_data(client):
+    user = _user()
+    _as(user, _db(_Result(many=[_project(user.id, data={"schemaVersion": 1, "name": "x"})])))
+    body = client.get("/api/v1/mebel/projects").json()[0]
+    assert body["cabinets"] == 0 and body["free_parts"] == 0 and body["cut_at"] is None
+
+
 def test_get_foreign_project_is_404(client):
     user = _user()
     foreign = _project(uuid.uuid4())
@@ -290,3 +309,85 @@ def test_no_drawers_is_not_stored_as_null(client):
     _as(user, db)
     client.post("/api/v1/mebel/projects", json={"name": "x", "data": _data()})
     assert "drawers" not in db.add.call_args.args[0].data["cabinets"][0]
+
+
+def _free(**kw):
+    part = dict(id="f1", label="D1", name="Stoleshnitsa", length=2400, width=600, qty=1, material="board", grain="length",
+                edges={"L1": "visible", "L2": None, "W1": None, "W2": None})
+    part.update(kw)
+    return part
+
+
+def _post(client, data):
+    _as(_user(), _db())
+    return client.post("/api/v1/mebel/projects", json={"name": "x", "data": data})
+
+
+def test_free_parts_are_saved_with_the_project(client):
+    data = _data()
+    data["freeParts"] = [_free()]
+    r = _post(client, data)
+    assert r.status_code == 201, r.text
+    assert r.json()["data"]["freeParts"][0]["name"] == "Stoleshnitsa"
+
+
+def test_a_project_of_only_free_parts_is_accepted(client):
+    data = _data()
+    data["cabinets"] = []
+    data["freeParts"] = [_free()]
+    assert _post(client, data).status_code == 201
+
+
+def test_an_empty_project_is_refused(client):
+    data = _data()
+    data["cabinets"] = []
+    data["freeParts"] = []
+    assert _post(client, data).status_code == 422
+
+
+@pytest.mark.parametrize("field,value", [("length", 9), ("length", 3001), ("width", 9), ("qty", 0), ("qty", 101), ("name", ""),
+                                         ("material", "glass"), ("grain", "width")])
+def test_free_part_limits(client, field, value):
+    data = _data()
+    data["freeParts"] = [_free(**{field: value})]
+    assert _post(client, data).status_code == 422
+
+
+def test_at_most_100_free_parts(client):
+    data = _data()
+    data["freeParts"] = [_free(id=f"f{i}") for i in range(101)]
+    assert _post(client, data).status_code == 422
+
+
+def test_an_old_payload_without_free_parts_still_saves(client):
+    data = _data()
+    assert "freeParts" not in data
+    assert _post(client, data).status_code == 201
+
+
+@pytest.mark.parametrize("bad", [{"label": ""}, {"edges": {"L1": "x", "L2": None, "W1": None, "W2": None}}, {"edges": {"L1": None}}])
+def test_free_part_label_and_bands_are_checked(client, bad):
+    data = _data()
+    part = _free()
+    part.update(bad)
+    data["freeParts"] = [part]
+    assert _post(client, data).status_code == 422
+
+
+def test_at_most_1000_free_pieces(client):
+    data = _data()
+    data["freeParts"] = [_free(id=f"f{i}", qty=100) for i in range(11)]
+    assert _post(client, data).status_code == 422
+    data["freeParts"] = data["freeParts"][:10]
+    assert _post(client, data).status_code == 201
+
+
+def test_summary_counts_from_a_dict_and_keeps_every_out_field():
+    from app.schemas.mebel import ProjectOut, ProjectSummary
+    now = datetime.now(timezone.utc)
+    row = dict(id=uuid.uuid4(), name="x", updated_at=now, created_at=now, schema_version=1, cut_at=None,
+               data={"cabinets": [1, 2, 3], "freeParts": [1]})
+    s = ProjectSummary.model_validate(row)
+    assert (s.cabinets, s.free_parts) == (3, 1)
+    out = ProjectOut.model_validate(row)
+    assert out.data == row["data"] and out.schema_version == 1 and out.cabinets == 3

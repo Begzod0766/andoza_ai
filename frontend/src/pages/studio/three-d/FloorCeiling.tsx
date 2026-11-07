@@ -16,6 +16,7 @@ import { parquetBoardsFor, withBoardGrain } from "@/lib/parquetBoards";
 import { kelvinToHex } from "@/lib/lightCatalog";
 import { requestSharedTexture, textureFetchUrl } from "@/lib/sharedWallTexture";
 import { FLOOR_COLORS, UNCONFIGURED_FLOOR_COLOR, noRaycast } from "./constants";
+import { WallFade } from "@/features/studio/diorama";
 
 /**
  * Floor and ceiling rendering for the legacy ABCD room shell. Split out of
@@ -398,9 +399,17 @@ export function PatternFloor({ pattern, width, depth, fallbackColor, clipPolygon
  * These patches are built from the SAME pattern, width and depth as the room's
  * floor, so every plank and joint falls exactly where it would have: the only
  * difference between the two is where they are cut.
+ *
+ * Each patch fades with its wall: `fadedWalls` is the set the cutaway fades
+ * the walls by, and the patch is in a `WallFade` of its own told by it, so it
+ * ramps out with the very timing and opacity of the door lining in that wall.
+ * It used to be dropped the moment the wall started to fade, and for the
+ * ~200 ms the lining took to go the doorway stood with no floor in it.
  */
-export function DoorwayFloors({ niches, pattern, width, depth, fallbackColor, floorType, baseAngleRad }: {
-  niches: { elId: string; polygon: [number, number][] }[];
+export function DoorwayFloors({ niches, fadedWalls, pattern, width, depth, fallbackColor, floorType, baseAngleRad }: {
+  niches: { wallId: string; elId: string; polygon: [number, number][] }[];
+  /** Walls the cutaway is fading out (or has): their patches fade with them. */
+  fadedWalls?: ReadonlySet<string>;
   pattern: FloorPatternState;
   width: number;
   depth: number;
@@ -414,16 +423,17 @@ export function DoorwayFloors({ niches, pattern, width, depth, fallbackColor, fl
   return (
     <>
       {niches.map((n) => (
-        <PatternFloor
-          key={n.elId}
-          pattern={pattern}
-          width={width}
-          depth={depth}
-          fallbackColor={fallbackColor}
-          clipPolygon={n.polygon}
-          floorType={floorType}
-          baseAngleRad={baseAngleRad}
-        />
+        <WallFade key={n.elId} hidden={!!fadedWalls?.has(n.wallId)}>
+          <PatternFloor
+            pattern={pattern}
+            width={width}
+            depth={depth}
+            fallbackColor={fallbackColor}
+            clipPolygon={n.polygon}
+            floorType={floorType}
+            baseAngleRad={baseAngleRad}
+          />
+        </WallFade>
       ))}
     </>
   );
@@ -478,14 +488,6 @@ export const Ceiling = memo(function Ceiling({
   // cannot be picked, so the highlight has to go with it — a tint glowing in
   // an open-topped top view would be painting a ceiling that isn't shown.
   const showSelected = !!isSelected && !hidden
-  const profileRef = useRef<THREE.Group>(null)
-  useFrame(({ camera }) => {
-    const g = profileRef.current
-    if (!g) return
-    _ceilingWorld.set(0, H, 0)
-    g.parent?.localToWorld(_ceilingWorld)
-    g.visible = ceilingProfileVisible(camera.position.y, _ceilingWorld.y)
-  })
 
   return (
     <group onClick={onClick}>
@@ -506,13 +508,12 @@ export const Ceiling = memo(function Ceiling({
           dropped panels too (no depth test), where a tint used to be. */}
       {showSelected && <RectOutline w={W} h={D} position={[0, H - 0.012, 0]} rotation={[Math.PI / 2, 0, 0]} />}
       {!hidden && parts.length > 0 && (
-        <group ref={profileRef}>
-          <CeilingProfile
-            parts={parts}
-            color={resolved.color}
-            stripK={resolved.stripK}
-          />
-        </group>
+        <CeilingProfile
+          parts={parts}
+          color={resolved.color}
+          stripK={resolved.stripK}
+          ceilingY={H}
+        />
       )}
     </group>
   )
@@ -525,17 +526,39 @@ export const Ceiling = memo(function Ceiling({
  * Strips are drawn unlit and untone-mapped so they read as the source rather
  * than as a pale surface that happens to be bright: a cove LED is the one thing
  * in the room that should not respond to the room's own lighting.
+ *
+ * The cutaway for a camera above the ceiling (see `ceilingProfileVisible`)
+ * lives here rather than in whichever shell hangs the profile: the drawn-room
+ * shell renders this component directly, not through <Ceiling>, and so used
+ * to skip the rule entirely — once an AI style put a designed ceiling into a
+ * drawn room, its boxes covered the room like a lid from the default outside
+ * view (QA #10). Only this group's `visible` is switched, per frame, so the
+ * slab above (which blocks the sun) and the lights hung beneath (separate
+ * meshes) are untouched, and any eye inside the room — a station camera, the
+ * 360 camera, a walkthrough — is below the ceiling and sees it as before.
  */
 export function CeilingProfile({
-  parts, color, stripK,
+  parts, color, stripK, ceilingY,
 }: {
   parts: CeilingPart[]
   color: string
   stripK: number
+  /** The ceiling's height in the parent's local frame (the room's H). Taken
+   *  to world space each frame, so a room lifted by its parent still cuts at
+   *  its own ceiling. */
+  ceilingY: number
 }) {
   const stripColor = kelvinToHex(stripK)
+  const groupRef = useRef<THREE.Group>(null)
+  useFrame(({ camera }) => {
+    const g = groupRef.current
+    if (!g) return
+    _ceilingWorld.set(0, ceilingY, 0)
+    g.parent?.localToWorld(_ceilingWorld)
+    g.visible = ceilingProfileVisible(camera.position.y, _ceilingWorld.y)
+  })
   return (
-    <group>
+    <group ref={groupRef}>
       {parts.map((part, i) => (
         <mesh
           key={i}

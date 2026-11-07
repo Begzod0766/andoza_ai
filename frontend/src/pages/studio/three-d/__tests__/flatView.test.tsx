@@ -1,0 +1,270 @@
+/**
+ * QA 2026-11-05 item 9: "Flat" showed three rooms, but the two "Mening xonam"
+ * rooms had walls cutting through each other, and the flat sat off to one side.
+ *
+ * Both "Mening xonam"s are LiDAR scans. A scan is saved as a polygon whose
+ * walls are numbered "0".."3" (backend room_scan_converter), not A-B-C-D, and
+ * the apartment layout pass read a room's footprint off walls A and B — so for
+ * a scanned room it fell back to a 4 x 3 m default. The real room is a 5.5 x
+ * 2.95 m rectangle turned ~46 degrees: its outline spans 5.94 x 6.01 m. The
+ * unpositioned rooms were packed side by side at 4-metre pitch while drawn at
+ * almost 6, and the open room used its true size while every other one used
+ * the default, so the same flat came out differently from each room and the
+ * scans overlapped. ThreeDPage's backfill then SAVED those positions.
+ *
+ * The data is the real flat's shape (prod, read-only): the scan's vertices
+ * are exact; the third room stands for the flat's plain rectangular room.
+ */
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import i18n from '@/i18n'
+import { computeAbsolutePositions, getCamera, placedSiblingRooms } from '../helpers'
+import { focusFraming } from '@/lib/focusFraming'
+import { flatBoxOf, flatOutlineOf, overlappingRooms } from '@/lib/flatBoxes'
+import { apiGeometryToStoreGeometry } from '@/lib/apiRoomGeometry'
+import { roomExtents } from '@/lib/roomDims'
+import { FlatOverlapHint } from '../FlatOverlapHint'
+import type { RoomBox } from '@/lib/slideRoom'
+import type { Room } from '@/lib/api'
+
+/** The scanned "Mening xonam" (41a04c06…), METRES as the API returns it. */
+const SCAN_VERTS: [number, number][] = [[0, 3.965], [3.812, 0], [5.938, 2.044], [2.127, 6.009]]
+
+function scannedRoom(id: string, layoutPos: { x: number; z: number } | null): Room {
+  const n = SCAN_VERTS.length
+  return {
+    id,
+    name: 'Mening xonam',
+    ceiling_h: 2.7,
+    geometry: {
+      walls: SCAN_VERTS.map((p, i) => {
+        const q = SCAN_VERTS[(i + 1) % n]
+        return { id: String(i), length: Math.hypot(q[0] - p[0], q[1] - p[1]), elements: [] }
+      }),
+      vertices: SCAN_VERTS,
+    },
+    state: { layoutPos },
+  } as unknown as Room
+}
+
+function rectRoom(id: string, w: number, d: number, layoutPos: { x: number; z: number } | null): Room {
+  return {
+    id,
+    name: id,
+    ceiling_h: 2.7,
+    geometry: {
+      walls: [
+        { id: 'A', length: w, elements: [] },
+        { id: 'B', length: d, elements: [] },
+        { id: 'C', length: w, elements: [] },
+        { id: 'D', length: d, elements: [] },
+      ],
+    },
+    state: { layoutPos },
+  } as unknown as Room
+}
+
+/** The flat as ThreeDCanvasScene builds it with `active` open: the open room
+ *  at the origin, every other room at its offset (its `flatBoxes`). */
+function flatFrom(rooms: Room[], activeId: string) {
+  const active = rooms.find((r) => r.id === activeId)!
+  const geometry = apiGeometryToStoreGeometry(active.geometry)!
+  const { W, D } = roomExtents(geometry)
+  const placed = placedSiblingRooms(rooms, activeId, W, D, null)
+  const boxes: RoomBox[] = [
+    flatBoxOf(activeId, geometry, 0, 0),
+    ...placed.map((s) => flatBoxOf(s.id, s.geometry, s.offsetXM, s.offsetZM)),
+  ]
+  const outlines = [
+    flatOutlineOf(activeId, geometry, 0, 0),
+    ...placed.map((s) => flatOutlineOf(s.id, s.geometry, s.offsetXM, s.offsetZM)),
+  ]
+  return { boxes, outlines, W, D }
+}
+
+function boxesOverlap(a: RoomBox, b: RoomBox, tol = 1e-6): boolean {
+  return Math.abs(a.cx - b.cx) < (a.w + b.w) / 2 - tol && Math.abs(a.cz - b.cz) < (a.d + b.d) / 2 - tol
+}
+
+const unpositioned = () => [
+  rectRoom('oshxona', 3.5, 4, { x: 0, z: 0 }),
+  scannedRoom('mening1', null),
+  scannedRoom('mening2', null),
+]
+
+/** The same three rooms with none positioned yet, in the order that put
+ *  mening2 in the row under mening1. */
+const noneStored = () => [
+  scannedRoom('mening1', null),
+  rectRoom('oshxona', 3.5, 4, null),
+  scannedRoom('mening2', null),
+]
+
+/** Where the rooms' corners (floor and wall tops) land across the screen, as
+ *  tan of the angle off the view's centre line: -left edge … right edge. */
+function screenSpan(f: { position: number[]; target: number[] }, boxes: RoomBox[], h: number) {
+  const [px, py, pz] = f.position
+  const fw = [f.target[0] - px, f.target[1] - py, f.target[2] - pz]
+  const fl = Math.hypot(fw[0], fw[1], fw[2])
+  const fwd = fw.map((v) => v / fl)
+  const rl = Math.hypot(fwd[0], fwd[2])
+  const right = [-fwd[2] / rl, 0, fwd[0] / rl]
+  const xs: number[] = []
+  for (const room of boxes) for (const b of room.parts?.length ? room.parts : [room]) {
+    for (const x of [b.cx - b.w / 2, b.cx + b.w / 2]) for (const z of [b.cz - b.d / 2, b.cz + b.d / 2]) for (const y of [0, h]) {
+      const rel = [x - px, y - py, z - pz]
+      const depth = rel[0] * fwd[0] + rel[1] * fwd[1] + rel[2] * fwd[2]
+      xs.push((rel[0] * right[0] + rel[2] * right[2]) / depth)
+    }
+  }
+  return { left: Math.min(...xs), right: Math.max(...xs) }
+}
+
+describe('flat view: scanned rooms are laid out at their real size', () => {
+  for (const [label, flat] of [['kitchen stored', unpositioned], ['none stored', noneStored]] as const) for (const activeId of ['oshxona', 'mening1', 'mening2']) {
+    it(`no two rooms overlap (${label}), opened from ${activeId}`, () => {
+      const { boxes } = flatFrom(flat(), activeId)
+      for (let i = 0; i < boxes.length; i++) {
+        for (let j = i + 1; j < boxes.length; j++) {
+          expect(boxesOverlap(boxes[i], boxes[j]), `${boxes[i].id} x ${boxes[j].id}`).toBe(false)
+        }
+      }
+    })
+  }
+
+  it('the flat comes out the same whichever room is open', () => {
+    const rooms = unpositioned()
+    const absFrom = (activeId: string) => {
+      const g = apiGeometryToStoreGeometry(rooms.find((r) => r.id === activeId)!.geometry)!
+      const { W, D } = roomExtents(g)
+      return computeAbsolutePositions(rooms, activeId, W, D)
+    }
+    const a = absFrom('oshxona'), b = absFrom('mening1'), c = absFrom('mening2')
+    for (const r of rooms) {
+      expect(b.get(r.id)!.x).toBeCloseTo(a.get(r.id)!.x, 3)
+      expect(b.get(r.id)!.z).toBeCloseTo(a.get(r.id)!.z, 3)
+      expect(c.get(r.id)!.x).toBeCloseTo(a.get(r.id)!.x, 3)
+      expect(c.get(r.id)!.z).toBeCloseTo(a.get(r.id)!.z, 3)
+    }
+  })
+
+  it('"Flat" orbits the middle of the rooms as drawn, from every room', () => {
+    for (const activeId of ['oshxona', 'mening1', 'mening2']) {
+      const { boxes, outlines, W, D } = flatFrom(noneStored(), activeId)
+      const cam = getCamera('corner', W, D, 2.7)
+      const framed = focusFraming(cam, boxes, null, 2.7)
+      const xs = outlines.flatMap((o) => o.pts.map((p) => p[0]))
+      const zs = outlines.flatMap((o) => o.pts.map((p) => p[1]))
+      // The pivot moves from the open room's to the centre of the walls'
+      // bounding box (the corner preset aims a hair past its room's middle)...
+      const mid = [cam.target[0] + (Math.min(...xs) + Math.max(...xs)) / 2, cam.target[2] + (Math.min(...zs) + Math.max(...zs)) / 2]
+      // ...slid only sideways across the view, to centre the flat's picture (below).
+      const off = [framed.target[0] - mid[0], framed.target[2] - mid[1]]
+      const look = [framed.target[0] - framed.position[0], framed.target[2] - framed.position[2]]
+      expect(Math.abs(off[0] * look[0] + off[1] * look[1]) / Math.hypot(look[0], look[1])).toBeLessThan(1e-6)
+      expect(Math.hypot(off[0], off[1])).toBeLessThan(1.5)
+    }
+  })
+
+  // QA re-check R15: the flat still sat right of the middle of the screen. The
+  // pivot was the flat's middle, but from a corner, in perspective, the near
+  // rooms come out bigger than the far ones and the picture leans their way.
+  it('"Flat" puts the picture of the flat in the middle of the screen, from every room', () => {
+    for (const activeId of ['oshxona', 'mening1', 'mening2']) {
+      const { boxes, W, D } = flatFrom(noneStored(), activeId)
+      const cam = getCamera('corner', W, D, 2.7)
+      const { left, right } = screenSpan(focusFraming(cam, boxes, null, 2.7), boxes, 2.7)
+      expect(Math.abs(left + right)).toBeLessThan(0.01 * (right - left))
+    }
+  })
+})
+
+describe('flat view: stored positions that overlap are reported, not moved', () => {
+  it('finds the scans the old 4 x 3 m default saved inside each other', () => {
+    // What the old layout gave [mening1, oshxona, mening2], none positioned,
+    // opened from the kitchen — and what the backfill then saved: a 2 x 2
+    // grid whose rows are 4.02 m apart (the kitchen's 4 m depth, the scans
+    // taken as 3 m), so mening2 lands 4.02 m below mening1 although each
+    // scan is 6.01 m deep.
+    const rooms = [
+      scannedRoom('mening1', { x: 0, z: 0 }),
+      rectRoom('oshxona', 3.5, 4, { x: 3.77, z: 0 }),
+      scannedRoom('mening2', { x: 0, z: 4.02 }),
+    ]
+    const { outlines } = flatFrom(rooms, 'mening1')
+    const pairs = overlappingRooms(outlines).map((p) => [...p].sort().join('+'))
+    expect(pairs).toContain('mening1+mening2')
+    // Stored positions are used as they are: nothing is silently shuffled.
+    const abs = computeAbsolutePositions(rooms, 'oshxona', 3.5, 4)
+    expect(abs.get('mening2')).toEqual({ x: 0, z: 4.02 })
+  })
+
+  it('reports nothing for the flat the fixed layout produces', () => {
+    const { outlines } = flatFrom(unpositioned(), 'mening1')
+    expect(overlappingRooms(outlines)).toEqual([])
+  })
+
+  it('rooms sharing a wall, or a rotated scan whose box but not outline reaches a neighbour, do not count', () => {
+    const touching = [
+      flatOutlineOf('a', apiGeometryToStoreGeometry(rectRoom('a', 4, 3, null).geometry)!, 0, 0),
+      flatOutlineOf('b', apiGeometryToStoreGeometry(rectRoom('b', 4, 3, null).geometry)!, 4, 0),
+    ]
+    expect(overlappingRooms(touching)).toEqual([])
+    // The scan's outline is a diamond in its 5.94 x 6.01 box: a small room
+    // tucked into the box's empty corner is clear of its walls.
+    const scan = apiGeometryToStoreGeometry(scannedRoom('s', null).geometry)!
+    const corner = apiGeometryToStoreGeometry(rectRoom('c', 1, 1, null).geometry)!
+    expect(overlappingRooms([
+      flatOutlineOf('s', scan, 0, 0),
+      flatOutlineOf('c', corner, 2.6, -2.6),
+    ])).toEqual([])
+  })
+
+  it('the overlap hint points at the move-rooms tool', () => {
+    render(<FlatOverlapHint />)
+    expect(screen.getByRole('status')).toHaveTextContent(i18n.t('studio.three_d.xonalar_ustma_ust'))
+  })
+
+  // QA 2026-11-06 1.10 (#175): on a phone (and always in the native app) the
+  // studio header floats over the 3D view, its centred title pill at 8-48 px
+  // and z-30. The hint stood centred at top-3 (12 px), z-20 — right under the
+  // pill, so even a real overlap could not be seen. It now starts below the
+  // header row (py-2 + h-10 = 56 px).
+  it('the overlap hint stands below the floating header, not under its title', () => {
+    const { container } = render(<FlatOverlapHint />)
+    const slot = container.firstElementChild as HTMLElement
+    const cls = slot.className.split(/\s+/)
+    expect(cls).toContain('absolute')
+    expect(cls).toContain('top-16')
+    expect(cls).not.toContain('top-3')
+    expect(cls).toContain('pointer-events-none')
+    expect(slot).toContainElement(screen.getByRole('status'))
+  })
+
+  // The same report: "the rooms look like they run into each other, and no
+  // hint". The flat as saved (prod, read-only): the scan at layoutPos
+  // (4.739, 3.7), "Xona" 3.5 x 3 m at (0, 3.7), the other "Mening xonam"
+  // 3 x 4 m at (0, 0) — layoutPos is each room's CENTRE in world metres, a
+  // polygon centred on its vertex mean. Nothing overlaps: the scan's west
+  // corner stops 2 cm short of Xona's east wall (x 1.770 vs 1.750, the
+  // layout's GAP), Xona and the 3 x 4 room are 20 cm apart, and the scan is
+  // 2 m from that room. Turned 46 degrees and seen from a corner camera, the
+  // scan's corner meeting Xona's wall reads as a crossing — it is not one.
+  it.each(['scan', 'xona', 'm2'])('the reported flat does not overlap, from any room (%s open)', (open) => {
+    const rooms = [
+      scannedRoom('scan', { x: 4.739, z: 3.7 }),
+      rectRoom('xona', 3.5, 3, { x: 0, z: 3.7 }),
+      rectRoom('m2', 3, 4, { x: 0, z: 0 }),
+    ]
+    const { outlines } = flatFrom(rooms, open)
+    expect(overlappingRooms(outlines)).toEqual([])
+    expect(overlappingRooms(outlines, 0)).toEqual([])
+    // In m2's frame (it at the origin, as stored): the near corner and wall.
+    if (open === 'm2') {
+      const scan = outlines.find((o) => o.id === 'scan')!.pts
+      const xona = outlines.find((o) => o.id === 'xona')!.pts
+      expect(Math.min(...scan.map((p) => p[0]))).toBeCloseTo(1.77, 2)
+      expect(Math.max(...xona.map((p) => p[0]))).toBeCloseTo(1.75, 2)
+    }
+  })
+})

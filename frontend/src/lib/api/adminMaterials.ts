@@ -53,6 +53,7 @@ export interface AdminMaterialsQuery {
   smeta?: boolean;
   q?: string;
   page?: number;
+  per_page?: number;
 }
 
 export async function listAdminMaterials(
@@ -64,8 +65,13 @@ export async function listAdminMaterials(
   if (params.smeta) qs.set("smeta", "true");
   if (params.q) qs.set("q", params.q);
   if (params.page) qs.set("page", String(params.page));
+  if (params.per_page) qs.set("per_page", String(params.per_page));
   const s = qs.toString();
   return apiClient<AdminMaterialsPage>(`/admin/materials${s ? `?${s}` : ""}`);
+}
+
+export async function getAdminMaterial(id: string): Promise<AdminMaterial> {
+  return apiClient<AdminMaterial>(`/admin/materials/${encodeURIComponent(id)}`);
 }
 
 export async function createAdminMaterial(input: MaterialInput): Promise<AdminMaterial> {

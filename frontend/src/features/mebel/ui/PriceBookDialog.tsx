@@ -6,7 +6,8 @@ import { savePriceBook } from "@/lib/api";
 import type { CatalogPrices, PriceBook } from "@/features/mebel/engine";
 import { formatUZS } from "@/lib/utils";
 
-const field = "w-32 rounded-xl border border-neutral-200 px-3 py-1.5 text-right text-sm tabular-nums";
+const field = "w-32 rounded-xl border border-line bg-card px-3 py-1.5 text-right text-sm text-ink tabular-nums";
+const EMPTY_SHEETS: NonNullable<PriceBook["sheets"]> = { board16: null, board18: null, back: null, mdfM2: null };
 const num = (v: string): number | null => (v.trim() === "" ? null : Math.max(0, Number(v) || 0));
 
 /** The workshop's own prices, used in all its projects. A blank price falls back to the catalogue. */
@@ -50,12 +51,12 @@ export function PriceBookDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/40" />
-        <Dialog.Content className="fixed inset-x-0 bottom-0 z-[80] max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white p-6 sm:inset-0 sm:m-auto sm:h-fit sm:w-[min(92vw,520px)] sm:rounded-3xl">
+        <Dialog.Content className="fixed inset-x-0 bottom-0 z-[80] max-h-[90vh] overflow-y-auto rounded-t-3xl bg-card p-6 text-ink sm:inset-0 sm:m-auto sm:h-fit sm:w-[min(92vw,520px)] sm:rounded-3xl">
           <Dialog.Title className="text-lg font-bold">{t("mebel.price_book")}</Dialog.Title>
-          <Dialog.Description className="mt-1 text-sm text-neutral-500">{t("mebel.price_book_hint")}</Dialog.Description>
+          <Dialog.Description className="mt-1 text-sm text-ink-muted">{t("mebel.price_book_hint")}</Dialog.Description>
 
           <div className="mt-5 flex flex-col gap-2">
-            {usedMaterials.length > 0 && <h3 className="text-xs font-semibold text-neutral-500">{t("mebel.pb.materials")}</h3>}
+            {usedMaterials.length > 0 && <h3 className="text-xs font-semibold text-ink-muted">{t("mebel.pb.materials")}</h3>}
             {usedMaterials.map((id) =>
               row(catalog[id]?.name ?? id, draft.materials[id] ?? null, (v) =>
                 setDraft((d) => {
@@ -64,13 +65,20 @@ export function PriceBookDialog({
                   return { ...d, materials };
                 }), catalog[id] ? formatUZS(catalog[id].price) : undefined))}
 
-            <h3 className="mt-3 text-xs font-semibold text-neutral-500">{t("mebel.tab.bom")}</h3>
+            {/* Used when no catalogue material is chosen, or it has no price. */}
+            <h3 className="mt-3 text-xs font-semibold text-ink-muted">{t("mebel.pb.sheets")}</h3>
+            {([["board16", t("mebel.pb.board", { t: 16 })], ["board18", t("mebel.pb.board", { t: 18 })],
+              ["back", t("mebel.pb.back")], ["mdfM2", t("mebel.pb.mdf_m2")]] as const).map(([k, label]) =>
+              row(label, draft.sheets?.[k] ?? null, (v) =>
+                setDraft((d) => ({ ...d, sheets: { ...(d.sheets ?? EMPTY_SHEETS), [k]: v } }))))}
+
+            <h3 className="mt-3 text-xs font-semibold text-ink-muted">{t("mebel.tab.bom")}</h3>
             {row(t("mebel.pb.cut_per_sheet"), draft.cutPerSheet, (v) => setDraft((d) => ({ ...d, cutPerSheet: v })))}
             {(["0.4", "1", "2"] as const).map((k) =>
               row(t("mebel.pb.banding", { t: k }), draft.bandingPerMeter[k], (v) =>
                 setDraft((d) => ({ ...d, bandingPerMeter: { ...d.bandingPerMeter, [k]: v } }))))}
 
-            <h3 className="mt-3 text-xs font-semibold text-neutral-500">{t("mebel.pb.hardware")}</h3>
+            <h3 className="mt-3 text-xs font-semibold text-ink-muted">{t("mebel.pb.hardware")}</h3>
             {(["leg", "confirmat", "shelfPin", "nail", "hinge", "handle", "hanger"] as const).map((k) =>
               row(t(`mebel.bom.${k}`), draft.hardware[k], (v) => setDraft((d) => ({ ...d, hardware: { ...d.hardware, [k]: v } }))))}
             {row(t("mebel.pb.slide"), draft.hardware.slide ?? null, (v) => setDraft((d) => ({ ...d, hardware: { ...d.hardware, slide: v } })))}
@@ -82,7 +90,7 @@ export function PriceBookDialog({
           </div>
 
           <div className="mt-6 flex justify-end gap-2">
-            <Dialog.Close className="rounded-full px-4 py-2 text-sm font-semibold text-neutral-600">{t("mebel.cancel")}</Dialog.Close>
+            <Dialog.Close className="rounded-full px-4 py-2 text-sm font-semibold text-ink-muted">{t("mebel.cancel")}</Dialog.Close>
             <button type="button" onClick={() => save.mutate(draft)} disabled={save.isPending || !ready}
               className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">
               {t("mebel.save")}

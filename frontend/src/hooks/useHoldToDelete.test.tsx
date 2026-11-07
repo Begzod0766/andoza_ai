@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import { HoldDeleteButton, useHoldToDelete } from './useHoldToDelete'
+import { HoldDeleteButton, holdMenuSide, useHoldToDelete } from './useHoldToDelete'
 import { HOLD_DELETE_MS } from '@/lib/holdToDelete'
 
 /**
@@ -164,5 +164,84 @@ describe('the move button', () => {
     expect(onMove).toHaveBeenCalledTimes(1)
     expect(onDelete).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: /^Ko'chirish$/ })).toBeNull()
+  })
+})
+
+describe('a release the window never sees bubble up (QA re-check R8)', () => {
+  // The press began on a model; the finger lifted over an overlay whose
+  // handler stops propagation (the ring's backdrop, the corner menu's scrim).
+  // The tracker heard no release, its timer ran on, and a second later the
+  // delete button's full-screen backdrop came up under nobody's finger — and
+  // ate the next tap or drag.
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('ends the hold anyway, so no delete button appears afterwards', () => {
+    render(<Harness onDelete={() => {}} />)
+    const swallow = document.createElement('div')
+    swallow.addEventListener('pointerup', (e) => e.stopPropagation())
+    document.body.appendChild(swallow)
+
+    act(() => {
+      screen.getByTestId('thing').dispatchEvent(pointer('pointerdown', { clientX: 200, clientY: 300, pointerId: 1 }))
+      swallow.dispatchEvent(pointer('pointerup', { pointerId: 1 }))
+    })
+    act(() => { vi.advanceTimersByTime(HOLD_DELETE_MS + 50) })
+
+    expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
+    swallow.remove()
+  })
+})
+
+/**
+ * QA re-check R14 (old #16): holding a selected model put the hold menu's name pill straight over
+ * the title of the model's own card, which floats just above the model. The menu now goes under the
+ * finger when above it would cover something marked `data-hold-avoid`.
+ */
+describe('HoldDeleteButton keeps off the card', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+
+  const rect = (left: number, top: number, w: number, h: number) =>
+    ({ left, top, right: left + w, bottom: top + h, width: w, height: h, x: left, y: top, toJSON: () => ({}) }) as DOMRect
+
+  function withCard(card: DOMRect) {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.hasAttribute('data-hold-avoid')) return card
+      if (this.hasAttribute('data-hold-menu')) return rect(0, 0, 160, 70)
+      return rect(0, 0, 0, 0)
+    })
+    render(
+      <>
+        <div data-hold-avoid="">Shkaf 3 card</div>
+        <Harness onDelete={() => {}} />
+      </>,
+    )
+    holdIt() // at (200, 300)
+    return document.querySelector('[data-hold-menu]') as HTMLElement
+  }
+
+  it('goes under the finger when, over it, it would cover the card', () => {
+    // The card just above the finger, where the menu's pill would be.
+    const menu = withCard(rect(120, 200, 160, 70))
+    expect(menu.dataset.holdMenu).toBe('below')
+  })
+
+  it('stays over the finger when the card is elsewhere', () => {
+    const menu = withCard(rect(600, 40, 160, 70))
+    expect(menu.dataset.holdMenu).toBe('above')
+  })
+})
+
+describe('holdMenuSide', () => {
+  const box = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom })
+  it('is above when nothing is in the way', () => {
+    expect(holdMenuSide({ x: 200, y: 300 }, { w: 160, h: 70 }, [], 800)).toBe('above')
+  })
+  it('is below when above covers a card and below does not', () => {
+    expect(holdMenuSide({ x: 200, y: 300 }, { w: 160, h: 70 }, [box(120, 200, 280, 270)], 800)).toBe('below')
+  })
+  it('stays above when below would run off the screen', () => {
+    expect(holdMenuSide({ x: 200, y: 760 }, { w: 160, h: 70 }, [box(120, 660, 280, 730)], 800)).toBe('above')
   })
 })

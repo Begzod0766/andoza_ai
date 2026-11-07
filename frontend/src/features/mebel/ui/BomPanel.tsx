@@ -16,16 +16,16 @@ export function BomPanel({
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-wrap gap-2 text-xs text-neutral-600">
+      <ul className="flex flex-wrap gap-2 text-xs text-ink-muted">
         {nesting.map((n) => (
-          <li key={`${n.material}|${n.materialId}|${n.thickness}`} className="rounded-full bg-neutral-100 px-3 py-1">
+          <li key={`${n.material}|${n.materialId}|${n.thickness}`} className="rounded-full bg-card-soft px-3 py-1">
             {materialName(n.materialId) ?? t(`mebel.material.${n.material}`)} {n.thickness} {t("mebel.mm")}:{" "}
             {t("mebel.nest.sheets_used", { n: n.sheets.length, p: Math.round(n.utilization * 100) })}
           </li>
         ))}
       </ul>
       <table aria-label={t("mebel.tab.bom")} className="w-full text-left text-sm">
-        <thead className="text-xs text-neutral-500">
+        <thead className="text-xs text-ink-muted">
           <tr>
             <th className="px-2 py-2 font-medium">{t("mebel.col.material")}</th>
             <th className="px-2 py-2 text-right font-medium">{t("mebel.col.qty")}</th>
@@ -35,22 +35,22 @@ export function BomPanel({
         </thead>
         <tbody>
           {bom.map((l) => (
-            <tr key={`${l.kind}|${l.label}|${l.materialId}`} className="border-t border-neutral-100">
+            <tr key={`${l.kind}|${l.label}|${l.materialId}`} className="border-t border-line">
               <td className="px-2 py-2">{bomLabel(l, materialName)}</td>
               <td className="px-2 py-2 text-right tabular-nums">
                 {l.qty} {t(`mebel.unit.${l.unit}`)}
               </td>
-              <td className={`px-2 py-2 text-right tabular-nums ${l.unitPrice == null ? "text-amber-700" : ""}`}>
+              <td className={`px-2 py-2 text-right tabular-nums ${l.unitPrice == null ? "text-warn" : ""}`}>
                 {l.unit === "percent" ? "" : formatMoney(l.unitPrice)}
               </td>
-              <td className={`px-2 py-2 text-right font-medium tabular-nums ${l.total == null ? "text-amber-700" : ""}`}>
+              <td className={`px-2 py-2 text-right font-medium tabular-nums ${l.total == null ? "text-warn" : ""}`}>
                 {formatMoney(l.total)}
               </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-neutral-200">
+          <tr className="border-t-2 border-line">
             <td className="px-2 py-3 font-bold" colSpan={3}>{t(hasUnpriced ? "mebel.total_unpriced" : "mebel.total")}</td>
             <td className="px-2 py-3 text-right font-bold tabular-nums">{formatMoney(total)}</td>
           </tr>

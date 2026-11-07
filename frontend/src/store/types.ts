@@ -277,6 +277,9 @@ export interface DesignState {
    *  how every room drew before it could be set. Turns the sun and the Qibla
    *  arrow; the walls themselves never move. */
   facing?: number
+  /** The ⋮ menu's Qibla switch: whether the floor arrow shows. Absent reads as
+   *  off. Saved with the room so reopening it keeps the arrow (issue #183). */
+  showQibla?: boolean
 }
 
 /** Resolve the effective WallCovering for a given wall (falls back to ALL). */

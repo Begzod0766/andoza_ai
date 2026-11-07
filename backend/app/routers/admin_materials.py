@@ -142,6 +142,18 @@ async def create_material(body: MaterialCreate, admin: AdminUser, db: DbSession)
     return _out(material, store)
 
 
+@router.get("/{material_id}", response_model=AdminMaterialOut, summary="One material (admin only)")
+async def get_material(material_id: uuid.UUID, admin: AdminUser, db: DbSession) -> AdminMaterialOut:
+    material = (
+        await db.execute(
+            select(Material).options(selectinload(Material.store)).where(Material.id == material_id)
+        )
+    ).scalar_one_or_none()
+    if material is None:
+        raise HTTPException(status_code=404, detail="Material topilmadi")
+    return _out(material)
+
+
 @router.patch("/{material_id}", response_model=AdminMaterialOut, summary="Edit a material (admin only)")
 async def update_material(
     material_id: uuid.UUID, body: MaterialUpdate, admin: AdminUser, db: DbSession

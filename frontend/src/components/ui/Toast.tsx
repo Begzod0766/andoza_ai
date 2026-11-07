@@ -179,10 +179,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <RadixToast.Provider swipeDirection="right" duration={3000}>
         {children}
 
-        {/* Stack viewport anchored bottom-right */}
+        {/* Phone: across the top, just under the header (py-2 + h-10 = 56 px).
+            At the bottom it stood over the studio's camera row and "My renders",
+            where a refusal could not be read and the toast covered the
+            controls (QA 2026-11-06 4.4). From lg: the bottom-right corner, as
+            before. The list spans the width on a phone, so only the toasts
+            themselves take taps. */}
         <RadixToast.Viewport
-          className="fixed bottom-24 right-4 z-[100] flex flex-col gap-2 outline-none"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          className="fixed inset-x-4 top-[calc(env(safe-area-inset-top)+4rem)] z-[100] flex flex-col items-center gap-2 outline-none pointer-events-none [&>*]:pointer-events-auto lg:left-auto lg:right-4 lg:top-auto lg:bottom-24 lg:items-stretch lg:pb-[env(safe-area-inset-bottom)]"
         />
 
         {toasts.map((t) => (

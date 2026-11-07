@@ -24,6 +24,45 @@ import * as THREE from 'three'
  */
 export const PANO_EYE_HEIGHT = 1.35
 
+/** The horizontal angle the 360 camera keeps while being looked around with, degrees: the
+ *  same 65 degrees the four station cameras frame with (`RENDER_HFOV_DEG` in roomCameras). */
+export const PANO_LOOK_HFOV = 65
+/** The widest vertical angle it goes to on a tall screen, before the room bends like a fish tank. */
+export const PANO_LOOK_MAX_VFOV = 90
+
+/**
+ * three's vertical `fov` for the 360 camera while it is looked around with, for a canvas of this
+ * aspect. The canvas camera's own fov (`base`) is vertical, so on a portrait phone it left only
+ * about 24 degrees across: from the middle of a 3 m room the user saw one wall and nothing else,
+ * and read it as a camera stood against the wall (QA 2026-11-05 #2). This keeps the width at
+ * `PANO_LOOK_HFOV` up to `PANO_LOOK_MAX_VFOV`, and never narrows a wide screen below `base`.
+ * Only the live view: the captured panorama is a full sphere and has no fov.
+ */
+export function panoramaLookFov(aspect: number, base: number): number {
+  if (!(aspect > 0)) return base
+  const h = (PANO_LOOK_HFOV * Math.PI) / 180
+  const v = (2 * Math.atan(Math.tan(h / 2) / aspect) * 180) / Math.PI
+  return Math.max(base, Math.min(PANO_LOOK_MAX_VFOV, v))
+}
+
+/** Width assumed for a canvas that has not been measured yet: a phone's. */
+const UNMEASURED_WIDTH_PX = 393
+/** Narrower than this and a swipe would spin the view; nothing real is this narrow. */
+const MIN_LOOK_WIDTH_PX = 200
+
+/**
+ * How far a drag turns the 360 view, radians per CSS pixel, for a canvas this wide.
+ *
+ * A full-width swipe turns it half way round, so looking behind you is two swipes on any
+ * screen. It used to be a fixed 0.0042 rad/px, which on a 390 px phone was about 90 degrees
+ * a swipe and four swipes to look round (QA 2026-11-05 #18), while on a desktop it was more
+ * than a full turn across the window.
+ */
+export function panoramaLookSpeed(widthPx: number): number {
+  const w = Number.isFinite(widthPx) && widthPx > 0 ? Math.max(MIN_LOOK_WIDTH_PX, widthPx) : UNMEASURED_WIDTH_PX
+  return Math.PI / w
+}
+
 export const PANO_WIDTH = 4000
 export const PANO_HEIGHT = 2000
 
@@ -255,4 +294,32 @@ export function captureViewCanvas(
     ctx.putImageData(image, 0, 0)
   }
   return canvas
+}
+
+/** How close to the eye a mesh's box may come before it counts as wrapped round it, metres. */
+const EYE_CLEARANCE = 0.05
+/** Wider than this across the floor is the room itself (its walls, its ceiling), not a fixture. */
+const MAX_WRAPPING_SPAN = 1.5
+
+/**
+ * The visible meshes whose box wraps round the 360 camera's eye: a pendant's shade hanging from
+ * the middle of a low ceiling down to eye height. Standing inside it, every look down saw the
+ * inside of the shade, read as a dark polygon on the floor (QA 2026-11-05 #2, found in
+ * "Mening xonam": a 24-sided cone 0.11 m from the eye in every direction). The room's own shell
+ * also surrounds the eye, so only pieces narrower than `MAX_WRAPPING_SPAN` are returned.
+ */
+export function meshesAroundEye(scene: THREE.Object3D, eye: THREE.Vector3): THREE.Mesh[] {
+  scene.updateMatrixWorld(true)
+  const found: THREE.Mesh[] = []
+  const box = new THREE.Box3()
+  const size = new THREE.Vector3()
+  scene.traverseVisible((o) => {
+    if (!(o instanceof THREE.Mesh)) return
+    box.setFromObject(o)
+    if (box.isEmpty()) return
+    box.getSize(size)
+    if (Math.max(size.x, size.z) > MAX_WRAPPING_SPAN) return
+    if (box.expandByScalar(EYE_CLEARANCE).containsPoint(eye)) found.push(o)
+  })
+  return found
 }

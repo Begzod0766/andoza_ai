@@ -101,7 +101,10 @@ describe('AiBuilderSheet room type from the studio store', () => {
     renderSheet({ roomType: undefined })
     await generate()
     expect(aiDesign).toHaveBeenCalledWith('room-1', "qorong'i xona", 'oshxona')
-    expect(screen.getByText('Taxmin: Oshxona')).toBeInTheDocument()
+    // The guess is shown picked, marked as a guess (nothing is saved until the user picks).
+    expect((screen.getByLabelText('Xona turi') as HTMLSelectElement).value).toBe('oshxona')
+    expect(screen.getByText(/xona nomidan taxmin qilindi/i)).toBeInTheDocument()
+    expect(updateRoom).not.toHaveBeenCalled()
   })
 })
 
@@ -567,6 +570,32 @@ describe('a ready-made style in this room', () => {
     await waitFor(() => expect(placed()).toContain('dining'))
     expect(placed()).not.toContain('cabinet')
     expect(placed()).not.toContain('wardrobe')
+  })
+})
+
+// #184: the "Room type" select is the sheet's first field. It must not be focused on open (iOS then
+// ignores a tap on it: focus is already there, so no picker), and a tap on it must reach it untouched.
+describe('AiBuilderSheet room type select takes a tap (#184)', () => {
+  const roomTypeSelect = () => screen.getByRole('dialog').querySelector('select')!
+
+  it('is not focused when the sheet opens', () => {
+    renderSheet()
+    expect(roomTypeSelect()).not.toBeNull()
+    expect(document.activeElement).not.toBe(roomTypeSelect())
+  })
+
+  it('no handler cancels a pointerdown / touchstart / mousedown / click on it, and it is not re-mounted', () => {
+    renderSheet()
+    const select = roomTypeSelect()
+    const at = [{ clientX: 10, clientY: 10 }]
+    expect(fireEvent.pointerDown(select, { pointerId: 1, pointerType: 'touch', isPrimary: true })).toBe(true)
+    expect(fireEvent.touchStart(select, { touches: at, changedTouches: at })).toBe(true)
+    expect(fireEvent.mouseDown(select)).toBe(true)
+    expect(roomTypeSelect()).toBe(select)
+    expect(fireEvent.pointerUp(select, { pointerId: 1, pointerType: 'touch', isPrimary: true })).toBe(true)
+    expect(fireEvent.touchEnd(select, { changedTouches: at })).toBe(true)
+    expect(fireEvent.click(select)).toBe(true)
+    expect(roomTypeSelect()).toBe(select)
   })
 })
 
@@ -1082,5 +1111,175 @@ describe('applying the design to every room of the apartment', () => {
       'ai.xonalar_qaytarildi_other', 'ai.xonalar_qaytarilmadi', 'ai.xonalar_xato',
     ]
     for (const lng of ['uz', 'ru', 'en']) for (const key of keys) expect(i18n.exists(key, { lng }), `${lng}:${key}`).toBe(true)
+  })
+})
+
+describe('AiBuilderSheet layout by screen width', () => {
+  function screenWidth(wide: boolean) {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('min-width: 1024px') ? wide : !wide && query.includes('max-width'),
+      media: query, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia
+    return () => { window.matchMedia = original }
+  }
+
+  it('on a wide screen it is a side panel, the room left in view and the styles on it', () => {
+    const restore = screenWidth(true)
+    try {
+      renderSheet()
+      const panel = screen.getByRole('dialog')
+      expect(panel).toHaveAttribute('data-variant', 'side')
+      expect(within(panel).getByLabelText('Xona turi')).toBeInTheDocument()
+      expect(document.querySelector('.bg-black\\/40')).toBeNull()
+    } finally { restore() }
+  })
+
+  it('on a wide screen a style or an AI design leaves the panel open, so another can be tried', async () => {
+    const restore = screenWidth(true)
+    try {
+      aiDesign.mockResolvedValueOnce(PLAN)
+      const onSave = savesOk()
+      const { onOpenChange } = renderSheet({ onSave })
+      fireEvent.click(screen.getByText("Qorong'i"))
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+      expect(useRoomStore.getState().designState.wallCoverings.ALL).toEqual({ kind: 'paint', color: '#2c2c2c' })
+      // Still open: ask the AI from the same panel (after a design its button offers another option).
+      fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
+      fireEvent.click(screen.getByText('Boshqa variant'))
+      await screen.findByText("Qorong'i uslub")
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2))
+      expect(onOpenChange).not.toHaveBeenCalledWith(false)
+      expect(screen.getByRole('dialog')).toHaveAttribute('data-variant', 'side')
+    } finally { restore() }
+  })
+
+  it('in the side panel the style cards sit three to a row, names in full', () => {
+    const restore = screenWidth(true)
+    try {
+      renderSheet()
+      const grid = screen.getByRole('button', { name: "Qorong'i" }).parentElement!
+      expect(grid.className).toContain('grid-cols-3')
+      expect(grid.className).not.toContain('sm:grid-cols-5')
+    } finally { restore() }
+  })
+
+  it('on a narrow screen it stays the bottom sheet', () => {
+    const restore = screenWidth(false)
+    try {
+      renderSheet()
+      expect(screen.getByRole('dialog')).not.toHaveAttribute('data-variant', 'side')
+    } finally { restore() }
+  })
+})
+
+describe('AiBuilderSheet tabs: ready-made style, own words, from a picture', () => {
+  const tab = (name: RegExp) => screen.getByRole('tab', { name })
+
+  it('opens on the ready-made styles: their cards shown, the request box and picture controls not', () => {
+    renderSheet()
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
+    expect(tab(/tayyor uslub/i)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: "Qorong'i" })).toBeVisible()
+    expect(screen.getByLabelText('Dizayn tavsifi')).not.toBeVisible()
+    expect(screen.getByLabelText('Pinterest havolasi')).not.toBeVisible()
+  })
+
+  it('"own words" shows the request box and the examples, not the cards or the picture controls', () => {
+    renderSheet()
+    fireEvent.click(tab(/o'z so'zim/i))
+    expect(tab(/o'z so'zim/i)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByLabelText('Dizayn tavsifi')).toBeVisible()
+    expect(screen.getByText(i18n.t('ai.ai_namunalari'))).toBeVisible()
+    expect(screen.getByRole('button', { name: "Qorong'i", hidden: true })).not.toBeVisible()
+    expect(screen.getByLabelText('Pinterest havolasi')).not.toBeVisible()
+  })
+
+  it('"from a picture" shows the image and Pinterest controls with the request box, not the examples', () => {
+    renderSheet()
+    fireEvent.click(tab(/rasmdan/i))
+    expect(screen.getByText(i18n.t('ai.rasm_qoshish'))).toBeVisible()
+    expect(screen.getByLabelText('Pinterest havolasi')).toBeVisible()
+    expect(screen.getByLabelText('Dizayn tavsifi')).toBeVisible()
+    expect(screen.getByText(i18n.t('ai.ai_namunalari'))).not.toBeVisible()
+  })
+
+  it('no panel part hides by the attribute alone where a display class would show it anyway', () => {
+    // On prod the examples' `flex` class beat their `hidden` attribute: they showed on the picture tab.
+    renderSheet()
+    for (const id of [/rasmdan/i, /tayyor uslub/i]) {
+      fireEvent.click(tab(id))
+      for (const el of document.querySelectorAll<HTMLElement>('[role="dialog"] [hidden]')) {
+        expect(el.className, el.outerHTML.slice(0, 80)).not.toMatch(/(^|\s)(flex|grid|block|inline-flex)(\s|$)/)
+      }
+    }
+  })
+
+  it('in "own words" the request box comes before the examples', () => {
+    renderSheet()
+    fireEvent.click(tab(/o'z so'zim/i))
+    const box = screen.getByLabelText('Dizayn tavsifi')
+    const examples = document.querySelector('[data-part="examples"]')!
+    expect(box.compareDocumentPosition(examples) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('a Pinterest link handed in on opening shows the picture tab', () => {
+    renderSheet({ initialPinUrl: 'https://www.pinterest.com/pin/123456789/' })
+    expect(tab(/rasmdan/i)).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('a pin link pasted into the request box moves to the picture tab, where it shows', () => {
+    renderSheet()
+    fireEvent.click(tab(/o'z so'zim/i))
+    fireEvent.paste(screen.getByLabelText('Dizayn tavsifi'), {
+      clipboardData: { getData: () => 'https://www.pinterest.com/pin/123456789/' },
+    })
+    expect(tab(/rasmdan/i)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText(i18n.t('ai.pin_chip'))).toBeVisible()
+  })
+})
+
+describe('AiBuilderSheet: what to change, chosen before the design', () => {
+  const chip = (name: string) => screen.getByRole('button', { name, pressed: undefined })
+
+  it('offers walls, floor, lights and furniture, all on to begin with', () => {
+    renderSheet()
+    for (const name of ['Devor', 'Pol', 'Chiroq', 'Mebel']) {
+      expect(screen.getByRole('button', { name, pressed: true })).toBeInTheDocument()
+    }
+  })
+
+  it('a ready-made style leaves out what was switched off beforehand', async () => {
+    const onSave = savesOk()
+    renderSheet({ onSave })
+    fireEvent.click(chip('Mebel'))
+    expect(screen.getByRole('button', { name: 'Mebel', pressed: false })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: "Qorong'i" }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+    const s = useRoomStore.getState()
+    expect(s.designState.wallCoverings.ALL).toEqual({ kind: 'paint', color: '#2c2c2c' })
+    expect(s.furniture).toHaveLength(0)
+  })
+
+  it('an AI design leaves out what was switched off beforehand', async () => {
+    aiDesign.mockResolvedValueOnce(PLAN)
+    renderSheet()
+    fireEvent.click(chip('Devor'))
+    await generate()
+    await waitFor(() => expect(useRoomStore.getState().furniture).toHaveLength(1))
+    const s = useRoomStore.getState()
+    expect(s.designState.wallCoverings.ALL).not.toEqual({ kind: 'paint', color: '#2c2c2c' })
+    expect(s.designState.floorType).toBe('parquet')
+  })
+
+  it('with nothing chosen there is nothing to design: the styles and the button wait, and say why', () => {
+    renderSheet()
+    for (const name of ['Devor', 'Pol', 'Chiroq', 'Mebel']) fireEvent.click(chip(name))
+    expect(screen.getByText(i18n.t('ai.kamida_bitta_qism'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Qorong'i" })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
+    expect(screen.getByText('Dizayn yaratish').closest('button')).toBeDisabled()
   })
 })

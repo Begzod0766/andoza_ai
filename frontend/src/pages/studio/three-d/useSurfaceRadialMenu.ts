@@ -3,6 +3,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { RadialSurface } from "@/components/studio/SurfaceRadialMenu";
 import { armsForDragging } from "@/lib/doubleTapArm";
 import { createTrailingClickGuard } from "@/lib/trailingClick";
+import { multiTouchGuard } from "@/lib/multiTouchGuard";
 
 /**
  * One guard for the page: the click that trails a tap on the ring's backdrop
@@ -17,6 +18,51 @@ if (typeof window !== "undefined") {
     e.stopPropagation();
     e.preventDefault();
   }, true);
+}
+
+/** What `holdBind` tags a surface's wrapping group with, so a tap can tell
+ *  which surface an intersection belongs to. */
+type SurfaceTag = { surface: RadialSurface; wallId?: string; elId?: string };
+const SURFACE_TAG = "radialSurface";
+
+type RayHit = {
+  object?: { parent?: unknown; userData?: Record<string, unknown> } | null;
+  eventObject?: { parent?: unknown; userData?: Record<string, unknown> } | null;
+  distance?: number;
+  point?: { x: number; y: number; z: number };
+};
+
+function surfaceTagOf(obj: RayHit["object"]): SurfaceTag | null {
+  for (let o = obj as { parent?: unknown; userData?: Record<string, unknown> } | null | undefined; o; o = o.parent as typeof o) {
+    const tag = o.userData?.[SURFACE_TAG] as SurfaceTag | undefined;
+    if (tag) return tag;
+  }
+  return null;
+}
+
+/**
+ * The tagged surface the ray met BEFORE the object whose handler is running,
+ * if any.
+ *
+ * react-three-fiber only calls a click handler on an object the press also hit
+ * (`internal.initialHits`), and passes over anything else on the ray without
+ * stopping. So a surface whose own handler would have stopped the walk can be
+ * skipped, and the click reaches what lies behind it: the hit plane of a door
+ * set back in its niche, a few cm from where the finger actually is
+ * (QA 2026-11-06 2.6). Every surface handler stops propagation as its first
+ * act, so a tagged surface in front of the running one means exactly that: it
+ * was skipped, and it owns the tap.
+ */
+function nearerSurface(e: RayHit & { intersections?: RayHit[] }): { tag: SurfaceTag; point?: RayHit["point"] } | null {
+  const mine = e?.distance;
+  if (typeof mine !== "number" || !Array.isArray(e.intersections)) return null;
+  for (const hit of e.intersections) {
+    if (typeof hit.distance !== "number" || hit.distance >= mine - 1e-6) break;
+    if (hit.object === e.object) continue;
+    const tag = surfaceTagOf(hit.eventObject ?? hit.object);
+    if (tag) return { tag, point: hit.point };
+  }
+  return null;
 }
 
 export type RadialState = {
@@ -57,6 +103,10 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
   const holdPoint = useRef<{ x: number; y: number; z: number } | null>(null);
   const holdTimer = useRef<number | null>(null);
   const holdStart = useRef<{ x: number; y: number } | null>(null);
+  // When the current press began: a second finger since then makes it a pinch, not a tap
+  // (QA 2026-11-05 #6). The window guard is made here, before the first press it must see.
+  const pressAt = useRef(0);
+  const pinch = multiTouchGuard();
   // True from the moment a long-press fires until the next surface click, so
   // the click that ends the hold doesn't ALSO run the tap-select behaviour.
   const heldRef = useRef(false);
@@ -80,12 +130,31 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
    * created window/door lands exactly where the surface was tapped.
    */
   function openSurfaceMenu(surface: RadialSurface, wallId: string | undefined, e: any, elId?: string) {
+    // The nearest surface the ray meets owns the tap. react-three-fiber hands
+    // a click to every object along the ray until one stops it, so without
+    // this a tap on a wall went on through it into the hit plane of a door
+    // set back in its niche, and the door ring replaced the wall's — door
+    // models where the categories should be (QA 2026-11-05 #8). A tap on the
+    // door itself still reaches the door first, and opens its ring.
+    e?.stopPropagation?.();
+    // ...and r3f does not always let the nearest one run: a surface the PRESS
+    // did not hit is skipped without stopping, and the click carries on to
+    // what is behind it — the door plane in its niche, behind the wall face
+    // the finger is on (QA 2026-11-06 2.6). The nearest surface on THIS ray
+    // owns the tap, whichever handler r3f handed it to.
+    const nearer = nearerSurface(e);
+    let point = e?.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : (holdPoint.current ?? undefined);
+    if (nearer) {
+      ({ surface, wallId, elId } = nearer.tag);
+      if (nearer.point) point = { x: nearer.point.x, y: nearer.point.y, z: nearer.point.z };
+    }
     // If a long-press already opened the menu, its trailing click must not
     // reopen/replace it.
     if (heldRef.current) { heldRef.current = false; return; }
+    // The first finger of a pinch landed here: zooming is not a tap on the wall.
+    if (pinch.multiTouchSince(pressAt.current)) return;
     const x = e?.nativeEvent?.clientX ?? e?.clientX ?? 0;
     const y = e?.nativeEvent?.clientY ?? e?.clientY ?? 0;
-    const point = e?.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : (holdPoint.current ?? undefined);
     if (controlsRef.current) controlsRef.current.enabled = false;
     openedAt.current = Date.now();
     // Opening a ring on anything else lets go of whatever was armed.
@@ -100,13 +169,24 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
   function armOpening(wallId: string, elId: string) { setArmedOpening({ wallId, elId }); }
 
   function startHold(surface: RadialSurface, wallId: string | undefined, e: { nativeEvent?: PointerEvent; clientX?: number; clientY?: number; point?: { x: number; y: number; z: number }; stopPropagation?: () => void }, elId?: string) {
+    // The press follows the click's rule (openSurfaceMenu): the nearest
+    // surface the ray meets owns it. Without this, a long press on a wall also
+    // reached the hit plane of a door set back in its niche behind it — its
+    // hold-to-delete and drag with it — and the door's hold, starting last,
+    // replaced the wall's ring with the door's. react-three-fiber's
+    // stopPropagation only ends its own ray walk; the DOM event, and with it
+    // OrbitControls, is untouched.
+    e.stopPropagation?.();
     const cx = e.nativeEvent?.clientX ?? e.clientX ?? 0;
     const cy = e.nativeEvent?.clientY ?? e.clientY ?? 0;
     // The R3F event's world intersection point — where on the wall it was hit.
     holdPoint.current = e.point ? { x: e.point.x, y: e.point.y, z: e.point.z } : null;
     holdStart.current = { x: cx, y: cy };
+    pressAt.current = Date.now();
     clearHoldTimerOnly();
     holdTimer.current = window.setTimeout(() => {
+      // A second finger joined: the user is zooming, not holding the wall.
+      if (pinch.multiTouchSince(pressAt.current)) { clearHold(); return; }
       heldRef.current = true;
       // Freeze the camera so menu taps don't orbit the room, and drop any
       // active selection highlight noise.
@@ -151,6 +231,9 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
   /** Pointer handlers to spread onto a surface's wrapping <group>. */
   function holdBind(surface: RadialSurface, wallId?: string, elId?: string) {
     return {
+      // Lets a tap that r3f handed to something BEHIND this surface find out
+      // that this surface was nearer (see `nearerSurface`).
+      userData: { [SURFACE_TAG]: { surface, wallId, elId } satisfies SurfaceTag },
       onClick: (e: any) => openSurfaceMenu(surface, wallId, e, elId),
       onPointerDown: (e: any) => startHold(surface, wallId, e, elId),
       onPointerMove: (e: any) => moveHold(e),

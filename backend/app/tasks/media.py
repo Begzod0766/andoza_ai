@@ -553,9 +553,16 @@ async def _optimize_model(kind: str, model_id: str) -> dict:
         return {"status": "skipped"}
 
     data = await storage.download_file(original)
-    smaller = await anyio.to_thread.run_sync(lambda: glb_optimizer.optimize_glb_bytes(data))
-    if smaller is None:
+    outcome = await anyio.to_thread.run_sync(lambda: glb_optimizer.optimize_glb(data))
+    if outcome.status == "failed":
+        # The tool itself is broken (e.g. sharp cannot load in this image): say so
+        # loudly. Still no retry (max_retries=0): it would fail the same way again.
+        logger.error("glb_optimize_failed kind=%s model_id=%s reason=%s message=%s",
+                     kind, model_id, outcome.reason, outcome.message)
+        return {"status": "failed", "reason": outcome.reason, "detail": outcome.message[:500]}
+    if outcome.data is None:
         return {"status": "not_smaller"}
+    smaller = outcome.data
 
     key = opt_key_for(original)
     await storage.upload_file(smaller, key, content_type="model/gltf-binary")

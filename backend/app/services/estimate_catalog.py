@@ -10,15 +10,17 @@ no I/O) is handed a plain dict.
 """
 from __future__ import annotations
 
+import uuid
 from typing import Any, Iterable
 
 import structlog
 from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
+from app.models.furniture import Furniture
 from app.models.material import Material
 from app.models.wallpaper import Wallpaper
-from app.services.smeta import WallpaperRoll, wallpaper_catalog_key
+from app.services.smeta import WallpaperRoll, furniture_catalog_key, wallpaper_catalog_key
 
 log = structlog.get_logger(__name__)
 
@@ -94,10 +96,48 @@ async def _shop_wallpapers(db: Any) -> dict[str, WallpaperRoll]:
         return {}
 
 
-async def load_estimate_catalog(db: Any) -> dict[str, Material]:
-    """Load the estimate's shop products. An empty dict (the engine's old constants) when
+def _placed_furniture_uuids(room: Any) -> set[uuid.UUID]:
+    """The ids of the room's placed furniture that can be shop Furniture rows (UUIDs);
+    built-in slugs ("couch_84") and a user's own uploads are not looked up."""
+    state = getattr(room, "state", None) or {}
+    placed = state.get("furniture") if isinstance(state, dict) else None
+    out: set[uuid.UUID] = set()
+    for item in placed or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not isinstance(fid, str):
+            continue
+        try:
+            out.add(uuid.UUID(fid))
+        except ValueError:
+            continue
+    return out
+
+
+async def load_furniture_catalog(db: Any, room: Any) -> dict[str, Furniture]:
+    """{furniture_catalog_key(id): the active shop Furniture row} for every shop piece
+    placed in *room*, in one query (store joined in). A piece that is gone or inactive is
+    simply absent, and the engine prices it as before; empty if the rows cannot be read."""
+    ids = _placed_furniture_uuids(room)
+    if not ids:
+        return {}
+    try:
+        result = await db.execute(
+            select(Furniture)
+            .options(joinedload(Furniture.store))
+            .where(Furniture.id.in_(ids), Furniture.is_active.is_(True))
+        )
+        return {furniture_catalog_key(str(f.id)): f for f in result.scalars().all()}
+    except Exception as exc:
+        log.warning("estimate_catalog.furniture_failed", error=str(exc))
+        return {}
+
+
+async def load_estimate_catalog(db: Any, room: Any = None) -> dict[str, Any]:
+    """Load the estimate's shop products (and, given *room*, the shop furniture placed in
+    it, see load_furniture_catalog). An empty dict (the engine's old constants) when
     there are none, or if they cannot be read: this enrichment must not take the estimate
     down with it."""
+    furniture = await load_furniture_catalog(db, room) if room is not None else {}
     try:
         result = await db.execute(
             select(Material)
@@ -108,7 +148,9 @@ async def load_estimate_catalog(db: Any) -> dict[str, Material]:
             )
         )
         rows = result.scalars().all()
-        return {**pick_cheapest(rows), **pick_median_finishes(rows), **await _shop_wallpapers(db)}
+        return {
+            **pick_cheapest(rows), **pick_median_finishes(rows), **await _shop_wallpapers(db), **furniture,
+        }
     except Exception as exc:
         log.warning("estimate_catalog.load_failed", error=str(exc))
-        return {}
+        return dict(furniture)

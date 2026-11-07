@@ -101,6 +101,38 @@ describe('RenderSheet', () => {
       expect(button).toBeDisabled()
       expect(screen.getByText(/360 kamerani tanlang/)).toBeInTheDocument()
     })
+
+    // QA 2026-11-05 re-check R4: "My renders (3)" opened on "The result will
+    // appear here". The sheet stays mounted between openings, and the gallery
+    // only jumped to the newest picture when the sheet was still "idle" — so
+    // anything left over from an earlier opening (a failed render) kept the
+    // frame on that instead of the saved pictures.
+    it('opens on the newest picture even after an earlier render failed', async () => {
+      panoramaJpeg.mockResolvedValue(null)
+      listRenders.mockResolvedValue([row('new', 'https://s3/new.jpg')])
+      const { rerender } = render(<RenderSheet open onOpenChange={() => {}} roomId="room-7" />)
+      await screen.findByRole('alert')
+
+      rerender(<RenderSheet open={false} onOpenChange={() => {}} roomId="room-7" />)
+      rerender(<RenderSheet open onOpenChange={() => {}} roomId="room-7" mode="gallery" canRender={false} />)
+
+      await waitFor(() => expect(viewerSrc()).toBe('https://s3/new.jpg'))
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    // The page already holds the list (it is where the count on the button
+    // comes from), so the gallery does not wait on a second round trip — on a
+    // phone that wait was the empty frame.
+    it('shows the pictures the page already has at once, before its own list arrives', () => {
+      listRenders.mockReturnValue(new Promise(() => {}))
+      render(
+        <RenderSheet open onOpenChange={() => {}} roomId="room-7" mode="gallery" canRender={false}
+          initialSaved={[row('new', 'https://s3/new.jpg'), row('old', 'https://s3/old.jpg')]} />,
+      )
+      expect(viewerSrc()).toBe('https://s3/new.jpg')
+      expect(screen.getAllByRole('button', { name: /Saqlangan renderlar:/ })).toHaveLength(2)
+      expect(screen.queryByText("Natija shu yerda ko'rinadi")).toBeNull()
+    })
   })
 
   it('does nothing while closed', () => {
