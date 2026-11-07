@@ -1,5 +1,5 @@
 import * as React from "react"
-import { ImagePlus } from "lucide-react"
+import { Check, ImagePlus } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BottomSheet } from "@/components/ui/BottomSheet"
 import { SidePanel } from "@/components/ui/SidePanel"
@@ -164,6 +164,9 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   const [running, setRunning] = React.useState(false)
   const [plan, setPlan] = React.useState<AiDesignPlan | null>(null)
   const [parts, setParts] = React.useState<DesignParts>(ALL_PARTS)
+  // What the user wants changed, chosen before a design: a style or an AI design touches only these.
+  const [wanted, setWanted] = React.useState<DesignParts>(ALL_PARTS)
+  const wantsSomething = wanted.walls || wanted.floor || wanted.lights || wanted.furniture
   const [error, setError] = React.useState("")
   const [notice, setNotice] = React.useState("")
   // What the last design really put in the room: what did not fit, what stood in for what, and what was
@@ -293,7 +296,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   }
 
   // No new design while the other rooms are being written from this one.
-  const canSend = !running && !roomsBusy && (pinUrl !== null || image !== null || prompt.trim().length >= 3)
+  const canSend = !running && !roomsBusy && wantsSomething && (pinUrl !== null || image !== null || prompt.trim().length >= 3)
 
   async function generate(e?: React.FormEvent) {
     e?.preventDefault()
@@ -317,8 +320,10 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
       setRunning(false)
     }
     const nextParts = {
-      walls: !!next.walls.main, floor: !!next.floor, lights: next.lights.length > 0, furniture: next.furniture.length > 0,
+      walls: wanted.walls && !!next.walls.main, floor: wanted.floor && !!next.floor,
+      lights: wanted.lights && next.lights.length > 0, furniture: wanted.furniture && next.furniture.length > 0,
     }
+    setFurnitureOffByUser(!wanted.furniture)
     setPlan(next)
     setParts(nextParts)
     newSource({ kind: "ai", plan: next, wallIds: wallIds ? wallIds.split("|") : [] })
@@ -329,13 +334,14 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
 
   /** A ready-made style: no request, so it works with the AI down and costs nothing. */
   async function usePreset(id: string) {
-    if (roomsBusy) return
+    if (roomsBusy || !wantsSomething) return
     // The bed is picked to fit the room's size, read as the backend reads it for the AI.
     const roomSize = roomSizeOf(useRoomStore.getState().geometry)
     const next = presetPlan(id, catalogFurniture, roomType, wallIds ? wallIds.split('|') : undefined, roomSize)
     if (!next) return
     setError("")
-    const nextParts = { walls: true, floor: true, lights: true, furniture: next.furniture.length > 0 }
+    const nextParts = { ...wanted, furniture: wanted.furniture && next.furniture.length > 0 }
+    setFurnitureOffByUser(!wanted.furniture)
     setPlan(next)
     setParts(nextParts)
     newSource({ kind: "preset", id })
@@ -481,6 +487,27 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   const body = (
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-4">
         <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} preselectGuess />
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-gray-500">{t("ai.nimani_ozgartirsin")}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {([["walls", t("ai.qism_devor")], ["floor", t("ai.qism_pol")], ["lights", t("ai.qism_chiroq")], ["furniture", t("ai.qism_mebel")]] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={wanted[id]}
+                disabled={running}
+                onClick={() => setWanted((w) => ({ ...w, [id]: !w[id] }))}
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
+                  wanted[id] ? "border-[#3B63DE] bg-[#3B63DE]/10 text-[#2F55D4]" : "border-gray-200 bg-white text-gray-500"
+                }`}
+              >
+                {wanted[id] && <Check size={12} aria-hidden="true" />}
+                {label}
+              </button>
+            ))}
+          </div>
+          {!wantsSomething && <p role="status" className="text-xs text-amber-700">{t("ai.kamida_bitta_qism")}</p>}
+        </div>
         <div role="tablist" aria-label={t("ai.tab_list")} className="flex gap-1 rounded-full bg-gray-100 p-1">
           {([["styles", t("ai.tab_styles")], ["words", t("ai.tab_words")], ["image", t("ai.tab_image")]] as const).map(([id, label]) => (
             <button
@@ -501,7 +528,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
         </div>
         <div role="tabpanel" id="ai-panel-styles" aria-labelledby="ai-tab-styles" hidden={tab !== "styles"} className="space-y-1.5">
           <p className="text-xs font-semibold text-gray-500">{t("ai.tayyor_uslublar")}</p>
-          <PresetCards narrow={wide} onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy} />
+          <PresetCards narrow={wide} onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy || !wantsSomething} />
         </div>
 
         <form
