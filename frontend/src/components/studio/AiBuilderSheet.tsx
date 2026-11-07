@@ -575,8 +575,19 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
             )}
           </div>
           {imageError && <p role="alert" className="text-xs text-red-600">{imageError}</p>}
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onPaste={pastePrompt}
+            placeholder={image || pinUrl ? t("ai.rasm_placeholder") : t("ai.builder_placeholder")}
+            disabled={running}
+            rows={3}
+            maxLength={500}
+            aria-label={t("ai.dizayn_tavsifi")}
+            className="w-full resize-none rounded-2xl bg-soft px-3 py-2 text-sm shadow-soft-pressed focus:outline-none focus:shadow-soft-pressed-deep disabled:opacity-60"
+          />
           <p hidden={tab !== "words"} className="pt-1 text-xs font-semibold text-gray-500">{t("ai.ai_namunalari")}</p>
-          <div hidden={tab !== "words"} className="flex flex-wrap gap-1.5">
+          <div hidden={tab !== "words"} data-part="examples" className={`${tab === "words" ? "flex" : "hidden"} flex-wrap gap-1.5`}>
             {t("ai.dizayner_misollar", { returnObjects: true }).map((example) => (
               <button
                 key={example}
@@ -589,17 +600,6 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
               </button>
             ))}
           </div>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onPaste={pastePrompt}
-            placeholder={image || pinUrl ? t("ai.rasm_placeholder") : t("ai.builder_placeholder")}
-            disabled={running}
-            rows={3}
-            maxLength={500}
-            aria-label={t("ai.dizayn_tavsifi")}
-            className="w-full resize-none rounded-2xl bg-soft px-3 py-2 text-sm shadow-soft-pressed focus:outline-none focus:shadow-soft-pressed-deep disabled:opacity-60"
-          />
           <button
             type="submit"
             disabled={!canSend}
