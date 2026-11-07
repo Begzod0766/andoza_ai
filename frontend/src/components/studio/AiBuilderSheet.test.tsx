@@ -1113,3 +1113,35 @@ describe('applying the design to every room of the apartment', () => {
     for (const lng of ['uz', 'ru', 'en']) for (const key of keys) expect(i18n.exists(key, { lng }), `${lng}:${key}`).toBe(true)
   })
 })
+
+describe('AiBuilderSheet layout by screen width', () => {
+  function screenWidth(wide: boolean) {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('min-width: 1024px') ? wide : !wide && query.includes('max-width'),
+      media: query, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia
+    return () => { window.matchMedia = original }
+  }
+
+  it('on a wide screen it is a side panel, the room left in view and the styles on it', () => {
+    const restore = screenWidth(true)
+    try {
+      renderSheet()
+      const panel = screen.getByRole('dialog')
+      expect(panel).toHaveAttribute('data-variant', 'side')
+      expect(within(panel).getByLabelText('Xona turi')).toBeInTheDocument()
+      expect(document.querySelector('.bg-black\\/40')).toBeNull()
+    } finally { restore() }
+  })
+
+  it('on a narrow screen it stays the bottom sheet', () => {
+    const restore = screenWidth(false)
+    try {
+      renderSheet()
+      expect(screen.getByRole('dialog')).not.toHaveAttribute('data-variant', 'side')
+    } finally { restore() }
+  })
+})
