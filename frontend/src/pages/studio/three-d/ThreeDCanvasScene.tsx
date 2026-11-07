@@ -62,7 +62,7 @@ import { PanoramaSnap } from "./PanoramaSnap";
 import { SwapButtons, RoomScene } from "./RoomShell";
 import type { RoomSide } from "./constants";
 import { applyUniformZoom, fitRoomDistance } from "@/lib/orbitZoom";
-import { isRoomVisible, toggleRoomFocus } from "@/lib/roomFocus";
+import { isRoomVisible, toggleRoomFocus, siblingMarkTap } from "@/lib/roomFocus";
 import { useRoomFocus } from "./useRoomFocus";
 import { useWallFocusStore } from "@/store/wallFocusStore";
 import { useCameraGoal } from "./useCameraGoal";
@@ -213,7 +213,8 @@ export function ThreeDCanvasScene({
   activeLayoutPos: { x: number; z: number } | null;
   handleDeleteSibling: (id: string, name: string) => Promise<void>;
   /** Opens a tapped neighbour in place, keeping the view (lib/roomSwitch). */
-  onSwitchRoom: (roomId: string, offset: { offsetXM: number; offsetZM: number }, tap: { x: number; y: number }) => void;
+  /** `tap` is replayed on the room once open; null opens it with nothing replayed (from its mark). */
+  onSwitchRoom: (roomId: string, offset: { offsetXM: number; offsetZM: number }, tap: { x: number; y: number } | null) => void;
   /** Saves the open room — after sliding it along its neighbour. */
   onSaveRoom: () => Promise<void>;
   toolMode: ToolMode;
@@ -968,7 +969,11 @@ export function ThreeDCanvasScene({
             activePos={activeLayoutPos}
             siblingPlans={flatPlan.siblings}
             focusedRoomId={focusedRoomId}
-            onToggleFocus={(id) => setFocusedRoomId((cur) => toggleRoomFocus(cur, id))}
+            onToggleFocus={(id) => {
+              if (siblingMarkTap(focusedRoomId, id) === 'flat') { setFocusedRoomId(null); return; }
+              const sib = siblingsPlaced.find((s) => s.id === id);
+              onSwitchRoom(id, { offsetXM: sib?.offsetXM ?? 0, offsetZM: sib?.offsetZM ?? 0 }, null);
+            }}
             onDelete={handleDeleteSibling}
             positionOverride={slidingId && slidingId !== room.id && slideLive ? { id: slidingId, x: slideLive.cx, z: slideLive.cz } : null}
             onOpen={(id, e) => {
