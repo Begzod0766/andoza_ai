@@ -46,3 +46,13 @@ export function toggleRoomFocus(focusedRoomId: string | null, roomId: string): s
 export function initialRoomFocus(search: string, roomId: string): string | null {
   return new URLSearchParams(search).get('focus') === '0' ? null : roomId
 }
+
+/**
+ * What a tap on a NEIGHBOURING room's mark does: open that room, or, on the mark of the room shown
+ * alone, go back to the flat. Opening, not just showing it alone: shown alone, the header, the stages
+ * and every edit still belonged to the room in the URL, and "Flat" then "Room" went back to that one
+ * (prod, 2026-11-07).
+ */
+export function siblingMarkTap(focusedRoomId: string | null, roomId: string): 'open' | 'flat' {
+  return focusedRoomId === roomId ? 'flat' : 'open'
+}
