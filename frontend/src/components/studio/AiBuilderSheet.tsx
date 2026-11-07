@@ -11,7 +11,8 @@ import { useRoomStore } from "@/store/roomStore"
 import { ALL_PARTS, applyDesignPlan, restoreDesign, snapshotDesign } from "@/lib/aiDesign"
 import type { AppliedCounts, DesignParts, DesignSnapshot } from "@/lib/aiDesign"
 import { lightType } from "@/lib/lightCatalog"
-import { DESIGN_PRESETS, presetPlan, roomSizeOf } from "@/lib/aiDesignPresets"
+import { presetPlan, roomSizeOf } from "@/lib/aiDesignPresets"
+import { PresetCards } from "@/components/studio/PresetCards"
 import { summaryWithout } from "@/lib/aiSummary"
 import { ceilingDesign } from "@/lib/ceilingDesigns"
 import { effectiveRoomType } from "@/lib/roomType"
@@ -472,22 +473,10 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     <>
     <BottomSheet open={open} onOpenChange={close} title={t("ai.builder_title")} defaultSnap="full">
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-4">
-        <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} />
+        <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} preselectGuess />
         <div className="space-y-1.5">
           <p className="text-xs font-semibold text-gray-500">{t("ai.tayyor_uslublar")}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {DESIGN_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                disabled={roomsBusy}
-                onClick={() => void usePreset(preset.id)}
-                className="rounded-full bg-[#3B63DE]/10 px-3.5 py-1.5 text-xs font-semibold text-[#2F55D4] hover:bg-[#3B63DE]/20 disabled:opacity-60"
-              >
-                {t(preset.labelKey)}
-              </button>
-            ))}
-          </div>
+          <PresetCards onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy} />
         </div>
 
         <form onSubmit={generate} className="space-y-2">
