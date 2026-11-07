@@ -33,7 +33,6 @@ export function useThreeDKeyboardShortcuts(params: {
         case '1': setToolMode('select'); break;
         case '2': setToolMode('move'); break;
         case '3': setToolMode('rotate'); break;
-        case '4': setToolMode('scale'); break;
         case '5': setToolMode('part'); break;
         case 'n': setSceneLightOn((v) => !v); break;
         case 'l': setLightsOn((v) => !v); break;

@@ -11,7 +11,7 @@
  *    end, its openings stay — but must still fit, trim included;
  *  - wall i + 1 starts at the moved corner: its openings keep their place in
  *    the room by shifting the other way along it.
- * Refused (null): a neighbouring wall turned inside out or under 200 mm, an
+ * Refused (null): a neighbouring wall turned inside out or 0.5 m or shorter, an
  * opening no longer fitting, an outline crossing itself, or any part of the
  * room left under 0.6 m across.
  *
@@ -23,7 +23,9 @@ import { resolveElementPositions } from '@/lib/wallPositions'
 import type { RoomGeometry } from '@/store/types'
 
 const TRIM_MM = 70
-const MIN_WALL_MM = 200
+/** The server refuses a wall of 0.5 m or less (backend schemas/room.py,
+ *  `gt=0.5`): a shorter one looked fine here and then never saved. */
+const MIN_WALL_MM = 510
 const MIN_ACROSS_MM = 600
 
 export function isRectilinear(g: RoomGeometry): boolean {

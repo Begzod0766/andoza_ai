@@ -31,9 +31,10 @@ describe('ModelToolbar', () => {
 
   it('offers the transform tools once a model is picked', () => {
     // Siljitish is not among them: dragging a selected model already moves it.
+    // Nor is O'lcham (size), removed at the user's request: the − / + steps do it.
     render(<ModelToolbar selectedId="fur-1" toolMode="select" setToolMode={vi.fn()} />)
     expect(tools().map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Tanlash', 'Aylantirish', "O'lcham"])
+      .toEqual(['Tanlash', 'Aylantirish'])
   })
 
   it('does not offer a delete — that is the press and hold on the model', () => {
@@ -58,7 +59,7 @@ describe('ModelToolbar', () => {
     const { rerender, container } = render(
       <ModelToolbar selectedId="fur-1" toolMode="select" setToolMode={vi.fn()} />,
     )
-    expect(tools()).toHaveLength(3)
+    expect(tools()).toHaveLength(2)
     rerender(<ModelToolbar selectedId={null} toolMode="select" setToolMode={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()
   })

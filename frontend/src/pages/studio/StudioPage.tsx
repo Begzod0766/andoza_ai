@@ -4,6 +4,7 @@ import { formatDecimal } from '@/lib/utils'
 import { defaultApartmentName, defaultRoomName } from '@/lib/defaultNames';
 import { storeGeometryToApiGeometry } from "@/lib/apiRoomGeometry";
 import { useNoPageZoom } from "@/hooks/useNoPageZoom";
+import { ApiError } from "@/lib/api/client";
 import { NavLink, Outlet, useParams, useNavigate, useLocation } from "react-router-dom";
 import RoomSettingsSheet from "@/components/studio/RoomSettingsSheet";
 import { Ruler } from "lucide-react";
@@ -280,8 +281,11 @@ export default function StudioPage() {
           queryClient.invalidateQueries({ queryKey: ["studio-nav-total", roomId] });
           setTimeout(() => setSaveStatus((st) => (st === 'saved' ? 'idle' : st)), 2500);
           return true;
-        } catch {
-          // Room doesn't exist in DB yet — fall through to create
+        } catch (err) {
+          // Only a room the server does not have is created anew. Any other
+          // failure — a refused value, the network — used to fall through
+          // too, and each autosave retry could make a copy of the room.
+          if (!(err instanceof ApiError && err.status === 404)) throw err;
         }
       }
 

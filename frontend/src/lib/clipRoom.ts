@@ -50,6 +50,9 @@ export type ClipResult =
 
 const EPS = 1e-6
 const MIN_ARM_M = 1.0
+/** The shortest wall the server keeps (backend schemas/room.py, `gt=0.5`):
+ *  a cut that leaves a shorter one is refused rather than saved and lost. */
+const MIN_WALL_M = 0.51
 const TRIM_M = 0.07
 /** How far inside what is left a moved piece of furniture is set down. */
 const SET_IN_M = 0.3
@@ -162,6 +165,7 @@ export function clipRoom(room: RoomContent, asked: Rect): ClipResult {
     return { s, t, fits: s >= -EPS && t <= e.len + EPS }
   }
 
+  if (edges.some((e) => e.len < MIN_WALL_M - EPS)) return { kind: 'refused', reason: 'thin' }
   const walls = edges.map((e) => ({ id: e.id, length: Math.round(e.len * 1000), elements: [] as WallElement[] }))
   for (const line of lines) {
     const wall = g.walls.find((w) => w.id === line.id)

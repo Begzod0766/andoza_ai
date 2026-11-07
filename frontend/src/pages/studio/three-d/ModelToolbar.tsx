@@ -4,8 +4,9 @@ import type { ToolMode } from "@/features/studio/StudioFurniture";
 import { stepFurnitureSize, turnFurnitureQuarter } from "@/features/studio/furnitureNudge";
 
 /**
- * The transform tools for a placed model — select, rotate, scale — as a column
- * down the left edge of the viewport.
+ * The transform tools for a placed model — select, rotate — as a column down
+ * the left edge of the viewport. The Size mode button went at the user's
+ * request (2026-11-07); the − / + size steps below do that job in one tap.
  *
  * There was a Siljitish (move) button too, removed at the user's request
  * (2026-09-28). Nothing is lost: dragging a selected model in Tanlash mode
@@ -26,7 +27,7 @@ import { stepFurnitureSize, turnFurnitureQuarter } from "@/features/studio/furni
  * turn keeps out of the walls and the other pieces, as the drag does (see
  * features/studio/furnitureNudge).
  */
-const TOOLS: { mode: ToolMode; labelKey: 'studio.three_d.tool_select' | 'studio.three_d.tool_rotate' | 'studio.three_d.tool_scale'; icon: React.ReactNode }[] = [
+const TOOLS: { mode: ToolMode; labelKey: 'studio.three_d.tool_select' | 'studio.three_d.tool_rotate'; icon: React.ReactNode }[] = [
   {
     mode: 'select',
     labelKey: 'studio.three_d.tool_select',
@@ -44,16 +45,6 @@ const TOOLS: { mode: ToolMode; labelKey: 'studio.three_d.tool_select' | 'studio.
         strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
-      </svg>
-    ),
-  },
-  {
-    mode: 'scale',
-    labelKey: 'studio.three_d.tool_scale',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M21 21H3M21 3H3M12 7v10M9 10l3-3 3 3M9 14l3 3 3-3" />
       </svg>
     ),
   },

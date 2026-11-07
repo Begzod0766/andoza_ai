@@ -72,7 +72,7 @@ import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
-import { StagePillLayer, TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
+import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -886,10 +886,9 @@ export default function ThreeDPage() {
           onPointerDownCapture={() => { if (shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })) markTapHintSeen(); }}
         >
 
-          {/* Below lg: which room and stage (the header hides the name under sm),
-              and, once, how to reach the tools — tap a surface. The pill is
-              also where the stage is changed: the rail is lg-only (QA #17). */}
-          <StagePillLayer roomName={room.name} phase={activePhase} onPick={setActivePhase} />
+          {/* Below lg: once, how to reach the tools — tap a surface. The
+              room/stage pill that sat at the top was removed at the user's
+              request (2026-11-07). */}
           {shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked }) && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
               <TapHint onDismiss={markTapHintSeen} />
