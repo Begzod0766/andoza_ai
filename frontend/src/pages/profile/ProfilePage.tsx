@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Calculator, FolderOpen, LogOut, Ruler, Store, User, Users, type LucideIcon } from "lucide-react";
+import { ChevronRight, Calculator, FolderOpen, Images, LogOut, Ruler, Store, User, Users, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getMe, logoutApi } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
@@ -14,11 +14,12 @@ import { useLocale } from "@/i18n/useLocale";
 const MENU_ITEMS: Array<{
   icon: LucideIcon;
   tone: "blue" | "orange" | "violet" | "green";
-  label: "profile.mening_loyihalarim" | "profile.yangi_hisob_kitob" | "profile.ustalar" | "profile.sotuvchi_paneli" | "profile.mebel";
-  hint: "profile.mening_loyihalarim_izoh" | "profile.yangi_hisob_kitob_izoh" | "profile.ustalar_izoh" | "profile.sotuvchi_paneli_izoh" | "profile.mebel_izoh";
+  label: "profile.mening_loyihalarim" | "profile.yangi_hisob_kitob" | "profile.ustalar" | "profile.sotuvchi_paneli" | "profile.mebel" | "profile.renderlarim";
+  hint: "profile.mening_loyihalarim_izoh" | "profile.yangi_hisob_kitob_izoh" | "profile.ustalar_izoh" | "profile.sotuvchi_paneli_izoh" | "profile.mebel_izoh" | "profile.renderlarim_izoh";
   to: string;
 }> = [
   { icon: FolderOpen, tone: "blue", label: "profile.mening_loyihalarim", hint: "profile.mening_loyihalarim_izoh", to: "/projects" },
+  { icon: Images, tone: "violet", label: "profile.renderlarim", hint: "profile.renderlarim_izoh", to: "/renders" },
   { icon: Calculator, tone: "orange", label: "profile.yangi_hisob_kitob", hint: "profile.yangi_hisob_kitob_izoh", to: "/wizard" },
   { icon: Users, tone: "violet", label: "profile.ustalar", hint: "profile.ustalar_izoh", to: "/ustalar" },
   { icon: Store, tone: "green", label: "profile.sotuvchi_paneli", hint: "profile.sotuvchi_paneli_izoh", to: "/seller" },

@@ -1418,7 +1418,9 @@
     "ochirish_matn": "Hisobingiz va barcha ma'lumotlaringiz butunlay o'chiriladi: loyihalar, rasmlar, buyurtmalar hamda do'kon yoki usta profili (agar bo'lsa). Ularni qayta tiklab bo'lmaydi.",
     "parol_placeholder": "Hisobingiz parolini kiriting",
     "mebel": "Mebel ishlab chiqarish",
-    "mebel_izoh": "Ustaxonalar uchun: shkaf detallari, kromka va narx"
+    "mebel_izoh": "Ustaxonalar uchun: shkaf detallari, kromka va narx",
+    "renderlarim": "Renderlarim",
+    "renderlarim_izoh": "Barcha xonalardagi render rasmlari"
   },
   "layout": {
     "uy": "Uy",
@@ -2850,5 +2852,16 @@
       "save_first": "Loyiha saqlanmagan — internetni tekshirib, qayta urinib ko'ring. Yorliqlar faqat saqlangan loyihadan chop etiladi.",
       "broken": "Bu loyiha ma'lumotida xato bor. Loyiha egasiga ayting — u loyihani tuzatib, yorliqlarni qayta chop etsin."
     }
+  },
+  "renders": {
+    "sarlavha": "Renderlarim",
+    "izoh": "Barcha xonalaringizda qilingan renderlar, eng yangisi birinchi.",
+    "xona_nomsiz": "Nomsiz xona",
+    "bosh": "Hali render yo'q",
+    "bosh_izoh": "3D Studio'da kamerani tanlab, \"Render\" tugmasini bosing: natija shu yerda saqlanadi.",
+    "koproq": "Ko'proq ko'rsatish",
+    "yuklab_olish": "Yuklab olish",
+    "xonaga_otish": "Xonaga o'tish",
+    "xato": "Renderlarni yuklab bo'lmadi. Qayta urinib ko'ring."
   }
 }
