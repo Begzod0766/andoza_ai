@@ -20,6 +20,7 @@ import type { RadialSurface } from "@/components/studio/SurfaceRadialMenu";
 import { roomExtents } from "@/lib/roomDims";
 import { WALL_T, FLOOR_COLORS, UNCONFIGURED_FLOOR_COLOR, noRaycast, OPENING_REVEAL_D } from "./constants";
 import { wallDefsFromVertices } from "@/lib/wallDefsFromVertices";
+import { polyEdges, type PolyEdge } from "@/lib/polyEdges";
 import { shadeCovering, boardSegments, trimSegments } from "./helpers";
 import { WoodFloor, Ceiling, PatternFloor, CeilingProfile, DoorwayFloors } from "./FloorCeiling";
 import { doorwayNiches, shownNiches } from "@/lib/doorwayNiches";
@@ -174,21 +175,6 @@ export const SwapButtons = memo(function SwapButtons({ W, D, H }: { W: number; D
 // into place. The along-length direction is fixed by the winding, so the
 // room-inward face is chosen per edge via <Wall innerFaceDir> (see that prop).
 
-
-interface PolyEdge {
-  index: number;
-  wallId: string;
-  /** Edge midpoint in centred metres (world XZ, room centred at origin). */
-  mx: number; mz: number;
-  /** Y rotation aligning local +X with the edge direction. */
-  yaw: number;
-  /** Edge length in metres. */
-  length: number;
-  /** Which local face is room-inward (+1 = local +Z, −1 = local −Z). */
-  faceDir: 1 | -1;
-  /** Outward normal (unit, world XZ) — used by the camera-facing cutaway. */
-  ox: number; oz: number;
-}
 
 function polyEdgesEqual(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
   if (a.size !== b.size) return false;
@@ -383,38 +369,13 @@ function NWallRoomShell({
   const ceilingSide = THREE.BackSide
 
   // Per-edge transforms + inward/outward normals. `centred` (not the filtered
-  // set) is used so edge i still lines up with geometry.walls[i]; the room is
-  // centred at the origin, so "toward centroid" is simply "toward (0,0)".
-  const edges = useMemo<PolyEdge[]>(() => {
-    const out: PolyEdge[] = []
-    for (let i = 0; i < centred.length; i++) {
-      const [x1, z1] = centred[i]
-      const [x2, z2] = centred[(i + 1) % centred.length]
-      const dx = x2 - x1
-      const dz = z2 - z1
-      const length = Math.hypot(dx, dz)
-      if (length < 0.01) continue
-      const mx = (x1 + x2) / 2
-      const mz = (z1 + z2) / 2
-      // Wrapping-group yaw: local +X → edge direction (dx,dz); this maps the
-      // wall's local +Z face normal to world (-dz,dx)/length.
-      const yaw = Math.atan2(-dz, dx)
-      const nx = -dz / length
-      const nz = dx / length
-      // local +Z (nx,nz) is room-inward when it points toward the centroid (0,0).
-      const inward = nx * -mx + nz * -mz
-      const faceDir: 1 | -1 = inward >= 0 ? 1 : -1
-      // Outward normal = away from centroid.
-      let ox = nx, oz = nz
-      if (ox * mx + oz * mz < 0) { ox = -ox; oz = -oz }
-      out.push({
-        index: i,
-        wallId: geometry.walls[i]?.id ?? String(i),
-        mx, mz, yaw, length, faceDir, ox, oz,
-      })
-    }
-    return out
-  }, [centred, geometry.walls])
+  // set) is used so edge i still lines up with geometry.walls[i].
+  // Which face is the room's comes from the outline's winding (lib/polyEdges):
+  // "toward the centroid" drew a staircase room's middle step inside out.
+  const edges = useMemo<PolyEdge[]>(
+    () => polyEdges(centred, geometry.walls.map((w) => w.id)),
+    [centred, geometry.walls],
+  )
 
   const hiddenEdges = useHiddenPolyEdges(cutaway, edges)
 
