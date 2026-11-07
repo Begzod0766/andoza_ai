@@ -2,6 +2,8 @@ import * as React from "react"
 import { ImagePlus } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BottomSheet } from "@/components/ui/BottomSheet"
+import { SidePanel } from "@/components/ui/SidePanel"
+import { useWideStudio } from "@/lib/compactStudio"
 import { Dialog } from "@/components/ui/Dialog"
 import { useTranslation } from "react-i18next"
 import i18n from "@/i18n"
@@ -204,6 +206,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   // Saves go one after another: a second design applied while the first is still being saved must not be skipped.
   const saveChain = React.useRef<Promise<unknown>>(Promise.resolve())
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture)
+  const wide = useWideStudio()
   const wallIds = useRoomStore((s) => s.geometry.walls.map((w) => w.id).join('|'))
 
   /** Saves the room; true when it did (the studio clears its unsaved mark only on success). */
@@ -469,9 +472,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     [confirmRooms, source, aptRooms, roomId, catalogFurniture],
   )
 
-  return (
-    <>
-    <BottomSheet open={open} onOpenChange={close} title={t("ai.builder_title")} defaultSnap="full">
+  const body = (
       <div className="mx-auto flex h-full w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-4">
         <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} preselectGuess />
         <div className="space-y-1.5">
@@ -666,7 +667,16 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
         {notice && <p role="status" className="text-sm font-medium text-green-700">{notice}</p>}
         {roomsNotice && <p role="status" className="text-sm font-medium text-gray-700">{roomsNotice}</p>}
       </div>
-    </BottomSheet>
+  )
+
+  return (
+    <>
+    {/* Desktop: a panel beside the room, so a style shows in the room as it is picked. Phone and app: the sheet. */}
+    {wide ? (
+      <SidePanel open={open} onOpenChange={close} title={t("ai.builder_title")} closeLabel={t("common.yopish")}>{body}</SidePanel>
+    ) : (
+      <BottomSheet open={open} onOpenChange={close} title={t("ai.builder_title")} defaultSnap="full">{body}</BottomSheet>
+    )}
 
     {/* With the sheet closed the design is on screen; this says what was done and keeps undo within reach.
         Once undone, it stays while it has the other rooms to tell of. */}
