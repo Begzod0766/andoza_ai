@@ -1419,7 +1419,9 @@
     "ochirish_matn": "Your account and all your data will be deleted permanently: projects, images, orders, and your shop or craftsman profile (if any). They cannot be restored.",
     "parol_placeholder": "Enter your account password",
     "mebel": "Furniture manufacturing",
-    "mebel_izoh": "For workshops: cabinet parts, edge banding and price"
+    "mebel_izoh": "For workshops: cabinet parts, edge banding and price",
+    "renderlarim": "My renders",
+    "renderlarim_izoh": "Render pictures from every room"
   },
   "layout": {
     "uy": "Home",
@@ -1954,7 +1956,10 @@
     "dokon": "Shop",
     "dokon_matn": "Compare material and furniture prices across shops.",
     "dokon_ochish": "Open the shop",
-    "ustalar_korish": "View craftsmen"
+    "ustalar_korish": "View craftsmen",
+    "sahifalar": "Project pages",
+    "oldingi_sahifa": "Previous page",
+    "keyingi_sahifa": "Next page"
   },
   "wizard": {
     "devor_nomi": "Wall {{id}}",
@@ -2851,5 +2856,16 @@
       "save_first": "The project is not saved — check the connection and try again. Labels print only from the saved project.",
       "broken": "This project's data has an error. Tell the project owner so they can fix it and print the labels again."
     }
+  },
+  "renders": {
+    "sarlavha": "My renders",
+    "izoh": "Renders from all your rooms, newest first.",
+    "xona_nomsiz": "Untitled room",
+    "bosh": "No renders yet",
+    "bosh_izoh": "In the 3D studio, pick a camera and tap \"Render\": the result is kept here.",
+    "koproq": "Show more",
+    "yuklab_olish": "Download",
+    "xonaga_otish": "Go to the room",
+    "xato": "Couldn't load your renders. Try again."
   }
 }

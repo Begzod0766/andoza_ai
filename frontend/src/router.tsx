@@ -81,6 +81,7 @@ const ProjectsPage = lazy(() => import("@/pages/projects/ProjectsPage"));
 const DokonPage = lazy(() => import("@/pages/dokon/DokonPage"));
 const UstalarPage = lazy(() => import("@/pages/ustalar/UstalarPage"));
 const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
+const RendersPage = lazy(() => import("@/pages/renders/RendersPage"));
 const SellerPage = lazy(() => import("@/pages/seller/SellerPage"));
 const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
 const SharedRoomPage = lazy(() => import("@/pages/share/SharedRoomPage"));
@@ -152,6 +153,10 @@ const routes: RouteObject[] = [
       {
         path: "/profile",
         element: withSuspense(<RequireAuth><ProfilePage /></RequireAuth>),
+      },
+      {
+        path: "/renders",
+        element: withSuspense(<RequireAuth><RendersPage /></RequireAuth>),
       },
       {
         path: "/seller",

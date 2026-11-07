@@ -21,6 +21,7 @@ from app.api.v1.deps import CurrentUser, DbSession
 from app.config import settings
 from app.core.storage import delete_file, upload_file
 from app.models.media_job import MediaJob
+from app.models.room import Room
 from app.models.room_render import RoomRender
 from app.services.llm import check_and_increment_budget_for
 from app.services.myarchitect import INTERIOR_LIGHTING
@@ -176,6 +177,39 @@ async def list_renders(
         query = query.where(RoomRender.room_id == room_id)
     rows = await db.execute(query.order_by(RoomRender.created_at.desc()).limit(max(1, min(limit, 100))))
     return list(rows.scalars())
+
+
+class RenderWithRoomOut(RenderOut):
+    # None for a render of a draft or a room since deleted (a render outlives its room).
+    room_name: str | None = None
+
+
+class RenderPageOut(BaseModel):
+    items: list[RenderWithRoomOut]
+    has_more: bool
+
+
+@router.get("/renders/all", response_model=RenderPageOut, summary="Every room's saved renders, a page at a time")
+async def list_all_renders(
+    current_user: CurrentUser, db: DbSession, limit: int = 24, offset: int = 0,
+) -> RenderPageOut:
+    """The "Renderlarim" page: the caller's renders across rooms, newest first, each with its room's
+    name. One row more than asked for is read to tell whether another page follows."""
+    limit = max(1, min(limit, 60))
+    query = (
+        select(RoomRender, Room.name)
+        .outerjoin(Room, Room.id == RoomRender.room_id)
+        .where(RoomRender.user_id == current_user.id)
+        .order_by(RoomRender.created_at.desc())
+        .offset(max(0, offset))
+        .limit(limit + 1)
+    )
+    rows = list((await db.execute(query)).all())
+    items = [
+        RenderWithRoomOut(**RenderOut.model_validate(render).model_dump(), room_name=name)
+        for render, name in rows[:limit]
+    ]
+    return RenderPageOut(items=items, has_more=len(rows) > limit)
 
 
 @router.delete("/renders/{render_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a saved render")

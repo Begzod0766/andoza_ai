@@ -187,3 +187,50 @@ describe('ProjectsPage in Russian', () => {
     expect(await screen.findByText(ru.projects.hali_loyiha_yoq)).toBeInTheDocument()
   })
 })
+
+describe('ProjectsPage list pages on a phone', () => {
+  beforeEach(() => vi.clearAllMocks())
+  const apts = (n: number) => Array.from({ length: n }, (_, i) => (
+    { id: `a${i}`, name: `Loyiha ${i + 1}`, created_at: new Date(2026, 10, 30 - i).toISOString(), rooms: [] } as never
+  ))
+  /** The project cards a phone shows: the list's own, not hidden below the desktop breakpoint. */
+  const shownOnPhone = () =>
+    [...document.querySelectorAll<HTMLElement>('[data-project-card]')].filter((el) => !el.className.split(' ').includes('hidden')).map((el) => el.dataset.projectCard)
+
+  it('shows five projects at a time, with page buttons', async () => {
+    vi.mocked(api.getApartments).mockResolvedValue(apts(12))
+    mount()
+    const pager = await screen.findByRole('navigation', { name: /sahifalar/i })
+    expect(shownOnPhone()).toEqual(['a0', 'a1', 'a2', 'a3', 'a4'])
+    expect(pager.querySelector('[aria-current="page"]')).toHaveTextContent('1')
+    expect(screen.getAllByRole('button', { name: /^[123]$/ })).toHaveLength(3)
+  })
+
+  it('a page button and "next" move through the list; "previous" waits on the first page', async () => {
+    vi.mocked(api.getApartments).mockResolvedValue(apts(12))
+    mount()
+    await screen.findByRole('navigation', { name: /sahifalar/i })
+    expect(screen.getByRole('button', { name: /oldingi/i })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: '3' }))
+    expect(shownOnPhone()).toEqual(['a10', 'a11'])
+    expect(screen.getByRole('button', { name: /keyingi/i })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /oldingi/i }))
+    expect(shownOnPhone()).toEqual(['a5', 'a6', 'a7', 'a8', 'a9'])
+  })
+
+  it('five or fewer projects need no page buttons', async () => {
+    vi.mocked(api.getApartments).mockResolvedValue(apts(5))
+    mount()
+    await waitFor(() => expect(document.querySelectorAll('[data-project-card]')).toHaveLength(5))
+    expect(screen.queryByRole('navigation', { name: /sahifalar/i })).toBeNull()
+  })
+
+  it('the desktop list still has every project (the cards past the page are hidden on a phone only)', async () => {
+    vi.mocked(api.getApartments).mockResolvedValue(apts(12))
+    mount()
+    await screen.findByRole('navigation', { name: /sahifalar/i })
+    const cards = document.querySelectorAll<HTMLElement>('[data-project-card]')
+    expect(cards).toHaveLength(12)
+    for (const el of [...cards].slice(5)) expect(el.className).toMatch(/hidden lg:block/)
+  })
+})
