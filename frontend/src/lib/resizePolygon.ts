@@ -11,7 +11,7 @@
  *    end, its openings stay — but must still fit, trim included;
  *  - wall i + 1 starts at the moved corner: its openings keep their place in
  *    the room by shifting the other way along it.
- * Refused (null): a neighbouring wall turned inside out or 0.5 m or shorter, an
+ * Refused (null): a neighbouring wall turned inside out or under 200 mm, an
  * opening no longer fitting, an outline crossing itself, or any part of the
  * room left under 0.6 m across.
  *
@@ -23,9 +23,7 @@ import { resolveElementPositions } from '@/lib/wallPositions'
 import type { RoomGeometry } from '@/store/types'
 
 const TRIM_MM = 70
-/** The server refuses a wall of 0.5 m or less (backend schemas/room.py,
- *  `gt=0.5`): a shorter one looked fine here and then never saved. */
-const MIN_WALL_MM = 510
+const MIN_WALL_MM = 200
 const MIN_ACROSS_MM = 600
 
 export function isRectilinear(g: RoomGeometry): boolean {
@@ -175,4 +173,27 @@ export function edgeSweep(
     x0: Math.min(...xs) - padM, x1: Math.max(...xs) + padM,
     z0: Math.min(...zs) - padM, z1: Math.max(...zs) + padM,
   }
+}
+
+/**
+ * How far the room `box` stands off wall `edge` of an outline in the flat
+ * (metres), straight out in front of it: the gap the two walls keep when the
+ * wall is pushed into that room. Null when the room is not in front of the
+ * wall — beside it, or behind its line.
+ */
+export function facingGap(
+  world: readonly (readonly [number, number])[], edge: number,
+  outward: { x: number; z: number }, box: { x0: number; x1: number; z0: number; z1: number },
+): number | null {
+  const EPS = 1e-6
+  const [x1, z1] = world[edge], [x2, z2] = world[(edge + 1) % world.length]
+  const alongX = outward.z !== 0
+  const [a, b] = alongX ? [Math.min(x1, x2), Math.max(x1, x2)] : [Math.min(z1, z2), Math.max(z1, z2)]
+  const [lo, hi] = alongX ? [box.x0, box.x1] : [box.z0, box.z1]
+  if (Math.min(b, hi) - Math.max(a, lo) <= EPS) return null
+  const line = alongX ? z1 : x1
+  const sign = alongX ? outward.z : outward.x
+  const face = sign > 0 ? (alongX ? box.z0 : box.x0) : (alongX ? box.z1 : box.x1)
+  const gap = (face - line) * sign
+  return gap >= -EPS ? Math.max(0, gap) : null
 }

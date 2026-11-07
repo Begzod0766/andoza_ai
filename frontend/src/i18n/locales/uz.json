@@ -193,6 +193,7 @@
       "blocked_shape": "Bu xonaning shakli kesilmaydi",
       "qoshni_shakli_sarlavha": "Qo'shni xona shakli o'zgaradi",
       "qoshni_shakli_matn": "Bu xona qo'shni xonaga kiradi va u xonaning shakli o'zgaradi. Davom etasizmi?",
+      "qoshni_saqlanmadi": "Qo'shni xonaning yangi shakli saqlanmadi, shuning uchun o'lcham o'zgartirilmadi.",
       "orqasida_xona_bor": "Bu devor orqasida allaqachon xona bor: \"{{name}}\".",
       "boshqa_devor": "Yangi xonani boshqa devor orqasiga qo'shing.",
       "eshik_deraza": "Eshik / Deraza",

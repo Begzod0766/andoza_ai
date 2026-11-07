@@ -6,7 +6,7 @@
  * neighbour keeps.
  */
 import { describe, expect, it } from 'vitest'
-import { edgeSweep } from '@/lib/resizePolygon'
+import { edgeSweep, facingGap } from '@/lib/resizePolygon'
 import { clipRoom, type RoomContent } from '@/lib/clipRoom'
 import type { RoomGeometry } from '@/store/roomStore'
 
@@ -45,26 +45,39 @@ describe('edgeSweep', () => {
   })
 })
 
-// The server refuses a wall of 0.5 m or less, so neither a resize nor a cut
-// may leave one: the room saved fine on screen and then failed to save.
+// The server keeps a short jog wall (over 5 cm) but not a sliver, and the
+// growing room's own walls stay at least 200 mm. The two walls move together
+// from the first few centimetres instead of waiting for half a metre.
 import { moveEdge } from '@/lib/resizePolygon'
 
-describe('no wall the server would refuse', () => {
+describe('short walls', () => {
   const Lmm = (): RoomGeometry => {
     const v: [number, number][] = [[0, 0], [7440, 0], [7440, 3000], [2350, 3000], [2350, 1750], [0, 1750]]
     return { vertices: v, walls: v.map((p, i) => { const q = v[(i + 1) % v.length]; return { id: `W${i + 1}`, length: Math.hypot(q[0] - p[0], q[1] - p[1]), elements: [] } }) }
   }
-  it('stops a resize that would leave a wall of 0.5 m or less', () => {
-    // W5 (x 2350, z 3000 → 1750) pushed out 1050 leaves W4 200 long.
-    expect(moveEdge(Lmm(), 4, 1050)).toBeNull()
-    expect(moveEdge(Lmm(), 4, 750)).toBeNull()    // W4 500: still too short
-    expect(moveEdge(Lmm(), 4, 700)).not.toBeNull() // W4 550
+  it('lets a resize leave a neighbouring wall down to 200 mm', () => {
+    // W5 (x 2350, z 3000 → 1750) pushed out: W4 (1250 long) shrinks.
+    expect(moveEdge(Lmm(), 4, 1100)).toBeNull()      // W4 150
+    expect(moveEdge(Lmm(), 4, 1000)).not.toBeNull()  // W4 250
   })
 
-  it('refuses a cut that would leave a wall of 0.5 m or less', () => {
-    // A 4 x 3 room at the origin; a cutter 0.3 m into its −x −z corner.
+  it('cuts a shallow corner, refusing only a sliver', () => {
+    // A 4 x 3 room at the origin; a cutter into its −x −z corner.
     const r: RoomContent = { geometry: rect(4000, 3000), centre: { x: 0, z: 0 } }
-    expect(clipRoom(r, { x0: -3, x1: -0.7, z0: -3, z1: -1.2 }).kind).toBe('refused')
-    expect(clipRoom(r, { x0: -3, x1: -0.7, z0: -3, z1: -0.9 }).kind).toBe('cut')
+    expect(clipRoom(r, { x0: -3, x1: -0.7, z0: -3, z1: -1.47 }).kind).toBe('refused') // 3 cm
+    expect(clipRoom(r, { x0: -3, x1: -0.7, z0: -3, z1: -1.4 }).kind).toBe('cut')      // 10 cm
+  })
+})
+
+describe('facingGap', () => {
+  // Wall 1 of the L runs x 3, z 0 → 1.5 and faces +x.
+  it('is how far the room in front of the wall stands off it', () => {
+    expect(facingGap(L, 1, { x: 1, z: 0 }, { x0: 3.2, x1: 6, z0: -2, z1: 1.3 })).toBeCloseTo(0.2)
+    expect(facingGap(L, 1, { x: 1, z: 0 }, { x0: 3.35, x1: 6, z0: 1, z1: 4 })).toBeCloseTo(0.35)
+  })
+
+  it('is nothing for a room beside the wall or behind it', () => {
+    expect(facingGap(L, 1, { x: 1, z: 0 }, { x0: 3.2, x1: 6, z0: 1.7, z1: 4 })).toBeNull()
+    expect(facingGap(L, 1, { x: 1, z: 0 }, { x0: -2, x1: 2.9, z0: 0, z1: 1 })).toBeNull()
   })
 })

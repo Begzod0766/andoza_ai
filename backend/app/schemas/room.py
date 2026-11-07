@@ -52,7 +52,11 @@ class WallElement(BaseModel):
 
 class Wall(BaseModel):
     id: str
-    length: float = Field(gt=0.5, lt=25.0)
+    # A wall of a room's outline. A polygon room can have a short jog — the
+    # cut a neighbour gets when a room grows into it is as deep as the push —
+    # so only a sliver is refused here. A wall added on its own (WallCreate)
+    # keeps the half-metre minimum.
+    length: float = Field(gt=0.05, lt=25.0)
     elements: list[WallElement] = []
 
 

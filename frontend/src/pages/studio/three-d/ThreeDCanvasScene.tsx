@@ -6,9 +6,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useViewLockStore } from "@/store/viewLockStore";
 import { shiftedPose } from "@/lib/roomSwitch";
 import { CameraRefBridge, CutOutline, DoorDimensions, GapField, PolygonGhost, ResizeGhost, ResizeHandles, RoomMoveArrows, RoomMoveInput, handlePoints, type WallHandle } from "./RoomSlide";
-import { edgeSweep, isRectilinear, moveEdge, outwardNormal, polygonCentre, type EdgeMove } from "@/lib/resizePolygon";
+import { edgeSweep, facingGap, isRectilinear, moveEdge, outwardNormal, polygonCentre, type EdgeMove } from "@/lib/resizePolygon";
 import { keepContentInPlace, type RoomThings } from "@/lib/keepContent";
 import { clipRoom, outlineOf, type RoomContent } from "@/lib/clipRoom";
+import { showToast } from "@/components/ui/Toast";
 import { flatBoxOf, flatBounds, flatOutlineOf, overlappingRooms } from "@/lib/flatBoxes";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { isResizable, minSizeMm, resizeBox, resizeGeometry, sideWallShiftMm, type Side } from "@/lib/resizeRoom";
@@ -376,7 +377,10 @@ export function ThreeDCanvasScene({
   /** Saves a move of `id` by (dx, dz), metres, in the open room's frame —
    *  and, for a resize, its new geometry with it (one save for both: the
    *  centre moves so the opposite wall can stay put). */
-  const persistMove = async (id: string, dx: number, dz: number, newGeometry?: RoomGeometry, extra?: CutExtras) => {
+  /** Saves a room's new place (and shape). Resolves false only when a
+   *  neighbouring room's save was refused; the open room is saved through
+   *  the store and its autosave, which retries on its own. */
+  const persistMove = async (id: string, dx: number, dz: number, newGeometry?: RoomGeometry, extra?: CutExtras): Promise<boolean> => {
     const abs = computeAbsolutePositions(aptRooms ?? [], room.id, W, D);
     if (id === room.id) {
       if (newGeometry) useRoomStore.setState({ geometry: newGeometry, ...(extra ?? {}), isDirty: true });
@@ -389,11 +393,11 @@ export function ThreeDCanvasScene({
       if (camera) { const p = shiftedPose({ offsetXM: dx, offsetZM: dz }, camera.position); camera.position.set(p.x, p.y, p.z); }
       if (controls) { const t = shiftedPose({ offsetXM: dx, offsetZM: dz }, controls.target); controls.target.set(t.x, t.y, t.z); controls.update(); }
       try { await onSaveRoom(); } catch { /* kept in the store; saved with the next save */ }
-      return;
+      return true;
     }
     const r = aptRooms?.find((x) => x.id === id);
     const from = abs.get(id);
-    if (!r || !from) return;
+    if (!r || !from) return false;
     const layoutPos = { x: from.x + dx, z: from.z + dz };
     // The whole state goes back: the server replaces it wholesale. A state
     // that carries its own copy of the geometry gets the new one too, or a
@@ -408,7 +412,14 @@ export function ThreeDCanvasScene({
     const apiGeometry = newGeometry ? storeGeometryToApiGeometry(newGeometry) : undefined;
     queryClient.setQueryData<Room[]>(["apt-rooms", room.apartment_id], (list) =>
       list?.map((x) => (x.id === id ? ({ ...x, state, ...(apiGeometry ? { geometry: apiGeometry } : {}) } as Room) : x)));
-    try { await updateRoom(id, { state, ...(apiGeometry ? { geometry: apiGeometry } : {}) }); } catch { /* shown where it stands; re-fetched next time */ }
+    try {
+      await updateRoom(id, { state, ...(apiGeometry ? { geometry: apiGeometry } : {}) });
+      return true;
+    } catch {
+      // The server keeps what it had: show that again, not the refused shape.
+      void queryClient.invalidateQueries({ queryKey: ["apt-rooms", room.apartment_id] });
+      return false;
+    }
   };
   /** Puts the selected room at `to` for good: saved. */
   const commitTo = (to: { cx: number; cz: number } | null) => {
@@ -527,20 +538,26 @@ export function ThreeDCanvasScene({
     const before = { W: selBox.w, D: selBox.d };
     const after = { W: across ? sizeMm / 1000 : selBox.w, D: across ? selBox.d : sizeMm / 1000 };
     const delta = sizeMm - (across ? selBox.w : selBox.d) * 1000;
+    // The rooms it cuts first, and the room itself only once they are all
+    // saved: a refused cut used to leave the room grown into a neighbour the
+    // server still had whole, the two overlapping.
+    if (!(await persistCuts(cuts))) return;
     void persistMove(selBox.id, shiftM.dx, shiftM.dz, next,
       keepContentInPlace(thingsOf(selBox.id), shiftM, before, after, sideWallShiftMm(side, delta)));
-    persistCuts(cuts);
   };
   /** Each room the selected one grew into, cut — its new shape, its things
    *  moved inside. */
-  const persistCuts = (cuts: RoomCut[]) => {
-    for (const c of cuts) {
+  const persistCuts = async (cuts: RoomCut[]): Promise<boolean> => {
+    const saved = await Promise.all(cuts.map((c) => {
       const { furniture, lights, electricals, designState } = c.content;
-      void persistMove(c.id, c.content.centre.x - c.from.x, c.content.centre.z - c.from.z, c.content.geometry, {
+      return persistMove(c.id, c.content.centre.x - c.from.x, c.content.centre.z - c.from.z, c.content.geometry, {
         ...(furniture ? { furniture } : {}), ...(lights ? { lights } : {}),
         ...(electricals ? { electricals } : {}), ...(designState ? { designState } : {}),
       });
-    }
+    }));
+    if (saved.every(Boolean)) return true;
+    showToast({ variant: 'error', title: i18n.t('studio.three_d.qoshni_saqlanmadi') });
+    return false;
   };
 
   /** A polygon room's wall `edge` moved out by `deltaM`, or as far towards
@@ -554,10 +571,14 @@ export function ThreeDCanvasScene({
     const nrm = outwardNormal(selGeometry, edge);
     const world = polyWorld(selGeometry, selOrigin);
     const others = flatBoxes.filter((b) => b.id !== selBox.id);
-    // The offset each neighbour keeps: its gap, or the default partition
-    // when it was further than the 500 mm limit (as cutsAt does).
+    // The gap a neighbour keeps from the wall: the one between the two walls
+    // in front of it, so it stays as it was and moves with them ("the gap
+    // should stay between walls and move with two walls"); for a room not in
+    // front of the wall, its nearest gap to the room. Over the 500 mm limit,
+    // the default partition (as cutsAt does).
     const padOf = (o: RoomBox) => {
-      const was = nearestNeighbour(selBox, [o])?.gapM ?? Infinity;
+      const facing = facingGap(world, edge, nrm, { x0: o.cx - o.w / 2, x1: o.cx + o.w / 2, z0: o.cz - o.d / 2, z1: o.cz + o.d / 2 });
+      const was = facing ?? nearestNeighbour(selBox, [o])?.gapM ?? Infinity;
       return was <= 0.5 ? was : 0.2;
     };
     const overlaps = (a: RoomBox, o: RoomBox) => partsOf(a).some((p) => partsOf(o).some((q) =>
@@ -616,9 +637,9 @@ export function ThreeDCanvasScene({
       if (!ok) return;
     }
     const { move } = live.poly;
+    if (!(await persistCuts(live.cuts))) return;
     void persistMove(selBox.id, move.shiftM.dx, move.shiftM.dz, move.geometry,
       keepContentInPlace(thingsOf(selBox.id), move.shiftM, { W: selBox.w, D: selBox.d }, { W: live.box.w, D: live.box.d }, move.positionShiftMm));
-    persistCuts(live.cuts);
   };
   /** The selected room's wall handles: four sides, or every wall of a
    *  right-angled polygon, each a little inside its wall's middle. */

@@ -50,9 +50,9 @@ export type ClipResult =
 
 const EPS = 1e-6
 const MIN_ARM_M = 1.0
-/** The shortest wall the server keeps (backend schemas/room.py, `gt=0.5`):
- *  a cut that leaves a shorter one is refused rather than saved and lost. */
-const MIN_WALL_M = 0.51
+/** The shortest wall the server keeps (backend schemas/room.py, `gt=0.05`):
+ *  a cut that would leave a sliver is refused rather than saved and lost. */
+const MIN_WALL_M = 0.06
 const TRIM_M = 0.07
 /** How far inside what is left a moved piece of furniture is set down. */
 const SET_IN_M = 0.3

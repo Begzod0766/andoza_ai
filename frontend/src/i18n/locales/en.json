@@ -193,6 +193,7 @@
       "blocked_shape": "This room's shape cannot be cut",
       "qoshni_shakli_sarlavha": "The neighboring room's shape will change",
       "qoshni_shakli_matn": "This room extends into the neighboring room, and that room's shape will change. Continue?",
+      "qoshni_saqlanmadi": "The neighbouring room's new shape could not be saved, so the size was not changed.",
       "orqasida_xona_bor": "There is already a room behind this wall: \"{{name}}\".",
       "boshqa_devor": "Add the new room behind a different wall.",
       "eshik_deraza": "Door / Window",
