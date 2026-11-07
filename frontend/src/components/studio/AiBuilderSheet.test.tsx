@@ -1206,6 +1206,25 @@ describe('AiBuilderSheet tabs: ready-made style, own words, from a picture', () 
     expect(screen.getByText(i18n.t('ai.ai_namunalari'))).not.toBeVisible()
   })
 
+  it('no panel part hides by the attribute alone where a display class would show it anyway', () => {
+    // On prod the examples' `flex` class beat their `hidden` attribute: they showed on the picture tab.
+    renderSheet()
+    for (const id of [/rasmdan/i, /tayyor uslub/i]) {
+      fireEvent.click(tab(id))
+      for (const el of document.querySelectorAll<HTMLElement>('[role="dialog"] [hidden]')) {
+        expect(el.className, el.outerHTML.slice(0, 80)).not.toMatch(/(^|\s)(flex|grid|block|inline-flex)(\s|$)/)
+      }
+    }
+  })
+
+  it('in "own words" the request box comes before the examples', () => {
+    renderSheet()
+    fireEvent.click(tab(/o'z so'zim/i))
+    const box = screen.getByLabelText('Dizayn tavsifi')
+    const examples = document.querySelector('[data-part="examples"]')!
+    expect(box.compareDocumentPosition(examples) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('a Pinterest link handed in on opening shows the picture tab', () => {
     renderSheet({ initialPinUrl: 'https://www.pinterest.com/pin/123456789/' })
     expect(tab(/rasmdan/i)).toHaveAttribute('aria-selected', 'true')
