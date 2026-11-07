@@ -126,3 +126,16 @@ describe('buildFurnitureGroups — browsing mode', () => {
     expect(groups[0].items).toHaveLength(CATALOG.length - 1)
   })
 })
+
+
+describe('buildFurnitureGroups browsing a room: pieces with no room go where they belong', () => {
+  it('the bathroom tab offers no desk or shelf that has no room of its own', () => {
+    const rows = [
+      { id: 'vanna', name_uz: 'Vanna 5', category: 'boshqa', room_type: 'hammom' },
+      { id: 'desk', name_uz: 'Стол Nord', category: 'stol', room_type: null },
+      { id: 'rug', name_uz: 'Gilam 1', category: 'gilam', room_type: null },
+    ] as unknown as Parameters<typeof buildFurnitureGroups>[0]
+    const ids = buildFurnitureGroups(rows, { isSwap: false, roomTypeKey: 'hammom' }).flatMap((g) => g.items.map((i) => i.id))
+    expect(ids.sort()).toEqual(['rug', 'vanna'])
+  })
+})
