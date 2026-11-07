@@ -34,6 +34,8 @@ import { nextLightPositionMm } from '@/lib/placement'
 import { nextFurnitureSpot } from './nextFurnitureSpot'
 import { resolveTargetWall } from '@/components/studio/design-panel/shared'
 import type { ArcCategory, ArcItem } from '@/components/studio/QuarterArcMenu'
+import { fitsCatalogRoom } from '@/lib/furnitureRoomFit'
+import { catalogRoomType, effectiveRoomType } from '@/lib/roomType'
 
 export interface ArcCategoriesDeps {
   /** Which wall a picked wallpaper lands on — the viewport's current pick,
@@ -43,12 +45,25 @@ export interface ArcCategoriesDeps {
   openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel') => void
 }
 
+/** The catalog room each furniture ring stands for. */
+const RING_ROOM: Record<string, string> = {
+  'room:mehmonxona': 'mehmonxona', 'room:oshxona': 'oshxona', 'room:yotoqxona': 'yotoqxona', 'room:vanna': 'hammom',
+}
+
+/** The room's own ring first, the rest in their usual order. */
+function ownRoomFirst(rings: ArcItem[], roomKind: string | undefined): ArcItem[] {
+  const own = rings.findIndex((r) => RING_ROOM[r.key] === roomKind)
+  return own <= 0 ? rings : [rings[own], ...rings.slice(0, own), ...rings.slice(own + 1)]
+}
+
 export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDeps): ArcCategory[] {
   // `t` changes with the language, so the memo below rebuilds the labels.
   const { t } = useTranslation()
   const userFurniture = useRoomStore((s) => s.userFurniture)
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture)
   const furniture = useRoomStore((s) => s.furniture)
+  // The room's own kind (or the guess from its name): its furniture ring comes first.
+  const roomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)))
   const lights = useRoomStore((s) => s.lights)
   const geometry = useRoomStore((s) => s.geometry)
   const placeFurniture = useRoomStore((s) => s.placeFurniture)
@@ -88,7 +103,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
      *  left out — they have their own category. */
     const modelsForRoom = (roomTypeKey: string): ArcItem[] =>
       catalogFurniture
-        .filter((f) => f.category !== 'lampa' && (f.room_type === null || f.room_type === roomTypeKey))
+        .filter((f) => f.category !== 'lampa' && fitsCatalogRoom(f, roomTypeKey))
         .map((f) => ({
           key: `shop:${roomTypeKey}:${f.id}`,
           label: f.name_uz,
@@ -187,30 +202,32 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         label: t('studio.shared.mebel'),
         icon: <Sofa size={19} strokeWidth={1.8} />,
         items: [
-          {
-            key: 'room:mehmonxona', label: t('studio.add.room_mehmonxona'),
-            icon: <Sofa size={19} strokeWidth={1.8} />,
-            items: modelsForRoom('mehmonxona'),
-            onSelect: () => {},
-          },
-          {
-            key: 'room:oshxona', label: t('studio.add.room_oshxona'),
-            icon: <ChefHat size={19} strokeWidth={1.8} />,
-            items: modelsForRoom('oshxona'),
-            onSelect: () => {},
-          },
-          {
-            key: 'room:yotoqxona', label: t('studio.add.room_yotoqxona'),
-            icon: <BedDouble size={19} strokeWidth={1.8} />,
-            items: modelsForRoom('yotoqxona'),
-            onSelect: () => {},
-          },
-          {
-            key: 'room:vanna', label: t('studio.add.room_vanna'),
-            icon: <Bath size={19} strokeWidth={1.8} />,
-            items: modelsForRoom('hammom'),
-            onSelect: () => {},
-          },
+          ...ownRoomFirst([
+            {
+              key: 'room:mehmonxona', label: t('studio.add.room_mehmonxona'),
+              icon: <Sofa size={19} strokeWidth={1.8} />,
+              items: modelsForRoom('mehmonxona'),
+              onSelect: () => {},
+            },
+            {
+              key: 'room:oshxona', label: t('studio.add.room_oshxona'),
+              icon: <ChefHat size={19} strokeWidth={1.8} />,
+              items: modelsForRoom('oshxona'),
+              onSelect: () => {},
+            },
+            {
+              key: 'room:yotoqxona', label: t('studio.add.room_yotoqxona'),
+              icon: <BedDouble size={19} strokeWidth={1.8} />,
+              items: modelsForRoom('yotoqxona'),
+              onSelect: () => {},
+            },
+            {
+              key: 'room:vanna', label: t('studio.add.room_vanna'),
+              icon: <Bath size={19} strokeWidth={1.8} />,
+              items: modelsForRoom('hammom'),
+              onSelect: () => {},
+            },
+          ], roomKind),
           ...(uploads.length
             ? [{
                 key: 'room:yuklangan', label: t('studio.arc.uploaded'),
@@ -292,7 +309,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
       },
     ]
   }, [
-    userFurniture, catalogFurniture, furniture, wallpapers, lights, geometry,
+    userFurniture, catalogFurniture, furniture, wallpapers, lights, geometry, roomKind,
     placeFurniture, addLight, setWallCovering, selectedWall, openPanelAt,
     setDesignState, floorType, floorTexture, floorPattern, t,
   ])

@@ -1,4 +1,5 @@
 import type { CatalogFurniture } from "@/lib/api";
+import { fitsCatalogRoom } from "@/lib/furnitureRoomFit";
 
 /**
  * Which catalog rows the "Buyum qo'shish" sheet's Mebel list shows, and how
@@ -50,9 +51,7 @@ export function buildFurnitureGroups(
   const visible = furniture.filter((f) => f.category !== "lampa");
 
   if (!isSwap) {
-    const items = visible.filter(
-      (f) => f.room_type === null || f.room_type === roomTypeKey
-    );
+    const items = visible.filter((f) => (roomTypeKey ? fitsCatalogRoom(f, roomTypeKey) : f.room_type === null));
     return items.length ? [{ key: "all", heading: null, items }] : [];
   }
 
