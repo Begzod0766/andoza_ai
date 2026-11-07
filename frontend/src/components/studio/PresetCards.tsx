@@ -6,15 +6,17 @@ import { presetSwatch } from '@/lib/presetSwatch'
  * The ready-made styles as picture cards: a small room drawn in each style's own wall, accent wall
  * and floor, its palette below. A word like "Neoclassical" tells a homeowner little; the colours do.
  */
-export function PresetCards({ onPick, selected, disabled }: {
+export function PresetCards({ onPick, selected, disabled, narrow = false }: {
   onPick: (id: string) => void
+  /** In a narrow column (the desktop side panel): three to a row whatever the window's width. */
+  narrow?: boolean
   /** The style last applied, marked. */
   selected?: string | null
   disabled?: boolean
 }) {
   const { t } = useTranslation()
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+    <div className={narrow ? "grid grid-cols-3 gap-2" : "grid grid-cols-3 gap-2 sm:grid-cols-5"}>
       {DESIGN_PRESETS.map((preset) => {
         const s = presetSwatch(preset)
         const on = preset.id === selected

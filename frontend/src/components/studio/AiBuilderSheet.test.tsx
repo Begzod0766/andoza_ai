@@ -1137,6 +1137,35 @@ describe('AiBuilderSheet layout by screen width', () => {
     } finally { restore() }
   })
 
+  it('on a wide screen a style or an AI design leaves the panel open, so another can be tried', async () => {
+    const restore = screenWidth(true)
+    try {
+      aiDesign.mockResolvedValueOnce(PLAN)
+      const onSave = savesOk()
+      const { onOpenChange } = renderSheet({ onSave })
+      fireEvent.click(screen.getByText("Qorong'i"))
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+      expect(useRoomStore.getState().designState.wallCoverings.ALL).toEqual({ kind: 'paint', color: '#2c2c2c' })
+      // Still open: ask the AI from the same panel (after a design its button offers another option).
+      fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
+      fireEvent.click(screen.getByText('Boshqa variant'))
+      await screen.findByText("Qorong'i uslub")
+      await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2))
+      expect(onOpenChange).not.toHaveBeenCalledWith(false)
+      expect(screen.getByRole('dialog')).toHaveAttribute('data-variant', 'side')
+    } finally { restore() }
+  })
+
+  it('in the side panel the style cards sit three to a row, names in full', () => {
+    const restore = screenWidth(true)
+    try {
+      renderSheet()
+      const grid = screen.getByRole('button', { name: "Qorong'i" }).parentElement!
+      expect(grid.className).toContain('grid-cols-3')
+      expect(grid.className).not.toContain('sm:grid-cols-5')
+    } finally { restore() }
+  })
+
   it('on a narrow screen it stays the bottom sheet', () => {
     const restore = screenWidth(false)
     try {

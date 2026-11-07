@@ -317,7 +317,8 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     setPlan(next)
     setParts(nextParts)
     newSource({ kind: "ai", plan: next, wallIds: wallIds ? wallIds.split("|") : [] })
-    close() // the sheet covers and dims the room: show the design
+    // The sheet covers and dims the room: close it to show the design. The side panel leaves it in view.
+    if (!wide) close()
     await commit(next, nextParts)
   }
 
@@ -333,7 +334,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
     setPlan(next)
     setParts(nextParts)
     newSource({ kind: "preset", id })
-    close()
+    if (!wide) close()
     await commit(next, nextParts)
   }
 
@@ -477,7 +478,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
         <RoomTypePicker roomId={roomId} fallback={roomTypeProp} disabled={running} preselectGuess />
         <div className="space-y-1.5">
           <p className="text-xs font-semibold text-gray-500">{t("ai.tayyor_uslublar")}</p>
-          <PresetCards onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy} />
+          <PresetCards narrow={wide} onPick={(id) => void usePreset(id)} selected={source?.kind === "preset" ? source.id : null} disabled={roomsBusy} />
         </div>
 
         <form onSubmit={generate} className="space-y-2">
