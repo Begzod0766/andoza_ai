@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import type { EstimateResponse } from "@/lib/api";
 import { SmetaAskDrawer } from "@/components/smeta/SmetaAskDrawer";
 import { CategorySection } from "@/components/smeta/CategorySection";
+import { SmetaSectionNav } from "@/components/smeta/SmetaSectionNav";
 import { CostBreakdown } from "@/components/smeta/CostBreakdown";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { StudioMenu } from "@/components/studio/StudioMenu";
@@ -263,6 +264,30 @@ export default function SmetaPage() {
 
   const allFolded = groups.length > 0 && groups.every((g) => folded.has(g.key));
 
+  // The section being read: the last whose top has passed under the sticky bar.
+  const [activeGroup, setActiveGroup] = useState<GroupKey | null>(null);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined" || groups.length < 2) return;
+    const seen = new Map<string, boolean>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const e of entries) seen.set((e.target as HTMLElement).dataset.group ?? "", e.isIntersecting);
+      const first = groups.find((g) => seen.get(g.key));
+      if (first) setActiveGroup(first.key);
+    }, { rootMargin: "-120px 0px -55% 0px" });
+    for (const g of groups) {
+      const el = document.getElementById(`smeta-section-${g.key}`);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [groups]);
+
+  /** Opens a folded section and brings it under the sticky bar. */
+  function jumpToGroup(key: GroupKey) {
+    setFolded((prev) => (prev.has(key) ? new Set([...prev].filter((k) => k !== key)) : prev));
+    setActiveGroup(key);
+    requestAnimationFrame(() => document.getElementById(`smeta-section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
   return (
     <div className="min-h-screen bg-paper">
       {estimate && view && !heroVisible && (
@@ -278,6 +303,9 @@ export default function SmetaPage() {
             >
               ↑
             </button>
+          </div>
+          <div className="mx-auto max-w-3xl px-4 pb-2">
+            <SmetaSectionNav groups={groups} active={activeGroup} onPick={jumpToGroup} fmt={fmt} />
           </div>
         </div>
       )}

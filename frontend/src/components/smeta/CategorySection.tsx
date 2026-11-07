@@ -47,7 +47,7 @@ export function CategorySection({
   const panelId = `smeta-group-${group.key}`;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-panel" data-group={group.key}>
+    <section id={`smeta-section-${group.key}`} className="scroll-mt-28 overflow-hidden rounded-2xl border border-line bg-card shadow-panel" data-group={group.key}>
       <button
         type="button"
         onClick={onToggle}
