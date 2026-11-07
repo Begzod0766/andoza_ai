@@ -1174,3 +1174,50 @@ describe('AiBuilderSheet layout by screen width', () => {
     } finally { restore() }
   })
 })
+
+describe('AiBuilderSheet tabs: ready-made style, own words, from a picture', () => {
+  const tab = (name: RegExp) => screen.getByRole('tab', { name })
+
+  it('opens on the ready-made styles: their cards shown, the request box and picture controls not', () => {
+    renderSheet()
+    expect(screen.getAllByRole('tab')).toHaveLength(3)
+    expect(tab(/tayyor uslub/i)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: "Qorong'i" })).toBeVisible()
+    expect(screen.getByLabelText('Dizayn tavsifi')).not.toBeVisible()
+    expect(screen.getByLabelText('Pinterest havolasi')).not.toBeVisible()
+  })
+
+  it('"own words" shows the request box and the examples, not the cards or the picture controls', () => {
+    renderSheet()
+    fireEvent.click(tab(/o'z so'zim/i))
+    expect(tab(/o'z so'zim/i)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByLabelText('Dizayn tavsifi')).toBeVisible()
+    expect(screen.getByText(i18n.t('ai.ai_namunalari'))).toBeVisible()
+    expect(screen.getByRole('button', { name: "Qorong'i", hidden: true })).not.toBeVisible()
+    expect(screen.getByLabelText('Pinterest havolasi')).not.toBeVisible()
+  })
+
+  it('"from a picture" shows the image and Pinterest controls with the request box, not the examples', () => {
+    renderSheet()
+    fireEvent.click(tab(/rasmdan/i))
+    expect(screen.getByText(i18n.t('ai.rasm_qoshish'))).toBeVisible()
+    expect(screen.getByLabelText('Pinterest havolasi')).toBeVisible()
+    expect(screen.getByLabelText('Dizayn tavsifi')).toBeVisible()
+    expect(screen.getByText(i18n.t('ai.ai_namunalari'))).not.toBeVisible()
+  })
+
+  it('a Pinterest link handed in on opening shows the picture tab', () => {
+    renderSheet({ initialPinUrl: 'https://www.pinterest.com/pin/123456789/' })
+    expect(tab(/rasmdan/i)).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('a pin link pasted into the request box moves to the picture tab, where it shows', () => {
+    renderSheet()
+    fireEvent.click(tab(/o'z so'zim/i))
+    fireEvent.paste(screen.getByLabelText('Dizayn tavsifi'), {
+      clipboardData: { getData: () => 'https://www.pinterest.com/pin/123456789/' },
+    })
+    expect(tab(/rasmdan/i)).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText(i18n.t('ai.pin_chip'))).toBeVisible()
+  })
+})
