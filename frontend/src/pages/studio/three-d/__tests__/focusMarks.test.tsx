@@ -50,3 +50,14 @@ describe('useRoomFocus', () => {
     expect(result.current[0]).toBeNull()
   })
 })
+
+describe('a neighbouring room\'s mark opens that room', () => {
+  // Prod (2026-11-07): a sibling's mark only showed that room alone, while the header, the stages and
+  // every edit stayed on the room in the URL. "Flat" then "Room" went back to that other room.
+  it('a mark of a room not shown alone opens it; the mark of the one shown alone goes back to the flat', async () => {
+    const { siblingMarkTap } = await import('@/lib/roomFocus')
+    expect(siblingMarkTap(null, 'mehmonxona')).toBe('open')
+    expect(siblingMarkTap('room', 'mehmonxona')).toBe('open')
+    expect(siblingMarkTap('mehmonxona', 'mehmonxona')).toBe('flat')
+  })
+})
