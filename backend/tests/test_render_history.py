@@ -150,3 +150,30 @@ class TestRoutes:
             res = client.post("/api/v1/render", files={"file": ("s.jpg", b"\xff\xd8x", "image/jpeg")}, data={"room_id": str(room)})
         assert res.status_code == 202
         assert delay.call_args.args[4] == str(room)
+
+
+class TestAllRenders:
+    """GET /renders/all: every room's renders for the "Renderlarim" page, a page at a time, with the room's name."""
+
+    def test_lists_with_room_names_and_says_if_more_follow(self, client):
+        rows = [(_row(client.user.id), "Mehmonxona"), (_row(client.user.id), None), (_row(client.user.id), "Oshxona")]
+        client.db.execute.return_value = MagicMock(all=lambda: rows)
+        res = client.get("/api/v1/renders/all", params={"limit": 2, "offset": 0})
+        assert res.status_code == 200
+        body = res.json()
+        assert [i["room_name"] for i in body["items"]] == ["Mehmonxona", None]
+        assert body["has_more"] is True
+
+    def test_the_last_page_has_no_more(self, client):
+        client.db.execute.return_value = MagicMock(all=lambda: [(_row(client.user.id), "Zal")])
+        body = client.get("/api/v1/renders/all", params={"limit": 2, "offset": 4}).json()
+        assert len(body["items"]) == 1 and body["has_more"] is False
+
+    def test_only_the_callers_renders_from_the_offset(self, client):
+        client.db.execute.return_value = MagicMock(all=lambda: [])
+        client.get("/api/v1/renders/all", params={"limit": 24, "offset": 48})
+        stmt = client.db.execute.await_args.args[0]
+        sql = str(stmt)
+        assert "room_renders.user_id" in sql and "LEFT OUTER JOIN rooms" in sql
+        compiled = stmt.compile(compile_kwargs={"literal_binds": True})
+        assert "OFFSET 48" in str(compiled) and "LIMIT 25" in str(compiled)

@@ -141,3 +141,13 @@ export async function waitForRender(jobId: string, signal?: AbortSignal): Promis
   }
   throw new Error(i18n.t("errors.render_timeout"));
 }
+
+/** A saved render with the name of its room (null for a draft or a room since deleted). */
+export interface SavedRenderWithRoom extends SavedRender {
+  room_name: string | null;
+}
+
+/** Every room's saved renders, newest first, a page at a time (the "Renderlarim" page). */
+export async function listAllRenders(offset: number, limit: number): Promise<{ items: SavedRenderWithRoom[]; has_more: boolean }> {
+  return apiClient(`/renders/all?offset=${offset}&limit=${limit}`);
+}
