@@ -1240,3 +1240,46 @@ describe('AiBuilderSheet tabs: ready-made style, own words, from a picture', () 
     expect(screen.getByText(i18n.t('ai.pin_chip'))).toBeVisible()
   })
 })
+
+describe('AiBuilderSheet: what to change, chosen before the design', () => {
+  const chip = (name: string) => screen.getByRole('button', { name, pressed: undefined })
+
+  it('offers walls, floor, lights and furniture, all on to begin with', () => {
+    renderSheet()
+    for (const name of ['Devor', 'Pol', 'Chiroq', 'Mebel']) {
+      expect(screen.getByRole('button', { name, pressed: true })).toBeInTheDocument()
+    }
+  })
+
+  it('a ready-made style leaves out what was switched off beforehand', async () => {
+    const onSave = savesOk()
+    renderSheet({ onSave })
+    fireEvent.click(chip('Mebel'))
+    expect(screen.getByRole('button', { name: 'Mebel', pressed: false })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: "Qorong'i" }))
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1))
+    const s = useRoomStore.getState()
+    expect(s.designState.wallCoverings.ALL).toEqual({ kind: 'paint', color: '#2c2c2c' })
+    expect(s.furniture).toHaveLength(0)
+  })
+
+  it('an AI design leaves out what was switched off beforehand', async () => {
+    aiDesign.mockResolvedValueOnce(PLAN)
+    renderSheet()
+    fireEvent.click(chip('Devor'))
+    await generate()
+    await waitFor(() => expect(useRoomStore.getState().furniture).toHaveLength(1))
+    const s = useRoomStore.getState()
+    expect(s.designState.wallCoverings.ALL).not.toEqual({ kind: 'paint', color: '#2c2c2c' })
+    expect(s.designState.floorType).toBe('parquet')
+  })
+
+  it('with nothing chosen there is nothing to design: the styles and the button wait, and say why', () => {
+    renderSheet()
+    for (const name of ['Devor', 'Pol', 'Chiroq', 'Mebel']) fireEvent.click(chip(name))
+    expect(screen.getByText(i18n.t('ai.kamida_bitta_qism'))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Qorong'i" })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
+    expect(screen.getByText('Dizayn yaratish').closest('button')).toBeDisabled()
+  })
+})
