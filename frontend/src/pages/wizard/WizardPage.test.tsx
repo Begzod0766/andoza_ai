@@ -376,3 +376,70 @@ describe('WizardPage in Russian', () => {
     expect(screen.getByText(ru.wizard.devor_maydoni)).toBeTruthy()
   })
 })
+
+// ─── A new room starts from a new room (prod 2026-11-08) ──────────────────────
+// "Enter dimensions" opened the wizard on the last room's 6-wall geometry left in localStorage:
+// W1..W6, wall A 7.4 m for a bathroom, wall C 5.4 m — and no "resume?" question.
+
+const SIX_WALLS = {
+  walls: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].map((id, i) => ({ id, length: [7400, 3000, 5400, 2000, 2000, 1000][i], elements: [] })),
+  vertices: [[0, 0], [7400, 0], [7400, 3000], [2000, 3000], [2000, 5000], [0, 5000]],
+}
+const renderAt = (path: string) => render(<MemoryRouter initialEntries={[path]}><WizardPage /></MemoryRouter>)
+const lengths = () => useRoomStore.getState().geometry.walls.map((w) => `${w.id}${w.length}`).join(' ')
+
+describe('WizardPage – a new room does not inherit the last room', () => {
+  it('opened from the menu with no draft, it starts from a fresh 4-wall room', async () => {
+    useRoomStore.setState({ geometry: SIX_WALLS as never, furniture: [{ id: 'f' } as never], ceilingHeight: 3100 })
+    renderAt('/wizard')
+    await waitFor(() => expect(lengths()).toBe('A4000 B3000 C4000 D3000'))
+    expect(useRoomStore.getState().furniture).toEqual([])
+  })
+
+  it('with a draft not yet past the first step, it starts fresh too', async () => {
+    useRoomStore.setState({ geometry: SIX_WALLS as never, draftId: 'draft-1' })
+    renderAt('/wizard')
+    await waitFor(() => expect(lengths()).toBe('A4000 B3000 C4000 D3000'))
+    expect(useRoomStore.getState().draftId).toBe('draft-1')
+  })
+
+  it.each(['/wizard?from=draw', '/wizard?from=scan'])('a drawn or scanned room handed over (%s) is kept', async (path) => {
+    useRoomStore.setState({ geometry: SIX_WALLS as never })
+    renderAt(path)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(useRoomStore.getState().geometry.walls).toHaveLength(6)
+  })
+})
+
+describe('WizardPage – in a rectangle, C follows A and D follows B', () => {
+  async function toWall(name: string) {
+    fireEvent.click(screen.getByText('Keyingi'))
+    await waitFor(() => expect(screen.getByRole('heading', { name })).toBeTruthy())
+  }
+  const wall = (id: string) => useRoomStore.getState().geometry.walls.find((w) => w.id === id)!.length
+
+  it('setting A and B sets C and D while they still match', async () => {
+    renderAt('/wizard')
+    await toWall('A devor')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2.5' } })
+    expect(wall('A')).toBe(2500)
+    expect(wall('C')).toBe(2500)
+    await toWall('B devor')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
+    expect(wall('D')).toBe(2000)
+  })
+
+  it('a C the user set apart is left alone', async () => {
+    useRoomStore.setState({ geometry: { walls: [
+      { id: 'A', length: 4000, elements: [] }, { id: 'B', length: 3000, elements: [] },
+      { id: 'C', length: 3500, elements: [] }, { id: 'D', length: 3000, elements: [] },
+    ] } as never, draftId: 'draft-1' })
+    const api = await import('@/lib/api')
+    vi.mocked(api.getDraftRoom).mockResolvedValueOnce({ id: 'draft-1', state: { wizardStep: 1, geometry: useRoomStore.getState().geometry }, created_at: '', updated_at: '' } as never)
+    renderAt('/wizard')
+    fireEvent.click(await screen.findByText(/davom etish/i))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'A devor' })).toBeTruthy())
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2.5' } })
+    expect(wall('C')).toBe(3500)
+  })
+})
