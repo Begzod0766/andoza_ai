@@ -42,3 +42,27 @@ def test_norms_have_every_price():
     assert set(n["pipe_m_uzs"]) == {"drain_50", "drain_110", "water_20"}
     assert n["fitting_set_uzs"] > 0 and n["work_point_uzs"] > 0
     assert set(n["work_fixture_uzs"]) == {"bathtub", "sink", "toilet", "shower", "bidet"}
+
+
+# ─── Fixture points derived on the server (a room that never saved any) ──────
+
+POINT_CASES = json.loads((FIXTURE.parent / "fixturePoints.json").read_text(encoding="utf-8"))["cases"]
+
+
+def _metres(g):
+    out = {"walls": [{**w, "length": w["length"] / 1000} for w in g["walls"]]}
+    if g.get("vertices"):
+        out["vertices"] = [[x / 1000, z / 1000] for x, z in g["vertices"]]
+    return out
+
+
+@pytest.mark.parametrize("case", POINT_CASES, ids=[c["name"] for c in POINT_CASES])
+def test_fixture_points_match_the_studio(case):
+    from app.services.plumbing import fixture_points
+    assert fixture_points(case["fixture"], case["role"], case["depthM"], _metres(case["geometry"])) == case["expected"]
+
+
+def test_a_piece_that_is_not_a_fixture_brings_no_points():
+    from app.services.plumbing import fixture_points
+    case = POINT_CASES[0]
+    assert fixture_points(case["fixture"], "sofa", 0.9, _metres(case["geometry"])) == []

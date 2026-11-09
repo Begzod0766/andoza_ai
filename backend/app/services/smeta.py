@@ -1404,6 +1404,29 @@ def _saved_riser(state: dict, geometry: dict) -> tuple[str, float] | None:
     return (str(saved["wallId"]), _float(saved.get("positionMm")))
 
 
+def _derived_points(room: "Room", catalog: dict, names: dict[str, str]) -> list[dict]:
+    """A room saved before plumbing existed (no ``plumbing`` key): its fixtures' points, worked out
+    as the studio works them out (app.services.plumbing.fixture_points), so its estimate has the
+    pipes without the room being opened first. The studio saves the same points when it is opened."""
+    from app.services.plumbing import fixture_points
+
+    geometry = _plumbing_geometry(room)
+    out: list[dict] = []
+    for item in (room.state or {}).get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        role = _fixture_role(fid, row, {**names, **({fid: str(item["name"])} if item.get("name") else {})})
+        if role is None:
+            continue
+        depth = (_float(getattr(row, "footprint_d", None)) or 60) / 100 * (_float(item.get("scaleOverride")) or 1)
+        out.extend(fixture_points(item, role, depth, geometry))
+    return out
+
+
 def _pipe_kind(point: dict) -> str:
     if point.get("kind") != "drain":
         return "water_20"
@@ -1463,8 +1486,9 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     # Pipes, from the points saved with the room.
     # A fixture's point whose fixture is gone (a design replaced it) belongs to nothing: not priced.
     placed_ids = {item.get("id") for item in state.get("furniture") or [] if isinstance(item, dict)}
+    saved_points = state.get("plumbing") if "plumbing" in state else _derived_points(room, catalog, names)
     points = [
-        p for p in state.get("plumbing") or []
+        p for p in saved_points or []
         if isinstance(p, dict) and p.get("wallId") and (not p.get("fixtureId") or p.get("fixtureId") in placed_ids)
     ]
     if points:

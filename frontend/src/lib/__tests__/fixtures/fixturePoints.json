@@ -1,0 +1,633 @@
+{
+ "_doc": "Fixture points from the studio (lib/plumbingPoints fixturePoints), shared with backend tests/test_plumbing.py so the estimate derives the same points for a room that never saved any. Geometry in mm (studio units); the backend converts to metres. Regenerate only with the studio code it checks.",
+ "cases": [
+  {
+   "name": "rect bathtub on A",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "fixture": {
+    "id": "bathtub1",
+    "furniture_id": "bathtub1",
+    "x": 300,
+    "y": -610,
+    "rotation": 0
+   },
+   "role": "bathtub",
+   "depthM": 0.7,
+   "expected": [
+    {
+     "id": "bathtub1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1550,
+     "heightMm": 150,
+     "fixtureId": "bathtub1"
+    },
+    {
+     "id": "bathtub1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1450,
+     "heightMm": 700,
+     "fixtureId": "bathtub1"
+    },
+    {
+     "id": "bathtub1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1650,
+     "heightMm": 700,
+     "fixtureId": "bathtub1"
+    }
+   ]
+  },
+  {
+   "name": "rect toilet on B",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "fixture": {
+    "id": "toilet1",
+    "furniture_id": "toilet1",
+    "x": 860,
+    "y": -400,
+    "rotation": -1.5707963267948966
+   },
+   "role": "toilet",
+   "depthM": 0.7,
+   "expected": [
+    {
+     "id": "toilet1:drain",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "B",
+     "positionMm": 600,
+     "heightMm": 200,
+     "fixtureId": "toilet1"
+    },
+    {
+     "id": "toilet1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 200,
+     "fixtureId": "toilet1"
+    }
+   ]
+  },
+  {
+   "name": "rect sink on C",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "fixture": {
+    "id": "sink1",
+    "furniture_id": "sink1",
+    "x": 500,
+    "y": 650,
+    "rotation": 3.141592653589793
+   },
+   "role": "sink",
+   "depthM": 0.62,
+   "expected": [
+    {
+     "id": "sink1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "C",
+     "positionMm": 750,
+     "heightMm": 500,
+     "fixtureId": "sink1"
+    },
+    {
+     "id": "sink1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 650,
+     "heightMm": 550,
+     "fixtureId": "sink1"
+    },
+    {
+     "id": "sink1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 850,
+     "heightMm": 550,
+     "fixtureId": "sink1"
+    }
+   ]
+  },
+  {
+   "name": "rect shower on D",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "fixture": {
+    "id": "shower1",
+    "furniture_id": "shower1",
+    "x": -710,
+    "y": 200,
+    "rotation": 1.5707963267948966
+   },
+   "role": "shower",
+   "depthM": 1,
+   "expected": [
+    {
+     "id": "shower1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "D",
+     "positionMm": 800,
+     "heightMm": 0,
+     "fixtureId": "shower1"
+    },
+    {
+     "id": "shower1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 700,
+     "heightMm": 1050,
+     "fixtureId": "shower1"
+    },
+    {
+     "id": "shower1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 900,
+     "heightMm": 1050,
+     "fixtureId": "shower1"
+    }
+   ]
+  },
+  {
+   "name": "L-room sink on wall 3",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 4000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1500,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "5",
+      "length": 3500,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      4000,
+      0
+     ],
+     [
+      4000,
+      2000
+     ],
+     [
+      2000,
+      2000
+     ],
+     [
+      2000,
+      3500
+     ],
+     [
+      0,
+      3500
+     ]
+    ]
+   },
+   "fixture": {
+    "id": "sink1",
+    "furniture_id": "sink1",
+    "x": -350,
+    "y": 1017,
+    "rotation": -1.5707963267948966
+   },
+   "role": "sink",
+   "depthM": 0.62,
+   "expected": [
+    {
+     "id": "sink1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "3",
+     "positionMm": 850,
+     "heightMm": 500,
+     "fixtureId": "sink1"
+    },
+    {
+     "id": "sink1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 750,
+     "heightMm": 550,
+     "fixtureId": "sink1"
+    },
+    {
+     "id": "sink1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 950,
+     "heightMm": 550,
+     "fixtureId": "sink1"
+    }
+   ]
+  },
+  {
+   "name": "L-room bathtub on wall 0",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 4000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1500,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "5",
+      "length": 3500,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      4000,
+      0
+     ],
+     [
+      4000,
+      2000
+     ],
+     [
+      2000,
+      2000
+     ],
+     [
+      2000,
+      3500
+     ],
+     [
+      0,
+      3500
+     ]
+    ]
+   },
+   "fixture": {
+    "id": "bathtub1",
+    "furniture_id": "bathtub1",
+    "x": -800,
+    "y": -1443,
+    "rotation": 0
+   },
+   "role": "bathtub",
+   "depthM": 0.7,
+   "expected": [
+    {
+     "id": "bathtub1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "0",
+     "positionMm": 1200,
+     "heightMm": 150,
+     "fixtureId": "bathtub1"
+    },
+    {
+     "id": "bathtub1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "0",
+     "positionMm": 1100,
+     "heightMm": 700,
+     "fixtureId": "bathtub1"
+    },
+    {
+     "id": "bathtub1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "0",
+     "positionMm": 1300,
+     "heightMm": 700,
+     "fixtureId": "bathtub1"
+    }
+   ]
+  },
+  {
+   "name": "L-room toilet on wall 5",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 4000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1500,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "5",
+      "length": 3500,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      4000,
+      0
+     ],
+     [
+      4000,
+      2000
+     ],
+     [
+      2000,
+      2000
+     ],
+     [
+      2000,
+      3500
+     ],
+     [
+      0,
+      3500
+     ]
+    ]
+   },
+   "fixture": {
+    "id": "toilet1",
+    "furniture_id": "toilet1",
+    "x": -1610,
+    "y": -683,
+    "rotation": 1.5707963267948966
+   },
+   "role": "toilet",
+   "depthM": 0.7,
+   "expected": [
+    {
+     "id": "toilet1:drain",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "5",
+     "positionMm": 2350,
+     "heightMm": 200,
+     "fixtureId": "toilet1"
+    },
+    {
+     "id": "toilet1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "5",
+     "positionMm": 2250,
+     "heightMm": 200,
+     "fixtureId": "toilet1"
+    }
+   ]
+  },
+  {
+   "name": "clockwise room bidet on wall 2",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 3000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2200,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 3000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 2200,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      0,
+      2200
+     ],
+     [
+      3000,
+      2200
+     ],
+     [
+      3000,
+      0
+     ]
+    ]
+   },
+   "fixture": {
+    "id": "bidet1",
+    "furniture_id": "bidet1",
+    "x": 1185,
+    "y": 500,
+    "rotation": -1.5707963267948966
+   },
+   "role": "bidet",
+   "depthM": 0.55,
+   "expected": [
+    {
+     "id": "bidet1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "2",
+     "positionMm": 600,
+     "heightMm": 200,
+     "fixtureId": "bidet1"
+    },
+    {
+     "id": "bidet1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 500,
+     "heightMm": 250,
+     "fixtureId": "bidet1"
+    },
+    {
+     "id": "bidet1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 700,
+     "heightMm": 250,
+     "fixtureId": "bidet1"
+    }
+   ]
+  }
+ ]
+}
