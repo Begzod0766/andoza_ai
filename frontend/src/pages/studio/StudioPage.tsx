@@ -498,6 +498,8 @@ export default function StudioPage() {
       // loadRoom last: authoritative ids + geometry (with door/window elements)
       // from the API override whatever the state blob carried.
       useRoomStore.getState().loadRoom(apiRoom);
+      // Saved before plumbing existed: the fixtures get their points (and the autosave writes them).
+      if (state && !("plumbing" in state)) useRoomStore.getState().seedFixturePoints();
       loadedAtRef.current = apiRoom.updated_at ?? null;
       if (useRoomStore.getState().userFurniture.length === 0 && keepUserFurniture.length > 0) {
         useRoomStore.setState({ userFurniture: keepUserFurniture });
@@ -516,6 +518,7 @@ export default function StudioPage() {
     if (apiRoom.updated_at && apiRoom.updated_at === loadedAtRef.current) return;
     loadDraftState(state);
     useRoomStore.getState().loadRoom(apiRoom);
+    if (!("plumbing" in state)) useRoomStore.getState().seedFixturePoints();
     loadedAtRef.current = apiRoom.updated_at ?? null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiRoom]);
