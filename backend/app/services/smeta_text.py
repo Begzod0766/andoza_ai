@@ -126,6 +126,11 @@ _LABEL_HEADS = {
     "Shift": "shift",
     "Shift profili": "shift_profili",
     "LED lenta": "led_lenta",
+    "Santexnika": "santexnika",
+    # A shop's pipe: "Kanalizatsiya quvuri Ø50: <product>".
+    "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
+    "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
+    "Suv quvuri PPR Ø20": "pipe_water_20",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -137,6 +142,16 @@ _WHOLE_LABELS = {
     "Elektr kabel": "kabel",
     "Elektr kabel (taxminiy)": "kabel_approx",
     "Bo'yoq (material tanlanmagan)": "boyoq_none",
+    "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
+    "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
+    "Suv quvuri PPR Ø20": "pipe_water_20",
+    "Fitinglar": "fittings",
+    "Ish: nuqtani ulash": "work_point",
+    "Ish: vanna o'rnatish": "work_bathtub",
+    "Ish: rakovina o'rnatish": "work_sink",
+    "Ish: unitaz o'rnatish": "work_toilet",
+    "Ish: dush o'rnatish": "work_shower",
+    "Ish: bide o'rnatish": "work_bidet",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.
@@ -195,7 +210,7 @@ def localize_label(label: str, lang: str) -> str:
 # ---------------------------------------------------------------------------
 
 # Units counted in whole things, which take the plural of the quantity.
-_COUNTED_UNITS = {"qop", "dona", "rulon", "quti", "list", "komplekt"}
+_COUNTED_UNITS = {"qop", "dona", "rulon", "quti", "list", "komplekt", "nuqta"}
 _MEASURE_UNITS = {"litr": "litr", "m": "m", "m²": "m2", "m2": "m2", "kg": "kg"}
 
 
@@ -243,12 +258,12 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
 # Things counted in whole units: the word takes the plural of the number before it.
 _FORMULA_COUNTED = {
     "qop": "unit.qop", "dona": "unit.dona", "rulon": "unit.rulon", "quti": "unit.quti",
-    "list": "unit.list", "polosa": "formula.polosa", "qatlam": "formula.qatlam", "nuqta": "formula.nuqta",
+    "list": "unit.list", "komplekt": "unit.komplekt", "polosa": "formula.polosa", "qatlam": "formula.qatlam", "nuqta": "formula.nuqta",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|polosa|qatlam|nuqta|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)"
     r"(?=\Z|[\s);,])"
 )
 

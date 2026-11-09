@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from app.services.smeta import ComputedLine
 
-GROUP_ORDER = ("tayyorlash", "pardoz", "pol", "shift", "elektr", "jihoz", "boshqa")
+GROUP_ORDER = ("tayyorlash", "pardoz", "pol", "shift", "elektr", "santexnika", "jihoz", "boshqa")
 
 GROUP_LABEL = {
     "tayyorlash": "Devorni tayyorlash",
@@ -20,6 +20,7 @@ GROUP_LABEL = {
     "pol": "Pol va plintus",
     "shift": "Shift",
     "elektr": "Elektr va yoritish",
+    "santexnika": "Santexnika",
     "jihoz": "Mebel va jihozlar",
     "boshqa": "Boshqa xarajatlar",
 }
@@ -31,6 +32,7 @@ GROUP_COLOUR = {
     "pol": "#F59E0B",
     "shift": "#14B8A6",
     "elektr": "#8B5CF6",
+    "santexnika": "#0EA5E9",
     "jihoz": "#10B981",
     "boshqa": "#94A3B8",
 }
@@ -49,6 +51,7 @@ CATEGORY_TO_GROUP = {
     "elektr": "elektr",
     "chiroq": "elektr",
     "jihoz": "jihoz",
+    "santexnika": "santexnika",
 }
 
 

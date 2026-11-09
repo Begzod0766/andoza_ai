@@ -10,6 +10,7 @@ no I/O) is handed a plain dict.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any, Iterable
 
@@ -20,7 +21,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.models.furniture import Furniture
 from app.models.material import Material
 from app.models.wallpaper import Wallpaper
-from app.services.smeta import WallpaperRoll, furniture_catalog_key, wallpaper_catalog_key
+from app.services.smeta import WallpaperRoll, _price_per, furniture_catalog_key, wallpaper_catalog_key
 
 log = structlog.get_logger(__name__)
 
@@ -65,6 +66,33 @@ def pick_median_finishes(materials: Iterable[Material]) -> dict[str, Material]:
         key: sorted(items, key=unit_cost)[(len(items) - 1) // 2]
         for key, items in groups.items()
     }
+
+
+# A shop's plumbing pipe, told apart by its name (shops do not tag pipes with a smeta_key): the
+# estimate's "pipe:<kind>" lines (app.services.smeta._plumbing_lines).
+_PIPE_NAMES: dict[str, re.Pattern[str]] = {
+    "pipe:drain_110": re.compile(r"(?:Ø|ф|d)\s*110|\b110\s*мм|\b110\s*mm", re.I),
+    "pipe:drain_50": re.compile(r"(?:Ø|ф|d)\s*50|\b50\s*мм|\b50\s*mm", re.I),
+    "pipe:water_20": re.compile(r"\bPPR\b.*\b20\b|\b20\b.*\bPPR\b|ППР.*\b20\b", re.I),
+}
+
+
+def pick_pipes(materials: Iterable[Material]) -> dict[str, Material]:
+    """{"pipe:<kind>": the cheapest active santexnika pipe of that kind per metre}. A product
+    whose metre price cannot be told (no metre unit, no pack length) is left out."""
+    best: dict[str, tuple[int, Material]] = {}
+    for m in materials:
+        if not m.is_active or str(m.category) != "santexnika":
+            continue
+        per_m = _price_per(m, "m")
+        if not per_m:
+            continue
+        for key, pattern in _PIPE_NAMES.items():
+            if pattern.search(m.name_uz or ""):
+                if key not in best or per_m < best[key][0]:
+                    best[key] = (per_m, m)
+                break
+    return {key: m for key, (_, m) in best.items()}
 
 
 async def _shop_wallpapers(db: Any) -> dict[str, WallpaperRoll]:
@@ -144,12 +172,13 @@ async def load_estimate_catalog(db: Any, room: Any = None) -> dict[str, Any]:
             .options(selectinload(Material.store))
             .where(
                 Material.is_active.is_(True),
-                or_(Material.smeta_key.is_not(None), Material.category.in_(list(FINISH_UNITS))),
+                or_(Material.smeta_key.is_not(None), Material.category.in_([*FINISH_UNITS, "santexnika"])),
             )
         )
         rows = result.scalars().all()
         return {
-            **pick_cheapest(rows), **pick_median_finishes(rows), **await _shop_wallpapers(db), **furniture,
+            **pick_cheapest(rows), **pick_median_finishes(rows), **pick_pipes(rows),
+            **await _shop_wallpapers(db), **furniture,
         }
     except Exception as exc:
         log.warning("estimate_catalog.load_failed", error=str(exc))

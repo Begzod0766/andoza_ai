@@ -1271,6 +1271,28 @@ def furniture_catalog_key(furniture_id: str) -> str:
     return f"furniture:{furniture_id}"
 
 
+PLUMBING_ROLES = ("bathtub", "sink", "toilet", "shower", "bidet")
+# "Ish: <fixture> o'rnatish": the fixture's plain Uzbek name.
+FIXTURE_WORK_NAMES = {"bathtub": "vanna", "sink": "rakovina", "toilet": "unitaz", "shower": "dush", "bidet": "bide"}
+PLUMBING_RESERVE = 1.15
+PIPE_LABELS = {
+    "drain_50": "Kanalizatsiya quvuri Ø50",
+    "drain_110": "Kanalizatsiya quvuri Ø110",
+    "water_20": "Suv quvuri PPR Ø20",
+}
+PLUMBING_NORM_WARNING = "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi."
+
+
+def _fixture_role(furniture_id: str, row: object, names: dict[str, str]) -> str | None:
+    """The plumbing role of a placed piece (bathtub, sink, ...), or None for anything else. Read
+    from its name the same way the studio reads it (lib/furnitureRole.ts)."""
+    from app.services.ai_designer import infer_role  # ai_designer imports this module
+
+    name = (getattr(row, "name_uz", None) if row is not None else None) or names.get(furniture_id) or furniture_id
+    role = infer_role(getattr(row, "category", None) if row is not None else None, str(name))
+    return role if role in PLUMBING_ROLES else None
+
+
 def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
     """One line per distinct placed furniture item (qty = how many placed).
 
@@ -1318,6 +1340,8 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
         row = (catalog or {}).get(furniture_catalog_key(furniture_id))
         if row is not None and not getattr(row, "is_active", False):
             row = None
+        if _fixture_role(furniture_id, row, names) is not None:
+            continue  # listed under "santexnika" by _plumbing_lines
         row_price = getattr(row, "price_uzs", None) if row is not None else None
         price = (
             (int(row_price) if row_price and row_price > 0 else None)
@@ -1342,6 +1366,123 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
                 "Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q."
                 if is_approximate else None
             ),
+        ))
+    return lines
+
+
+def _plumbing_geometry(room: "Room") -> dict:
+    """The room's walls with lengths in metres: the room's own geometry, else the studio's saved
+    one (in mm)."""
+    geometry = getattr(room, "geometry", None)
+    if isinstance(geometry, dict) and geometry.get("walls"):
+        return geometry
+    state_geometry = (room.state or {}).get("geometry")
+    if isinstance(state_geometry, dict) and state_geometry.get("walls"):
+        return {**state_geometry, "walls": [
+            {**w, "length": _float(w.get("length")) / 1000} for w in state_geometry["walls"] if isinstance(w, dict)
+        ]}
+    return {"walls": []}
+
+
+def _pipe_kind(point: dict) -> str:
+    if point.get("kind") != "drain":
+        return "water_20"
+    return "drain_110" if point.get("diameterMm") == 110 else "drain_50"
+
+
+def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
+    """The "santexnika" section: each fixture placed (priced like furniture), the pipes from each
+    plumbing point to the riser (spec 2026-11-08: the shorter way round the walls plus the point's
+    height, ×1.15 reserve), one fitting set per point, and the plumber's work per point and per
+    fixture. A shop pipe product under "pipe:<kind>" prices its line; otherwise the norm does,
+    flagged approximate."""
+    from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+
+    catalog = catalog or {}
+    state: dict = room.state or {}
+    norms = load_plumbing_norms()
+    lines: list[ComputedLine] = []
+
+    # Fixtures, one line per distinct piece; and how many of each role for the work lines.
+    counts: dict[str, int] = {}
+    names: dict[str, str] = {}
+    snapshots: dict[str, int] = {}
+    for item in state.get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        counts[fid] = counts.get(fid, 0) + 1
+        if item.get("name") and fid not in names:
+            names[fid] = str(item["name"])
+        snap = item.get("unitPriceUzs")
+        if isinstance(snap, (int, float)) and snap > 0 and fid not in snapshots:
+            snapshots[fid] = int(snap)
+    roles: dict[str, int] = {}
+    for fid, qty in sorted(counts.items()):
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        role = _fixture_role(fid, row, names)
+        if role is None:
+            continue
+        roles[role] = roles.get(role, 0) + qty
+        row_price = getattr(row, "price_uzs", None) if row is not None else None
+        price = (int(row_price) if row_price and row_price > 0 else None) or snapshots.get(fid) or FURNITURE_CATALOG_PRICES_UZS.get(fid)
+        approx = price is None
+        price = price or FURNITURE_FALLBACK_PRICE_UZS
+        label = (getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid
+        lines.append(_make_line(
+            label=f"Santexnika: {label}",
+            formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
+            qty=qty, unit="dona", price_uzs=price, category="santexnika",
+            store_name=_store_name(row) if row is not None else None,
+            is_approximate=approx,
+            warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
+        ))
+
+    # Pipes, from the points saved with the room.
+    points = [p for p in state.get("plumbing") or [] if isinstance(p, dict) and p.get("wallId")]
+    if points:
+        geometry = _plumbing_geometry(room)
+        riser = riser_spot(geometry, None)
+        runs: dict[str, list[float]] = {}
+        for p in points:
+            runs.setdefault(_pipe_kind(p), []).append(pipe_run_m(geometry, p, riser))
+        for kind in ("drain_50", "drain_110", "water_20"):
+            if kind not in runs:
+                continue
+            metres = round(sum(runs[kind]) * PLUMBING_RESERVE, 2)
+            shop = catalog.get(f"pipe:{kind}")
+            shop_price = _price_per(shop, "m")
+            price = shop_price or int(norms["pipe_m_uzs"][kind])
+            each = " + ".join(f"{m:g}" for m in runs[kind])
+            lines.append(_make_line(
+                label=f"{PIPE_LABELS[kind]}: {shop.name_uz}" if shop_price else PIPE_LABELS[kind],
+                formula=f"{len(runs[kind])} nuqta: {each} m × {PLUMBING_RESERVE} = {metres:g} m",
+                qty=metres, unit="m", price_uzs=price, category="santexnika",
+                is_approximate=not shop_price,
+                warning=None if shop_price else PLUMBING_NORM_WARNING,
+                **(_shop(shop) if shop_price else {}),
+            ))
+        n = len(points)
+        lines.append(_make_line(
+            label="Fitinglar", formula=f"{n} nuqta × 1 komplekt", qty=n, unit="komplekt",
+            price_uzs=int(norms["fitting_set_uzs"]), category="santexnika",
+        ))
+        lines.append(_make_line(
+            label="Ish: nuqtani ulash",
+            formula=f"{n} nuqta × {int(norms['work_point_uzs']):,} so'm".replace(",", " "),
+            qty=n, unit="nuqta", price_uzs=int(norms["work_point_uzs"]), category="santexnika",
+        ))
+
+    for role in PLUMBING_ROLES:
+        if role not in roles:
+            continue
+        price = int(norms["work_fixture_uzs"][role])
+        lines.append(_make_line(
+            label=f"Ish: {FIXTURE_WORK_NAMES[role]} o'rnatish",
+            formula=f"{roles[role]} dona × {price:,} so'm".replace(",", " "),
+            qty=roles[role], unit="dona", price_uzs=price, category="santexnika",
         ))
     return lines
 
@@ -1882,6 +2023,7 @@ def compute_estimate(
     # 4. Furniture ("jihoz") — every distinct item the user has placed     #
     # ------------------------------------------------------------------ #
     lines.extend(_furniture_lines(room, catalog))
+    lines.extend(_plumbing_lines(room, catalog))
 
     # ------------------------------------------------------------------ #
     # 4b. Light fixtures — the purchase price of each placed light. Separate #
