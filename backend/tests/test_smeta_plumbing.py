@@ -150,3 +150,10 @@ def test_the_riser_the_studio_saved_is_the_one_the_estimate_measures_from():
     room.state["plumbingRiser"] = {"wallId": "nope", "positionMm": 5}  # a wall the room no longer has
     line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
     assert line.qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))
+
+
+def test_a_point_whose_fixture_is_gone_is_not_priced():
+    orphan = _pt("gone", "drain", "A", 500, 200, 110)
+    lines = _by_label(_plumbing_lines(_room(plumbing=PLUMBING + [orphan])))
+    assert lines["Fitinglar"].qty == 8
+    assert lines["Kanalizatsiya quvuri Ø110"].qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))

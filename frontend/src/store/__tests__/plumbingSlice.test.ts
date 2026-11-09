@@ -110,3 +110,15 @@ describe('an AI design or a ready-made style brings its fixtures\' points too', 
     expect(useRoomStore.getState().plumbing).toEqual([])
   })
 })
+
+describe('removing an uploaded model takes its placed copies\' points too (final review)', () => {
+  it('an uploaded "Unitaz" model removed leaves no orphan points', () => {
+    useRoomStore.setState({
+      furniture: [{ id: 'u1', furniture_id: 'model-1', name: 'Unitaz', x: 0, y: 0, rotation: 0 } as never],
+      plumbing: [{ id: 'u1:drain', kind: 'drain', diameterMm: 110, wallId: 'A', positionMm: 500, heightMm: 200, fixtureId: 'u1' }],
+      userFurniture: [{ id: 'model-1', name: 'Unitaz' } as never],
+    })
+    useRoomStore.getState().removeUserFurniture('model-1')
+    expect(useRoomStore.getState().plumbing).toEqual([])
+  })
+})

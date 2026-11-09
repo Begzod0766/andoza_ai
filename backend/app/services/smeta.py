@@ -1453,7 +1453,12 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         ))
 
     # Pipes, from the points saved with the room.
-    points = [p for p in state.get("plumbing") or [] if isinstance(p, dict) and p.get("wallId")]
+    # A fixture's point whose fixture is gone (a design replaced it) belongs to nothing: not priced.
+    placed_ids = {item.get("id") for item in state.get("furniture") or [] if isinstance(item, dict)}
+    points = [
+        p for p in state.get("plumbing") or []
+        if isinstance(p, dict) and p.get("wallId") and (not p.get("fixtureId") or p.get("fixtureId") in placed_ids)
+    ]
     if points:
         geometry = _plumbing_geometry(room)
         riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
