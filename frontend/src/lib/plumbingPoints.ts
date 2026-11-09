@@ -2,6 +2,7 @@ import type { PlacedFurniture, PlumbingKind, PlumbingPoint, RoomGeometry } from 
 import { inferRole, type FurnitureRole } from '@/lib/furnitureRole'
 import type { CatalogFurniture } from '@/lib/api'
 import { roomModel, WALL_GAP, type WallInfo } from '@/lib/aiDesignLayout'
+import { wallWalk } from '@/lib/plumbingRuns'
 
 type FixtureRole = 'bathtub' | 'sink' | 'toilet' | 'shower' | 'bidet'
 type Need = { kind: PlumbingKind; heightMm: number; diameterMm: 50 | 110 | 20 }
@@ -44,8 +45,9 @@ export function fixturePoints(fixture: PlacedFurniture, role: FurnitureRole, siz
   if (!wall) return []
   const back = sizeM.d / 2 + WALL_GAP
   const bx = x - Math.sin(fixture.rotation) * back, bz = z - Math.cos(fixture.rotation) * back
-  const startX = wall.midX - wall.dirX * wall.length / 2, startZ = wall.midZ - wall.dirZ * wall.length / 2
-  const along = ((bx - startX) * wall.dirX + (bz - startZ) * wall.dirZ) * 1000
+  // Measured along the walk round the room (lib/plumbingRuns' wallWalk), so a pipe run is a perimeter walk.
+  const walk = wallWalk(geometry).find((w) => w.id === wall.id)!
+  const along = ((bx - walk.startX) * walk.dirX + (bz - walk.startZ) * walk.dirZ) * 1000
   const lenMm = wall.length * 1000
   const clamp = (v: number) => Math.min(lenMm, Math.max(0, v))
   return PLUMBING_NEEDS[role].map((need) => ({

@@ -67,3 +67,12 @@ describe('fixturePoints: the points a placed fixture brings', () => {
     expect(fixturePoints(against(g, 'A', 0.9), 'sofa', { w: 2, d: 0.9 }, g)).toEqual([])
   })
 })
+
+describe('fixturePoints measure along the walk round the room (Task 6 ruling)', () => {
+  it('on wall C, which roomModel points backwards, the position counts from the corner the walk reaches C at', () => {
+    const g = rect(2500, 2000)
+    const pts = fixturePoints(against(g, 'C', 0.7, 0.3), 'bathtub', { w: 1.7, d: 0.7 }, g)
+    expect(pts[0].wallId).toBe('C')
+    expect(pts[0].positionMm).toBeCloseTo(1250 - 300, -1)
+  })
+})
