@@ -12,7 +12,7 @@
 import type { RoomGeometry } from '@/store/roomStore'
 import { roomExtents } from '@/lib/roomDims'
 import { halfExtentsToBounds, placementSpot, roomBoundsFromGeometry } from '@/lib/furnitureBounds'
-import { furnitureSpot, roomModel, WALL_GAP, type Rect } from '@/lib/aiDesignLayout'
+import { blocksOpening, furnitureSpot, overlaps, roomModel, WALL_GAP, type Rect, type RoomModel } from '@/lib/aiDesignLayout'
 import type { FurnitureRole } from '@/lib/furnitureRole'
 
 /**
@@ -114,6 +114,14 @@ export interface PlacedBox {
 
 /** The pieces that stand with their back on a wall when added; the rest go to the middle. */
 const WALL_ROLES = new Set<FurnitureRole>(['sofa', 'bed', 'wardrobe', 'shelf', 'tv_unit', 'desk', 'nightstand'])
+/**
+ * Plumbing fixtures against a wall, and the floor each must keep free in front of it to be used
+ * (spec 2026-11-08). They were read as decor and piled up in the middle of a bathroom.
+ */
+const FIXTURE_FRONT_CLEAR: Partial<Record<FurnitureRole, number>> = { bathtub: 0, sink: 0.7, toilet: 0.6, bidet: 0.6 }
+/** A bidet stands this far from the toilet's side, metres. */
+const BIDET_GAP = 0.3
+
 /** Tall enough to keep out of a window's light, as the AI layout reads them. */
 const TALL_ROLES = new Set<FurnitureRole>(['wardrobe', 'shelf', 'tv_unit'])
 
@@ -150,6 +158,28 @@ export function freeFurnitureSpotMm(
   const taken: Rect[] = placed
     .filter((p) => p.role !== 'rug')
     .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
+  if (role === 'shower') {
+    const spot = cornerFarthestFromDoor(model, size, taken)
+    if (spot) return { ...toMm(spot), onWall: true }
+  }
+  if (role === 'bidet') {
+    const toilet = placed.find((p) => p.role === 'toilet')
+    const spot = toilet ? besideToilet(model, size, taken, toilet) : null
+    if (spot) return { ...toMm(spot), onWall: true }
+  }
+  const clear = FIXTURE_FRONT_CLEAR[role]
+  if (clear !== undefined || role === 'shower' || role === 'bidet') {
+    // Searched as a box deep enough to hold its front clearance, then set back against the wall.
+    const padded = { ...size, d: size.d + (clear ?? 0) }
+    const walls = [...model.walls].sort((a, b) => b.length - a.length)
+    for (const wall of walls) {
+      const spot = furnitureSpot(`wall_${wall.id}`, padded, model, taken)
+      const onWall = Math.abs((spot.x - wall.midX) * wall.nx + (spot.z - wall.midZ) * wall.nz - (padded.d / 2 + WALL_GAP)) < 0.01
+      if (!onWall || spot.fit === 'none') continue
+      const back = (clear ?? 0) / 2
+      return { ...toMm({ x: spot.x - Math.sin(spot.rotation) * back, z: spot.z - Math.cos(spot.rotation) * back, rotation: spot.rotation }), onWall: true }
+    }
+  }
   if (WALL_ROLES.has(role)) {
     const walls = [...model.walls].sort((a, b) => b.length - a.length)
     let tight: ReturnType<typeof furnitureSpot> | null = null
@@ -172,6 +202,42 @@ export function freeFurnitureSpotMm(
   }
   const spot = furnitureSpot('center', size, model, taken)
   return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: 0 } : toMm(spot)
+}
+
+/** A shower's corner: of the free ones, the farthest from the door (the first free one with no door). */
+function cornerFarthestFromDoor(model: RoomModel, size: { w: number; d: number; tall: boolean }, taken: Rect[]) {
+  const doors = model.clear.filter((z) => z.kind === 'door').map((z) => z.rect)
+  const n = model.walls.length
+  let best: { x: number; z: number; rotation: number } | null = null
+  let bestDist = -Infinity
+  for (let i = 0; i < n; i++) {
+    const a = model.walls[i], b = model.walls[(i + 1) % n]
+    for (const [w1, w2] of [[a, b], [b, a]]) {
+      const spot = furnitureSpot(`corner_${w1.id}_${w2.id}`, size, model, taken)
+      if (spot.fit !== 'ok') continue
+      const dist = doors.length ? Math.min(...doors.map((d) => Math.hypot(spot.x - d.x, spot.z - d.z))) : 0
+      if (dist > bestDist + 1e-6) { best = spot; bestDist = dist }
+    }
+  }
+  return best
+}
+
+/** A bidet at the toilet's side, BIDET_GAP from it, turned the same way; null when neither side is free. */
+function besideToilet(model: RoomModel, size: { w: number; d: number; tall: boolean }, taken: Rect[], toilet: PlacedBox) {
+  const along = [Math.cos(toilet.rotation), -Math.sin(toilet.rotation)]
+  const front = [Math.sin(toilet.rotation), Math.cos(toilet.rotation)]
+  const shift = toilet.w / 2 + BIDET_GAP + size.w / 2
+  // Its back on the same wall: the toilet's back line, moved out by the depth difference.
+  const out = (size.d - toilet.d) / 2
+  for (const sign of [1, -1]) {
+    const x = toilet.x / 1000 + along[0] * shift * sign + front[0] * out
+    const z = toilet.y / 1000 + along[1] * shift * sign + front[1] * out
+    const r: Rect = { x, z, w: size.w, d: size.d, rotation: toilet.rotation }
+    if (model.inside(r) && !taken.some((t) => overlaps(r, t)) && !blocksOpening(r, false, model, { doors: true, windows: false })) {
+      return { x, z, rotation: toilet.rotation }
+    }
+  }
+  return null
 }
 
 function toMm(spot: { x: number; z: number; rotation: number }): { x: number; y: number; rotation: number } {
