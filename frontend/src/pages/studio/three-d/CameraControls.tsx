@@ -4,6 +4,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import { PINCH_ZOOM_SPEED, applyUniformZoom, pinchMinDistance } from "@/lib/orbitZoom";
+import { DOUBLE_TAP_MS } from "@/lib/doubleTapSelect";
 
 /**
  * Camera/orbit-control helpers: double-click-to-focus, the auto-clear
@@ -11,6 +12,11 @@ import { PINCH_ZOOM_SPEED, applyUniformZoom, pinchMinDistance } from "@/lib/orbi
  * and the preset camera animator. Split out of ThreeDPage.tsx — see that
  * file's header comment for the full picture.
  */
+
+/** A press that moves further than this is a drag, not a tap (px). */
+const TAP_MOVE_PX = 10;
+/** The second tap of a double tap lands within this of the first (px). */
+const DOUBLE_TAP_PX = 30;
 
 // Double-click navigation: focus the orbit pivot on whatever was clicked;
 // double-clicking empty space recenters on the room.
@@ -29,7 +35,7 @@ export function DoubleClickFocus({
 
   useEffect(() => {
     const el = gl.domElement;
-    const onDbl = (e: MouseEvent) => {
+    const onDbl = (e: { clientX: number; clientY: number }) => {
       const r = el.getBoundingClientRect();
       const ndc = new THREE.Vector2(
         ((e.clientX - r.left) / r.width) * 2 - 1,
@@ -46,8 +52,33 @@ export function DoubleClickFocus({
       if (hit) goal.current = hit.point.clone();
       else onEmptyRef.current();
     };
-    el.addEventListener('dblclick', onDbl);
-    return () => el.removeEventListener('dblclick', onDbl);
+    // A double tap read from pointer events, not `dblclick` (#173): a `dblclick` listener makes iOS
+    // WebKit hold every tap ~350 ms for a possible second one, and a drag started in that window (the
+    // first drag right after closing the ring) was taken as that second tap and never orbited.
+    let down: { x: number; y: number } | null = null;
+    let lastTap: { x: number; y: number; at: number } | null = null;
+    const onDown = (e: PointerEvent) => {
+      if (e.isPrimary === false) { down = null; return; } // a pinch's second finger
+      down = { x: e.clientX, y: e.clientY };
+    };
+    const onUp = (e: PointerEvent) => {
+      const d = down;
+      down = null;
+      if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_MOVE_PX) { lastTap = null; return; }
+      const now = Date.now();
+      if (lastTap && now - lastTap.at < DOUBLE_TAP_MS && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < DOUBLE_TAP_PX) {
+        lastTap = null;
+        onDbl(e);
+      } else {
+        lastTap = { x: e.clientX, y: e.clientY, at: now };
+      }
+    };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointerup', onUp);
+    };
   }, [gl, camera, scene, rc]);
 
   useFrame(() => {
