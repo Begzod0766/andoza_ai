@@ -10,10 +10,10 @@ import type { EstimateLine } from "@/lib/api";
  * furniture, and a catch-all for anything the engine (or the AI pricing) tags
  * with something we do not know.
  */
-export type GroupKey = "tayyorlash" | "pardoz" | "pol" | "shift" | "elektr" | "jihoz" | "boshqa";
+export type GroupKey = "tayyorlash" | "pardoz" | "pol" | "shift" | "elektr" | "santexnika" | "jihoz" | "boshqa";
 
 /** The order sections appear in. */
-export const GROUP_ORDER: GroupKey[] = ["tayyorlash", "pardoz", "pol", "shift", "elektr", "jihoz", "boshqa"];
+export const GROUP_ORDER: GroupKey[] = ["tayyorlash", "pardoz", "pol", "shift", "elektr", "santexnika", "jihoz", "boshqa"];
 
 const CATEGORY_TO_GROUP: Record<string, GroupKey> = {
   suvoq: "tayyorlash",
@@ -29,6 +29,7 @@ const CATEGORY_TO_GROUP: Record<string, GroupKey> = {
   elektr: "elektr",
   chiroq: "elektr",
   jihoz: "jihoz",
+  santexnika: "santexnika",
 };
 
 /** Segment and icon-bubble colours, one per group (distinct enough to tell apart in a thin bar). */
@@ -38,6 +39,7 @@ export const GROUP_COLOUR: Record<GroupKey, string> = {
   pol: "#F59E0B",
   shift: "#14B8A6",
   elektr: "#8B5CF6",
+  santexnika: "#0EA5E9",
   jihoz: "#10B981",
   boshqa: "#94A3B8",
 };

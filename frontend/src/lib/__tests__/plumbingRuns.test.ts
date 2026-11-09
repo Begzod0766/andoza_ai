@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { RoomGeometry, WallElement } from '@/store/roomStore'
 import cases from './fixtures/plumbingRuns.json'
 import { pipeRunM, riserSpot, plumbingSummary, wallWalk } from '../plumbingRuns'
+import { roomModel } from '../aiDesignLayout'
 
 const geom = (walls: Array<{ id: string; length: number }>, door?: string): RoomGeometry => ({
   walls: walls.map((w) => ({ ...w, elements: w.id === door ? [{ id: 'd', type: 'eshik', width: 700, height: 2050, sill_height: 0, position: 650 } as WallElement] : [] })),
@@ -46,5 +47,30 @@ describe('plumbingSummary', () => {
     expect(s.drain).toEqual({ points: 1, m: 1.15 })
     expect(s.water.points).toBe(2)
     expect(s.water.m).toBeCloseTo((2.0 + 2.2) * 1.15, 2)
+  })
+})
+
+describe('riserSpot: the corner nearest the door (final review)', () => {
+  const walls = cases.cases[0].walls
+  const withDoor = (wallId: string, position: number): RoomGeometry => ({
+    walls: walls.map((w) => ({ ...w, elements: w.id === wallId ? [{ id: 'd', type: 'eshik', width: 700, height: 2050, sill_height: 0, position } as WallElement] : [] })),
+  }) as RoomGeometry
+  it('a door at the far end of wall A puts the riser at the far corner of A', () => {
+    expect(riserSpot(withDoor('A', 1700))).toEqual({ wallId: 'A', positionMm: 2500 })
+    expect(riserSpot(withDoor('A', 100))).toEqual({ wallId: 'A', positionMm: 0 })
+  })
+  it('on a wall the walk runs backwards (D), it is still the corner the door is nearer to', () => {
+    for (const position of [100, 1200]) {
+      const g = withDoor('D', position)
+      const w = roomModel(g).walls.find((x) => x.id === 'D')!
+      const t = (position + 350) / 1000 - w.length / 2
+      const door = [w.midX + w.dirX * t, w.midZ + w.dirZ * t]
+      const walk = wallWalk(g).find((x) => x.id === 'D')!
+      const r = riserSpot(g)
+      const corner = [walk.startX + walk.dirX * r.positionMm / 1000, walk.startZ + walk.dirZ * r.positionMm / 1000]
+      const other = r.positionMm === 0 ? [walk.startX + walk.dirX * 2, walk.startZ + walk.dirZ * 2] : [walk.startX, walk.startZ]
+      expect(r.wallId).toBe('D')
+      expect(Math.hypot(corner[0] - door[0], corner[1] - door[1])).toBeLessThan(Math.hypot(other[0] - door[0], other[1] - door[1]))
+    }
   })
 })

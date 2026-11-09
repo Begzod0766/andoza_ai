@@ -110,3 +110,39 @@ describe('an AI design or a ready-made style brings its fixtures\' points too', 
     expect(useRoomStore.getState().plumbing).toEqual([])
   })
 })
+
+describe('removing an uploaded model takes its placed copies\' points too (final review)', () => {
+  it('an uploaded "Unitaz" model removed leaves no orphan points', () => {
+    useRoomStore.setState({
+      furniture: [{ id: 'u1', furniture_id: 'model-1', name: 'Unitaz', x: 0, y: 0, rotation: 0 } as never],
+      plumbing: [{ id: 'u1:drain', kind: 'drain', diameterMm: 110, wallId: 'A', positionMm: 500, heightMm: 200, fixtureId: 'u1' }],
+      userFurniture: [{ id: 'model-1', name: 'Unitaz' } as never],
+    })
+    useRoomStore.getState().removeUserFurniture('model-1')
+    expect(useRoomStore.getState().plumbing).toEqual([])
+  })
+})
+
+describe('a fixture\'s points follow the room when its shape changes (final review)', () => {
+  it('lengthening a wall re-measures the points of the fixture behind it', async () => {
+    const { withFixturePoints } = await import('@/lib/plumbingPoints')
+    useRoomStore.getState().placeFurniture({ id: 'tub', furniture_id: 'vanna-1', ...onWall('A') })
+    const before = useRoomStore.getState().plumbing[0].positionMm
+    useRoomStore.getState().setWallLength('A', 3000)
+    const s = useRoomStore.getState()
+    expect(s.plumbing[0].positionMm).not.toBeCloseTo(before, 0)
+    expect(s.plumbing).toEqual(withFixturePoints([], s.furniture, s.catalogFurniture, s.geometry))
+  })
+
+  it('a flat-view resize or cut (geometry and moved furniture in one go) re-measures them too', async () => {
+    const { withFixturePoints } = await import('@/lib/plumbingPoints')
+    useRoomStore.getState().placeFurniture({ id: 'tub', furniture_id: 'vanna-1', ...onWall('A') })
+    const g = { ...geometry, walls: geometry.walls.map((w) => (w.id === 'A' || w.id === 'C' ? { ...w, length: 3200 } : w)) }
+    const moved = useRoomStore.getState().furniture.map((f) => ({ ...f, x: f.x + 350 }))
+    useRoomStore.getState().applyRoomShape(g as never, { furniture: moved })
+    const s = useRoomStore.getState()
+    expect(s.geometry).toBe(g)
+    expect(s.furniture).toEqual(moved)
+    expect(s.plumbing).toEqual(withFixturePoints([], moved, s.catalogFurniture, g as never))
+  })
+})

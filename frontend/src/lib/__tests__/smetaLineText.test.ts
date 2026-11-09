@@ -126,3 +126,21 @@ describe("estimate formulas (QA re-check R10)", () => {
     expect(localizeFormula("Something new from the server", en)).toBe("Something new from the server");
   });
 });
+
+describe('plumbing lines (spec 2026-11-08)', () => {
+  it('translates the fixtures, pipes, fittings and work', () => {
+    expect(localizeLabel('Santexnika: Vanna Roca 170', ru)).toBe('Сантехника: Vanna Roca 170')
+    expect(localizeLabel('Kanalizatsiya quvuri Ø50', en)).toBe('Drain pipe Ø50')
+    expect(localizeLabel('Kanalizatsiya quvuri Ø110: Valtec', ru)).toBe('Канализационная труба Ø110: Valtec')
+    expect(localizeLabel('Suv quvuri PPR Ø20', en)).toBe('PPR water pipe Ø20')
+    expect(localizeLabel('Fitinglar', ru)).toBe('Фитинги')
+    expect(localizeLabel('Ish: nuqtani ulash', en)).toBe('Work: connecting a point')
+    expect(localizeLabel("Ish: unitaz o'rnatish", ru)).toBe('Работа: установка унитаза')
+  })
+
+  it('counts points and fitting sets in the reader\'s language', () => {
+    expect(localizeUnit('nuqta', 5, ru)).toBe('точек')
+    expect(localizeUnit('nuqta', 1, en)).toBe('point')
+    expect(localizeFormula('8 nuqta × 1 komplekt', en)).toBe('8 points × 1 set')
+  })
+})

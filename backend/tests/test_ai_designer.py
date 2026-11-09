@@ -1115,3 +1115,17 @@ def test_a_bathroom_cabinet_is_not_a_bathtub():
     assert ad.infer_role("shkaf", "Шкаф для ванной комнаты") != "bathtub"
     assert ad.infer_role("shkaf", "Vanna shkafi") != "bathtub"
     assert ad.infer_role("boshqa", "Dushanba stoli") != "shower"
+
+
+@pytest.mark.parametrize("name", [
+    "Тумба под раковину", "Шкаф под раковину", "Rakovina tumbasi", "Sink cabinet", "Vanna pardasi", "Vanna gilamchasi",
+    "Vanna uchun oyna", "Dush boshi", "Unitaz qopqog'i", "Ёршик для унитаза", "Toilet paper holder", "Зеркало для раковины",
+])
+def test_plumbing_accessories_and_cabinets_are_not_fixtures(name):
+    assert ad.infer_role("boshqa", name) not in {"bathtub", "sink", "toilet", "shower", "bidet"}
+
+
+def test_a_kitchen_sink_by_its_usual_names_is_a_sink():
+    assert ad.infer_role("boshqa", "Мойка кухонная") == "sink"
+    assert ad.infer_role("boshqa", "Oshxona moykasi") == "sink"
+    assert ad.infer_role("boshqa", "Dush kabina 90x90") == "shower"

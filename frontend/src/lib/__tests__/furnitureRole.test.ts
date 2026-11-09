@@ -101,3 +101,17 @@ describe('plumbing fixture roles (spec 2026-11-08: the shop files them all under
     for (const r of ['bathtub', 'sink', 'toilet', 'shower', 'bidet'] as const) expect(ROLE_GROUP[r]).toBe('plumbing')
   })
 })
+
+describe('plumbing roles: accessories and cabinets are not fixtures (final review)', () => {
+  it.each([
+    'Тумба под раковину', 'Шкаф под раковину', 'Rakovina tumbasi', 'Sink cabinet', 'Vanna pardasi', 'Vanna gilamchasi',
+    'Vanna uchun oyna', 'Dush boshi', "Unitaz qopqog'i", 'Ёршик для унитаза', 'Toilet paper holder', 'Зеркало для раковины',
+  ])('%s is not a fixture', (name) => {
+    expect(['bathtub', 'sink', 'toilet', 'shower', 'bidet']).not.toContain(inferRole('boshqa', name))
+  })
+  it('a kitchen sink by its usual names is a sink', () => {
+    expect(inferRole('boshqa', 'Мойка кухонная')).toBe('sink')
+    expect(inferRole('boshqa', 'Oshxona moykasi')).toBe('sink')
+    expect(inferRole('boshqa', 'Dush kabina 90x90')).toBe('shower')
+  })
+})

@@ -102,3 +102,17 @@ describe('leaving a group out of the headline figure', () => {
     expect(totalsFor([])).toEqual({ total: 0, min: 0, max: 0, approx: 0 })
   })
 })
+
+describe('the Santexnika group (spec 2026-11-08)', () => {
+  it('a santexnika line groups under santexnika, right after elektr', () => {
+    expect(groupKeyFor('santexnika')).toBe('santexnika')
+    expect(GROUP_ORDER.indexOf('santexnika')).toBe(GROUP_ORDER.indexOf('elektr') + 1)
+    const groups = groupEstimateLines([line('jihoz', 1), line('santexnika', 1), line('elektr', 1)])
+    expect(groups.map((g) => g.key)).toEqual(['elektr', 'santexnika', 'jihoz'])
+  })
+
+  it('"renovation only" (furniture left out) still counts the plumbing', () => {
+    const groups = groupEstimateLines([line('jihoz', 800), line('santexnika', 200)], new Set(['jihoz']))
+    expect(groups.map((g) => g.key)).toEqual(['santexnika'])
+  })
+})

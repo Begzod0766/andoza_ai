@@ -1043,6 +1043,7 @@
       "pol": "Floor and skirting board",
       "shift": "Ceiling",
       "elektr": "Electrics and lighting",
+      "santexnika": "Plumbing",
       "jihoz": "Furniture and fittings",
       "boshqa": "Other costs"
     },
@@ -1089,7 +1090,18 @@
       "led_niche": "LED strip (ceiling niche)",
       "kabel": "Electrical cable",
       "kabel_approx": "Electrical cable (approximate)",
-      "boyoq_none": "Paint (no product chosen)"
+      "boyoq_none": "Paint (no product chosen)",
+      "santexnika": "Plumbing",
+      "pipe_drain_50": "Drain pipe Ø50",
+      "pipe_drain_110": "Drain pipe Ø110",
+      "pipe_water_20": "PPR water pipe Ø20",
+      "fittings": "Fittings",
+      "work_point": "Work: connecting a point",
+      "work_bathtub": "Work: installing the bathtub",
+      "work_sink": "Work: installing the sink",
+      "work_toilet": "Work: installing the toilet",
+      "work_shower": "Work: installing the shower",
+      "work_bidet": "Work: installing the bidet"
     },
     "unit": {
       "qop_one": "bag",
@@ -1107,7 +1119,9 @@
       "litr": "L",
       "m": "m",
       "m2": "m²",
-      "kg": "kg"
+      "kg": "kg",
+      "nuqta_one": "point",
+      "nuqta_other": "points"
     },
     "warning": {
       "norm_missing": "No exact norm was found for this part: it is calculated with the standard rate.",
@@ -1128,7 +1142,8 @@
       "ceiling_board": "Approximate: the ceiling has a complex shape, confirm with a craftsman.",
       "ceiling_frame": "Approximate: confirm the amount of framing with a craftsman.",
       "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
-      "ai_price": "Approximate AI price (an experienced craftsman's estimate)"
+      "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
+      "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used."
     },
     "formula": {
       "wall_head": "Wall {{wall}}",

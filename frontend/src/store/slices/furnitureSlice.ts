@@ -119,9 +119,11 @@ export const createFurnitureSlice: StateCreator<
       if (placed.length === 0) {
         return { userFurniture: state.userFurniture.filter((f) => f.id !== id) }
       }
+      const furniture = state.furniture.filter((f) => f.furniture_id !== id)
       return {
         userFurniture: state.userFurniture.filter((f) => f.id !== id),
-        furniture: state.furniture.filter((f) => f.furniture_id !== id),
+        furniture,
+        plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry),
         isDirty: true,
       }
     })
