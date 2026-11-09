@@ -251,6 +251,7 @@ export default function StudioPage() {
         designState: s.designState,
         furniture: s.furniture,
         electricals: s.electricals,
+        plumbing: s.plumbing,
         lights: s.lights,
         layoutPos: s.layoutPos,
       };

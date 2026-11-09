@@ -3,6 +3,7 @@ import type { CatalogFurniture } from '@/lib/api'
 import type { FurnitureCategory, FurniturePlacement } from '@/lib/furnitureCatalog'
 import type { PlacedFurniture, UserFurnitureEntry } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
+import { withFixturePoints } from '@/lib/plumbingPoints'
 
 export interface FurnitureSlice {
   furniture: PlacedFurniture[]
@@ -60,36 +61,30 @@ export const createFurnitureSlice: StateCreator<
             unitPriceUzs: item.unitPriceUzs ?? priceSource,
           }
         : item
-      return {
-        isDirty: true,
-        furniture: [...state.furniture, enriched],
-      }
+      const furniture = [...state.furniture, enriched]
+      return { isDirty: true, furniture, plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry) }
     })
   },
 
   moveFurniture(id, x, y, rotation) {
-    set((state) => ({
-      isDirty: true,
-      furniture: state.furniture.map((f) =>
-        f.id === id ? { ...f, x, y, rotation } : f,
-      ),
-    }))
+    set((state) => {
+      const furniture = state.furniture.map((f) => (f.id === id ? { ...f, x, y, rotation } : f))
+      return { isDirty: true, furniture, plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry) }
+    })
   },
 
   resizeFurniture(id, scaleOverride) {
-    set((state) => ({
-      isDirty: true,
-      furniture: state.furniture.map((f) =>
-        f.id === id ? { ...f, scaleOverride } : f,
-      ),
-    }))
+    set((state) => {
+      const furniture = state.furniture.map((f) => (f.id === id ? { ...f, scaleOverride } : f))
+      return { isDirty: true, furniture, plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry) }
+    })
   },
 
   removeFurniture(id) {
-    set((state) => ({
-      isDirty: true,
-      furniture: state.furniture.filter((f) => f.id !== id),
-    }))
+    set((state) => {
+      const furniture = state.furniture.filter((f) => f.id !== id)
+      return { isDirty: true, furniture, plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry) }
+    })
   },
 
   setFurnitureColors(id, overrides) {

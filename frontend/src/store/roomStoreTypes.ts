@@ -11,6 +11,7 @@ import type { GeometrySlice } from './slices/geometrySlice'
 import type { DesignSlice } from './slices/designSlice'
 import type { FurnitureSlice } from './slices/furnitureSlice'
 import type { ElectricalSlice } from './slices/electricalSlice'
+import type { PlumbingSlice } from './slices/plumbingSlice'
 import type { LightSlice } from './slices/lightSlice'
 import type { UiSlice } from './slices/uiSlice'
 import type { LifecycleSlice } from './slices/lifecycleSlice'
@@ -21,6 +22,7 @@ export interface RoomStore
     DesignSlice,
     FurnitureSlice,
     ElectricalSlice,
+    PlumbingSlice,
     LightSlice,
     UiSlice,
     LifecycleSlice {}

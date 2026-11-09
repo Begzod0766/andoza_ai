@@ -14,6 +14,7 @@ import { WARDROBE_NAME, inferRole, isRole, type FurnitureRole } from '@/lib/furn
 import { catalogRoomType } from '@/lib/roomType'
 import { withFlatOpenings } from '@/lib/layoutOpenings'
 import { ceilingFitSize } from '@/lib/modelSize'
+import { withFixturePoints } from '@/lib/plumbingPoints'
 
 /** Which parts of a plan to apply. Everything is on by default; the reader may switch parts off. */
 export interface DesignParts { walls: boolean; floor: boolean; lights: boolean; furniture: boolean }
@@ -32,10 +33,12 @@ export function snapshotDesign(): DesignSnapshot {
 }
 
 export function restoreDesign(snapshot: DesignSnapshot): void {
+  const s = useRoomStore.getState()
   useRoomStore.setState({
     designState: snapshot.designState,
     lights: snapshot.lights,
     furniture: snapshot.furniture,
+    plumbing: withFixturePoints(s.plumbing, snapshot.furniture, s.catalogFurniture, s.geometry),
     isDirty: true,
   })
 }
@@ -361,6 +364,7 @@ export function applyDesignPlan(
   const { applied, ...next } = designRoomState(prev, geometry, plan, parts, catalog, roomType, store.ceilingHeight)
   const changed = next.designState !== prev.designState
     || !sameItems(next.furniture, prev.furniture) || !sameItems(next.lights, prev.lights)
-  if (changed) useRoomStore.setState({ ...next, isDirty: true })
+  // A fixture the design placed brings its drain and water points (spec 2026-11-08), in the same update.
+  if (changed) useRoomStore.setState({ ...next, plumbing: withFixturePoints(store.plumbing, next.furniture, catalog, store.geometry), isDirty: true })
   return applied
 }

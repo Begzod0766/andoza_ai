@@ -6,6 +6,7 @@ import type {
   AppliedSurfaces,
   DesignState,
   PlacedElectrical,
+  PlumbingPoint,
   PlacedFurniture,
   PlacedLight,
   RoomGeometry,
@@ -74,6 +75,7 @@ export const createLifecycleSlice: StateCreator<
       roomType?: string | null
       furniture?: PlacedFurniture[]
       electricals?: PlacedElectrical[]
+      plumbing?: PlumbingPoint[]
       lights?: PlacedLight[]
       userFurniture?: UserFurnitureEntry[]
       layoutPos?: { x: number; z: number }
@@ -99,6 +101,7 @@ export const createLifecycleSlice: StateCreator<
       roomType: isRoomType(s.roomType) ? s.roomType : null,
       furniture: s.furniture ?? [],
       electricals: s.electricals ?? [],
+      plumbing: s.plumbing ?? [],
       lights: s.lights ?? [],
       userFurniture: s.userFurniture ?? [],
       layoutPos: s.layoutPos ?? null,
@@ -122,6 +125,7 @@ export const createLifecycleSlice: StateCreator<
       surfaces: {},
       furniture: [],
       electricals: [],
+      plumbing: [],
       lights: [],
       userFurniture: [],
       isDirty: false,

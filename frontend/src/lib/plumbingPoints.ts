@@ -1,5 +1,6 @@
 import type { PlacedFurniture, PlumbingKind, PlumbingPoint, RoomGeometry } from '@/store/types'
-import type { FurnitureRole } from '@/lib/furnitureRole'
+import { inferRole, type FurnitureRole } from '@/lib/furnitureRole'
+import type { CatalogFurniture } from '@/lib/api'
 import { roomModel, WALL_GAP, type WallInfo } from '@/lib/aiDesignLayout'
 
 type FixtureRole = 'bathtub' | 'sink' | 'toilet' | 'shower' | 'bidet'
@@ -56,4 +57,24 @@ export function fixturePoints(fixture: PlacedFurniture, role: FurnitureRole, siz
     heightMm: need.heightMm,
     fixtureId: fixture.id,
   }))
+}
+
+/**
+ * The room's points with every fixture's own points recomputed from `furniture` (where each stands
+ * now), and the points added by hand left as they are. Called in the same store update as the
+ * furniture change, so undo takes a fixture and its points together.
+ */
+export function withFixturePoints(
+  plumbing: PlumbingPoint[], furniture: PlacedFurniture[], catalog: CatalogFurniture[], geometry: RoomGeometry,
+): PlumbingPoint[] {
+  const byId = new Map(catalog.map((c) => [c.id, c]))
+  const owned = furniture.flatMap((f) => {
+    const row = byId.get(f.furniture_id)
+    const role = inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? '')
+    if (!isFixture(role)) return []
+    const k = f.scaleOverride ?? 1
+    const sizeM = { w: ((row?.footprint_w ?? 60) / 100) * k, d: ((row?.footprint_d ?? 60) / 100) * k }
+    return fixturePoints(f, role, sizeM, geometry)
+  })
+  return [...plumbing.filter((p) => !p.fixtureId), ...owned]
 }
