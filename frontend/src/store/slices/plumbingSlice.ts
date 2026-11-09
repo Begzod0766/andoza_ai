@@ -9,10 +9,18 @@ export interface PlumbingSlice {
   addPlumbing(p: PlumbingPoint): void
   movePlumbing(id: string, to: { wallId?: string; positionMm?: number; heightMm?: number }): void
   removePlumbing(id: string): void
+  /** Whether the pipe runs to the riser are drawn (the Santexnika stage's toggle). View state only. */
+  showPipeRuns: boolean
+  setShowPipeRuns(on: boolean): void
 }
 
 export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice> = (set) => ({
   plumbing: [],
+  showPipeRuns: false,
+
+  setShowPipeRuns(on) {
+    set({ showPipeRuns: on })
+  },
 
   addPlumbing(p) {
     set((state) => ({ plumbing: [...state.plumbing, p], isDirty: true }))

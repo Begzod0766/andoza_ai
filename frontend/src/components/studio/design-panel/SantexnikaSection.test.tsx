@@ -69,3 +69,13 @@ describe('SantexnikaSection', () => {
     expect(screen.getAllByRole('listitem', { name: /kanalizatsiya|sovuq suv|issiq suv/i })).toHaveLength(3)
   })
 })
+
+describe('SantexnikaSection pipe runs toggle', () => {
+  it('switches the pipe runs on, and off again when the stage is left', () => {
+    const { unmount } = render(<SantexnikaSection />)
+    fireEvent.click(screen.getByRole('checkbox', { name: /quvur yo'llarini ko'rsatish/i }))
+    expect(useRoomStore.getState().showPipeRuns).toBe(true)
+    unmount()
+    expect(useRoomStore.getState().showPipeRuns).toBe(false)
+  })
+})

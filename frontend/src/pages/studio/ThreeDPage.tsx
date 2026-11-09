@@ -658,7 +658,7 @@ export default function ThreeDPage() {
   /** The corner arc's categories, read from the same sources the design panel
    *  uses. `openPanelAt` is its escape hatch: a category with more items than
    *  the arc holds ends in a button that opens the full panel instead. */
-  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel') => {
+  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'santexnika') => {
     setActivePhase(phase);
     setShowPanel(true);
   }, [setActivePhase]);

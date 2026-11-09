@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
 import { useTranslation } from "react-i18next";
 import { useRoomStore } from "@/store/roomStore";
@@ -22,6 +22,10 @@ export function SantexnikaSection() {
   const geometry = useRoomStore((s) => s.geometry);
   const addPlumbing = useRoomStore((s) => s.addPlumbing);
   const removePlumbing = useRoomStore((s) => s.removePlumbing);
+  const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
+  const setShowPipeRuns = useRoomStore((s) => s.setShowPipeRuns);
+  // The runs are drawn for this stage only: leaving it puts them away.
+  useEffect(() => () => setShowPipeRuns(false), [setShowPipeRuns]);
   const [kind, setKind] = useState<PlumbingKind>("drain");
   const [wallId, setWallId] = useState(geometry.walls[0]?.id ?? "A");
   const [heightCm, setHeightCm] = useState("50");
@@ -98,6 +102,11 @@ export function SantexnikaSection() {
       <button type="button" onClick={add} className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
         {t("studio.santexnika.add")}
       </button>
+
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
+        {t("studio.santexnika.pipes")}
+      </label>
 
       <p className="text-[11px] font-medium text-ink">
         {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
