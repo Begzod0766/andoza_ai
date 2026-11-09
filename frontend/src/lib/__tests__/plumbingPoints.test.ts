@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { PlacedFurniture, RoomGeometry } from '@/store/roomStore'
 import { fixturePoints, PLUMBING_NEEDS } from '../plumbingPoints'
 import { roomModel } from '../aiDesignLayout'
+import shared from './fixtures/fixturePoints.json'
 
 const rect = (a: number, b: number): RoomGeometry => ({
   walls: [
@@ -84,4 +85,12 @@ describe('a placed piece with no catalog row and no name (review minor 2026-11-0
     const f = { ...against(g, 'A', 0.6), furniture_id: 'unitaz_01' }
     expect(withFixturePoints([], [f], [], g).length).toBeGreaterThan(0)
   })
+})
+
+describe('the shared fixture-points cases (backend tests/test_plumbing.py reads them too)', () => {
+  for (const c of shared.cases) {
+    it(c.name, () => {
+      expect(fixturePoints(c.fixture as never, c.role as never, { w: 0.6, d: c.depthM }, c.geometry as never)).toEqual(c.expected)
+    })
+  }
 })

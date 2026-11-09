@@ -98,10 +98,33 @@ def test_a_shop_pipe_gives_its_price_and_name():
     assert line.unit_price_uzs == 21000 and line.store_name == "Santex Plaza" and line.is_approximate is False
 
 
-def test_a_room_saved_before_plumbing_lists_its_fixtures_and_no_pipes():
-    labels = {ln.label for ln in _plumbing_lines(_room(plumbing=None))}
-    assert "Santexnika: Vanna Roca 170" in labels
-    assert not any("quvuri" in label or label == "Fitinglar" for label in labels)
+def test_a_room_saved_before_plumbing_gets_its_fixtures_points_worked_out():
+    """A room never opened since plumbing shipped has no saved points: they are derived from its
+    fixtures as the studio derives them, so its estimate has the pipes too (2026-11-09)."""
+    from app.services.plumbing import fixture_points
+    room = _room(plumbing=None)
+    lines = _by_label(_plumbing_lines(room))
+    assert "Santexnika: Vanna Roca 170" in lines
+    derived = [pt for f in FURNITURE[:3] for pt in fixture_points(f, {"tub": "bathtub", "wc": "toilet", "sink": "sink"}[f["id"]], 0.6, GEOMETRY)]
+    assert lines["Fitinglar"].qty == len(derived) == 8
+    assert "Kanalizatsiya quvuri Ø110" in lines and "Suv quvuri PPR Ø20" in lines
+
+
+def test_derived_points_use_the_shop_rows_depth():
+    from app.services.plumbing import fixture_points
+    tub = SimpleNamespace(id="vanna-1", name_uz="Vanna Roca 170", category="boshqa", footprint_d=70, price_uzs=4_500_000, is_active=True, store=None)
+    room = SimpleNamespace(state={"furniture": [{"id": "tub", "furniture_id": "vanna-1", "x": 0, "y": -600, "rotation": 0}]}, geometry=GEOMETRY)
+    from app.services.smeta import furniture_catalog_key
+    lines = _by_label(_plumbing_lines(room, {furniture_catalog_key("vanna-1"): tub}))
+    expected = fixture_points(room.state["furniture"][0], "bathtub", 0.7, GEOMETRY)
+    riser = riser_spot(GEOMETRY, None)
+    drain = [pt for pt in expected if pt["kind"] == "drain"]
+    assert lines["Kanalizatsiya quvuri Ø50"].qty == pytest.approx(_round2(sum(pipe_run_m(GEOMETRY, pt, riser) for pt in drain) * 1.15))
+
+
+def test_a_room_that_saved_an_empty_plumbing_list_is_taken_as_saved():
+    labels = {ln.label for ln in _plumbing_lines(_room(plumbing=[]))}
+    assert "Fitinglar" not in labels
 
 
 def test_a_room_with_no_fixtures_and_no_points_has_no_section():
