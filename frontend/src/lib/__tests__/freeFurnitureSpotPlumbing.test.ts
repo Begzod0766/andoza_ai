@@ -92,3 +92,25 @@ describe('where a plumbing fixture goes', () => {
     expect(spots).not.toContain('300,300')
   })
 })
+
+describe('placement rules from the final review', () => {
+  it('a toilet stands as near the riser as it can (the door corner)', async () => {
+    const { riserSpot, wallWalk } = await import('../plumbingRuns')
+    const g = geometry()
+    const r = riserSpot(g)
+    const w = wallWalk(g).find((x) => x.id === r.wallId)!
+    const riser = [w.startX + w.dirX * r.positionMm / 1000, w.startZ + w.dirZ * r.positionMm / 1000]
+    const toilet = add([], 'toilet')
+    // The door's swing keeps it off the corner itself; by the longest-wall rule it stood 2.0 m away.
+    expect(Math.hypot(toilet.x / 1000 - riser[0], toilet.y / 1000 - riser[1])).toBeLessThan(1.2)
+  })
+
+  it('a fixture no wall has room for still goes in, and says so (onWall false)', () => {
+    const tiny = { walls: [
+      { id: 'A', length: 1200, elements: [] }, { id: 'B', length: 1000, elements: [] },
+      { id: 'C', length: 1200, elements: [] }, { id: 'D', length: 1000, elements: [] },
+    ] } as unknown as RoomGeometry
+    const spot = freeFurnitureSpotMm(tiny, [], SIZE.bathtub, 'bathtub')
+    expect(spot.onWall).toBe(false)
+  })
+})

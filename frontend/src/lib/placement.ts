@@ -10,6 +10,7 @@
  * reimplementing (and forgetting) it.
  */
 import type { RoomGeometry } from '@/store/roomStore'
+import { riserSpot, wallWalk } from './plumbingRuns'
 import { roomExtents } from '@/lib/roomDims'
 import { halfExtentsToBounds, placementSpot, roomBoundsFromGeometry } from '@/lib/furnitureBounds'
 import { blocksOpening, furnitureSpot, overlaps, roomModel, WALL_GAP, type Rect, type RoomModel } from '@/lib/aiDesignLayout'
@@ -168,6 +169,11 @@ export function freeFurnitureSpotMm(
     if (spot) return { ...toMm(spot), onWall: true }
   }
   const clear = FIXTURE_FRONT_CLEAR[role]
+  if (role === 'toilet') {
+    // As near the riser as it can stand (spec 2026-11-08): its Ø110 drain is the shortest run then.
+    const spot = nearRiser(geometry, model, size, clear ?? 0, taken)
+    if (spot) return { ...toMm(spot), onWall: true }
+  }
   if (clear !== undefined || role === 'shower' || role === 'bidet') {
     // Searched as a box deep enough to hold its front clearance, then set back against the wall.
     const padded = { ...size, d: size.d + (clear ?? 0) }
@@ -179,6 +185,13 @@ export function freeFurnitureSpotMm(
       const back = (clear ?? 0) / 2
       return { ...toMm({ x: spot.x - Math.sin(spot.rotation) * back, z: spot.z - Math.cos(spot.rotation) * back, rotation: spot.rotation }), onWall: true }
     }
+    // No wall has room: still added, in the middle, and the caller says there was no room.
+    const longest = walls[0]
+    const turn = longest ? Math.atan2(longest.nx, longest.nz) : 0
+    const spot = furnitureSpot('center', size, model, taken, turn)
+    return spot.fit === 'none'
+      ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: turn, onWall: false }
+      : { ...toMm(spot), onWall: false }
   }
   if (WALL_ROLES.has(role)) {
     const walls = [...model.walls].sort((a, b) => b.length - a.length)
@@ -217,6 +230,33 @@ function cornerFarthestFromDoor(model: RoomModel, size: { w: number; d: number; 
       if (spot.fit !== 'ok') continue
       const dist = doors.length ? Math.min(...doors.map((d) => Math.hypot(spot.x - d.x, spot.z - d.z))) : 0
       if (dist > bestDist + 1e-6) { best = spot; bestDist = dist }
+    }
+  }
+  return best
+}
+
+/**
+ * The spot against a wall, its front clearance free, nearest the riser (lib/plumbingRuns riserSpot);
+ * null when no wall has room. Positions are tried every 5 cm along each wall.
+ */
+function nearRiser(geometry: RoomGeometry, model: RoomModel, size: { w: number; d: number; tall: boolean }, clear: number, taken: Rect[]) {
+  const r = riserSpot(geometry)
+  const ww = wallWalk(geometry).find((w) => w.id === r.wallId)
+  if (!ww) return null
+  const rx = ww.startX + ww.dirX * r.positionMm / 1000, rz = ww.startZ + ww.dirZ * r.positionMm / 1000
+  const padD = size.d + clear
+  let best: { x: number; z: number; rotation: number } | null = null
+  let bestDist = Infinity
+  for (const wall of model.walls) {
+    const rotation = Math.atan2(wall.nx, wall.nz)
+    const half = wall.length / 2 - size.w / 2
+    for (let t = -half; t <= half + 1e-9; t += 0.05) {
+      const out = padD / 2 + WALL_GAP
+      const box: Rect = { x: wall.midX + wall.dirX * t + wall.nx * out, z: wall.midZ + wall.dirZ * t + wall.nz * out, w: size.w, d: padD, rotation }
+      if (!model.inside(box) || taken.some((q) => overlaps(box, q)) || blocksOpening(box, false, model, { doors: true, windows: false })) continue
+      const x = box.x - wall.nx * clear / 2, z = box.z - wall.nz * clear / 2
+      const dist = Math.hypot(x - rx, z - rz)
+      if (dist < bestDist) { best = { x, z, rotation }; bestDist = dist }
     }
   }
   return best
