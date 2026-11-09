@@ -19,6 +19,9 @@ import { deleteUserModel, getStores, updateUserModel } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { StoreContactLinks } from "@/components/studio/StoreContactLinks";
 import { ShopInquiryDialog } from "@/components/studio/ShopInquiryDialog";
+import { fitsCatalogRoom } from '@/lib/furnitureRoomFit';
+import { catalogRoomType, effectiveRoomType } from '@/lib/roomType';
+import { inferRole, ROLE_GROUP } from '@/lib/furnitureRole';
 
 /**
  * One row of the material editor. Accepts image drops so a texture can be
@@ -285,12 +288,14 @@ export function MebelSection() {
   const setUserFurniturePlacement = useRoomStore((s) => s.setUserFurniturePlacement);
   const setUserFurniturePrice = useRoomStore((s) => s.setUserFurniturePrice);
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture);
+  // The room's kind, so a bathroom offers no office desks (spec 2026-11-08, as #207 did for the arc menu).
+  const roomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)));
   // Public shop details, to put a call / Telegram shortcut on each shop's models.
   const { data: shops = [] } = useQuery({ queryKey: ['stores'], queryFn: getStores, staleTime: 5 * 60_000 });
   const shopById = new Map(shops.map((st) => [st.id, st]));
 
   const [colorEditorId, setColorEditorId] = React.useState<string | null>(null);
-  const [furnitureCat, setFurnitureCat] = React.useState<FurnitureCategory | 'barchasi' | 'mening'>('barchasi');
+  const [furnitureCat, setFurnitureCat] = React.useState<FurnitureCategory | 'barchasi' | 'mening' | 'santexnika'>('barchasi');
 
   // ── Manual texturing of imported models (per material channel) ──────
   const texInputRef = React.useRef<HTMLInputElement>(null);
@@ -377,7 +382,7 @@ export function MebelSection() {
     ...userFurniture.map(e => ({ ...e, isUser: true as const, isShop: false as const })),
     // Do'kon-managed 3D models (admin catalog) — footprint-derived w×d, no
     // recategorize/price editing here (that lives in the admin panel).
-    ...catalogFurniture.map(f => ({
+    ...catalogFurniture.filter((f) => !roomKind || fitsCatalogRoom(f, roomKind)).map(f => ({
       id: f.id,
       name: f.name_uz,
       emoji: '🏪',
@@ -394,15 +399,17 @@ export function MebelSection() {
     })),
   ]
 
-  const catChips: Array<{ key: FurnitureCategory | 'barchasi' | 'mening'; label: string }> = [
+  const catChips: Array<{ key: FurnitureCategory | 'barchasi' | 'mening' | 'santexnika'; label: string }> = [
     { key: 'barchasi', label: t('studio.mebel.all') },
     ...Object.entries(CATEGORY_LABELS).map(([k, v]) => ({ key: k as FurnitureCategory, label: t(v) })),
+    { key: 'santexnika', label: t('studio.mebel.santexnika') },
     { key: 'mening', label: t('studio.mebel.mine') },
   ]
 
   const filteredEntries = allCatalogEntries.filter((e) => {
     if (furnitureCat === 'barchasi') return true
     if (furnitureCat === 'mening') return e.isUser
+    if (furnitureCat === 'santexnika') return ROLE_GROUP[inferRole(e.category ?? null, e.name)] === 'plumbing'
     // Uploads made before categories existed have none — file them under Boshqa
     if (e.isUser || e.isShop) return (e.category ?? 'boshqa') === furnitureCat
     return (e as FurnitureCatalogEntry).category === furnitureCat

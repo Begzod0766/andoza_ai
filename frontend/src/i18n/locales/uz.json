@@ -926,7 +926,8 @@
       "color": "Rang",
       "slot_wood": "Yog'och",
       "slot_fabric": "Mato",
-      "slot_metal": "Metal"
+      "slot_metal": "Metal",
+      "santexnika": "Santexnika"
     },
     "cplan": {
       "no_outline": "2D chiroq rejasi uchun xona konturi topilmadi — xonani qaytadan chizing yoki skanerlang",
