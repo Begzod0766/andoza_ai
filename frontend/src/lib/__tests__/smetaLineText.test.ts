@@ -144,3 +144,13 @@ describe('plumbing lines (spec 2026-11-08)', () => {
     expect(localizeFormula('8 nuqta × 1 komplekt', en)).toBe('8 points × 1 set')
   })
 })
+
+describe('plumbing formula and warning (prod check 2026-11-09)', () => {
+  it('a count before a colon is translated', () => {
+    expect(localizeFormula('3 nuqta: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m', en)).toBe('3 points: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m')
+  })
+  it('the pipe price warning is translated', () => {
+    expect(localizeWarning("Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.", en))
+      .toBe('Approximate price — the shop has no such pipe, an average price was used.')
+  })
+})

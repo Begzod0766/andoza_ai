@@ -264,7 +264,7 @@ _FORMULA_COUNTED = {
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
     r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)"
-    r"(?=\Z|[\s);,])"
+    r"(?=\Z|[\s);,:])"
 )
 
 

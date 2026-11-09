@@ -157,3 +157,10 @@ def test_a_point_whose_fixture_is_gone_is_not_priced():
     lines = _by_label(_plumbing_lines(_room(plumbing=PLUMBING + [orphan])))
     assert lines["Fitinglar"].qty == 8
     assert lines["Kanalizatsiya quvuri Ø110"].qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))
+
+
+def test_the_formula_and_warning_read_in_english():
+    from app.services.smeta_text import localize_formula, localize_warning
+    assert localize_formula("3 nuqta: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m", "en") == "3 points: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m"
+    assert localize_warning("Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.", "en") == \
+        "Approximate price — the shop has no such pipe, an average price was used."
