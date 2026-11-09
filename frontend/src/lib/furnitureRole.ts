@@ -37,11 +37,11 @@ export function isRole(v: unknown): v is FurnitureRole {
 // Plumbing fixtures first: the shop files them under "boshqa", and "Ванна" must reach no later rule.
 // Only the word itself ("ванна", not "ванной"): a "Шкаф для ванной" is a cabinet.
 const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
-  [/^(?!.*(?:shkaf|шкаф|cabinet|polka|полк|javon)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)/i, 'bathtub'],
-  [/rakovina|umivalnik|раковин|умывальник|\bsink\b|washbasin/i, 'sink'],
-  [/unitaz|унитаз|\btoilet\b|\bwc\b/i, 'toilet'],
-  [/\bdush(?!anba)|(?<![а-яё])душ(?!ист)|shower/i, 'shower'],
-  [/\bbide\b|(?<![а-яё])биде(?![а-яё])|bidet/i, 'bidet'],
+  [/^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)/i, 'bathtub'],
+  [/^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:rakovina|umivalnik|moyka|раковин|умывальник|мойк|\bsink\b|washbasin)/i, 'sink'],
+  [/^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:unitaz|унитаз|\btoilet\b|\bwc\b)/i, 'toilet'],
+  [/^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:\bdush(?!anba)|(?<![а-яё])душ(?!ист)|shower)/i, 'shower'],
+  [/^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:\bbide\b|(?<![а-яё])биде(?![а-яё])|bidet)/i, 'bidet'],
   [/gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас/i, 'rug'],
   [/jurnal|kofe|coffee|журнальн|кофейн/i, 'coffee_table'],
   [/tumbochka|nightstand|prikrovat|тумбочк|прикроватн/i, 'nightstand'],

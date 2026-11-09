@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { RoomGeometry, WallElement } from '../types'
+import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, WallElement, DesignState } from '../types'
+import { withFixturePoints } from '@/lib/plumbingPoints'
 import { defaultGeometry, resizeWall } from '../utils/geometryHelpers'
 import type { RoomStore } from '../roomStoreTypes'
 
@@ -15,6 +16,11 @@ export interface GeometrySlice {
   updateElement(wallId: string, elementId: string, patch: Partial<Omit<WallElement, 'id'>>): void
   swapElements(wallId: string): void
   swapAdjacentElements(wallId: string, id1: string, id2: string): void
+  /**
+   * A new shape for the room (a flat-view resize or cut), with the content it moved, in one step;
+   * a fixture's plumbing points are measured again from the new walls.
+   */
+  applyRoomShape(geometry: RoomGeometry, extra?: { furniture?: PlacedFurniture[]; lights?: PlacedLight[]; electricals?: PlacedElectrical[]; designState?: DesignState }): void
 }
 
 export const createGeometrySlice: StateCreator<
@@ -31,9 +37,19 @@ export const createGeometrySlice: StateCreator<
   },
 
   setWallLength(wallId, length) {
+    set((state) => {
+      const geometry = resizeWall(state.geometry, wallId, length)
+      // A point is measured from its wall's start, which moves when the room is resized.
+      return { isDirty: true, geometry, plumbing: withFixturePoints(state.plumbing, state.furniture, state.catalogFurniture, geometry) }
+    })
+  },
+
+  applyRoomShape(geometry, extra) {
     set((state) => ({
+      ...(extra ?? {}),
+      geometry,
+      plumbing: withFixturePoints(state.plumbing, extra?.furniture ?? state.furniture, state.catalogFurniture, geometry),
       isDirty: true,
-      geometry: resizeWall(state.geometry, wallId, length),
     }))
   },
 

@@ -28,6 +28,11 @@ const LABEL_HEADS = {
   "Shift": "shift",
   "Shift profili": "shift_profili",
   "LED lenta": "led_lenta",
+  "Santexnika": "santexnika",
+  // A shop's pipe: "Kanalizatsiya quvuri Ø50: <product>".
+  "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
+  "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
+  "Suv quvuri PPR Ø20": "pipe_water_20",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -39,6 +44,16 @@ const WHOLE_LABELS = {
   "Elektr kabel": "kabel",
   "Elektr kabel (taxminiy)": "kabel_approx",
   "Bo'yoq (material tanlanmagan)": "boyoq_none",
+  "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
+  "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
+  "Suv quvuri PPR Ø20": "pipe_water_20",
+  "Fitinglar": "fittings",
+  "Ish: nuqtani ulash": "work_point",
+  "Ish: vanna o'rnatish": "work_bathtub",
+  "Ish: rakovina o'rnatish": "work_sink",
+  "Ish: unitaz o'rnatish": "work_toilet",
+  "Ish: dush o'rnatish": "work_shower",
+  "Ish: bide o'rnatish": "work_bidet",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */
@@ -95,12 +110,12 @@ export function localizeLabel(label: string, t: TFunction): string {
 }
 
 /** Units counted in whole things, which take the plural of the quantity. */
-const COUNTED_UNITS = new Set(["qop", "dona", "rulon", "quti", "list", "komplekt"]);
+const COUNTED_UNITS = new Set(["qop", "dona", "rulon", "quti", "list", "komplekt", "nuqta"]);
 const MEASURE_UNITS = { "litr": "litr", "m": "m", "m²": "m2", "m2": "m2", "kg": "kg" } as const;
 
 export function localizeUnit(unit: string, quantity: number, t: TFunction): string {
   if (COUNTED_UNITS.has(unit)) {
-    return t(`smeta.unit.${unit as "qop" | "dona" | "rulon" | "quti" | "list" | "komplekt"}`, { count: quantity });
+    return t(`smeta.unit.${unit as "qop" | "dona" | "rulon" | "quti" | "list" | "komplekt" | "nuqta"}`, { count: quantity });
   }
   if (has(MEASURE_UNITS, unit)) return t(`smeta.unit.${MEASURE_UNITS[unit]}`);
   return unit;
@@ -132,11 +147,11 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
 /** Things counted in whole units: the word takes the plural of the number before it. */
 const FORMULA_COUNTED = {
   qop: "smeta.unit.qop", dona: "smeta.unit.dona", rulon: "smeta.unit.rulon", quti: "smeta.unit.quti",
-  list: "smeta.unit.list", polosa: "smeta.formula.polosa", qatlam: "smeta.formula.qatlam", nuqta: "smeta.formula.nuqta",
+  list: "smeta.unit.list", komplekt: "smeta.unit.komplekt", polosa: "smeta.formula.polosa", qatlam: "smeta.formula.qatlam", nuqta: "smeta.formula.nuqta",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|polosa|qatlam|nuqta|litr|m²|kg|m)(?=$|[\s);,])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)(?=$|[\s);,])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });

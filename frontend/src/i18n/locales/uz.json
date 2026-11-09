@@ -482,7 +482,8 @@
         "pol": "Pol",
         "montaj": "Montaj",
         "chiroq": "Chiroq",
-        "mebel": "Mebel"
+        "mebel": "Mebel",
+        "santexnika": "Santexnika"
       },
       "tile_face": {
         "plain": "Oddiy",
@@ -977,7 +978,26 @@
       "size_pct": "O'lcham %"
     },
     "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
-    "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang."
+    "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
+    "santexnika": {
+      "title": "Santexnika",
+      "hint": "Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi. Kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
+      "fixtures": "Jihozlar",
+      "no_fixtures": "Hali jihoz yo'q: \"Mebel\" bosqichida \"Santexnika\" filtridan qo'shing.",
+      "points": "Nuqtalar",
+      "kind": "Turi",
+      "wall": "Devor",
+      "height": "Balandligi, sm",
+      "add": "+ Nuqta qo'shish",
+      "remove": "Olib tashlash",
+      "drain": "Kanalizatsiya",
+      "cold": "Sovuq suv",
+      "hot": "Issiq suv",
+      "where": "{{wall}} devor · {{cm}} sm",
+      "own": "jihozniki",
+      "summary": "Kanalizatsiya: {{dp}} nuqta, ~{{dm}} m · Suv: {{wp}} nuqta, ~{{wm}} m",
+      "pipes": "Quvur yo'llarini ko'rsatish"
+    }
   },
   "smeta": {
     "sarlavha": "Smeta",
@@ -1023,6 +1043,7 @@
       "pol": "Pol va plintus",
       "shift": "Shift",
       "elektr": "Elektr va yoritish",
+      "santexnika": "Santexnika",
       "jihoz": "Mebel va jihozlar",
       "boshqa": "Boshqa xarajatlar"
     },
@@ -1069,7 +1090,18 @@
       "led_niche": "LED lenta (shift nishi)",
       "kabel": "Elektr kabel",
       "kabel_approx": "Elektr kabel (taxminiy)",
-      "boyoq_none": "Bo'yoq (material tanlanmagan)"
+      "boyoq_none": "Bo'yoq (material tanlanmagan)",
+      "santexnika": "Santexnika",
+      "pipe_drain_50": "Kanalizatsiya quvuri Ø50",
+      "pipe_drain_110": "Kanalizatsiya quvuri Ø110",
+      "pipe_water_20": "Suv quvuri PPR Ø20",
+      "fittings": "Fitinglar",
+      "work_point": "Ish: nuqtani ulash",
+      "work_bathtub": "Ish: vanna o'rnatish",
+      "work_sink": "Ish: rakovina o'rnatish",
+      "work_toilet": "Ish: unitaz o'rnatish",
+      "work_shower": "Ish: dush o'rnatish",
+      "work_bidet": "Ish: bide o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -1087,7 +1119,9 @@
       "litr": "litr",
       "m": "m",
       "m2": "m²",
-      "kg": "kg"
+      "kg": "kg",
+      "nuqta_one": "nuqta",
+      "nuqta_other": "nuqta"
     },
     "warning": {
       "norm_missing": "Bu qism uchun aniq norma topilmadi — standart ko'rsatkich bo'yicha hisoblandi.",
@@ -1108,7 +1142,8 @@
       "ceiling_board": "Taxminiy hisob — shift konstruksiyasi murakkab shakl, ustaga tasdiqlang.",
       "ceiling_frame": "Taxminiy hisob — karkas miqdorini ustaga tasdiqlang.",
       "ceiling_strip": "Taxminiy hisob — lenta uzunligi dizayn shakliga qarab farq qiladi.",
-      "ai_price": "AI taxminiy narx (tajribali usta bahosi)"
+      "ai_price": "AI taxminiy narx (tajribali usta bahosi)",
+      "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi."
     },
     "formula": {
       "wall_head": "Devor {{wall}}",

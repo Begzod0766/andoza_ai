@@ -482,7 +482,8 @@
         "pol": "Floor",
         "montaj": "Installation",
         "chiroq": "Light fixtures",
-        "mebel": "Furniture"
+        "mebel": "Furniture",
+        "santexnika": "Plumbing"
       },
       "tile_face": {
         "plain": "Plain",
@@ -977,7 +978,26 @@
       "size_pct": "Size %"
     },
     "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
-    "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material."
+    "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
+    "santexnika": {
+      "title": "Plumbing",
+      "hint": "A fixture brings its points when it is placed. Add an extra point here, for a washing machine say.",
+      "fixtures": "Fixtures",
+      "no_fixtures": "No fixtures yet: add them in the Furniture stage with the Plumbing filter.",
+      "points": "Points",
+      "kind": "Kind",
+      "wall": "Wall",
+      "height": "Height, cm",
+      "add": "+ Add a point",
+      "remove": "Remove",
+      "drain": "Drain",
+      "cold": "Cold water",
+      "hot": "Hot water",
+      "where": "wall {{wall}} · {{cm}} cm",
+      "own": "fixture's",
+      "summary": "Drain: {{dp}} points, ~{{dm}} m · Water: {{wp}} points, ~{{wm}} m",
+      "pipes": "Show pipe runs"
+    }
   },
   "smeta": {
     "sarlavha": "Estimate",
@@ -1023,6 +1043,7 @@
       "pol": "Floor and skirting board",
       "shift": "Ceiling",
       "elektr": "Electrics and lighting",
+      "santexnika": "Plumbing",
       "jihoz": "Furniture and fittings",
       "boshqa": "Other costs"
     },
@@ -1069,7 +1090,18 @@
       "led_niche": "LED strip (ceiling niche)",
       "kabel": "Electrical cable",
       "kabel_approx": "Electrical cable (approximate)",
-      "boyoq_none": "Paint (no product chosen)"
+      "boyoq_none": "Paint (no product chosen)",
+      "santexnika": "Plumbing",
+      "pipe_drain_50": "Drain pipe Ø50",
+      "pipe_drain_110": "Drain pipe Ø110",
+      "pipe_water_20": "PPR water pipe Ø20",
+      "fittings": "Fittings",
+      "work_point": "Work: connecting a point",
+      "work_bathtub": "Work: installing the bathtub",
+      "work_sink": "Work: installing the sink",
+      "work_toilet": "Work: installing the toilet",
+      "work_shower": "Work: installing the shower",
+      "work_bidet": "Work: installing the bidet"
     },
     "unit": {
       "qop_one": "bag",
@@ -1087,7 +1119,9 @@
       "litr": "L",
       "m": "m",
       "m2": "m²",
-      "kg": "kg"
+      "kg": "kg",
+      "nuqta_one": "point",
+      "nuqta_other": "points"
     },
     "warning": {
       "norm_missing": "No exact norm was found for this part: it is calculated with the standard rate.",
@@ -1108,7 +1142,8 @@
       "ceiling_board": "Approximate: the ceiling has a complex shape, confirm with a craftsman.",
       "ceiling_frame": "Approximate: confirm the amount of framing with a craftsman.",
       "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
-      "ai_price": "Approximate AI price (an experienced craftsman's estimate)"
+      "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
+      "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used."
     },
     "formula": {
       "wall_head": "Wall {{wall}}",

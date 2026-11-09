@@ -64,11 +64,11 @@ FURNITURE_ROLES = (
 _ROLE_BY_NAME: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.I), role) for pattern, role in (
         # Plumbing fixtures first (the shop files them under "boshqa"); only the word "ванна" itself.
-        (r"^(?!.*(?:shkaf|шкаф|cabinet|polka|полк|javon)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)", "bathtub"),
-        (r"rakovina|umivalnik|раковин|умывальник|\bsink\b|washbasin", "sink"),
-        (r"unitaz|унитаз|\btoilet\b|\bwc\b", "toilet"),
-        (r"\bdush(?!anba)|(?<![а-яё])душ(?!ист)|shower", "shower"),
-        (r"\bbide\b|(?<![а-яё])биде(?![а-яё])|bidet", "bidet"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)", "bathtub"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:rakovina|umivalnik|moyka|раковин|умывальник|мойк|\bsink\b|washbasin)", "sink"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:unitaz|унитаз|\btoilet\b|\bwc\b)", "toilet"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:\bdush(?!anba)|(?<![а-яё])душ(?!ист)|shower)", "shower"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:\bbide\b|(?<![а-яё])биде(?![а-яё])|bidet)", "bidet"),
         (r"gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас", "rug"),
         (r"jurnal|kofe|coffee|журнальн|кофейн", "coffee_table"),
         (r"tumbochka|nightstand|prikrovat|тумбочк|прикроватн", "nightstand"),
