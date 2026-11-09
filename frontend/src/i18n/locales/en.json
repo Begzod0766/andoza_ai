@@ -988,7 +988,7 @@
       "kind": "Kind",
       "wall": "Wall",
       "height": "Height, cm",
-      "add": "+ Add a point",
+      "add": "Add a point",
       "remove": "Remove",
       "drain": "Drain",
       "cold": "Cold water",
@@ -1101,7 +1101,12 @@
       "work_sink": "Work: installing the sink",
       "work_toilet": "Work: installing the toilet",
       "work_shower": "Work: installing the shower",
-      "work_bidet": "Work: installing the bidet"
+      "work_bidet": "Work: installing the bidet",
+      "fixture_bathtub": "Bathtub",
+      "fixture_sink": "Sink",
+      "fixture_toilet": "Toilet",
+      "fixture_shower": "Shower",
+      "fixture_bidet": "Bidet"
     },
     "unit": {
       "qop_one": "bag",

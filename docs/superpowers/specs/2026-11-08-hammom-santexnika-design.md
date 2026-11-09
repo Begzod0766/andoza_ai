@@ -88,7 +88,7 @@ A sample bathroom was built on prod ("Hammom namunasi", 2.5 × 2.0 × 2.7 m, roo
 **3D.**
 - Points show as small discs on the wall: drain grey, cold blue, hot red.
 - A point can be dragged along its wall and up or down, the way an electrical socket is.
-- A thin line along the walls shows each point's pipe run to the riser. It can be switched off.
+- A thin line along the walls shows each point's pipe run to the riser. It can be switched off. Once switched on, the runs stay drawn after the panel closes, until the box is unticked: on a phone the open panel covers part of the 3D (mobile QA 2026-11-09).
 
 **Phone.** The arc menu gets a "Santexnika" category, with the fixtures and "add point".
 

@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { fixtureDisplayName } from "@/lib/fixtureName";
 
 /**
  * The estimate's lines in the UI language.
@@ -103,7 +104,10 @@ export function localizeLabel(label: string, t: TFunction): string {
   if (colon > 0) {
     const head = label.slice(0, colon);
     if (has(LABEL_HEADS, head)) {
-      return `${t(`smeta.line.${LABEL_HEADS[head]}`)}: ${localizeName(label.slice(colon + 2), t)}`;
+      const name = label.slice(colon + 2);
+      // A fixture reads by what it is in en/ru: "Rakovina 3" → "Sink 3" (lib/fixtureName).
+      if (head === "Santexnika") return `${t("smeta.line.santexnika")}: ${fixtureDisplayName(name, t)}`;
+      return `${t(`smeta.line.${LABEL_HEADS[head]}`)}: ${localizeName(name, t)}`;
     }
   }
   return label;

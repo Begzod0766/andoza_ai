@@ -109,7 +109,9 @@ def test_a_room_with_no_fixtures_and_no_points_has_no_section():
 
 
 @pytest.mark.parametrize("label,ru,en", [
-    ("Santexnika: Vanna Roca 170", "Сантехника: Vanna Roca 170", "Plumbing: Vanna Roca 170"),
+    ("Santexnika: Vanna Roca 170", "Сантехника: Ванна Roca 170", "Plumbing: Bathtub Roca 170"),
+    ("Santexnika: Rakovina 3", "Сантехника: Раковина 3", "Plumbing: Sink 3"),
+    ("Santexnika: Divan Milano", "Сантехника: Divan Milano", "Plumbing: Divan Milano"),
     ("Kanalizatsiya quvuri Ø50", "Канализационная труба Ø50", "Drain pipe Ø50"),
     ("Suv quvuri PPR Ø20", "Водопроводная труба PPR Ø20", "PPR water pipe Ø20"),
     ("Fitinglar", "Фитинги", "Fittings"),
@@ -164,3 +166,7 @@ def test_the_formula_and_warning_read_in_english():
     assert localize_formula("3 nuqta: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m", "en") == "3 points: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m"
     assert localize_warning("Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.", "en") == \
         "Approximate price — the shop has no such pipe, an average price was used."
+
+
+def test_uzbek_fixture_names_stay_as_they_are():
+    assert localize_label("Santexnika: Rakovina 3", "uz") == "Santexnika: Rakovina 3"

@@ -988,7 +988,7 @@
       "kind": "Turi",
       "wall": "Devor",
       "height": "Balandligi, sm",
-      "add": "+ Nuqta qo'shish",
+      "add": "Nuqta qo'shish",
       "remove": "Olib tashlash",
       "drain": "Kanalizatsiya",
       "cold": "Sovuq suv",
@@ -1101,7 +1101,12 @@
       "work_sink": "Ish: rakovina o'rnatish",
       "work_toilet": "Ish: unitaz o'rnatish",
       "work_shower": "Ish: dush o'rnatish",
-      "work_bidet": "Ish: bide o'rnatish"
+      "work_bidet": "Ish: bide o'rnatish",
+      "fixture_bathtub": "Vanna",
+      "fixture_sink": "Rakovina",
+      "fixture_toilet": "Unitaz",
+      "fixture_shower": "Dush",
+      "fixture_bidet": "Bide"
     },
     "unit": {
       "qop_one": "qop",

@@ -129,7 +129,7 @@ describe("estimate formulas (QA re-check R10)", () => {
 
 describe('plumbing lines (spec 2026-11-08)', () => {
   it('translates the fixtures, pipes, fittings and work', () => {
-    expect(localizeLabel('Santexnika: Vanna Roca 170', ru)).toBe('Сантехника: Vanna Roca 170')
+    expect(localizeLabel('Santexnika: Vanna Roca 170', ru)).toBe('Сантехника: Ванна Roca 170')
     expect(localizeLabel('Kanalizatsiya quvuri Ø50', en)).toBe('Drain pipe Ø50')
     expect(localizeLabel('Kanalizatsiya quvuri Ø110: Valtec', ru)).toBe('Канализационная труба Ø110: Valtec')
     expect(localizeLabel('Suv quvuri PPR Ø20', en)).toBe('PPR water pipe Ø20')
@@ -152,5 +152,13 @@ describe('plumbing formula and warning (prod check 2026-11-09)', () => {
   it('the pipe price warning is translated', () => {
     expect(localizeWarning("Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.", en))
       .toBe('Approximate price — the shop has no such pipe, an average price was used.')
+  })
+})
+
+describe('plumbing fixture names in the estimate (mobile QA 2026-11-09 #5)', () => {
+  it('the fixture reads by its role in en and ru, as it is in uz', () => {
+    expect(localizeLabel('Santexnika: Rakovina 3', en)).toBe('Plumbing: Sink 3')
+    expect(localizeLabel('Santexnika: Rakovina 3', ru)).toBe('Сантехника: Раковина 3')
+    expect(localizeLabel('Santexnika: Rakovina 3', uz)).toBe('Santexnika: Rakovina 3')
   })
 })

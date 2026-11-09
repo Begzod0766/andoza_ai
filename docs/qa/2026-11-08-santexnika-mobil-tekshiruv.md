@@ -46,12 +46,12 @@
 
 | # | Qayerda | Qadamlar | Kutilgan natija | Natija |
 |---|---|---|---|---|
-| 3.1 | Bosqichlar | Hammom xonasida bosqichlar qatoriga qarang | "Montaj"dan keyin **Plumbing / Сантехника** bor. Mehmonxonada bu bosqich yo'q | |
+| 3.1 | Kirish | Ilovada bosqichlar qatori yo'q: ↖ burchak menyusi → Plumbing → "Add a point" | Santexnika paneli ochiladi va burchak menyusi yopiladi. Mehmonxonada burchak menyusida Plumbing yo'q | |
 | 3.2 | Panel | Bosqichni oching | Jihozlar ro'yxati va nuqtalar ro'yxati chiqadi; har bir nuqtada turi va devori yozilgan | |
 | 3.3 | Panel | Qo'shish formasida turi "Sovuq suv", devori C, balandligi 90 sm deb kiriting → Qo'shish | Nuqta ro'yxatga va 3D'ga qo'shiladi | |
 | 3.4 | Xulosa | Panel pastiga qarang | "Kanalizatsiya: N nuqta, X m · Suv: M nuqta, Y m" (zaxira bilan) | |
-| 3.5 | Quvurlar | "Quvurlarni ko'rsatish" belgisini yoqing | 3D'da nuqtalardan stoyakkacha devor bo'ylab chiziqlar chiziladi. Panel yopilganda chiziqlar yo'qoladi | |
-| 3.6 | Doira menyu | 3D'da doira menyuni oching | "Santexnika" bo'limida nuqtalar va "+ qo'shish" bor; qo'shish bosqich panelini ochadi | |
+| 3.5 | Quvurlar | "Show pipe runs" belgisini yoqing, keyin panelni yoping | 3D'da nuqtalardan stoyakkacha devor bo'ylab chiziqlar chiziladi. Panel pastdan chiqadi, chiziqlar uning ustida ko'rinadi. Panel yopilgandan keyin ham chiziqlar qoladi, belgi o'chirilganda yo'qoladi | |
+| 3.6 | Burchak menyusi | ↖ → Plumbing | Halqada katalogdagi santexnika jihozlari (bosilsa xonaga qo'yiladi) va oxirida "Add a point" bor. Jihoz nomlari tanlangan tilda: "Bathtub 1" / "Ванна 1" | |
 
 ## 4. Smeta
 

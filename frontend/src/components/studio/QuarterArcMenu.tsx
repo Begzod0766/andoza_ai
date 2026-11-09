@@ -37,6 +37,8 @@ export interface ArcItem {
    *  Mebel. Tapping the category again comes back out. */
   items?: ArcItem[]
   onSelect: () => void
+  /** The pick hands over to a panel (it opens one): the menu closes, or it stays over the panel. */
+  closesMenu?: boolean
 }
 
 export interface ArcCategory {
@@ -215,6 +217,7 @@ export function QuarterArcMenu({
       return
     }
     item.onSelect()
+    if (item.closesMenu) closeAll()
   }
 
   function renderOuterButton(item: ArcItem, pos: { dx: number; dy: number }, opacity: number, i: number, slotKey: number | string) {

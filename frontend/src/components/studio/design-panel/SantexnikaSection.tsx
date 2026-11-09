@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { nanoid } from "nanoid";
 import { useTranslation } from "react-i18next";
 import { useRoomStore } from "@/store/roomStore";
@@ -7,6 +7,7 @@ import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, riserSpot } from "@/lib/plumbingRuns";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
+import { fixtureDisplayName } from "@/lib/fixtureName";
 
 const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
 
@@ -24,8 +25,8 @@ export function SantexnikaSection() {
   const removePlumbing = useRoomStore((s) => s.removePlumbing);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
   const setShowPipeRuns = useRoomStore((s) => s.setShowPipeRuns);
-  // The runs are drawn for this stage only: leaving it puts them away.
-  useEffect(() => () => setShowPipeRuns(false), [setShowPipeRuns]);
+  // The runs stay drawn until the box is unticked, also after the panel closes: on a phone the open
+  // panel covers half the 3D (mobile QA 2026-11-09 #3, the user's call).
   const [kind, setKind] = useState<PlumbingKind>("drain");
   const [wallId, setWallId] = useState(geometry.walls[0]?.id ?? "A");
   const [heightCm, setHeightCm] = useState("50");
@@ -34,7 +35,7 @@ export function SantexnikaSection() {
   const fixtures = furniture.flatMap((f) => {
     const row = byId.get(f.furniture_id);
     const name = row?.name_uz ?? f.name ?? f.furniture_id;
-    return ROLE_GROUP[inferRole(row?.category ?? null, name)] === "plumbing" ? [{ id: f.id, name }] : [];
+    return ROLE_GROUP[inferRole(row?.category ?? null, name)] === "plumbing" ? [{ id: f.id, name: fixtureDisplayName(name, t) }] : [];
   });
   const sum = plumbingSummary(geometry, plumbing, riserSpot(geometry));
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
@@ -96,7 +97,9 @@ export function SantexnikaSection() {
           </select>
         </label>
         <label className="text-[10px] text-ink-muted">{t("studio.santexnika.height")}
-          <input aria-label={t("studio.santexnika.height")} inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={field} />
+          <input aria-label={t("studio.santexnika.height")} inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={field}
+            // On a phone the keyboard came up over the field (mobile QA 2026-11-09 #4).
+            onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
         </label>
       </div>
       <button type="button" onClick={add} className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">

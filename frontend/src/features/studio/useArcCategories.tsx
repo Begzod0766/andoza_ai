@@ -16,6 +16,7 @@
  * room's own Saqlash persists them.
  */
 import { useMemo } from 'react'
+import { fixtureDisplayName } from "@/lib/fixtureName";
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
@@ -241,7 +242,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         ],
         // Nothing uploaded yet: the panel is where you add one, so send them
         // there rather than showing an arc with nothing on it.
-        emptyItem: { key: 'mebel:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('mebel') },
+        emptyItem: { key: 'mebel:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('mebel') },
       },
       // Bathrooms and kitchens: the fixtures and "add a point" (spec 2026-11-08).
       ...(visibleStages(roomKind).some((st) => st.key === 'santexnika') ? [{
@@ -253,7 +254,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
             .filter((f) => ROLE_GROUP[inferRole(f.category, f.name_uz)] === 'plumbing' && (!roomKind || fitsCatalogRoom(f, roomKind)))
             .map((f) => ({
               key: `sx:${f.id}`,
-              label: f.name_uz,
+              label: fixtureDisplayName(f.name_uz, t),
               icon: <Store size={19} strokeWidth={1.8} />,
               imageUrl: f.thumbnail_url ?? undefined,
               onSelect: () => placeFurniture({
@@ -266,7 +267,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
                 }),
               }),
             })),
-          { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('santexnika') },
+          { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('santexnika') },
         ],
       }] : []),
       {
@@ -274,14 +275,14 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         label: t('studio.radial.rang'),
         icon: <Wallpaper size={19} strokeWidth={1.8} />,
         items: papers,
-        emptyItem: { key: 'rang:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('boyoq') },
+        emptyItem: { key: 'rang:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('boyoq') },
       },
       {
         key: 'chiroq',
         label: t('studio.shared.chiroq'),
         icon: <Lightbulb size={19} strokeWidth={1.8} />,
         items: fixtures,
-        emptyItem: { key: 'chiroq:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('chiroq') },
+        emptyItem: { key: 'chiroq:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('chiroq') },
       },
       {
         key: 'pol',
