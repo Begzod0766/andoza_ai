@@ -146,3 +146,30 @@ describe('a fixture\'s points follow the room when its shape changes (final revi
     expect(s.plumbing).toEqual(withFixturePoints([], moved, s.catalogFurniture, g as never))
   })
 })
+
+describe('a room saved before plumbing gets its fixtures\' points on open (prod check 2026-11-09)', () => {
+  it('a saved bathroom with fixtures and no plumbing key gets their points, saved, and not as an undo step', () => {
+    const furniture = [{ id: 'tub', furniture_id: 'gone-from-catalog', name: 'Vanna 1', ...onWall('A') }]
+    useRoomStore.getState().loadDraftState({ geometry, furniture })
+    useRoomStore.getState().seedFixturePoints()
+    const s = useRoomStore.getState()
+    expect(s.plumbing.filter((p) => p.fixtureId === 'tub').map((p) => p.kind)).toEqual(['drain', 'cold', 'hot'])
+    expect(s.isDirty).toBe(true)
+    expect(useRoomStore.temporal.getState().pastStates).toHaveLength(0)
+  })
+
+  it('a room that already has points is left as it is', () => {
+    const furniture = [{ id: 'tub', furniture_id: 'x', name: 'Vanna 1', ...onWall('A') }]
+    useRoomStore.getState().loadDraftState({ geometry, furniture, plumbing: [{ id: 'wm', kind: 'cold', wallId: 'C', positionMm: 500, heightMm: 900 }] })
+    useRoomStore.getState().seedFixturePoints()
+    expect(useRoomStore.getState().plumbing.map((p) => p.id)).toEqual(['wm'])
+    expect(useRoomStore.getState().isDirty).toBe(false)
+  })
+})
+
+describe('autosave sees plumbing edits', () => {
+  it('a changed plumbing list counts as room content', async () => {
+    const { roomContentChanged } = await import('@/lib/autosave')
+    expect(roomContentChanged({ plumbing: [] } as never, { plumbing: [{ id: 'p' }] } as never)).toBe(true)
+  })
+})
