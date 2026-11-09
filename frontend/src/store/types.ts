@@ -366,8 +366,9 @@ export interface RoomPayload {
 export type PlumbingKind = 'drain' | 'cold' | 'hot'
 
 /**
- * A drain or water point on a wall (spec 2026-11-08). `positionMm` is the distance from the wall's
- * start along its direction (lib/aiDesignLayout's `roomModel` walls), `heightMm` from the floor (0 for
+ * A drain or water point on a wall (spec 2026-11-08). `positionMm` is the distance along the wall from
+ * the corner where the walk round the room reaches it (lib/plumbingRuns `wallWalk`; in an A–D room
+ * that runs against `roomModel`'s direction on walls C and D), `heightMm` from the floor (0 for
  * a floor trap). A point with `fixtureId` belongs to that placed fixture: it follows the fixture and
  * goes with it. One without was added by hand.
  */

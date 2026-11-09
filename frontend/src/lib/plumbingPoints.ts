@@ -72,7 +72,8 @@ export function withFixturePoints(
   const byId = new Map(catalog.map((c) => [c.id, c]))
   const owned = furniture.flatMap((f) => {
     const row = byId.get(f.furniture_id)
-    const role = inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? '')
+    // Named as the estimate names it (smeta.py _fixture_role): the row, the placed name, else the slug.
+    const role = inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? f.furniture_id)
     if (!isFixture(role)) return []
     const k = f.scaleOverride ?? 1
     const sizeM = { w: ((row?.footprint_w ?? 60) / 100) * k, d: ((row?.footprint_d ?? 60) / 100) * k }

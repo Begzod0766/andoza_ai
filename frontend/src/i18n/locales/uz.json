@@ -1148,7 +1148,8 @@
       "ceiling_frame": "Taxminiy hisob — karkas miqdorini ustaga tasdiqlang.",
       "ceiling_strip": "Taxminiy hisob — lenta uzunligi dizayn shakliga qarab farq qiladi.",
       "ai_price": "AI taxminiy narx (tajribali usta bahosi)",
-      "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi."
+      "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.",
+      "fittings_norm": "Narx taxminiy — fitinglar uchun o'rtacha narx olindi."
     },
     "formula": {
       "wall_head": "Devor {{wall}}",

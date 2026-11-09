@@ -107,3 +107,12 @@ describe('SantexnikaSection on a phone (mobile QA 2026-11-09)', () => {
     for (const lng of ['uz', 'ru', 'en']) expect(i18n.t('studio.santexnika.add', { lng })).not.toMatch(/^\+/)
   })
 })
+
+describe('the wall picker follows the room (review minor 2026-11-09)', () => {
+  it('when the room\'s walls change under an open panel, a new point goes on a wall the room has', () => {
+    render(<SantexnikaSection />)
+    useRoomStore.setState({ geometry: { walls: [{ id: 'W1', length: 3000, elements: [] }, { id: 'W2', length: 2000, elements: [] }, { id: 'W3', length: 3000, elements: [] }] } as never })
+    fireEvent.click(screen.getByRole('button', { name: /nuqta qo'shish/i }))
+    expect(useRoomStore.getState().plumbing.at(-1)!.wallId).toBe('W1')
+  })
+})

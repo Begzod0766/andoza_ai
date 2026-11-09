@@ -76,6 +76,7 @@ export function pipeRunM(geometry: RoomGeometry, from: { wallId: string; positio
   const cum = new Map<string, number>()
   let total = 0
   for (const w of geometry.walls) { cum.set(w.id, total); total += w.length }
+  if (total <= 0) return Math.round(from.heightMm / 10) / 100 // no walls to walk: only the rise or drop
   const at = (wallId: string, pos: number) => (cum.get(wallId) ?? 0) + pos
   const gap = Math.abs(at(from.wallId, from.positionMm) - at(riser.wallId, riser.positionMm))
   return Math.round((Math.min(gap, total - gap) + from.heightMm) / 10) / 100

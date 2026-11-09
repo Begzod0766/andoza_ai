@@ -61,6 +61,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
       });
     };
     const end = () => {
+      useRoomStore.getState().endPlumbingDrag();
       draggingRef.current = null;
       setDragging(null);
       if (controlsRef.current) controlsRef.current.enabled = true;
@@ -77,6 +78,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
     if (p.fixtureId) return;
     e.stopPropagation();
+    useRoomStore.getState().beginPlumbingDrag();
     draggingRef.current = p.id;
     setDragging(p.id);
     if (controlsRef.current) controlsRef.current.enabled = false;

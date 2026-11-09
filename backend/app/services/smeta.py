@@ -1384,6 +1384,14 @@ def _plumbing_geometry(room: "Room") -> dict:
     return {"walls": []}
 
 
+def _round2(x: float) -> float:
+    """To two decimals the way the studio does (JS Math.round(x * 100) / 100): a half goes up."""
+    return math.floor(x * 100 + 0.5) / 100
+
+
+PLUMBING_FITTINGS_WARNING = "Narx taxminiy — fitinglar uchun o'rtacha narx olindi."
+
+
 def _saved_riser(state: dict, geometry: dict) -> tuple[str, float] | None:
     """The riser the studio saved with the room (``plumbingRiser``: it knows which corner is nearest
     the door), when it is on a wall the room still has."""
@@ -1468,7 +1476,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         for kind in ("drain_50", "drain_110", "water_20"):
             if kind not in runs:
                 continue
-            metres = round(sum(runs[kind]) * PLUMBING_RESERVE, 2)
+            metres = _round2(sum(runs[kind]) * PLUMBING_RESERVE)
             shop = catalog.get(f"pipe:{kind}")
             shop_price = _price_per(shop, "m")
             price = shop_price or int(norms["pipe_m_uzs"][kind])
@@ -1485,6 +1493,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         lines.append(_make_line(
             label="Fitinglar", formula=f"{n} nuqta × 1 komplekt", qty=n, unit="komplekt",
             price_uzs=int(norms["fitting_set_uzs"]), category="santexnika",
+            is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
         ))
         lines.append(_make_line(
             label="Ish: nuqtani ulash",

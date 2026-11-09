@@ -1148,7 +1148,8 @@
       "ceiling_frame": "Approximate: confirm the amount of framing with a craftsman.",
       "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
       "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
-      "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used."
+      "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used.",
+      "fittings_norm": "Approximate price — an average price is used for the fittings."
     },
     "formula": {
       "wall_head": "Wall {{wall}}",

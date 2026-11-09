@@ -44,7 +44,7 @@ import { roomExtents } from "@/lib/roomDims";
 import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
-import { RENO_STAGES, visibleStages, type PhaseKey } from "@/lib/phases";
+import { initialPhaseFor, visibleStages, type PhaseKey } from "@/lib/phases";
 import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
 import { computeAbsolutePositions } from "./three-d/helpers";
@@ -313,13 +313,11 @@ export default function ThreeDPage() {
   // Falls back to the historical 'boyoq' default, which now only applies to
   // REOPENING a room (projects list, tab switches, direct links).
   const phaseParam = new URLSearchParams(location.search).get('phase')
-  const initialPhase: PhaseKey = isMebelTab
-    ? 'mebel'
-    : isChiroqTab
-      ? 'chiroq'
-      : RENO_STAGES.some((s) => s.key === phaseParam)
-        ? (phaseParam as PhaseKey)
-        : 'boyoq'
+  const initialPhase: PhaseKey = initialPhaseFor({
+    phaseParam,
+    roomKind: catalogRoomType(effectiveRoomType(room.room_type, room.name)),
+    tab: isMebelTab ? 'mebel' : isChiroqTab ? 'chiroq' : undefined,
+  })
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)

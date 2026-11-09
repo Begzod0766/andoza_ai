@@ -14,3 +14,15 @@ describe('the Santexnika stage (spec 2026-11-08)', () => {
     expect(visibleStages('mehmonxona')).toHaveLength(RENO_STAGES.length - 1)
   })
 })
+
+describe('the stage a link opens at (review minor 2026-11-09)', () => {
+  it('?phase=santexnika opens Santexnika in a bathroom, not in a bedroom', async () => {
+    const { initialPhaseFor } = await import('../phases')
+    expect(initialPhaseFor({ phaseParam: 'santexnika', roomKind: 'hammom' })).toBe('santexnika')
+    expect(initialPhaseFor({ phaseParam: 'santexnika', roomKind: 'yotoqxona' })).toBe('boyoq')
+    expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: 'yotoqxona' })).toBe('suvoq')
+    expect(initialPhaseFor({ phaseParam: null, roomKind: undefined })).toBe('boyoq')
+    expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: undefined, tab: 'mebel' })).toBe('mebel')
+    expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: undefined, tab: 'chiroq' })).toBe('chiroq')
+  })
+})

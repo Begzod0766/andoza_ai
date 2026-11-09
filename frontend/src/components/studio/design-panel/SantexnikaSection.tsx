@@ -40,11 +40,17 @@ export function SantexnikaSection() {
   const sum = plumbingSummary(geometry, plumbing, riserSpot(geometry));
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
 
+  // The room's walls can change under an open panel (another room, a resize): the picker keeps to them.
+  const pickedWall = geometry.walls.some((w) => w.id === wallId) ? wallId : (geometry.walls[0]?.id ?? "A");
+
   function add() {
-    const wall = geometry.walls.find((w) => w.id === wallId);
+    // Read the walls as they are now, not as they were when the panel last drew.
+    const walls = useRoomStore.getState().geometry.walls;
+    const target = walls.some((w) => w.id === wallId) ? wallId : (walls[0]?.id ?? "A");
+    const wall = walls.find((w) => w.id === target);
     const cm = Number(heightCm.replace(",", "."));
     addPlumbing({
-      id: nanoid(), kind, wallId, heightMm: Number.isFinite(cm) ? Math.max(0, Math.round(cm * 10)) : 0,
+      id: nanoid(), kind, wallId: target, heightMm: Number.isFinite(cm) ? Math.max(0, Math.round(cm * 10)) : 0,
       positionMm: Math.round((wall?.length ?? 0) / 2), diameterMm: kind === "drain" ? 50 : 20,
     });
   }
@@ -92,7 +98,7 @@ export function SantexnikaSection() {
           </select>
         </label>
         <label className="text-[10px] text-ink-muted">{t("studio.santexnika.wall")}
-          <select aria-label={t("studio.santexnika.wall")} value={wallId} onChange={(e) => setWallId(e.target.value)} className={field}>
+          <select aria-label={t("studio.santexnika.wall")} value={pickedWall} onChange={(e) => setWallId(e.target.value)} className={field}>
             {geometry.walls.map((w) => <option key={w.id} value={w.id}>{wallNumber(w.id)}</option>)}
           </select>
         </label>

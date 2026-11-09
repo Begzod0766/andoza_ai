@@ -74,3 +74,9 @@ describe('riserSpot: the corner nearest the door (final review)', () => {
     }
   })
 })
+
+describe('a room with points but no walls (review minor 2026-11-09)', () => {
+  it('the run is only the rise or drop, never negative', () => {
+    expect(pipeRunM({ walls: [] } as unknown as RoomGeometry, { wallId: 'A', positionMm: 500, heightMm: 700 }, { wallId: 'A', positionMm: 0 })).toBe(0.7)
+  })
+})

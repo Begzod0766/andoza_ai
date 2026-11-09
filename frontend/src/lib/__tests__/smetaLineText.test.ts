@@ -162,3 +162,9 @@ describe('plumbing fixture names in the estimate (mobile QA 2026-11-09 #5)', () 
     expect(localizeLabel('Santexnika: Rakovina 3', uz)).toBe('Santexnika: Rakovina 3')
   })
 })
+
+describe('the fittings warning (review minor 2026-11-09)', () => {
+  it('is translated', () => {
+    expect(localizeWarning("Narx taxminiy — fitinglar uchun o'rtacha narx olindi.", en)).toBe('Approximate price — an average price is used for the fittings.')
+  })
+})

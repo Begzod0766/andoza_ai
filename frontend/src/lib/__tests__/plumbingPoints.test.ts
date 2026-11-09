@@ -76,3 +76,12 @@ describe('fixturePoints measure along the walk round the room (Task 6 ruling)', 
     expect(pts[0].positionMm).toBeCloseTo(1250 - 300, -1)
   })
 })
+
+describe('a placed piece with no catalog row and no name (review minor 2026-11-09)', () => {
+  it('is read by its slug, as the estimate reads it', async () => {
+    const { withFixturePoints } = await import('../plumbingPoints')
+    const g = rect(2500, 2000)
+    const f = { ...against(g, 'A', 0.6), furniture_id: 'unitaz_01' }
+    expect(withFixturePoints([], [f], [], g).length).toBeGreaterThan(0)
+  })
+})
