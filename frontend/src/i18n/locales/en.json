@@ -482,7 +482,8 @@
         "pol": "Floor",
         "montaj": "Installation",
         "chiroq": "Light fixtures",
-        "mebel": "Furniture"
+        "mebel": "Furniture",
+        "santexnika": "Plumbing"
       },
       "tile_face": {
         "plain": "Plain",
@@ -977,7 +978,26 @@
       "size_pct": "Size %"
     },
     "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
-    "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material."
+    "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
+    "santexnika": {
+      "title": "Plumbing",
+      "hint": "A fixture brings its points when it is placed. Add an extra point here, for a washing machine say.",
+      "fixtures": "Fixtures",
+      "no_fixtures": "No fixtures yet: add them in the Furniture stage with the Plumbing filter.",
+      "points": "Points",
+      "kind": "Kind",
+      "wall": "Wall",
+      "height": "Height, cm",
+      "add": "+ Add a point",
+      "remove": "Remove",
+      "drain": "Drain",
+      "cold": "Cold water",
+      "hot": "Hot water",
+      "where": "wall {{wall}} · {{cm}} cm",
+      "own": "fixture's",
+      "summary": "Drain: {{dp}} points, ~{{dm}} m · Water: {{wp}} points, ~{{wm}} m",
+      "pipes": "Show pipe runs"
+    }
   },
   "smeta": {
     "sarlavha": "Estimate",

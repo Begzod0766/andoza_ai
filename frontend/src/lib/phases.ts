@@ -14,6 +14,7 @@ export type PhaseKey =
   | 'boyoq'
   | 'pol'
   | 'montaj'
+  | 'santexnika'
   | 'chiroq'
   | 'mebel'
 
@@ -23,6 +24,15 @@ export const RENO_STAGES: Array<{ key: PhaseKey; labelKey: TKey }> = [
   { key: 'boyoq', labelKey: 'studio.lib.stage.boyoq' },
   { key: 'pol', labelKey: 'studio.lib.stage.pol' },
   { key: 'montaj', labelKey: 'studio.lib.stage.montaj' },
+  { key: 'santexnika', labelKey: 'studio.lib.stage.santexnika' },
   { key: 'chiroq', labelKey: 'studio.lib.stage.chiroq' },
   { key: 'mebel', labelKey: 'studio.lib.stage.mebel' },
 ]
+
+/** Catalog room kinds with plumbing: the "Santexnika" stage shows only there (spec 2026-11-08). */
+const PLUMBING_ROOMS = new Set(['hammom', 'oshxona'])
+
+/** The stages a room of catalog kind `roomKind` shows: all but "Santexnika" outside a bathroom or kitchen. */
+export function visibleStages(roomKind: string | undefined): typeof RENO_STAGES {
+  return roomKind && PLUMBING_ROOMS.has(roomKind) ? RENO_STAGES : RENO_STAGES.filter((s) => s.key !== 'santexnika')
+}

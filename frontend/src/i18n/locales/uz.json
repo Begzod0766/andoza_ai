@@ -482,7 +482,8 @@
         "pol": "Pol",
         "montaj": "Montaj",
         "chiroq": "Chiroq",
-        "mebel": "Mebel"
+        "mebel": "Mebel",
+        "santexnika": "Santexnika"
       },
       "tile_face": {
         "plain": "Oddiy",
@@ -977,7 +978,26 @@
       "size_pct": "O'lcham %"
     },
     "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
-    "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang."
+    "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
+    "santexnika": {
+      "title": "Santexnika",
+      "hint": "Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi. Kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
+      "fixtures": "Jihozlar",
+      "no_fixtures": "Hali jihoz yo'q: \"Mebel\" bosqichida \"Santexnika\" filtridan qo'shing.",
+      "points": "Nuqtalar",
+      "kind": "Turi",
+      "wall": "Devor",
+      "height": "Balandligi, sm",
+      "add": "+ Nuqta qo'shish",
+      "remove": "Olib tashlash",
+      "drain": "Kanalizatsiya",
+      "cold": "Sovuq suv",
+      "hot": "Issiq suv",
+      "where": "{{wall}} devor · {{cm}} sm",
+      "own": "jihozniki",
+      "summary": "Kanalizatsiya: {{dp}} nuqta, ~{{dm}} m · Suv: {{wp}} nuqta, ~{{wm}} m",
+      "pipes": "Quvur yo'llarini ko'rsatish"
+    }
   },
   "smeta": {
     "sarlavha": "Smeta",
