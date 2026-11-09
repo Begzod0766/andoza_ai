@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { CatalogFurniture } from '@/lib/api'
@@ -71,11 +71,39 @@ describe('SantexnikaSection', () => {
 })
 
 describe('SantexnikaSection pipe runs toggle', () => {
-  it('switches the pipe runs on, and off again when the stage is left', () => {
+  // Mobile QA 2026-11-09 #3 (user's call): on a phone the open panel hides half the 3D, so the runs
+  // stay drawn after the panel closes, until the box is unticked.
+  it('switches the pipe runs on, and they stay on after the panel closes until unticked', () => {
     const { unmount } = render(<SantexnikaSection />)
     fireEvent.click(screen.getByRole('checkbox', { name: /quvur yo'llarini ko'rsatish/i }))
     expect(useRoomStore.getState().showPipeRuns).toBe(true)
     unmount()
-    expect(useRoomStore.getState().showPipeRuns).toBe(false)
+    expect(useRoomStore.getState().showPipeRuns).toBe(true)
+  })
+})
+
+describe('SantexnikaSection on a phone (mobile QA 2026-11-09)', () => {
+  it('#4: the height field scrolls into view when focused, above the keyboard', () => {
+    const spy = vi.fn()
+    Element.prototype.scrollIntoView = spy
+    render(<SantexnikaSection />)
+    fireEvent.focus(screen.getByLabelText('Balandligi, sm'))
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }))
+  })
+
+  it('#5: in English the fixtures read by what they are, the model number kept', async () => {
+    const i18n = (await import('@/i18n')).default
+    await i18n.changeLanguage('en')
+    try {
+      placeOn('tub', 'vanna', 'A', 0.7)
+      render(<SantexnikaSection />)
+      expect(screen.getByText('Bathtub 1')).toBeInTheDocument()
+      expect(screen.queryByText('Vanna 1')).toBeNull()
+    } finally { await i18n.changeLanguage('uz') }
+  })
+
+  it('#6: the add button says "Add a point" once, with no "+" in the words', async () => {
+    const i18n = (await import('@/i18n')).default
+    for (const lng of ['uz', 'ru', 'en']) expect(i18n.t('studio.santexnika.add', { lng })).not.toMatch(/^\+/)
   })
 })

@@ -39,7 +39,12 @@
         "work_sink": "Ish: rakovina o'rnatish",
         "work_toilet": "Ish: unitaz o'rnatish",
         "work_shower": "Ish: dush o'rnatish",
-        "work_bidet": "Ish: bide o'rnatish"
+        "work_bidet": "Ish: bide o'rnatish",
+        "fixture_bathtub": "Vanna",
+        "fixture_sink": "Rakovina",
+        "fixture_toilet": "Unitaz",
+        "fixture_shower": "Dush",
+        "fixture_bidet": "Bide"
       },
       "unit": {
         "qop_one": "qop",
@@ -177,7 +182,12 @@
         "work_sink": "Работа: установка раковины",
         "work_toilet": "Работа: установка унитаза",
         "work_shower": "Работа: установка душа",
-        "work_bidet": "Работа: установка биде"
+        "work_bidet": "Работа: установка биде",
+        "fixture_bathtub": "Ванна",
+        "fixture_sink": "Раковина",
+        "fixture_toilet": "Унитаз",
+        "fixture_shower": "Душ",
+        "fixture_bidet": "Биде"
       },
       "unit": {
         "qop_one": "мешок",
@@ -339,7 +349,12 @@
         "work_sink": "Work: installing the sink",
         "work_toilet": "Work: installing the toilet",
         "work_shower": "Work: installing the shower",
-        "work_bidet": "Work: installing the bidet"
+        "work_bidet": "Work: installing the bidet",
+        "fixture_bathtub": "Bathtub",
+        "fixture_sink": "Sink",
+        "fixture_toilet": "Toilet",
+        "fixture_shower": "Shower",
+        "fixture_bidet": "Bidet"
       },
       "unit": {
         "qop_one": "bag",

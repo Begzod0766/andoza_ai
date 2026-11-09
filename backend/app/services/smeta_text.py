@@ -180,6 +180,33 @@ def _localize_name(name: str, lang: str) -> str:
     return name
 
 
+# A plumbing fixture's own word in a shop name, by role (frontend/src/lib/fixtureName.ts).
+_FIXTURE_WORD = {
+    "bathtub": re.compile(r"\S*(?:ванна|vanna|bathtub)\S*", re.I),
+    "sink": re.compile(r"\S*(?:rakovina|umivalnik|moyka|раковин|умывальник|мойк|sink|washbasin)\S*", re.I),
+    "toilet": re.compile(r"\S*(?:unitaz|унитаз|toilet|\bwc\b)\S*", re.I),
+    "shower": re.compile(r"\S*(?:dush|душ|shower)\S*", re.I),
+    "bidet": re.compile(r"\S*(?:bide|биде|bidet)\S*", re.I),
+}
+
+
+def fixture_display_name(name: str, lang: str) -> str:
+    """A fixture's shop name (Uzbek: "Vanna 1") in *lang*: the fixture word becomes what the piece
+    is ("Bathtub 1", "Ванна 1"), the model kept. Uzbek, and a piece that is no fixture, unchanged."""
+    lang = _lang(lang)
+    if lang == DEFAULT_LANGUAGE:
+        return name
+    from app.services.ai_designer import infer_role  # ai_designer imports app.services.smeta
+
+    role = infer_role(None, name)
+    word = _FIXTURE_WORD.get(role)
+    if word is None:
+        return name
+    rest = re.sub(r"\s+", " ", word.sub("", name, count=1)).strip()
+    label = t(f"line.fixture_{role}", lang)
+    return f"{label} {rest}" if rest else label
+
+
 def localize_label(label: str, lang: str) -> str:
     if m := re.fullmatch(r"Suvoq \(gips\) (\S+) kg qop", label):
         return t("line.suvoq_bag", lang, kg=m[1])
@@ -201,7 +228,10 @@ def localize_label(label: str, lang: str) -> str:
     if colon > 0:
         head = label[:colon]
         if head in _LABEL_HEADS:
-            return f"{t(f'line.{_LABEL_HEADS[head]}', lang)}: {_localize_name(label[colon + 2:], lang)}"
+            name = label[colon + 2:]
+            if head == "Santexnika":  # a fixture reads by what it is: "Rakovina 3" -> "Sink 3"
+                return f"{t('line.santexnika', lang)}: {fixture_display_name(name, lang)}"
+            return f"{t(f'line.{_LABEL_HEADS[head]}', lang)}: {_localize_name(name, lang)}"
     return label
 
 

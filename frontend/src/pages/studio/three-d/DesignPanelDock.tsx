@@ -94,12 +94,16 @@ export function DesignPanelDock({
           instead so the 3D canvas on the left stays visible and live while
           picking a material — the actual point of this panel). */}
       <div
+        data-testid="design-panel-mobile"
         className={[
-          /* mobile base */
-          'fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card',
-          showPanel ? 'translate-x-0' : 'translate-x-full',
+          /* mobile base — the Santexnika stage is a form: from the bottom at full width, the 3D and
+             its pipe runs in view above (mobile QA 2026-11-09 #1); every other stage takes the right
+             half, so the wall being finished stays in view. */
+          activePhase === 'santexnika'
+            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
+            : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full'}`,
           /* desktop override */
-          'lg:static lg:translate-x-0 lg:w-auto lg:h-full lg:shadow-none lg:z-auto lg:overflow-auto',
+          'lg:static lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto',
         ].join(' ')}
       >
         {/* Mobile close button — replaces the old drag-to-dismiss handle,
