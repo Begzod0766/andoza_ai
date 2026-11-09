@@ -1384,6 +1384,18 @@ def _plumbing_geometry(room: "Room") -> dict:
     return {"walls": []}
 
 
+def _saved_riser(state: dict, geometry: dict) -> tuple[str, float] | None:
+    """The riser the studio saved with the room (``plumbingRiser``: it knows which corner is nearest
+    the door), when it is on a wall the room still has."""
+    saved = state.get("plumbingRiser")
+    if not isinstance(saved, dict):
+        return None
+    ids = {str(w.get("id")) for w in geometry.get("walls") or [] if isinstance(w, dict)}
+    if str(saved.get("wallId")) not in ids:
+        return None
+    return (str(saved["wallId"]), _float(saved.get("positionMm")))
+
+
 def _pipe_kind(point: dict) -> str:
     if point.get("kind") != "drain":
         return "water_20"
@@ -1444,7 +1456,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     points = [p for p in state.get("plumbing") or [] if isinstance(p, dict) and p.get("wallId")]
     if points:
         geometry = _plumbing_geometry(room)
-        riser = riser_spot(geometry, None)
+        riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
         runs: dict[str, list[float]] = {}
         for p in points:
             runs.setdefault(_pipe_kind(p), []).append(pipe_run_m(geometry, p, riser))

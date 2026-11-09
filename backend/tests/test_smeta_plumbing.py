@@ -139,3 +139,14 @@ def test_the_shop_pipes_are_found_by_name_cheapest_per_metre():
     assert pipes["pipe:drain_50"].name_uz == "Труба канализационная 50 мм"
     assert pipes["pipe:drain_110"].name_uz == "Kanalizatsiya quvuri Ø110"
     assert pipes["pipe:water_20"].name_uz == "PPR quvur 20 mm 4 m"  # 8 000 a metre
+
+
+def test_the_riser_the_studio_saved_is_the_one_the_estimate_measures_from():
+    room = _room()
+    room.state["plumbingRiser"] = {"wallId": "B", "positionMm": 2000}
+    line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
+    wc = next(p for p in PLUMBING if p["diameterMm"] == 110)
+    assert line.qty == pytest.approx(round(pipe_run_m(GEOMETRY, wc, ("B", 2000)) * 1.15, 2))
+    room.state["plumbingRiser"] = {"wallId": "nope", "positionMm": 5}  # a wall the room no longer has
+    line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
+    assert line.qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))

@@ -58,7 +58,16 @@ export function riserSpot(geometry: RoomGeometry, risers?: ReadonlyArray<{ x: nu
     }
     return { wallId: best.wallId, positionMm: best.positionMm }
   }
+  // The corner of the door's wall that the door is nearer to (spec: "the corner nearest the door").
   const doorWall = geometry.walls.find((w) => w.elements.some((e) => e.type === 'eshik'))
+  const door = doorWall?.elements.find((e) => e.type === 'eshik')
+  const wall = doorWall && roomModel(geometry).walls.find((w) => w.id === doorWall.id)
+  const walkWall = doorWall && walk.find((w) => w.id === doorWall.id)
+  if (door && wall && walkWall) {
+    const t = (door.position + door.width / 2) / 1000 - wall.length / 2
+    const s = (wall.midX + wall.dirX * t - walkWall.startX) * walkWall.dirX + (wall.midZ + wall.dirZ * t - walkWall.startZ) * walkWall.dirZ
+    return { wallId: doorWall.id, positionMm: s <= walkWall.lengthM / 2 + 1e-6 ? 0 : Math.round(walkWall.lengthM * 1000) }
+  }
   return { wallId: doorWall?.id ?? geometry.walls[0]?.id ?? 'A', positionMm: 0 }
 }
 
