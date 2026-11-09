@@ -11,8 +11,9 @@ export type FurnitureRole =
   | 'desk' | 'desk_chair'
   | 'wardrobe' | 'shelf'
   | 'decor' | 'rug'
+  | 'bathtub' | 'sink' | 'toilet' | 'shower' | 'bidet'
 
-export type GroupId = 'lounge' | 'dining' | 'sleep' | 'work' | 'storage' | 'extra'
+export type GroupId = 'lounge' | 'dining' | 'sleep' | 'work' | 'storage' | 'extra' | 'plumbing'
 
 export const ROLE_GROUP: Record<FurnitureRole, GroupId> = {
   sofa: 'lounge', armchair: 'lounge', coffee_table: 'lounge', tv_unit: 'lounge',
@@ -21,6 +22,7 @@ export const ROLE_GROUP: Record<FurnitureRole, GroupId> = {
   desk: 'work', desk_chair: 'work',
   wardrobe: 'storage', shelf: 'storage',
   decor: 'extra', rug: 'extra',
+  bathtub: 'plumbing', sink: 'plumbing', toilet: 'plumbing', shower: 'plumbing', bidet: 'plumbing',
 }
 
 export function isRole(v: unknown): v is FurnitureRole {
@@ -32,7 +34,14 @@ export function isRole(v: unknown): v is FurnitureRole {
 // "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
 // A Russian name that is just "Стол <model>" is an office shop's desk: a dining table says
 // "обеденный" or "кухонный", and "Стол-книжка" / "Стол-трансформер" are folding tables.
+// Plumbing fixtures first: the shop files them under "boshqa", and "Ванна" must reach no later rule.
+// Only the word itself ("ванна", not "ванной"): a "Шкаф для ванной" is a cabinet.
 const ROLE_BY_NAME: Array<[RegExp, FurnitureRole]> = [
+  [/^(?!.*(?:shkaf|шкаф|cabinet|polka|полк|javon)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)/i, 'bathtub'],
+  [/rakovina|umivalnik|раковин|умывальник|\bsink\b|washbasin/i, 'sink'],
+  [/unitaz|унитаз|\btoilet\b|\bwc\b/i, 'toilet'],
+  [/\bdush(?!anba)|(?<![а-яё])душ(?!ист)|shower/i, 'shower'],
+  [/\bbide\b|(?<![а-яё])биде(?![а-яё])|bidet/i, 'bidet'],
   [/gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас/i, 'rug'],
   [/jurnal|kofe|coffee|журнальн|кофейн/i, 'coffee_table'],
   [/tumbochka|nightstand|prikrovat|тумбочк|прикроватн/i, 'nightstand'],

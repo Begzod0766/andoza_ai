@@ -7,9 +7,9 @@ import { inferRole, type FurnitureRole } from '@/lib/furnitureRole'
  */
 const ROOM_ROLES: Record<string, ReadonlySet<FurnitureRole>> = {
   mehmonxona: new Set(['sofa', 'armchair', 'coffee_table', 'tv_unit', 'shelf', 'desk', 'desk_chair', 'dining_table', 'dining_chair']),
-  oshxona: new Set(['dining_table', 'dining_chair', 'shelf']),
+  oshxona: new Set(['dining_table', 'dining_chair', 'shelf', 'sink']),
   yotoqxona: new Set(['bed', 'nightstand', 'wardrobe', 'shelf', 'desk', 'desk_chair', 'armchair', 'tv_unit']),
-  hammom: new Set([]),
+  hammom: new Set(['bathtub', 'sink', 'toilet', 'shower', 'bidet']),
 }
 const ANY_ROOM: ReadonlySet<FurnitureRole> = new Set(['rug', 'decor'])
 

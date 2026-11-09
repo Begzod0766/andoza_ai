@@ -72,10 +72,32 @@ describe('furniture roles', () => {
     expect(ROLE_GROUP.rug).toBe('extra')
   })
 
-  it('isRole accepts only the 14 roles', () => {
-    expect(Object.keys(ROLE_GROUP)).toHaveLength(14)
+  it('isRole accepts only the 19 roles (14 furniture, 5 plumbing)', () => {
+    expect(Object.keys(ROLE_GROUP)).toHaveLength(19)
     expect(isRole('sofa')).toBe(true)
     expect(isRole('throne')).toBe(false)
     expect(isRole(3)).toBe(false)
+  })
+})
+
+describe('plumbing fixture roles (spec 2026-11-08: the shop files them all under "boshqa")', () => {
+  it.each([
+    ['Vanna 1', 'bathtub'], ['Ванна акриловая', 'bathtub'], ['Bathtub', 'bathtub'],
+    ['Rakovina 3', 'sink'], ['Раковина', 'sink'], ['Umivalnik', 'sink'],
+    ['Unitaz', 'toilet'], ['Унитаз', 'toilet'],
+    ['Dush 2', 'shower'], ['Душевая кабина', 'shower'],
+    ['Bide', 'bidet'], ['Биде', 'bidet'],
+  ])('%s is a %s', (name, role) => {
+    expect(inferRole('boshqa', name)).toBe(role)
+  })
+
+  it('a bathroom cabinet is not a bathtub, and a Monday is not a shower', () => {
+    expect(inferRole('shkaf', 'Шкаф для ванной комнаты')).not.toBe('bathtub')
+    expect(inferRole('shkaf', 'Vanna shkafi')).not.toBe('bathtub')
+    expect(inferRole('boshqa', 'Dushanba stoli')).not.toBe('shower')
+  })
+
+  it('the five sit in the plumbing group', () => {
+    for (const r of ['bathtub', 'sink', 'toilet', 'shower', 'bidet'] as const) expect(ROLE_GROUP[r]).toBe('plumbing')
   })
 })

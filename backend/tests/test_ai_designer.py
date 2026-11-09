@@ -542,7 +542,7 @@ def test_validate_plan_ignores_old_zone():
 
 
 def test_prompt_lists_roles():
-    assert len(ad.FURNITURE_ROLES) == 14
+    assert len(ad.FURNITURE_ROLES) == 19  # 14 furniture + 5 plumbing (2026-11-08)
     for role in ad.FURNITURE_ROLES:
         assert role in ad._SYSTEM
 
@@ -1097,3 +1097,21 @@ async def test_design_plan_style_none_with_image():
 def test_the_summary_is_asked_to_name_the_furniture_by_name_and_never_by_label():
     assert "mebelni nomi bilan" in ad._SYSTEM
     assert "F1" in ad._SYSTEM and "yozmang" in ad._SYSTEM
+
+
+
+@pytest.mark.parametrize("name, role", [
+    ("Vanna 1", "bathtub"), ("Ванна акриловая", "bathtub"), ("Bathtub", "bathtub"),
+    ("Rakovina 3", "sink"), ("Раковина", "sink"), ("Umivalnik", "sink"),
+    ("Unitaz", "toilet"), ("Унитаз", "toilet"),
+    ("Dush 2", "shower"), ("Душевая кабина", "shower"),
+    ("Bide", "bidet"), ("Биде", "bidet"),
+])
+def test_plumbing_fixture_roles_match_the_frontend(name, role):
+    assert ad.infer_role("boshqa", name) == role
+
+
+def test_a_bathroom_cabinet_is_not_a_bathtub():
+    assert ad.infer_role("shkaf", "Шкаф для ванной комнаты") != "bathtub"
+    assert ad.infer_role("shkaf", "Vanna shkafi") != "bathtub"
+    assert ad.infer_role("boshqa", "Dushanba stoli") != "shower"

@@ -27,3 +27,13 @@ describe('fitsCatalogRoom: which catalog pieces a room offers', () => {
     }
   })
 })
+
+
+describe('fitsCatalogRoom: plumbing fixtures with no room of their own', () => {
+  it('a bathtub goes to the bathroom only; a sink to the kitchen too', () => {
+    expect(fitsCatalogRoom(item('Vanna 1', 'boshqa', null), 'hammom')).toBe(true)
+    expect(fitsCatalogRoom(item('Vanna 1', 'boshqa', null), 'mehmonxona')).toBe(false)
+    expect(fitsCatalogRoom(item('Rakovina 3', 'boshqa', null), 'oshxona')).toBe(true)
+    expect(fitsCatalogRoom(item('Unitaz', 'boshqa', null), 'oshxona')).toBe(false)
+  })
+})
