@@ -28,7 +28,18 @@
         "led_niche": "LED lenta (shift nishi)",
         "kabel": "Elektr kabel",
         "kabel_approx": "Elektr kabel (taxminiy)",
-        "boyoq_none": "Bo'yoq (material tanlanmagan)"
+        "boyoq_none": "Bo'yoq (material tanlanmagan)",
+        "santexnika": "Santexnika",
+        "pipe_drain_50": "Kanalizatsiya quvuri Ø50",
+        "pipe_drain_110": "Kanalizatsiya quvuri Ø110",
+        "pipe_water_20": "Suv quvuri PPR Ø20",
+        "fittings": "Fitinglar",
+        "work_point": "Ish: nuqtani ulash",
+        "work_bathtub": "Ish: vanna o'rnatish",
+        "work_sink": "Ish: rakovina o'rnatish",
+        "work_toilet": "Ish: unitaz o'rnatish",
+        "work_shower": "Ish: dush o'rnatish",
+        "work_bidet": "Ish: bide o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -46,7 +57,9 @@
         "litr": "litr",
         "m": "m",
         "m2": "m²",
-        "kg": "kg"
+        "kg": "kg",
+        "nuqta_one": "nuqta",
+        "nuqta_other": "nuqta"
       },
       "formula": {
         "wall_head": "Devor {{wall}}",
@@ -89,7 +102,8 @@
         "ceiling_board": "Taxminiy hisob — shift konstruksiyasi murakkab shakl, ustaga tasdiqlang.",
         "ceiling_frame": "Taxminiy hisob — karkas miqdorini ustaga tasdiqlang.",
         "ceiling_strip": "Taxminiy hisob — lenta uzunligi dizayn shakliga qarab farq qiladi.",
-        "ai_price": "AI taxminiy narx (tajribali usta bahosi)"
+        "ai_price": "AI taxminiy narx (tajribali usta bahosi)",
+        "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi."
       },
       "toifa": {
         "tayyorlash": "Devorni tayyorlash",
@@ -97,6 +111,7 @@
         "pol": "Pol va plintus",
         "shift": "Shift",
         "elektr": "Elektr va yoritish",
+        "santexnika": "Santexnika",
         "jihoz": "Mebel va jihozlar",
         "boshqa": "Boshqa xarajatlar"
       },
@@ -151,7 +166,18 @@
         "led_niche": "LED-лента (ниша потолка)",
         "kabel": "Электрический кабель",
         "kabel_approx": "Электрический кабель (ориентировочно)",
-        "boyoq_none": "Краска (товар не выбран)"
+        "boyoq_none": "Краска (товар не выбран)",
+        "santexnika": "Сантехника",
+        "pipe_drain_50": "Канализационная труба Ø50",
+        "pipe_drain_110": "Канализационная труба Ø110",
+        "pipe_water_20": "Водопроводная труба PPR Ø20",
+        "fittings": "Фитинги",
+        "work_point": "Работа: подключение точки",
+        "work_bathtub": "Работа: установка ванны",
+        "work_sink": "Работа: установка раковины",
+        "work_toilet": "Работа: установка унитаза",
+        "work_shower": "Работа: установка душа",
+        "work_bidet": "Работа: установка биде"
       },
       "unit": {
         "qop_one": "мешок",
@@ -181,7 +207,11 @@
         "litr": "л",
         "m": "м",
         "m2": "м²",
-        "kg": "кг"
+        "kg": "кг",
+        "nuqta_one": "точка",
+        "nuqta_few": "точки",
+        "nuqta_many": "точек",
+        "nuqta_other": "точки"
       },
       "formula": {
         "wall_head": "Стена {{wall}}",
@@ -232,7 +262,8 @@
         "ceiling_board": "Ориентировочный расчёт: конструкция потолка сложной формы, согласуйте с мастером.",
         "ceiling_frame": "Ориентировочный расчёт: согласуйте количество каркаса с мастером.",
         "ceiling_strip": "Ориентировочный расчёт: длина ленты зависит от формы дизайна.",
-        "ai_price": "Ориентировочная цена от ИИ (оценка опытного мастера)"
+        "ai_price": "Ориентировочная цена от ИИ (оценка опытного мастера)",
+        "plumbing_norm": "Цена ориентировочная — в магазине нет этой трубы, взята средняя цена."
       },
       "toifa": {
         "tayyorlash": "Подготовка стен",
@@ -240,6 +271,7 @@
         "pol": "Пол и плинтус",
         "shift": "Потолок",
         "elektr": "Электрика и освещение",
+        "santexnika": "Сантехника",
         "jihoz": "Мебель и оборудование",
         "boshqa": "Прочие расходы"
       },
@@ -296,7 +328,18 @@
         "led_niche": "LED strip (ceiling niche)",
         "kabel": "Electrical cable",
         "kabel_approx": "Electrical cable (approximate)",
-        "boyoq_none": "Paint (no product chosen)"
+        "boyoq_none": "Paint (no product chosen)",
+        "santexnika": "Plumbing",
+        "pipe_drain_50": "Drain pipe Ø50",
+        "pipe_drain_110": "Drain pipe Ø110",
+        "pipe_water_20": "PPR water pipe Ø20",
+        "fittings": "Fittings",
+        "work_point": "Work: connecting a point",
+        "work_bathtub": "Work: installing the bathtub",
+        "work_sink": "Work: installing the sink",
+        "work_toilet": "Work: installing the toilet",
+        "work_shower": "Work: installing the shower",
+        "work_bidet": "Work: installing the bidet"
       },
       "unit": {
         "qop_one": "bag",
@@ -314,7 +357,9 @@
         "litr": "L",
         "m": "m",
         "m2": "m²",
-        "kg": "kg"
+        "kg": "kg",
+        "nuqta_one": "point",
+        "nuqta_other": "points"
       },
       "formula": {
         "wall_head": "Wall {{wall}}",
@@ -357,7 +402,8 @@
         "ceiling_board": "Approximate: the ceiling has a complex shape, confirm with a craftsman.",
         "ceiling_frame": "Approximate: confirm the amount of framing with a craftsman.",
         "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
-        "ai_price": "Approximate AI price (an experienced craftsman's estimate)"
+        "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
+        "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used."
       },
       "toifa": {
         "tayyorlash": "Wall preparation",
@@ -365,6 +411,7 @@
         "pol": "Floor and skirting board",
         "shift": "Ceiling",
         "elektr": "Electrics and lighting",
+        "santexnika": "Plumbing",
         "jihoz": "Furniture and fittings",
         "boshqa": "Other costs"
       },

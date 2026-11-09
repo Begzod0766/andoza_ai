@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { RENO_STAGES, type PhaseKey } from "@/lib/phases";
+import { RENO_STAGES, visibleStages, type PhaseKey } from "@/lib/phases";
 
 const SEEN_KEY = "studio.tapHint.seen";
 
@@ -52,9 +52,11 @@ export function TapHint({ onDismiss }: { onDismiss: () => void }) {
  * A press anywhere else closes the list, heard in the capture phase and never stopped: an
  * overlay that swallowed the press would cost the user the drag it started.
  */
-export function StagePill({ roomName, phase, onPick, onOpenChange }: {
+export function StagePill({ roomName, phase, onPick, onOpenChange, stages = visibleStages(undefined) }: {
   roomName: string;
   phase: PhaseKey;
+  /** The room's stages (lib/phases' visibleStages). */
+  stages?: typeof RENO_STAGES;
   onPick?: (phase: PhaseKey) => void;
   /** Told each time the stage list opens or closes (StagePillLayer lifts itself while it is open). */
   onOpenChange?: (open: boolean) => void;
@@ -106,7 +108,7 @@ export function StagePill({ roomName, phase, onPick, onOpenChange }: {
           aria-label={t("studio.three_d.bosqichni_tanlash")}
           className="mt-1 min-w-[12rem] overflow-hidden rounded-2xl bg-card py-1 shadow-lg ring-1 ring-line"
         >
-          {RENO_STAGES.map((s, i) => {
+          {stages.map((s, i) => {
             const current = s.key === phase;
             return (
               <li key={s.key}>
@@ -144,7 +146,7 @@ export const STAGE_LIST_Z = 300;
  * controls, and rises to STAGE_LIST_Z only while its list is open — permanently that high, it
  * would also cover the panels and the drop overlay (z-40/50) that are meant to cover it.
  */
-export function StagePillLayer(props: { roomName: string; phase: PhaseKey; onPick: (phase: PhaseKey) => void }) {
+export function StagePillLayer(props: { roomName: string; phase: PhaseKey; onPick: (phase: PhaseKey) => void; stages?: typeof RENO_STAGES }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="pointer-events-none absolute inset-x-0 top-3 z-20 flex justify-center lg:hidden"

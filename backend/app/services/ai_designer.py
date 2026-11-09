@@ -53,6 +53,7 @@ FURNITURE_ROLES = (
     "desk", "desk_chair",
     "wardrobe", "shelf",
     "decor", "rug",
+    "bathtub", "sink", "toilet", "shower", "bidet",
 )
 
 # Name rules, first match wins; Latin, Uzbek and Russian names. Cyrillic "тв" is matched with
@@ -62,6 +63,12 @@ FURNITURE_ROLES = (
 # "обеденный" or "кухонный", and "Стол-книжка" / "Стол-трансформер" are folding tables.
 _ROLE_BY_NAME: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.I), role) for pattern, role in (
+        # Plumbing fixtures first (the shop files them under "boshqa"); only the word "ванна" itself.
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)", "bathtub"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:rakovina|umivalnik|moyka|раковин|умывальник|мойк|\bsink\b|washbasin)", "sink"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:unitaz|унитаз|\btoilet\b|\bwc\b)", "toilet"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:\bdush(?!anba)|(?<![а-яё])душ(?!ист)|shower)", "shower"),
+        (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:\bbide\b|(?<![а-яё])биде(?![а-яё])|bidet)", "bidet"),
         (r"gilam|rug|carpet|kovrolin|ков[её]р|ковр|палас", "rug"),
         (r"jurnal|kofe|coffee|журнальн|кофейн", "coffee_table"),
         (r"tumbochka|nightstand|prikrovat|тумбочк|прикроватн", "nightstand"),
@@ -639,7 +646,7 @@ Qoidalar:
 - Mebel: xona turi va o'lchamiga mos narsalar tanlang; soni xabarda "Mebel soni" qatorida beriladi, undan oshirmang va kamaytirmang. Faqat xona turiga mos narsalarni oling va bir xil turdan (masalan ikkita divan) ikkitasini tanlamang. Mebellarni TURLICHA tanlang: har safar bir xil to'plamga yopishib qolmang, katalogdagi boshqa mos narsalarga ham e'tibor bering. Chiroq turini (lyustra, torsher, bra) mebel sifatida qaytadan tanlamang.
   Har bir mebelga vazifa (role) bering, "Vazifalar" qatoridan. Joyini o'zimiz hisoblaymiz.
   Mebel qatorida "uslub: ..." bo'lsa, u shu uslubga mos. So'rovda yoki rasmda uslub aniq bo'lsa (masalan neoklassika, hi-tech, milliy), mebelni avval shu uslubdagilardan tanlang. Uslubi yozilmagan mebel hamma uslubga mos. Mos uslubdagi mebel bo'lmasa, eng yaqinini oling.
-  Vazifalar: sofa (divan), armchair (kreslo), coffee_table (jurnal stoli), tv_unit (TV tumba), dining_table (ovqat stoli), dining_chair (ovqat stuli, bitta model tanlang: sonini o'zimiz belgilaymiz), bed (karavot), nightstand (tumbochka), desk (yozuv stoli), desk_chair (ish stuli), wardrobe (shkaf), shelf (javon, stellaj), decor (bezak), rug (gilam).
+  Vazifalar: sofa (divan), armchair (kreslo), coffee_table (jurnal stoli), tv_unit (TV tumba), dining_table (ovqat stoli), dining_chair (ovqat stuli, bitta model tanlang: sonini o'zimiz belgilaymiz), bed (karavot), nightstand (tumbochka), desk (yozuv stoli), desk_chair (ish stuli), wardrobe (shkaf), shelf (javon, stellaj), decor (bezak), rug (gilam), bathtub (vanna), sink (rakovina), toilet (unitaz), shower (dush, dush kabina), bidet (bide).
 - Shift profili (trim.ceiling), plintus (trim.skirting) va galtel (trim.cornice): faqat xabardagi ro'yxatlardan. cornice null bo'lsa galtel qo'yilmaydi.
 - Bolalar xonasi: yumshoq pastel ranglar (to'yingan, qichituvchi emas), yorqinlik yuqori, qarama-qarshilik past.
 - title: 2-4 so'zli nom.

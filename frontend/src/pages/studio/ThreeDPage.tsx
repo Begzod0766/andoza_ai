@@ -44,7 +44,8 @@ import { roomExtents } from "@/lib/roomDims";
 import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
-import { RENO_STAGES, type PhaseKey } from "@/lib/phases";
+import { RENO_STAGES, visibleStages, type PhaseKey } from "@/lib/phases";
+import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
 import { computeAbsolutePositions } from "./three-d/helpers";
 import { PlacedLights } from "./three-d/LightingComponents";
@@ -69,7 +70,6 @@ import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
 import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
-import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
@@ -658,7 +658,7 @@ export default function ThreeDPage() {
   /** The corner arc's categories, read from the same sources the design panel
    *  uses. `openPanelAt` is its escape hatch: a category with more items than
    *  the arc holds ends in a button that opens the full panel instead. */
-  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel') => {
+  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'santexnika') => {
     setActivePhase(phase);
     setShowPanel(true);
   }, [setActivePhase]);
@@ -762,7 +762,10 @@ export default function ThreeDPage() {
   }, [toolMode, setSelectedPart]);
   useEffect(() => { setSelectedPart(null); }, [room.id, setSelectedPart]);
 
-  const activeIdx = RENO_STAGES.findIndex(s => s.key === activePhase);
+  // The room's stages: "Santexnika" only in a bathroom or kitchen (spec 2026-11-08).
+  const stageRoomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)));
+  const stages = visibleStages(stageRoomKind);
+  const activeIdx = stages.findIndex(s => s.key === activePhase);
 
   // Kept visible: the studio's responsive layout (collapsible edge rail,
   // bottom-sheet panel on tablet/mobile) is built around this stepper being
@@ -780,6 +783,7 @@ export default function ThreeDPage() {
           setLeftOpen={setLeftOpen}
           activeIdx={activeIdx}
           setActivePhase={setActivePhase}
+          stages={stages}
         />
       )}
 

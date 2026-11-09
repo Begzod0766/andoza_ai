@@ -361,3 +361,22 @@ export interface RoomPayload {
    * paint/wallpaper/floor material pricing instead of starting blank. */
   surfaces?: Record<string, unknown> | null
 }
+
+/** What a plumbing point carries: the sewer, or cold or hot water. */
+export type PlumbingKind = 'drain' | 'cold' | 'hot'
+
+/**
+ * A drain or water point on a wall (spec 2026-11-08). `positionMm` is the distance from the wall's
+ * start along its direction (lib/aiDesignLayout's `roomModel` walls), `heightMm` from the floor (0 for
+ * a floor trap). A point with `fixtureId` belongs to that placed fixture: it follows the fixture and
+ * goes with it. One without was added by hand.
+ */
+export interface PlumbingPoint {
+  id: string
+  kind: PlumbingKind
+  diameterMm?: 50 | 110 | 20
+  wallId: string
+  positionMm: number
+  heightMm: number
+  fixtureId?: string
+}

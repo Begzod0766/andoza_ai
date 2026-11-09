@@ -285,3 +285,14 @@ describe('previewOtherRooms', () => {
     expect(preview[1].furnitureNames).toEqual([])
   })
 })
+
+describe('plumbing points go with the furniture a design replaces (final review)', () => {
+  it("a fixture's points whose fixture the design took away are dropped; a hand point stays", async () => {
+    const hand = { id: 'wm', kind: 'cold', wallId: 'C', positionMm: 500, heightMm: 900 }
+    const orphan = { id: 'old-wc:drain', kind: 'drain', diameterMm: 110, wallId: 'A', positionMm: 800, heightMm: 200, fixtureId: 'old-wc' }
+    const withPoints = room('bed', 'Yotoqxona', { room_type: 'yotoqxona', state: { ...SAVED_STATE, plumbing: [hand, orphan] } })
+    api.getRooms.mockResolvedValue([CURRENT, withPoints])
+    await applyToOtherRooms(args)
+    expect(sentFor('bed').state.plumbing).toEqual([hand])
+  })
+})

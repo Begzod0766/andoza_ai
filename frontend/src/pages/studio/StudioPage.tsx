@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { riserSpot } from "@/lib/plumbingRuns";
 import { createAutosave, roomContentChanged } from "@/lib/autosave";
 import { formatDecimal } from '@/lib/utils'
 import { defaultApartmentName, defaultRoomName } from '@/lib/defaultNames';
@@ -251,6 +252,9 @@ export default function StudioPage() {
         designState: s.designState,
         furniture: s.furniture,
         electricals: s.electricals,
+        plumbing: s.plumbing,
+        // Where the pipes run to, so the estimate measures from the same corner (lib/plumbingRuns).
+        plumbingRiser: riserSpot(s.geometry),
         lights: s.lights,
         layoutPos: s.layoutPos,
       };

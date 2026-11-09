@@ -19,7 +19,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
-import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store } from 'lucide-react'
+import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets } from 'lucide-react'
 import { FurnitureSymbol, LightSymbol } from '@/lib/catalogIcons'
 import { useRoomStore } from '@/store/roomStore'
 import { listWallpapers, type Wallpaper as WallpaperEntry } from '@/lib/api'
@@ -36,13 +36,15 @@ import { resolveTargetWall } from '@/components/studio/design-panel/shared'
 import type { ArcCategory, ArcItem } from '@/components/studio/QuarterArcMenu'
 import { fitsCatalogRoom } from '@/lib/furnitureRoomFit'
 import { catalogRoomType, effectiveRoomType } from '@/lib/roomType'
+import { visibleStages } from '@/lib/phases'
+import { inferRole, ROLE_GROUP } from '@/lib/furnitureRole'
 
 export interface ArcCategoriesDeps {
   /** Which wall a picked wallpaper lands on — the viewport's current pick,
    *  same as the design panel uses, falling back to every wall. */
   selectedWall: string | null
   /** Opens the full panel for a category the arc can only show a slice of. */
-  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel') => void
+  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'santexnika') => void
 }
 
 /** The catalog room each furniture ring stands for. */
@@ -241,6 +243,32 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         // there rather than showing an arc with nothing on it.
         emptyItem: { key: 'mebel:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('mebel') },
       },
+      // Bathrooms and kitchens: the fixtures and "add a point" (spec 2026-11-08).
+      ...(visibleStages(roomKind).some((st) => st.key === 'santexnika') ? [{
+        key: 'santexnika',
+        label: t('studio.lib.stage.santexnika'),
+        icon: <Droplets size={19} strokeWidth={1.8} />,
+        items: [
+          ...catalogFurniture
+            .filter((f) => ROLE_GROUP[inferRole(f.category, f.name_uz)] === 'plumbing' && (!roomKind || fitsCatalogRoom(f, roomKind)))
+            .map((f) => ({
+              key: `sx:${f.id}`,
+              label: f.name_uz,
+              icon: <Store size={19} strokeWidth={1.8} />,
+              imageUrl: f.thumbnail_url ?? undefined,
+              onSelect: () => placeFurniture({
+                id: nanoid(),
+                furniture_id: f.id,
+                ...nextFurnitureSpot({
+                  name: f.name_uz, category: f.category,
+                  sizeM: { w: (f.footprint_w ?? 0) / 100, d: (f.footprint_d ?? 0) / 100 },
+                  heightM: f.height_cm ? f.height_cm / 100 : undefined,
+                }),
+              }),
+            })),
+          { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('santexnika') },
+        ],
+      }] : []),
       {
         key: 'rang',
         label: t('studio.radial.rang'),
