@@ -68,7 +68,8 @@ export default function LidarPage() {
       // confirms in the wizard, and the wizard's "Save" button writes to the backend.
       loadRoom({ geometry, ceiling_h: ceilingM })
 
-      navigate('/wizard')
+      // `from=scan`: the wizard keeps the scanned room instead of starting a new one.
+      navigate('/wizard?from=scan')
     } catch (err: unknown) {
       const code = (err as { code?: RoomScanErrorCode }).code ?? 'CAPTURE_FAILED'
       if (code === 'USER_CANCELLED') {
