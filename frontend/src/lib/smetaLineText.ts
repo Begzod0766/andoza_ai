@@ -151,7 +151,7 @@ const FORMULA_COUNTED = {
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)(?=$|[\s);,])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });
@@ -186,7 +186,7 @@ const WARNING_KEYS = [
   "norm_missing", "stand_in", "pick_for_exact", "paint_fallback", "pick_paint",
   "wallpaper_missing", "pick_material", "texture_pricing", "furniture_approx", "light_approx",
   "galtel_approx", "cable_measured", "cable_points", "cable_guess", "confirm_electrician",
-  "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price",
+  "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price", "plumbing_norm",
 ] as const;
 
 /** A warning is one or more fixed sentences joined by spaces: each known one is translated. */
