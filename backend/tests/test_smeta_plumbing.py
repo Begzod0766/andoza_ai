@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
-from app.services.smeta import _furniture_lines, _plumbing_lines
+from app.services.smeta import _furniture_lines, _plumbing_lines, _round2
 from app.services.smeta_text import localize_label
 
 GEOMETRY = {"walls": [
@@ -45,7 +45,7 @@ def _room(plumbing=PLUMBING):
 
 def _runs(pred):
     riser = riser_spot(GEOMETRY, None)
-    return round(sum(pipe_run_m(GEOMETRY, p, riser) for p in PLUMBING if pred(p)) * 1.15, 2)
+    return _round2(sum(pipe_run_m(GEOMETRY, p, riser) for p in PLUMBING if pred(p)) * 1.15)
 
 
 def _by_label(lines):
@@ -148,7 +148,7 @@ def test_the_riser_the_studio_saved_is_the_one_the_estimate_measures_from():
     room.state["plumbingRiser"] = {"wallId": "B", "positionMm": 2000}
     line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
     wc = next(p for p in PLUMBING if p["diameterMm"] == 110)
-    assert line.qty == pytest.approx(round(pipe_run_m(GEOMETRY, wc, ("B", 2000)) * 1.15, 2))
+    assert line.qty == pytest.approx(_round2(pipe_run_m(GEOMETRY, wc, ("B", 2000)) * 1.15))
     room.state["plumbingRiser"] = {"wallId": "nope", "positionMm": 5}  # a wall the room no longer has
     line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
     assert line.qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))
@@ -170,3 +170,32 @@ def test_the_formula_and_warning_read_in_english():
 
 def test_uzbek_fixture_names_stay_as_they_are():
     assert localize_label("Santexnika: Rakovina 3", "uz") == "Santexnika: Rakovina 3"
+
+
+# ─── Deferred review minors (2026-11-09) ───────────────────────────────────────
+
+def test_fittings_are_an_average_price_and_say_so():
+    line = _by_label(_plumbing_lines(_room()))["Fitinglar"]
+    assert line.is_approximate is True and line.warning
+
+
+def test_shop_pipe_names_do_not_match_a_bigger_size_or_the_wrong_kind():
+    from app.services.estimate_catalog import pick_pipes
+    pipes = pick_pipes([
+        _mat("Kanalizatsiya quvuri Ø500", 1000), _mat("Труба d1100", 1000),  # not 50 / 110
+        _mat("PPR quvur Ø50", 1000),  # a 50 mm PPR water pipe is not a drain
+        _mat("PPR Ø25 PN 20", 1000),  # a 25 mm pipe rated PN 20 is not a Ø20
+    ])
+    assert pipes == {}
+    pipes = pick_pipes([_mat("PPR quvur Ø20 PN20", 9000), _mat("Kanalizatsiya Ø50", 18000), _mat("Труба ф110", 40000)])
+    assert set(pipes) == {"pipe:water_20", "pipe:drain_50", "pipe:drain_110"}
+
+
+def test_a_room_with_points_but_no_walls_has_no_negative_run():
+    assert pipe_run_m({"walls": []}, {"wallId": "A", "positionMm": 500, "heightMm": 700}, ("A", 0.0)) == 0.7
+
+
+def test_the_reserve_rounds_half_up_like_the_studio():
+    from app.services.smeta import _round2
+    # JS Math.round(x * 100) / 100: an exact half goes up (Python round(0.125, 2) gives 0.12)
+    assert _round2(0.125) == 0.13 and _round2(0.375) == 0.38

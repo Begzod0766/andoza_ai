@@ -71,9 +71,11 @@ def pick_median_finishes(materials: Iterable[Material]) -> dict[str, Material]:
 # A shop's plumbing pipe, told apart by its name (shops do not tag pipes with a smeta_key): the
 # estimate's "pipe:<kind>" lines (app.services.smeta._plumbing_lines).
 _PIPE_NAMES: dict[str, re.Pattern[str]] = {
-    "pipe:drain_110": re.compile(r"(?:Ø|ф|d)\s*110|\b110\s*мм|\b110\s*mm", re.I),
-    "pipe:drain_50": re.compile(r"(?:Ø|ф|d)\s*50|\b50\s*мм|\b50\s*mm", re.I),
-    "pipe:water_20": re.compile(r"\bPPR\b.*\b20\b|\b20\b.*\bPPR\b|ППР.*\b20\b", re.I),
+    # Drains: the size not followed by another digit (Ø500 is not Ø50), and not a PPR water pipe.
+    "pipe:drain_110": re.compile(r"^(?!.*(?:PPR|ППР)).*(?:(?:Ø|ф|d)\s*110(?!\d)|\b110\s*(?:мм|mm)\b)", re.I),
+    "pipe:drain_50": re.compile(r"^(?!.*(?:PPR|ППР)).*(?:(?:Ø|ф|d)\s*50(?!\d)|\b50\s*(?:мм|mm)\b)", re.I),
+    # Water: a PPR pipe whose DIAMETER is 20 ("PN 20" is its pressure rating, not its size).
+    "pipe:water_20": re.compile(r"^(?=.*(?:PPR|ППР)).*(?:(?:Ø|ф|d)\s*20(?!\d)|\b20\s*(?:мм|mm)\b)", re.I),
 }
 
 

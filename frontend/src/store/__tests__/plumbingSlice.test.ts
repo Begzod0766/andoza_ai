@@ -173,3 +173,21 @@ describe('autosave sees plumbing edits', () => {
     expect(roomContentChanged({ plumbing: [] } as never, { plumbing: [{ id: 'p' }] } as never)).toBe(true)
   })
 })
+
+describe('dragging a point is one undo step (review minor 2026-11-09)', () => {
+  it('a long drag, undone once, puts the point back where it started', () => {
+    useRoomStore.getState().addPlumbing({ id: 'wm', kind: 'cold', wallId: 'C', positionMm: 500, heightMm: 900 })
+    vi.advanceTimersByTime(UNDO_COALESCE_MS + 50)
+    const before = useRoomStore.temporal.getState().pastStates.length
+    useRoomStore.getState().beginPlumbingDrag()
+    for (let i = 1; i <= 6; i++) {
+      vi.advanceTimersByTime(500)
+      useRoomStore.getState().movePlumbing('wm', { positionMm: 500 + i * 100 })
+    }
+    useRoomStore.getState().endPlumbingDrag()
+    expect(useRoomStore.getState().plumbing[0].positionMm).toBe(1100)
+    expect(useRoomStore.temporal.getState().pastStates.length).toBe(before + 1)
+    useRoomStore.temporal.getState().undo()
+    expect(useRoomStore.getState().plumbing[0].positionMm).toBe(500)
+  })
+})

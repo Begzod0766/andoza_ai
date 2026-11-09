@@ -17,10 +17,16 @@ export interface PlumbingSlice {
    * already has points or no fixtures.
    */
   seedFixturePoints(): void
+  /** A point is being dragged: its moves until `endPlumbingDrag` make one undo step, not one per 400 ms. */
+  beginPlumbingDrag(): void
+  endPlumbingDrag(): void
   /** Whether the pipe runs to the riser are drawn (the Santexnika stage's toggle). View state only. */
   showPipeRuns: boolean
   setShowPipeRuns(on: boolean): void
 }
+
+/** The points as they were when the drag in progress began (see beginPlumbingDrag). */
+let dragStart: PlumbingPoint[] | null = null
 
 export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice> = (set) => ({
   plumbing: [],
@@ -40,6 +46,23 @@ export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice>
 
   removePlumbing(id) {
     set((state) => ({ plumbing: state.plumbing.filter((p) => p.id !== id), isDirty: true }))
+  },
+
+  beginPlumbingDrag() {
+    dragStart = useRoomStore.getState().plumbing
+    useRoomStore.temporal.getState().pause()
+  },
+
+  endPlumbingDrag() {
+    const temporal = useRoomStore.temporal.getState()
+    const start = dragStart
+    dragStart = null
+    if (!start) { temporal.resume(); return }
+    const final = useRoomStore.getState().plumbing
+    // Back to where the drag began unrecorded, then to where it ended recorded: one step.
+    set({ plumbing: start })
+    temporal.resume()
+    if (final !== start) set({ plumbing: final, isDirty: true })
   },
 
   seedFixturePoints() {

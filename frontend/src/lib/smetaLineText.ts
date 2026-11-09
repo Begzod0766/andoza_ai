@@ -190,7 +190,7 @@ const WARNING_KEYS = [
   "norm_missing", "stand_in", "pick_for_exact", "paint_fallback", "pick_paint",
   "wallpaper_missing", "pick_material", "texture_pricing", "furniture_approx", "light_approx",
   "galtel_approx", "cable_measured", "cable_points", "cable_guess", "confirm_electrician",
-  "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price", "plumbing_norm",
+  "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price", "plumbing_norm", "fittings_norm",
 ] as const;
 
 /** A warning is one or more fixed sentences joined by spaces: each known one is translated. */

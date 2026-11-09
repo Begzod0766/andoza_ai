@@ -36,3 +36,12 @@ const PLUMBING_ROOMS = new Set(['hammom', 'oshxona'])
 export function visibleStages(roomKind: string | undefined): typeof RENO_STAGES {
   return roomKind && PLUMBING_ROOMS.has(roomKind) ? RENO_STAGES : RENO_STAGES.filter((s) => s.key !== 'santexnika')
 }
+
+/**
+ * The stage the studio opens at: the Mebel or Chiroq tab's own, else the link's `?phase=` when the
+ * room has that stage (Santexnika only in a bathroom or kitchen), else Bo'yoq.
+ */
+export function initialPhaseFor(args: { phaseParam: string | null; roomKind: string | undefined; tab?: 'mebel' | 'chiroq' }): PhaseKey {
+  if (args.tab) return args.tab
+  return visibleStages(args.roomKind).some((s) => s.key === args.phaseParam) ? (args.phaseParam as PhaseKey) : 'boyoq'
+}

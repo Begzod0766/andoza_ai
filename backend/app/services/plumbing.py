@@ -40,8 +40,11 @@ def pipe_run_m(geometry: dict | None, point: dict, riser: tuple[str, float]) -> 
         cum[str(w.get("id"))] = total
         total += float(w.get("length") or 0) * 1000
     at = lambda wall_id, pos: cum.get(str(wall_id), 0.0) + float(pos or 0)  # noqa: E731
+    height = float(point.get("heightMm") or 0)
+    if total <= 0:  # no walls to walk: only the rise or drop
+        return math.floor(height / 10 + 0.5) / 100
     gap = abs(at(point.get("wallId"), point.get("positionMm")) - at(riser[0], riser[1]))
-    mm = min(gap, total - gap) + float(point.get("heightMm") or 0)
+    mm = min(gap, total - gap) + height
     return math.floor(mm / 10 + 0.5) / 100  # JS Math.round, not banker's rounding
 
 

@@ -108,7 +108,8 @@
         "ceiling_frame": "Taxminiy hisob — karkas miqdorini ustaga tasdiqlang.",
         "ceiling_strip": "Taxminiy hisob — lenta uzunligi dizayn shakliga qarab farq qiladi.",
         "ai_price": "AI taxminiy narx (tajribali usta bahosi)",
-        "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi."
+        "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.",
+        "fittings_norm": "Narx taxminiy — fitinglar uchun o'rtacha narx olindi."
       },
       "toifa": {
         "tayyorlash": "Devorni tayyorlash",
@@ -273,7 +274,8 @@
         "ceiling_frame": "Ориентировочный расчёт: согласуйте количество каркаса с мастером.",
         "ceiling_strip": "Ориентировочный расчёт: длина ленты зависит от формы дизайна.",
         "ai_price": "Ориентировочная цена от ИИ (оценка опытного мастера)",
-        "plumbing_norm": "Цена ориентировочная — в магазине нет этой трубы, взята средняя цена."
+        "plumbing_norm": "Цена ориентировочная — в магазине нет этой трубы, взята средняя цена.",
+        "fittings_norm": "Цена ориентировочная — для фитингов взята средняя цена."
       },
       "toifa": {
         "tayyorlash": "Подготовка стен",
@@ -418,7 +420,8 @@
         "ceiling_frame": "Approximate: confirm the amount of framing with a craftsman.",
         "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
         "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
-        "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used."
+        "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used.",
+        "fittings_norm": "Approximate price — an average price is used for the fittings."
       },
       "toifa": {
         "tayyorlash": "Wall preparation",
