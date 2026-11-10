@@ -235,6 +235,8 @@ export interface FloorTextureSettings {
 }
 
 export interface DesignState {
+  /** A bathroom's extractor fan in the estimate: on unless exactly false (spec 2026-11-10). */
+  ventFan?: boolean
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).
@@ -386,4 +388,15 @@ export interface PlumbingPoint {
   positionMm: number
   heightMm: number
   fixtureId?: string
+  /** A towel rail's point: worked out from the rail, never saved or moved on its own. */
+  railId?: string
+}
+
+/** A heated towel rail on a wall (spec 2026-11-10): 500 × 800 mm; `positionMm` is its centre along the
+ * wall walk, `heightMm` its bottom edge above the floor. */
+export interface TowelRail {
+  id: string
+  wallId: string
+  positionMm: number
+  heightMm: number
 }

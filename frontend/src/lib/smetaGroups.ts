@@ -30,6 +30,7 @@ const CATEGORY_TO_GROUP: Record<string, GroupKey> = {
   shift: "shift",
   elektr: "elektr",
   chiroq: "elektr",
+  ventilyatsiya: "elektr",
   jihoz: "jihoz",
   santexnika: "santexnika",
 };

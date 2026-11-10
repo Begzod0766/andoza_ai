@@ -5,6 +5,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, riserSpot } from "@/lib/plumbingRuns";
+import { withRailPoints } from "@/lib/towelRail";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
@@ -15,8 +16,18 @@ const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
  * "Santexnika" stage (spec 2026-11-08): the room's fixtures, their drain and water points and any
  * added by hand, a form to add one, and the pipe runs summed up. Shown in a bathroom or kitchen only.
  */
-export function SantexnikaSection() {
+export function SantexnikaSection({ bathroom = false }: {
+  /** The room is a bathroom: the towel rail and the extractor fan are offered (spec 2026-11-10). */
+  bathroom?: boolean;
+}) {
   const { t } = useTranslation();
+  const ventFan = useRoomStore((s) => s.designState.ventFan);
+  const setDesignState = useRoomStore((s) => s.setDesignState);
+  const towelRails = useRoomStore((s) => s.towelRails);
+  const addTowelRail = useRoomStore((s) => s.addTowelRail);
+  const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
+  /** The last "add a rail" found no wall with room for one. */
+  const [noRailRoom, setNoRailRoom] = useState(false);
   const furniture = useRoomStore((s) => s.furniture);
   const catalog = useRoomStore((s) => s.catalogFurniture);
   const plumbing = useRoomStore((s) => s.plumbing);
@@ -37,7 +48,9 @@ export function SantexnikaSection() {
     const name = row?.name_uz ?? f.name ?? f.furniture_id;
     return ROLE_GROUP[inferRole(row?.category ?? null, name)] === "plumbing" ? [{ id: f.id, name: fixtureDisplayName(name, t) }] : [];
   });
-  const sum = plumbingSummary(geometry, plumbing, riserSpot(geometry));
+  // A rail's two points are worked out from it, never saved: shown and summed with the rest.
+  const points = withRailPoints(plumbing, towelRails, geometry);
+  const sum = plumbingSummary(geometry, points, riserSpot(geometry));
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
 
   // The room's walls can change under an open panel (another room, a resize): the picker keeps to them.
@@ -73,15 +86,16 @@ export function SantexnikaSection() {
       <div>
         <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.points")}</span>
         <ul className="space-y-1">
-          {plumbing.map((p) => (
+          {points.map((p) => (
             <li key={p.id} aria-label={`${t(`studio.santexnika.${p.kind}`)}, ${where(p)}`}
               className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
               <span className="flex items-center gap-2 text-[12px] text-ink">
                 <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: p.kind === "drain" ? "#9CA3AF" : p.kind === "cold" ? "#3B82F6" : "#EF4444" }} />
                 {t(`studio.santexnika.${p.kind}`)} · {where(p)}
                 {p.fixtureId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.own")})</span>}
+                {p.railId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.rail_own")})</span>}
               </span>
-              {!p.fixtureId && (
+              {!p.fixtureId && !p.railId && (
                 <button type="button" onClick={() => removePlumbing(p.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                   {t("studio.santexnika.remove")}
                 </button>
@@ -112,10 +126,45 @@ export function SantexnikaSection() {
         {t("studio.santexnika.add")}
       </button>
 
+      {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}
+      {(bathroom || towelRails.length > 0) && (
+        <div className="space-y-1.5">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.rail")}</span>
+          {towelRails.length > 0 && (
+            <ul className="space-y-1">
+              {towelRails.map((r) => (
+                <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <span className="text-[12px] text-ink">{t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}</span>
+                  <button type="button" onClick={() => removeTowelRail(r.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                    {t("studio.santexnika.remove")}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {bathroom && (
+            <button type="button" onClick={() => setNoRailRoom(!addTowelRail())}
+              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+              {t("studio.santexnika.rail_add")}
+            </button>
+          )}
+          {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
+        </div>
+      )}
+
       <label className="flex items-center gap-2 text-[12px] text-ink">
         <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
         {t("studio.santexnika.pipes")}
       </label>
+
+      {bathroom && (
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          {/* On unless switched off: the estimate reads only an exact false (smeta.py _fan_lines). */}
+          <input type="checkbox" checked={ventFan !== false} onChange={(e) => setDesignState({ ventFan: e.target.checked })} />
+          {t("studio.santexnika.fan")}
+        </label>
+      )}
 
       <p className="text-[11px] font-medium text-ink">
         {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}

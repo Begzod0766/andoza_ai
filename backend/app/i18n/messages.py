@@ -251,6 +251,7 @@ MESSAGES: dict[str, dict[str, str]] = _table(
     ("Bunday smeta kaliti yo'q", "Такого ключа сметы нет", "There is no such estimate key"),
     ("chiroq dona bilan sotilishi kerak", "светильник должен продаваться поштучно", "a light fixture must be sold by the piece"),
     ("kabel metrlab (m) sotilishi kerak", "кабель должен продаваться метрами (м)", "cable must be sold by the metre (m)"),
+    ("bu mahsulot donalab sotilishi kerak", "этот товар должен продаваться поштучно", "this product must be sold by the piece"),
     ("{key} uchun qadoq birligi {need} bo'lishi kerak", "Для {key} единицей упаковки должна быть {need}", "The pack unit for {key} must be {need}"),
     # --- room scans (iOS) and public room links --------------------------
     ("Juda ko'p so'rov yuborildi. Birozdan so'ng qayta urinib ko'ring.", "Отправлено слишком много запросов. Повторите попытку чуть позже.", "Too many requests were sent. Please try again in a little while."),

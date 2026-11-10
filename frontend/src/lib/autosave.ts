@@ -67,7 +67,7 @@ export function createAutosave(
  *  other field — a view setting, the dirty flag itself — is not an edit. */
 export const ROOM_CONTENT_KEYS = [
   'geometry', 'designState', 'furniture', 'lights', 'electricals', 'surfaces',
-  'name', 'ceilingHeight', 'layoutPos', 'plumbing',
+  'name', 'ceilingHeight', 'layoutPos', 'plumbing', 'towelRails',
 ] as const
 
 type RoomContent = Partial<Record<(typeof ROOM_CONTENT_KEYS)[number], unknown>>

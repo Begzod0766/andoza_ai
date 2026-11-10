@@ -20,6 +20,7 @@ import { FloorSection } from "./design-panel/FloorSection";
 import { MebelSection } from "./design-panel/MebelSection";
 import { SuvoqSection } from "./design-panel/SuvoqSection";
 import { SantexnikaSection } from "./design-panel/SantexnikaSection";
+import { effectiveRoomType } from "@/lib/roomType";
 import { MontajSection } from "./design-panel/MontajSection";
 
 export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedLightId, onLightChange, armedLightType, onArmLight, planMode }: {
@@ -357,7 +358,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
           />
         )}
         {phase === 'montaj' && <MontajSection />}
-        {phase === 'santexnika' && <SantexnikaSection />}
+        {phase === 'santexnika' && <SantexnikaSection bathroom={effectiveRoomType(room.room_type, room.name) === 'hammom'} />}
 
         {mutation.isPending && (
           <p className="text-xs text-ink-muted animate-pulse">{t("common.saqlash")}...</p>

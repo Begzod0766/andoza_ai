@@ -161,6 +161,9 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "zatirka", labelKey: "dokon.admin.smeta_key.zatirka", packUnit: "kg" },
   { id: "gidro_mastika", labelKey: "dokon.admin.smeta_key.gidro_mastika", packUnit: "kg" },
   { id: "gidro_lenta", labelKey: "dokon.admin.smeta_key.gidro_lenta", packUnit: "m" },
+  // A bathroom's extras (spec 2026-11-10): sold by the piece
+  { id: "ventilyator", labelKey: "dokon.admin.smeta_key.ventilyator", packUnit: null, unit: "dona" },
+  { id: "sochiq_quritgich", labelKey: "dokon.admin.smeta_key.sochiq_quritgich", packUnit: null, unit: "dona" },
   ...LIGHT_TYPES.map((t) => ({
     id: `light:${t.id}`,
     labelKey: t.nameKey,

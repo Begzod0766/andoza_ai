@@ -1,0 +1,148 @@
+"""A heated towel rail in the estimate (spec 2026-11-10): the rail, its two points' pipe, fittings and work."""
+from __future__ import annotations
+
+import uuid
+from types import SimpleNamespace
+
+import pytest
+
+from app.services.plumbing import pipe_run_m, riser_spot
+from app.services.smeta import EXTRAS_NORM_NOTE, _plumbing_lines, _round2, compute_estimate
+from app.services.smeta_groups import group_key_for
+from app.services.smeta_text import localize_label
+from app.services.towel_rail import rail_points
+
+GEOMETRY = {"walls": [
+    {"id": "A", "length": 2.5, "elements": []}, {"id": "B", "length": 2.0, "elements": []},
+    {"id": "C", "length": 2.5, "elements": []},
+    {"id": "D", "length": 2.0, "elements": [{"type": "eshik", "width": 0.7, "position": 0.5}]},
+]}
+POLYGON = {"walls": [{"id": str(i), "length": length, "elements": []} for i, length in enumerate((3.0, 2.0, 1.803, 1.803, 2.0))],
+           "vertices": [[0, 0], [3, 0], [3, 2], [1.5, 3], [0, 2]]}
+RAIL = {"id": "r1", "wallId": "A", "positionMm": 600, "heightMm": 1000}
+RAIL2 = {"id": "r2", "wallId": "C", "positionMm": 1200, "heightMm": 1000}
+COLD = {"id": "p1", "kind": "cold", "diameterMm": 20, "wallId": "B", "positionMm": 1000, "heightMm": 500}
+NO_KEY = object()
+
+
+def room(rails=NO_KEY, plumbing=NO_KEY, furniture=(), geometry=GEOMETRY):
+    state: dict = {"furniture": list(furniture)}
+    if rails is not NO_KEY:
+        state["towelRails"] = rails
+    if plumbing is not NO_KEY:
+        state["plumbing"] = plumbing
+    return SimpleNamespace(
+        state=state, geometry=geometry, net_wall_area=24.3, floor_area=5.0, perimeter=9.0, openings_count=1, ceiling_h=2.7,
+        room_type="hammom", name="Hammom", surfaces={}, furniture_layout=[], room_scan=None,
+    )
+
+
+def by_label(lines):
+    return {ln.label: ln for ln in lines}
+
+
+def run_m(points, geometry=GEOMETRY):
+    riser = riser_spot(geometry, None)
+    return _round2(sum(pipe_run_m(geometry, p, riser) for p in points) * 1.15)
+
+
+def test_a_rail_adds_the_rail_its_pipe_fittings_and_work():
+    got = by_label(_plumbing_lines(room(rails=[RAIL]), {}))
+    rail = got["Sochiq quritgich"]
+    assert (rail.qty, rail.unit, rail.unit_price_uzs, rail.category) == (1, "dona", 650_000, "santexnika")
+    assert rail.is_approximate and rail.warning == EXTRAS_NORM_NOTE
+    assert got["Fitinglar"].qty == 2 and got["Ish: nuqtani ulash"].qty == 2
+    pipe = got["Suv quvuri PPR Ø20"]
+    assert pipe.formula.startswith("2 nuqta: ")
+    assert pipe.qty == run_m(rail_points([RAIL], GEOMETRY)) > 0
+    work = got["Ish: sochiq quritgichni o'rnatish"]
+    assert (work.qty, work.unit, work.unit_price_uzs, work.category) == (1, "dona", 200_000, "santexnika")
+
+
+def test_two_rails_count_twice():
+    got = by_label(_plumbing_lines(room(rails=[RAIL, RAIL2]), {}))
+    assert got["Sochiq quritgich"].qty == 2 and got["Sochiq quritgich"].subtotal_uzs == 1_300_000
+    assert got["Fitinglar"].qty == 4 and got["Ish: sochiq quritgichni o'rnatish"].qty == 2
+
+
+def test_rail_points_join_saved_points():
+    got = by_label(_plumbing_lines(room(rails=[RAIL], plumbing=[COLD]), {}))
+    assert got["Fitinglar"].qty == 3
+    assert got["Suv quvuri PPR Ø20"].qty == run_m([COLD, *rail_points([RAIL], GEOMETRY)])
+
+
+def test_a_room_with_saved_empty_plumbing_and_a_rail_still_gets_the_lines():
+    got = by_label(_plumbing_lines(room(rails=[RAIL], plumbing=[]), {}))
+    assert got["Fitinglar"].qty == 2 and "Suv quvuri PPR Ø20" in got
+
+
+def test_rail_points_join_derived_points():
+    tub = {"id": "tub", "furniture_id": "vanna-1", "name": "Vanna 1", "x": 0, "y": -610, "rotation": 0}
+    without = by_label(_plumbing_lines(room(furniture=[tub]), {}))
+    with_rail = by_label(_plumbing_lines(room(rails=[RAIL], furniture=[tub]), {}))
+    assert without["Fitinglar"].qty == 3 and with_rail["Fitinglar"].qty == 5
+
+
+@pytest.mark.parametrize("rails", [[{"id": "r1", "wallId": "Z", "positionMm": 600, "heightMm": 1000}], "x", None, [None, 3]])
+def test_a_rail_the_room_cannot_hold_is_skipped(rails):
+    assert _plumbing_lines(room(rails=rails), {}) == []
+
+
+def test_a_saved_rail_point_is_not_counted_twice():
+    """Rail points are never saved; one that got into ``plumbing`` anyway is ignored in favour of the rule."""
+    stray = {**rail_points([RAIL], GEOMETRY)[0]}
+    got = by_label(_plumbing_lines(room(rails=[RAIL], plumbing=[stray]), {}))
+    assert got["Fitinglar"].qty == 2
+
+
+def test_a_tagged_shop_rail_gives_its_price_name_and_shop():
+    shop = SimpleNamespace(id=uuid.uuid4(), name_uz="Terminus Versal", unit="dona", price_uzs=820_000, pack_qty=None, pack_unit=None,
+                           smeta_key="sochiq_quritgich", is_active=True, store=SimpleNamespace(name="Stroy Master"))
+    rail = by_label(_plumbing_lines(room(rails=[RAIL]), {"sochiq_quritgich": shop}))["Sochiq quritgich: Terminus Versal"]
+    assert (rail.unit_price_uzs, rail.store_name, rail.is_approximate, rail.warning) == (820_000, "Stroy Master", False, None)
+
+
+def test_no_rails_no_change():
+    key = lambda r: [(ln.label, ln.qty, ln.subtotal_uzs) for ln in _plumbing_lines(r, {})]  # noqa: E731
+    assert key(room(rails=[], plumbing=[COLD])) == key(room(plumbing=[COLD]))
+    assert _plumbing_lines(room(rails=[]), {}) == []
+
+
+def test_a_polygon_room():
+    rail = {"id": "r1", "wallId": "2", "positionMm": 900, "heightMm": 1000}
+    got = by_label(_plumbing_lines(room(rails=[rail], geometry=POLYGON), {}))
+    assert got["Sochiq quritgich"].qty == 1
+    assert got["Suv quvuri PPR Ø20"].qty == run_m(rail_points([rail], POLYGON), POLYGON)
+
+
+@pytest.mark.parametrize(("label", "ru", "en"), [
+    ("Sochiq quritgich", "Полотенцесушитель", "Heated towel rail"),
+    ("Sochiq quritgich: Terminus Versal", "Полотенцесушитель: Terminus Versal", "Heated towel rail: Terminus Versal"),
+    ("Ish: sochiq quritgichni o'rnatish", "Работа: установка полотенцесушителя", "Work: fitting the towel rail"),
+])
+def test_labels_read_in_russian_and_english(label, ru, en):
+    assert (localize_label(label, "ru"), localize_label(label, "en")) == (ru, en)
+
+
+def test_rail_and_fan_lines_are_in_the_estimate_outside_the_furniture_group():
+    """The "repair only" view drops the furniture group alone: the rail and the fan stay in its total."""
+    lines = compute_estimate(room(rails=[RAIL]), {}, {}, catalog={}).lines
+    groups = {ln.label: group_key_for(ln.category) for ln in lines}
+    assert groups["Sochiq quritgich"] == "santexnika" and groups["Ish: sochiq quritgichni o'rnatish"] == "santexnika"
+    assert groups["Tortuvchi ventilyator"] == "elektr"
+    assert "jihoz" not in {groups[k] for k in ("Sochiq quritgich", "Tortuvchi ventilyator")}
+
+
+def test_a_room_priced_from_its_saved_geometry_keeps_the_pipe_run_sane():
+    """Final review: with no geometry on the room row the studio's saved one (mm) is used; its
+    vertices were left in mm, so a polygon wall read 1000 times too long and a rail past the wall's
+    end gave a negative pipe line."""
+    saved = {"walls": [{"id": str(i), "length": length, "elements": []} for i, length in enumerate((3000, 2000, 1803, 1803, 2000))],
+             "vertices": [[0, 0], [3000, 0], [3000, 2000], [1500, 3000], [0, 2000]]}
+    r = room(rails=[{"id": "r1", "wallId": "2", "positionMm": 99999, "heightMm": 1000}], geometry=None)
+    r.state["geometry"] = saved
+    got = by_label(_plumbing_lines(r, {}))
+    pipe = got["Suv quvuri PPR Ø20"]
+    assert 0 < pipe.qty < 30 and pipe.subtotal_uzs > 0
+    same = by_label(_plumbing_lines(room(rails=[{"id": "r1", "wallId": "2", "positionMm": 99999, "heightMm": 1000}], geometry=POLYGON), {}))
+    assert pipe.qty == pytest.approx(same["Suv quvuri PPR Ø20"].qty, abs=0.05)

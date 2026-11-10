@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
 import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, WallElement, DesignState } from '../types'
 import { withFixturePoints } from '@/lib/plumbingPoints'
+import { keepRails } from '@/lib/towelRail'
 import { defaultGeometry, resizeWall } from '../utils/geometryHelpers'
 import type { RoomStore } from '../roomStoreTypes'
 
@@ -40,7 +41,10 @@ export const createGeometrySlice: StateCreator<
     set((state) => {
       const geometry = resizeWall(state.geometry, wallId, length)
       // A point is measured from its wall's start, which moves when the room is resized.
-      return { isDirty: true, geometry, plumbing: withFixturePoints(state.plumbing, state.furniture, state.catalogFurniture, geometry) }
+      return {
+        isDirty: true, geometry, towelRails: keepRails(state.towelRails, geometry),
+        plumbing: withFixturePoints(state.plumbing, state.furniture, state.catalogFurniture, geometry),
+      }
     })
   },
 
@@ -49,6 +53,7 @@ export const createGeometrySlice: StateCreator<
       ...(extra ?? {}),
       geometry,
       plumbing: withFixturePoints(state.plumbing, extra?.furniture ?? state.furniture, state.catalogFurniture, geometry),
+      towelRails: keepRails(state.towelRails, geometry),
       isDirty: true,
     }))
   },

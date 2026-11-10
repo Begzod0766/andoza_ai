@@ -1,0 +1,519 @@
+{
+ "_doc": "A towel rail's two hot water points (spec 2026-11-10): frontend lib/towelRail railPoints and backend app/services/towel_rail rail_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres.",
+ "cases": [
+  {
+   "name": "rect, mid wall A",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "A",
+     "positionMm": 1200,
+     "heightMm": 1000
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 950,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1450,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "rect, near the start of B: feed clamped to 0",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "B",
+     "positionMm": 100,
+     "heightMm": 900
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 0,
+     "heightMm": 900,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 350,
+     "heightMm": 900,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "rect, past the end of C: both clamped to the wall",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "C",
+     "positionMm": 2900,
+     "heightMm": 1000
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 2500,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 2500,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "rect, wall the room does not have",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "Z",
+     "positionMm": 500,
+     "heightMm": 1000
+    }
+   ],
+   "expected": []
+  },
+  {
+   "name": "rect, two rails, one of them stale",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "A",
+     "positionMm": 600,
+     "heightMm": 1000
+    },
+    {
+     "id": "r2",
+     "wallId": "Q",
+     "positionMm": 600,
+     "heightMm": 1000
+    },
+    {
+     "id": "r3",
+     "wallId": "D",
+     "positionMm": 1000,
+     "heightMm": 1200
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 350,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 850,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r3:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 750,
+     "heightMm": 1200,
+     "railId": "r3"
+    },
+    {
+     "id": "r3:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 1250,
+     "heightMm": 1200,
+     "railId": "r3"
+    }
+   ]
+  },
+  {
+   "name": "L-room, wall 3",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 4000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1500,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "5",
+      "length": 3500,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      4000,
+      0
+     ],
+     [
+      4000,
+      2000
+     ],
+     [
+      2000,
+      2000
+     ],
+     [
+      2000,
+      3500
+     ],
+     [
+      0,
+      3500
+     ]
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "3",
+     "positionMm": 700,
+     "heightMm": 1000
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 450,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 950,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "slanted wall of 1802.78 mm: return clamped and rounded",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 3000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 1803,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1803,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      3000,
+      0
+     ],
+     [
+      3000,
+      2000
+     ],
+     [
+      1500,
+      3000
+     ],
+     [
+      0,
+      2000
+     ]
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "2",
+     "positionMm": 1700,
+     "heightMm": 1000
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 1450,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 1803,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "fractional position is rounded",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "A",
+     "positionMm": 1000.6,
+     "heightMm": 1000
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 751,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1251,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  }
+ ]
+}

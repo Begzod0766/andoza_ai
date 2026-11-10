@@ -54,6 +54,7 @@ CATEGORY_TO_GROUP = {
     "shift": "shift",
     "elektr": "elektr",
     "chiroq": "elektr",
+    "ventilyatsiya": "elektr",
     "jihoz": "jihoz",
     "santexnika": "santexnika",
 }

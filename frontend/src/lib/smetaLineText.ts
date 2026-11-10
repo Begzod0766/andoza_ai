@@ -40,6 +40,8 @@ const LABEL_HEADS = {
   "Zatirka": "grout",
   "Gidroizolyatsiya mastikasi": "wp_mastic",
   "Gidroizolyatsiya lentasi": "wp_tape",
+  "Tortuvchi ventilyator": "fan",
+  "Sochiq quritgich": "towel_rail",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -63,6 +65,11 @@ const WHOLE_LABELS = {
   "Ish: devor plitkasini terish": "work_wall_tile",
   "Gidroizolyatsiya mastikasi": "wp_mastic",
   "Gidroizolyatsiya lentasi": "wp_tape",
+  "Tortuvchi ventilyator": "fan",
+  "Elektr kabel (ventilyator)": "fan_cable",
+  "Ish: ventilyatorni o'rnatish": "work_fan",
+  "Sochiq quritgich": "towel_rail",
+  "Ish: sochiq quritgichni o'rnatish": "work_towel_rail",
   "Ish: gidroizolyatsiya": "work_wp",
   "Ish: nuqtani ulash": "work_point",
   "Ish: vanna o'rnatish": "work_bathtub",
@@ -210,6 +217,7 @@ const WARNING_KEYS = [
   "wallpaper_missing", "pick_material", "texture_pricing", "furniture_approx", "light_approx",
   "galtel_approx", "cable_measured", "cable_points", "cable_guess", "confirm_electrician",
   "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price", "plumbing_norm", "fittings_norm", "wall_tile_norm", "tile_norm",
+  "extras_norm", "fan_cable_len",
 ] as const;
 
 /** A warning is one or more fixed sentences joined by spaces: each known one is translated. */
