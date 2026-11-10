@@ -21,6 +21,7 @@ import { MaterialSwatch } from "../MaterialSwatch";
  *  uploaded/library wallpaper image. */
 import { WALL_COLORS, wallColorName } from "@/lib/wallPalette";
 import { TileHeightControls } from "./TileHeightControls";
+import { isTileCovering } from "@/lib/tileBand";
 import { wallNumber } from "@/lib/wallLabel";
 
 type CoveringMode = "paint" | "texture";
@@ -70,6 +71,14 @@ export function WallSection({
   const ceilingHeight = useRoomStore((s) => s.ceilingHeight);
   const surfaces = useRoomStore((s) => s.surfaces);
   const applySurface = useRoomStore((s) => s.applySurface);
+  const tweakWallCovering = useRoomStore((s) => s.tweakWallCovering);
+
+  /** A change to the covering the target already wears (tile height, texture mapping). Under ALL
+   * the walls with a covering of their own keep it, here and in what is saved. */
+  function tweakCovering(covering: WallCovering) {
+    tweakWallCovering(targetWall, covering);
+    syncToApi({ ...designState, wallCoverings: { ...designState.wallCoverings, [targetWall]: covering } });
+  }
 
   const [coveringMode, setCoveringMode] = React.useState<CoveringMode>("paint");
 
@@ -145,9 +154,12 @@ export function WallSection({
       ? designState.wallCoverings.ALL
       : (designState.wallCoverings[targetWall] ?? designState.wallCoverings.ALL)
     if (c.kind !== 'texture') return
-    applyWallCovering({ ...c, ...patch })
+    tweakCovering({ ...c, ...patch })
   }
 
+  const targetCovering = targetWall === "ALL"
+    ? designState.wallCoverings.ALL
+    : (designState.wallCoverings[targetWall] ?? designState.wallCoverings.ALL);
   const wallColorForPreview = resolveWallColor(designState.wallCoverings);
   const hasOboy = Object.values(designState.wallCoverings).some((c) => c?.kind === "oboy");
 
@@ -196,6 +208,13 @@ export function WallSection({
        * showed "0 dona" since no wall in geometry has id 'CEILING'. */}
       {targetWall !== 'FLOOR' && targetWall !== 'CEILING'
         && targetWall !== 'SKIRTING' && targetWall !== 'CORNICE' && (<>
+      {/* A tiled wall: how high the tile goes, and the paint above it. Above the tabs, so it is
+       * there whichever tab is open (tile laid from the ring leaves the tab where it was). */}
+      {isTileCovering(targetCovering) && (
+        <section className="pt-5 border-t border-line">
+          <TileHeightControls covering={targetCovering} ceilingMm={ceilingHeight} onChange={tweakCovering} />
+        </section>
+      )}
       <section className="pt-5 border-t border-line">
         <div className="flex gap-1 p-0.5 bg-card-soft rounded-lg">
           {(["paint", "texture"] as const).map((mode) => (
@@ -309,9 +328,6 @@ export function WallSection({
                     </button>
                   </div>
                 </div>
-
-                {/* A tiled wall: how high the tile goes, and the paint above it. */}
-                <TileHeightControls covering={c} ceilingMm={ceilingHeight} onChange={applyWallCovering} />
 
                 {/* UVW controls */}
                 <div className="space-y-2.5 p-3 bg-card-soft rounded-xl border border-line">

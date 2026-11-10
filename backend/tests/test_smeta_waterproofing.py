@@ -117,3 +117,27 @@ def test_a_bathroom_whose_floor_is_finished_is_not_sealed_again():
     assert got == []
     still = [ln for ln in compute_estimate(room(), {}, {}, catalog=CATALOG).lines if ln.label.startswith("Gidro")]
     assert len(still) == 2
+
+
+def test_a_shop_tape_by_the_roll_is_bought_in_whole_rolls():
+    """A 5 m roll is not sold by the metre: the joint takes whole rolls."""
+    roll = SimpleNamespace(id=uuid.uuid4(), name_uz="Lenta 120 mm 5 m", unit="rulon", price_uzs=60_000, pack_qty=5, pack_unit="m",
+                           smeta_key="gidro_lenta", is_active=True, store=SimpleNamespace(name="Stroy Master"))
+    line = by_label(_waterproofing_lines(room(), {**CATALOG, "gidro_lenta": roll}))["Gidroizolyatsiya lentasi: Lenta 120 mm 5 m"]
+    rolls = math.ceil(expected()["tape_m"] / 5)
+    assert rolls >= 2
+    assert (line.qty, line.unit, line.unit_price_uzs, line.subtotal_uzs) == (rolls, "rulon", 60_000, rolls * 60_000)
+    assert line.formula == f"{expected()['tape_m']:.2f} m ÷ 5 m → {rolls} rulon"
+    assert line.store_name == "Stroy Master" and line.is_approximate is False
+    assert localize_formula(line.formula, "en") == f"{expected()['tape_m']:.2f} m ÷ 5 m → {rolls} roll" + ("s" if rolls != 1 else "")
+
+
+def test_a_bathtub_with_no_footprint_is_read_as_a_bathtub_not_a_stool():
+    """A catalog row without a footprint used to count as 60 × 60 cm: a third of a bathtub's wet zone."""
+    bare = SimpleNamespace(id="vanna-1", name_uz="Vanna 1", category="boshqa", footprint_w=None, footprint_d=None,
+                           price_uzs=4_500_000, is_active=True, store=None)
+    tub = {**TUB, "y": -650}   # back against wall A either way
+    got = _waterproofing_lines(room(furniture=(tub,)), {furniture_catalog_key("vanna-1"): bare})
+    want = waterproof_areas({"walls": WALLS}, [{"x": 0, "y": -650, "rotation": 0, "w": 1.7, "d": 0.7}], 5.0, 0.7)
+    assert want["wet"] == pytest.approx((1.7 + 0.6) * 1.6)
+    assert by_label(got)["Ish: gidroizolyatsiya"].qty == want["total"]

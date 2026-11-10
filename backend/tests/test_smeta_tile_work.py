@@ -4,6 +4,8 @@ from __future__ import annotations
 import uuid
 from types import SimpleNamespace
 
+import pytest
+
 from app.services.smeta import TILE_NORM_NOTE, _tile_work_lines, compute_estimate
 from app.services.smeta_groups import GROUP_ORDER, group_key_for
 
@@ -123,3 +125,18 @@ def test_labels_read_in_russian_and_english(label, ru, en):
 def test_warnings_and_formula_read_in_english():
     assert localize_warning(TILE_NORM_NOTE, "en") == "Approximate price — the shop has no such product, an average price was used."
     assert localize_formula("25.00 m² × 5 kg/m² = 125.0 kg → 5 qop (25 kg)", "en") == "25.00 m² × 5 kg/m² = 125.0 kg → 5 bags (25 kg)"
+
+
+def test_a_tile_floor_with_no_shop_tile_still_lists_the_tile():
+    """The laying work was listed but the tile itself was not: the total came out too low."""
+    from app.services.smeta import WALL_TILE_NORM_NOTE
+    from app.services.smeta_text import localize_label
+
+    r = room(floor="tile")
+    lines = compute_estimate(r, {}, {}, catalog={}).lines
+    tile = next(ln for ln in lines if ln.label == "Pol plitkasi")
+    area = next(ln for ln in lines if ln.label == "Ish: pol plitkasini terish").qty
+    assert (tile.unit, tile.unit_price_uzs, tile.category) == ("m²", 120_000, "plitka")
+    assert tile.qty == pytest.approx(area * 1.10, abs=0.01)
+    assert tile.is_approximate and tile.warning == WALL_TILE_NORM_NOTE
+    assert (localize_label("Pol plitkasi", "ru"), localize_label("Pol plitkasi", "en")) == ("Напольная плитка", "Floor tile")

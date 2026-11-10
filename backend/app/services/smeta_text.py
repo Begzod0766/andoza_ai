@@ -153,6 +153,7 @@ _WHOLE_LABELS = {
     "Suv quvuri PPR Ø20": "pipe_water_20",
     "Fitinglar": "fittings",
     "Devor plitkasi": "wall_tile",
+    "Pol plitkasi": "floor_tile",
     "Plitka yelimi": "tile_adhesive",
     "Zatirka": "grout",
     "Ish: pol plitkasini terish": "work_floor_tile",

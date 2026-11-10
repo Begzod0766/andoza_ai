@@ -588,10 +588,14 @@ def _grunt_line(
 
 
 def _putty_line(
-    room: "Room", norms_map: "dict[str, Norm]", material: "Material | None" = None
-) -> ComputedLine:
-    """Shpatlyovka (putty) — required until a room reaches 'shpaklovka'."""
-    net_wall = _float(room.net_wall_area)
+    room: "Room", norms_map: "dict[str, Norm]", material: "Material | None" = None,
+    tiled_m2: float = 0.0,
+) -> ComputedLine | None:
+    """Shpatlyovka (putty) — required until a room reaches 'shpaklovka'. Not under tile: tile is
+    laid on plaster and primer, so *tiled_m2* of the walls is left out; None when nothing is left."""
+    net_wall = _float(room.net_wall_area) - tiled_m2
+    if net_wall < 0.05:
+        return None
     putty_norm = norms_map.get("shpatlyovka")
     putty_params = putty_norm.params if putty_norm and putty_norm.params else {}
     putty_rate = float(putty_params.get("rate_kg_m2", PUTTY_RATE_KG_M2))
@@ -920,9 +924,13 @@ def _is_bathroom(room: "Room") -> bool:
     return guess_room_type(str(getattr(room, "name", "") or "")) == "hammom"
 
 
+# A usual bathtub and shower tray, cm (width, depth): what a catalog row with no footprint is read as.
+_WET_FOOTPRINT_CM = {"bathtub": (170, 70), "shower": (90, 90)}
+
+
 def _wet_fixtures(room: "Room", catalog: dict) -> list[dict]:
     """The placed bathtubs and showers, as app.services.waterproofing takes them: where each
-    stands and its footprint (the shop row's, 60 cm when it has none)."""
+    stands and its footprint (the shop row's, a usual one of its kind when it has none)."""
     out = []
     for item in (room.state or {}).get("furniture") or []:
         fid = item.get("furniture_id") if isinstance(item, dict) else None
@@ -931,13 +939,15 @@ def _wet_fixtures(room: "Room", catalog: dict) -> list[dict]:
         row = catalog.get(furniture_catalog_key(fid))
         if row is not None and not getattr(row, "is_active", False):
             row = None
-        if _fixture_role(fid, row, {fid: str(item["name"])} if item.get("name") else {}) not in ("bathtub", "shower"):
+        role = _fixture_role(fid, row, {fid: str(item["name"])} if item.get("name") else {})
+        if role not in _WET_FOOTPRINT_CM:
             continue
         k = _float(item.get("scaleOverride")) or 1
+        w_cm, d_cm = _WET_FOOTPRINT_CM[role]
         out.append({
             "x": item.get("x"), "y": item.get("y"), "rotation": item.get("rotation"),
-            "w": (_float(getattr(row, "footprint_w", None)) or 60) / 100 * k,
-            "d": (_float(getattr(row, "footprint_d", None)) or 60) / 100 * k,
+            "w": (_float(getattr(row, "footprint_w", None)) or w_cm) / 100 * k,
+            "d": (_float(getattr(row, "footprint_d", None)) or d_cm) / 100 * k,
         })
     return out
 
@@ -979,15 +989,24 @@ def _waterproofing_lines(room: "Room", catalog: "dict | None" = None, floor_alre
             **(_shop(mastic) if per_kg else {}),
         )
     tape = catalog.get("gidro_lenta")
+    roll_m = _pack_of(tape, "m") if str(getattr(tape, "unit", "")) in _SOLD_BY_PACK_UNITS else None
     tape_price = _price_per(tape, "m")
     metres = math.ceil(a["tape_m"] - 1e-9)
-    tape_line = _make_line(
-        label=f"Gidroizolyatsiya lentasi: {tape.name_uz}" if tape_price else "Gidroizolyatsiya lentasi",
-        formula=f"{a['tape_m']:.2f} m → {metres} m", qty=metres, unit="m",
-        price_uzs=tape_price or int(n["tape_m_uzs"]), category="plitka_ish",
-        is_approximate=not tape_price, warning=None if tape_price else TILE_NORM_NOTE,
-        **(_shop(tape) if tape_price else {}),
-    )
+    if roll_m:
+        # A roll is bought whole, not by the metre.
+        rolls = max(1, math.ceil(a["tape_m"] / roll_m - 1e-9))
+        tape_line = _make_line(
+            label=f"Gidroizolyatsiya lentasi: {tape.name_uz}", formula=f"{a['tape_m']:.2f} m ÷ {roll_m:g} m → {rolls} rulon",
+            qty=rolls, unit="rulon", price_uzs=int(tape.price_uzs), category="plitka_ish", **_shop(tape),
+        )
+    else:
+        tape_line = _make_line(
+            label=f"Gidroizolyatsiya lentasi: {tape.name_uz}" if tape_price else "Gidroizolyatsiya lentasi",
+            formula=f"{a['tape_m']:.2f} m → {metres} m", qty=metres, unit="m",
+            price_uzs=tape_price or int(n["tape_m_uzs"]), category="plitka_ish",
+            is_approximate=not tape_price, warning=None if tape_price else TILE_NORM_NOTE,
+            **(_shop(tape) if tape_price else {}),
+        )
     work_price = int(n["work_waterproof_m2_uzs"])
     work_line = _make_line(
         label="Ish: gidroizolyatsiya", formula=f"{a['total']:.2f} m² × {work_price:,} so'm".replace(",", " "),
@@ -1416,6 +1435,20 @@ _DESIGNED_FLOORS: dict[str, tuple[str, tuple[str, ...]]] = {
 }
 
 
+def _norm_floor_tile_line(room: "Room") -> ComputedLine:
+    """A tile floor when no shop sells tile: the tile at the norm price, approximate, so that the
+    estimate does not list the laying work with nothing to lay."""
+    from app.services.tile_work import load_tile_norms
+
+    area = _floor_covering_area_m2(room)
+    qty = math.ceil(area * TILE_WASTE * 100) / 100.0
+    return _make_line(
+        label="Pol plitkasi", formula=f"{area:.2f} m² × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²",
+        qty=qty, unit="m²", price_uzs=int(load_tile_norms()["wall_tile_m2_uzs"]), category="plitka",
+        is_approximate=True, warning=WALL_TILE_NORM_NOTE,
+    )
+
+
 def _designed_floor_lines(
     room: "Room", norms_map: "dict[str, Norm]", catalog: "dict[str, Material]",
 ) -> list[ComputedLine]:
@@ -1432,7 +1465,8 @@ def _designed_floor_lines(
     kind, keys = laid
     stand_in = next((catalog[k] for k in keys if catalog.get(k) is not None), None)
     if stand_in is None:
-        return [_plinth_line(room, norms_map, catalog.get("plintus"))]
+        plinth = _plinth_line(room, norms_map, catalog.get("plintus"))
+        return [_norm_floor_tile_line(room), plinth] if kind == "plitka" else [plinth]
     if kind == "plitka":
         lines = _tile_lines(room, stand_in, norms_map, catalog.get("plintus"))
     else:
@@ -2227,7 +2261,9 @@ def compute_estimate(
             lines.append(_plaster_line(room, norms_map, catalog.get("suvoq")))
         if idx < stage_index(STAGE_SHPAKLOVKA):
             lines.append(_grunt_line(room, norms_map, catalog.get("grunt")))
-            lines.append(_putty_line(room, norms_map, catalog.get("shpatlyovka")))
+            putty = _putty_line(room, norms_map, catalog.get("shpatlyovka"), sum(a for _, a in _tile_wall_areas(room)))
+            if putty is not None:
+                lines.append(putty)
 
     # ------------------------------------------------------------------ #
     # 1. Paint (boyoq) finish — triggered by EITHER a resolved boyoq       #

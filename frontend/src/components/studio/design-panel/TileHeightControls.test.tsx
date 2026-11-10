@@ -82,4 +82,31 @@ describe('a height change is one undo step', () => {
     expect(useRoomStore.getState().designState.wallCoverings.A).toEqual(TILE)
     vi.useRealTimers()
   })
+
+  it('a typed height at or above the ceiling means "to the ceiling" and empties the field', () => {
+    const onChange = setup({ ...TILE, tileHeightMm: 1500 } as WallCovering)
+    const field = screen.getByLabelText('Balandligi, sm') as HTMLInputElement
+    fireEvent.change(field, { target: { value: '300' } })
+    fireEvent.blur(field)
+    expect('tileHeightMm' in onChange.mock.calls[0][0]).toBe(false)
+    expect(field.value).toBe('')
+  })
+
+  it('an emptied field takes the height away', () => {
+    const onChange = setup({ ...TILE, tileHeightMm: 1500 } as WallCovering)
+    const field = screen.getByLabelText('Balandligi, sm')
+    fireEvent.change(field, { target: { value: '' } })
+    fireEvent.blur(field)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect('tileHeightMm' in onChange.mock.calls[0][0]).toBe(false)
+  })
+
+  it('a height that is not a number puts the field back', () => {
+    const onChange = setup({ ...TILE, tileHeightMm: 1500 } as WallCovering)
+    const field = screen.getByLabelText('Balandligi, sm') as HTMLInputElement
+    fireEvent.change(field, { target: { value: 'abc' } })
+    fireEvent.blur(field)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(field.value).toBe('150')
+  })
 })
