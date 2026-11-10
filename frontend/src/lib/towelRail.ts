@@ -1,4 +1,5 @@
 import type { PlumbingPoint, RoomGeometry, TowelRail } from '@/store/types'
+import { roomModel } from '@/lib/aiDesignLayout'
 import { wallWalk } from '@/lib/plumbingRuns'
 
 /**
@@ -32,4 +33,82 @@ export function railPoints(rails: readonly TowelRail[], geometry: RoomGeometry):
     const length = lengthMm.get(rail.wallId)
     return length == null ? [] : towelRailPoints(rail, length)
   })
+}
+
+// ─── Where a rail may hang ───────────────────────────────────────────────────
+
+const HALF = TOWEL_RAIL_W_MM / 2
+
+/**
+ * Where on a wall a rail's centre may sit, as [from, to] spans in mm along the wall walk: the wall
+ * less half a rail at each end, less every door and window widened by half a rail each side.
+ */
+export function freeSpans(geometry: RoomGeometry, wallId: string): Array<[number, number]> {
+  const walk = wallWalk(geometry).find((w) => w.id === wallId)
+  const own = roomModel(geometry).walls.find((w) => w.id === wallId)
+  const wall = geometry.walls.find((w) => w.id === wallId)
+  if (!walk || !own || !wall) return []
+  const length = walk.lengthM * 1000
+  // An opening is measured from the wall's own start; the walk may run the other way.
+  const forward = walk.dirX * own.dirX + walk.dirZ * own.dirZ > 0
+  const blocked = wall.elements
+    .filter((e) => Number.isFinite(e.position) && e.width > 0)
+    .map((e): [number, number] => (forward ? [e.position, e.position + e.width] : [length - e.position - e.width, length - e.position]))
+    .map(([a, b]): [number, number] => [a - HALF, b + HALF])
+    .sort((p, q) => p[0] - q[0])
+  const spans: Array<[number, number]> = []
+  let from = HALF
+  const end = length - HALF
+  for (const [a, b] of blocked) {
+    if (a > from) spans.push([from, Math.min(a, end)])
+    from = Math.max(from, b)
+  }
+  if (from <= end) spans.push([from, end])
+  return spans.filter(([lo, hi]) => hi >= lo).map(([lo, hi]) => [Math.round(lo), Math.round(hi)])
+}
+
+/** The free place on the wall nearest to `positionMm`, or null when the wall has none. */
+export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number): number | null {
+  let best: number | null = null
+  for (const [lo, hi] of freeSpans(geometry, wallId)) {
+    const at = Math.min(hi, Math.max(lo, Math.round(positionMm)))
+    if (best == null || Math.abs(at - positionMm) < Math.abs(best - positionMm)) best = at
+  }
+  return best
+}
+
+/**
+ * Where a new rail goes: on the riser's wall, 600 mm from the riser towards the room, or the nearest
+ * free place to that; when that wall has none, the first wall round the room that has one. Null when
+ * no wall can take a rail.
+ */
+export function placeTowelRail(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }): { wallId: string; positionMm: number } | null {
+  const walk = wallWalk(geometry)
+  const first = walk.findIndex((w) => w.id === riser.wallId)
+  if (first < 0) return null
+  for (let i = 0; i < walk.length; i++) {
+    const w = walk[(first + i) % walk.length]
+    const length = w.lengthM * 1000
+    const want = i > 0 ? 0 : riser.positionMm <= length / 2 ? riser.positionMm + TOWEL_RAIL_RISER_GAP_MM : riser.positionMm - TOWEL_RAIL_RISER_GAP_MM
+    const at = nearestFree(geometry, w.id, want)
+    if (at != null) return { wallId: w.id, positionMm: at }
+  }
+  return null
+}
+
+/**
+ * The rails a room can still hold after its shape changed: one whose wall is gone, or has no free
+ * place left, is dropped; one now past a wall's end or in an opening is moved to the nearest free
+ * place. The same list when nothing changed.
+ */
+export function keepRails(rails: readonly TowelRail[], geometry: RoomGeometry): TowelRail[] {
+  let changed = false
+  const out: TowelRail[] = []
+  for (const rail of rails) {
+    const at = nearestFree(geometry, rail.wallId, rail.positionMm)
+    if (at == null) { changed = true; continue }
+    if (at !== rail.positionMm) changed = true
+    out.push(at === rail.positionMm ? rail : { ...rail, positionMm: at })
+  }
+  return changed ? out : (rails as TowelRail[])
 }
