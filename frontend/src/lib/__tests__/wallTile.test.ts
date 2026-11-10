@@ -63,3 +63,17 @@ describe('wallTileCovering', () => {
     expect(wallTileCovering(SQUARE, PLAIN).color).toBe('#ffffff')
   })
 })
+
+describe('picking another tile for a wall already tiled to a height (final review)', () => {
+  it('keeps the height and the paint above: it is the same tiled wall in another tile', () => {
+    const before = { ...wallTileCovering(SQUARE, PLAIN), tileHeightMm: 1500, aboveColor: '#EEE8DD' }
+    const next = wallTileCovering(OBLONG, WHITE, before)
+    expect(next).toMatchObject({ tileHeightMm: 1500, aboveColor: '#EEE8DD', finish: 'tile' })
+    expect(next.url).toBe(wallTileCovering(OBLONG, WHITE).url)
+  })
+  it('a wall that was painted, papered or tiled to the ceiling gets tile to the ceiling', () => {
+    expect('tileHeightMm' in wallTileCovering(SQUARE, PLAIN, { kind: 'paint', color: '#fff' })).toBe(false)
+    expect('tileHeightMm' in wallTileCovering(SQUARE, PLAIN, wallTileCovering(SQUARE, WHITE))).toBe(false)
+    expect('tileHeightMm' in wallTileCovering(SQUARE, PLAIN)).toBe(false)
+  })
+})
