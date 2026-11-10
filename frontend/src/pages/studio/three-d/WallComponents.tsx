@@ -15,7 +15,7 @@ import { wallDefsFromVertices } from "@/lib/wallDefsFromVertices";
 import { buildTrimGeometry, resolveTrim, type ResolvedTrim } from "@/lib/trimProfiles";
 import { useRoomStore, PLASTER_BASE_COLOR } from "@/store/roomStore";
 import { DOOR_IVORY } from "@/lib/doorStyles";
-import { aboveCovering, splitAtHeight, tileBandM } from "@/lib/tileBand";
+import { aboveCovering, bandedSegments, tileBandM } from "@/lib/tileBand";
 import { WALLPAPER_WIDTH_M, OPENING_REVEAL_D, openingRevealDepth, noRaycast, FLOOR_COLORS } from "./constants";
 import { architraveFaces, drawsOpeningLining, hiddenByCamera } from "@/lib/flatOpenings";
 import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
@@ -774,18 +774,10 @@ export const Wall = memo(function Wall({ wallId, length, height, thickness, cove
   const above = useMemo(() => aboveCovering(covering),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [covering.kind === 'texture' ? covering.aboveColor : '']);
-  const drawn = useMemo(() => {
-    const all: Array<{ seg: Seg; key: string }> = segments.map((seg, i) => ({ seg, key: String(i) }));
-    if (dragPatchSeg) all.push({ seg: dragPatchSeg, key: `drag-patch-${dragPatchElId}` });
-    if (bandM == null) return all.map((d) => ({ ...d, covering }));
-    return all.flatMap(({ seg, key }) => {
-      const cut = splitAtHeight([seg], bandM, recutSeg);
-      return [
-        ...cut.below.map((sg) => ({ seg: sg, key: `${key}-tile`, covering })),
-        ...cut.above.map((sg) => ({ seg: sg, key: `${key}-above`, covering: above })),
-      ];
-    });
-  }, [segments, dragPatchSeg, dragPatchElId, bandM, covering, above]);
+  const drawn = useMemo(
+    () => bandedSegments(segments, dragPatchSeg, dragPatchElId ?? null, bandM, covering, above, recutSeg),
+    [segments, dragPatchSeg, dragPatchElId, bandM, covering, above],
+  );
 
   return (
     <group onClick={onClick}>

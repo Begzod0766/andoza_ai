@@ -31,6 +31,27 @@ export function aboveCovering(covering: WallCovering): WallCovering {
   return { kind: 'paint', color: color || DEFAULT_ABOVE }
 }
 
+/**
+ * What a wall draws: its pieces (and the patch shown while an opening is dragged), each with the
+ * covering it wears and a stable key. With no band every piece wears the wall's covering under the
+ * key it always had; with one, each piece is cut at the tile line into tile below and paint above.
+ */
+export function bandedSegments<T extends { py: number; ph: number }>(
+  segments: readonly T[], dragPatch: T | null, dragPatchId: string | null, bandM: number | null,
+  covering: WallCovering, above: WallCovering, recut: (seg: T, py: number, ph: number) => T,
+): Array<{ seg: T; key: string; covering: WallCovering }> {
+  const all = segments.map((seg, i) => ({ seg, key: String(i) }))
+  if (dragPatch) all.push({ seg: dragPatch, key: `drag-patch-${dragPatchId}` })
+  if (bandM == null) return all.map((d) => ({ ...d, covering }))
+  return all.flatMap(({ seg, key }) => {
+    const cut = splitAtHeight([seg], bandM, recut)
+    return [
+      ...cut.below.map((sg) => ({ seg: sg, key: `${key}-tile`, covering })),
+      ...cut.above.map((sg) => ({ seg: sg, key: `${key}-above`, covering: above })),
+    ]
+  })
+}
+
 /** Pieces thinner than this are not drawn. */
 const SLIVER_M = 0.001
 

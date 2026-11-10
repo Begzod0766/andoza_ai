@@ -1118,7 +1118,10 @@
       "tile_adhesive": "Tile adhesive",
       "grout": "Grout",
       "work_floor_tile": "Work: laying floor tile",
-      "work_wall_tile": "Work: laying wall tile"
+      "work_wall_tile": "Work: laying wall tile",
+      "wp_mastic": "Waterproofing mastic",
+      "wp_tape": "Waterproofing tape",
+      "work_wp": "Work: waterproofing"
     },
     "unit": {
       "qop_one": "bag",
@@ -1185,7 +1188,10 @@
       "qatlam_one": "coat",
       "qatlam_other": "coats",
       "nuqta_one": "point",
-      "nuqta_other": "points"
+      "nuqta_other": "points",
+      "wp_floor": "Floor",
+      "wp_base": "foot of the walls",
+      "wp_wet": "wet zone"
     }
   },
   "ustalar": {
