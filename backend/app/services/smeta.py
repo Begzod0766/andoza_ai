@@ -134,6 +134,7 @@ FURNITURE_FALLBACK_PRICE_UZS: int = 2_000_000
 
 # On a floor, wallpaper or paint line priced from the median shop product because the
 # user (or the AI designer / a ready-made style) chose the finish but not a product.
+TILE_NORM_NOTE = "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
 WALL_TILE_NORM_NOTE = "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi."
 FINISH_STAND_IN_NOTE = (
     "Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi. "
@@ -814,6 +815,64 @@ def _wall_tile_line(area_m2: float, wall_ids: list[str], catalog: dict) -> Compu
         warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
         **(_shop(shop) if shop_price else {}),
     )
+
+
+def _floor_tile_area_m2(room: "Room", floor_mat: "Material | None", floor_already_done: bool) -> float:
+    """The floor area laid in tile now: a picked tile product, or the studio's tile floor with no
+    product behind it. Nothing for a floor already finished."""
+    if floor_already_done:
+        return 0.0
+    if floor_mat is not None:
+        is_tile = str(getattr(floor_mat, "category", "")) == "plitka"
+    else:
+        ds = _design_state(room)
+        is_tile = ds.get("floorConfigured") is True and ds.get("floorType") == "tile"
+    return _floor_covering_area_m2(room) if is_tile else 0.0
+
+
+def _packed_line(*, label: str, area_m2: float, kg_m2: float, norm_pack_kg: float, norm_pack_uzs: int,
+                 unit: str, shop: "Material | None") -> ComputedLine:
+    """A material bought in whole packs for an area: the shop's tagged product in its own pack, else
+    the norm pack at the norm price, marked approximate."""
+    kg = area_m2 * kg_m2
+    bag = _bag_from_shop(shop)
+    pack_kg, price = bag if bag else (norm_pack_kg, norm_pack_uzs)
+    packs = max(1, math.ceil(kg / pack_kg - 1e-9))
+    return _make_line(
+        label=f"{label}: {shop.name_uz}" if bag else label,
+        formula=f"{area_m2:.2f} m² × {kg_m2:g} kg/m² = {kg:.1f} kg → {packs} {unit} ({pack_kg:g} kg)",
+        qty=packs, unit=unit, price_uzs=int(price), category="plitka_ish",
+        is_approximate=not bag, warning=None if bag else TILE_NORM_NOTE,
+        **(_shop(shop) if bag else {}),
+    )
+
+
+def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict) -> list[ComputedLine]:
+    """What laying tile takes besides the tile: adhesive and grout for the whole tiled area, and the
+    tiler's work, the floor and the walls at their own rates (spec 2026-11-10)."""
+    from app.services.tile_work import load_tile_norms
+
+    area = floor_m2 + wall_m2
+    if area <= 0:
+        return []
+    n = load_tile_norms()
+    lines = [
+        _packed_line(label="Plitka yelimi", area_m2=area, kg_m2=n["adhesive_kg_m2"], norm_pack_kg=n["adhesive_bag_kg"],
+                     norm_pack_uzs=n["adhesive_bag_uzs"], unit="qop", shop=catalog.get("plitka_yelimi")),
+        _packed_line(label="Zatirka", area_m2=area, kg_m2=n["grout_kg_m2"], norm_pack_kg=n["grout_pack_kg"],
+                     norm_pack_uzs=n["grout_pack_uzs"], unit="dona", shop=catalog.get("zatirka")),
+    ]
+    for label, m2, price in (
+        ("Ish: pol plitkasini terish", floor_m2, n["work_floor_m2_uzs"]),
+        ("Ish: devor plitkasini terish", wall_m2, n["work_wall_m2_uzs"]),
+    ):
+        if m2 > 0:
+            qty = _round2(m2)
+            lines.append(_make_line(
+                label=label, formula=f"{qty:.2f} m² × {int(price):,} so'm".replace(",", " "),
+                qty=qty, unit="m²", price_uzs=int(price), category="plitka_ish",
+            ))
+    return lines
 
 
 @dataclass
@@ -2101,6 +2160,8 @@ def compute_estimate(
     #     always emitted needing an AI price (see recompute_totals /      #
     #     app.services.smeta_ai for how the router backfills it).         #
     # ------------------------------------------------------------------ #
+    tiled = _tile_wall_areas(room)
+    wall_tile_m2 = sum(area for _, area in tiled)
     if has_any_texture:
         # A shop's wallpaper from the library is priced by the roll; a user's own photo
         # has no price and keeps the AI-priced placeholder.
@@ -2111,10 +2172,8 @@ def compute_estimate(
                 continue
             lines.append(_texture_line(url, area, wall_ids))
         # Wall tile is a texture to the studio, but it is bought by the square metre.
-        tiled = _tile_wall_areas(room)
-        tile_m2 = sum(area for _, area in tiled)
-        if tile_m2 > 0:
-            lines.append(_wall_tile_line(tile_m2, [wall for wall, area in tiled if area > 0], catalog))
+        if wall_tile_m2 > 0:
+            lines.append(_wall_tile_line(wall_tile_m2, [wall for wall, area in tiled if area > 0], catalog))
 
     # ------------------------------------------------------------------ #
     # 3. Floor covering — skipped entirely when floor_state is finished   #
@@ -2131,6 +2190,9 @@ def compute_estimate(
         elif floor_mat.category == "plitka":
             if _float(room.floor_area) > 0:
                 lines.extend(_tile_lines(room, floor_mat, norms_map, catalog.get("plintus")))
+
+    # 3a. Tile work: adhesive, grout and laying, for the floor and wall tile together.
+    lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog))
 
     # ------------------------------------------------------------------ #
     # 3b. Ceiling construction — skipped entirely when ceiling_state is   #
