@@ -44,6 +44,7 @@ CATEGORY_TO_GROUP = {
     "boyoq": "pardoz",
     "oboy": "pardoz",
     "texture": "pardoz",
+    "plitka_devor": "pardoz",
     "laminat": "pol",
     "plitka": "pol",
     "plintus": "pol",

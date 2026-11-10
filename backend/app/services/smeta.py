@@ -134,6 +134,7 @@ FURNITURE_FALLBACK_PRICE_UZS: int = 2_000_000
 
 # On a floor, wallpaper or paint line priced from the median shop product because the
 # user (or the AI designer / a ready-made style) chose the finish but not a product.
+WALL_TILE_NORM_NOTE = "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi."
 FINISH_STAND_IN_NOTE = (
     "Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi. "
     "Aniq narx uchun o'zingiz mahsulot tanlang."
@@ -716,7 +717,7 @@ def _texture_wall_areas(room: "Room") -> list[tuple[str, float, list[str]]]:
     for wall in walls_data:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
-        if not isinstance(covering, dict) or covering.get("kind") != "texture":
+        if not isinstance(covering, dict) or covering.get("kind") != "texture" or _is_tile(covering):
             continue
         url = covering.get("url")
         if not url:
@@ -740,6 +741,79 @@ def _texture_wall_areas(room: "Room") -> list[tuple[str, float, list[str]]]:
         group[1].append(wall_key)
 
     return [(url, area, wall_ids) for url, (area, wall_ids) in groups.items()]
+
+
+# ---------------------------------------------------------------------------
+# Wall tile (spec 2026-11-10)
+# ---------------------------------------------------------------------------
+
+def _is_tile(covering: object) -> bool:
+    """A wall tile covering: the studio stores it as a ``texture`` with ``finish: "tile"``."""
+    return isinstance(covering, dict) and covering.get("kind") == "texture" and covering.get("finish") == "tile"
+
+
+def _tile_band_m(covering: dict, ceiling_h_m: float) -> float:
+    """How high the tile goes on its wall, metres from the floor."""
+    return ceiling_h_m
+
+
+def _opening_span_m(element: dict) -> tuple[float, float, float]:
+    """An opening's width and its bottom and top above the floor, metres."""
+    width = _to_metres(float(element.get("width", 0) or 0))
+    bottom = max(0.0, _to_metres(float(element.get("sill_height", 0) or 0)))
+    return width, bottom, bottom + _to_metres(float(element.get("height", 0) or 0))
+
+
+def _band_opening_m2(element: dict, band_m: float) -> float:
+    """The part of an opening between the floor and ``band_m``: what a tile band loses to it."""
+    width, bottom, top = _opening_span_m(element)
+    return width * max(0.0, min(top, band_m) - bottom)
+
+
+def _tiled_walls(room: "Room") -> list[tuple[str, dict, dict, float]]:
+    """(wall id, wall, covering, length m) of every wall whose covering (its own, else ALL) is tile."""
+    geometry: dict = room.geometry or {}
+    wall_coverings: dict = _design_state(room).get("wallCoverings", {})
+    out = []
+    for wall in geometry.get("walls", []) or []:
+        wall_key = str(wall.get("id", ""))
+        covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
+        length = _to_metres(float(wall.get("length", 0) or 0))
+        if _is_tile(covering) and length > 0:
+            out.append((wall_key, wall, covering, length))
+    return out
+
+
+def _tile_wall_areas(room: "Room") -> list[tuple[str, float]]:
+    """(wall id, net m² of tile) per tiled wall: its length by the tile band, less the part of
+    each door and window inside the band."""
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    out = []
+    for wall_key, wall, covering, length in _tiled_walls(room):
+        band = _tile_band_m(covering, ceiling_h_m)
+        openings = sum(_band_opening_m2(el, band) for el in wall.get("elements", []) or [] if isinstance(el, dict))
+        out.append((wall_key, max(0.0, length * band - openings)))
+    return out
+
+
+def _wall_tile_line(area_m2: float, wall_ids: list[str], catalog: dict) -> ComputedLine:
+    """The wall tile to buy: the tiled area plus waste, at the shop's median tile price (nobody
+    picks a tile product for a wall yet), else a norm price. Approximate either way."""
+    from app.services.tile_work import load_tile_norms
+
+    shop = catalog.get("finish:plitka")
+    shop_price = _price_per(shop, "m2")
+    price = shop_price or int(load_tile_norms()["wall_tile_m2_uzs"])
+    qty = _round2(area_m2 * TILE_WASTE)
+    walls = f" (devor {', '.join(wall_ids)})" if wall_ids else ""
+    return _make_line(
+        label=f"Devor plitkasi: {shop.name_uz}" if shop_price else "Devor plitkasi",
+        formula=f"{area_m2:.2f} m² × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²{walls}",
+        qty=qty, unit="m²", price_uzs=price, category="plitka_devor",
+        is_approximate=True,
+        warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
+        **(_shop(shop) if shop_price else {}),
+    )
 
 
 @dataclass
@@ -789,7 +863,7 @@ def _shop_wallpaper_lines(room: "Room", catalog: "dict | None") -> tuple[list[Co
     for wall in geometry.get("walls", []) or []:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
-        if not isinstance(covering, dict) or covering.get("kind") != "texture":
+        if not isinstance(covering, dict) or covering.get("kind") != "texture" or _is_tile(covering):
             continue
         url = covering.get("url") or ""
         roll = _shop_wallpaper(catalog, url)
@@ -2036,6 +2110,11 @@ def compute_estimate(
             if area <= 0 or url in priced_urls:
                 continue
             lines.append(_texture_line(url, area, wall_ids))
+        # Wall tile is a texture to the studio, but it is bought by the square metre.
+        tiled = _tile_wall_areas(room)
+        tile_m2 = sum(area for _, area in tiled)
+        if tile_m2 > 0:
+            lines.append(_wall_tile_line(tile_m2, [wall for wall, area in tiled if area > 0], catalog))
 
     # ------------------------------------------------------------------ #
     # 3. Floor covering — skipped entirely when floor_state is finished   #
