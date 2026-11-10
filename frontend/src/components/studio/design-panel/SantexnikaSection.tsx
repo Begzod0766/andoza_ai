@@ -15,8 +15,13 @@ const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
  * "Santexnika" stage (spec 2026-11-08): the room's fixtures, their drain and water points and any
  * added by hand, a form to add one, and the pipe runs summed up. Shown in a bathroom or kitchen only.
  */
-export function SantexnikaSection() {
+export function SantexnikaSection({ bathroom = false }: {
+  /** The room is a bathroom: the towel rail and the extractor fan are offered (spec 2026-11-10). */
+  bathroom?: boolean;
+}) {
   const { t } = useTranslation();
+  const ventFan = useRoomStore((s) => s.designState.ventFan);
+  const setDesignState = useRoomStore((s) => s.setDesignState);
   const furniture = useRoomStore((s) => s.furniture);
   const catalog = useRoomStore((s) => s.catalogFurniture);
   const plumbing = useRoomStore((s) => s.plumbing);
@@ -116,6 +121,14 @@ export function SantexnikaSection() {
         <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
         {t("studio.santexnika.pipes")}
       </label>
+
+      {bathroom && (
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          {/* On unless switched off: the estimate reads only an exact false (smeta.py _fan_lines). */}
+          <input type="checkbox" checked={ventFan !== false} onChange={(e) => setDesignState({ ventFan: e.target.checked })} />
+          {t("studio.santexnika.fan")}
+        </label>
+      )}
 
       <p className="text-[11px] font-medium text-ink">
         {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}

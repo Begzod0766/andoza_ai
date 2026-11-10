@@ -996,7 +996,8 @@
       "where": "{{wall}} devor · {{cm}} sm",
       "own": "jihozniki",
       "summary": "Kanalizatsiya: {{dp}} nuqta, ~{{dm}} m · Suv: {{wp}} nuqta, ~{{wm}} m",
-      "pipes": "Quvur yo'llarini ko'rsatish"
+      "pipes": "Quvur yo'llarini ko'rsatish",
+      "fan": "Tortuvchi ventilyator"
     },
     "tile_height": {
       "title": "Plitka balandligi",

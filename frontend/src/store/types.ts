@@ -235,6 +235,8 @@ export interface FloorTextureSettings {
 }
 
 export interface DesignState {
+  /** A bathroom's extractor fan in the estimate: on unless exactly false (spec 2026-11-10). */
+  ventFan?: boolean
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).
