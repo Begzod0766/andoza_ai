@@ -135,6 +135,8 @@ _LABEL_HEADS = {
     "Devor plitkasi": "wall_tile",
     "Plitka yelimi": "tile_adhesive",
     "Zatirka": "grout",
+    "Gidroizolyatsiya mastikasi": "wp_mastic",
+    "Gidroizolyatsiya lentasi": "wp_tape",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -155,6 +157,9 @@ _WHOLE_LABELS = {
     "Zatirka": "grout",
     "Ish: pol plitkasini terish": "work_floor_tile",
     "Ish: devor plitkasini terish": "work_wall_tile",
+    "Gidroizolyatsiya mastikasi": "wp_mastic",
+    "Gidroizolyatsiya lentasi": "wp_tape",
+    "Ish: gidroizolyatsiya": "work_wp",
     "Ish: nuqtani ulash": "work_point",
     "Ish: vanna o'rnatish": "work_bathtub",
     "Ish: rakovina o'rnatish": "work_sink",
@@ -269,6 +274,10 @@ def localize_unit(unit: str, quantity: float, lang: str) -> str:
 _LETTER = r"[^\W\d_]"
 
 _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
+    # Waterproofing (spec 2026-11-10): "Pol 5.00 m² + devor tagi … + ho'l zona …".
+    (re.compile(r"\APol (?=\d)"), lambda lang: f"{t('formula.wp_floor', lang)} "),
+    (re.compile(r" \+ devor tagi "), lambda lang: f" + {t('formula.wp_base', lang)} "),
+    (re.compile(r" \+ ho'l zona "), lambda lang: f" + {t('formula.wp_wet', lang)} "),
     (re.compile(r"Joylashtirilgan sxema bo'yicha o'lchangan \((\S+) m, zaxira bilan\)"),
      lambda lang, m: t("formula.measured", lang, m=m)),
     (re.compile(r"\(teshiklar (\S+) m² polosaga ta'sir qilmaydi\)"),
