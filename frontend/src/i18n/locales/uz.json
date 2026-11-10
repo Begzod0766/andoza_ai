@@ -997,6 +997,12 @@
       "own": "jihozniki",
       "summary": "Kanalizatsiya: {{dp}} nuqta, ~{{dm}} m · Suv: {{wp}} nuqta, ~{{wm}} m",
       "pipes": "Quvur yo'llarini ko'rsatish"
+    },
+    "tile_height": {
+      "title": "Plitka balandligi",
+      "full": "Shiftgacha",
+      "custom": "Balandligi, sm",
+      "above": "Yuqorisi"
     }
   },
   "smeta": {

@@ -997,6 +997,12 @@
       "own": "fixture's",
       "summary": "Drain: {{dp}} points, ~{{dm}} m · Water: {{wp}} points, ~{{wm}} m",
       "pipes": "Show pipe runs"
+    },
+    "tile_height": {
+      "title": "Tile height",
+      "full": "To the ceiling",
+      "custom": "Height, cm",
+      "above": "Above the tile"
     }
   },
   "smeta": {
