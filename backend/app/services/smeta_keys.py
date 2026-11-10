@@ -16,7 +16,11 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     # Tile work and waterproofing (spec 2026-11-10)
     "plitka_yelimi": "kg", "zatirka": "kg", "gidro_mastika": "kg", "gidro_lenta": "m",
     "kabel": None,  # sold per metre: no pack
+    # A bathroom's extras (spec 2026-11-10): sold by the piece, no pack
+    "ventilyator": None, "sochiq_quritgich": None,
 }
+# The sale unit a key with no pack must have.
+KEY_SALE_UNIT: dict[str, str] = {"kabel": "m", "ventilyator": "dona", "sochiq_quritgich": "dona"}
 
 LIGHT_KEYS: frozenset[str] = frozenset(f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS)
 ALL_SMETA_KEYS: frozenset[str] = frozenset(KEY_PACK_UNIT) | LIGHT_KEYS
@@ -32,8 +36,10 @@ def smeta_key_problem(key: str | None, unit: str, pack_qty: float | None,
     if key in LIGHT_KEYS:
         return None if unit == "dona" else "chiroq dona bilan sotilishi kerak"
     need = KEY_PACK_UNIT[key]
-    if need is None:  # kabel
-        return None if unit == "m" else "kabel metrlab (m) sotilishi kerak"
+    if need is None:
+        if key == "kabel":
+            return None if unit == "m" else "kabel metrlab (m) sotilishi kerak"
+        return None if unit == KEY_SALE_UNIT[key] else "bu mahsulot donalab sotilishi kerak"
     # A pack only counts for the engine when the product is sold by the pack.
     if unit == need or (pack_qty is not None and pack_unit == need and unit in _SOLD_BY_PACK_UNITS):
         return None

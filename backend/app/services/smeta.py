@@ -136,6 +136,8 @@ FURNITURE_FALLBACK_PRICE_UZS: int = 2_000_000
 # user (or the AI designer / a ready-made style) chose the finish but not a product.
 TILE_NORM_NOTE = "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
 WALL_TILE_NORM_NOTE = "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi."
+EXTRAS_NORM_NOTE = "Narx taxminiy — do'konda bu jihoz topilmadi, o'rtacha narx olindi."
+FAN_CABLE_NOTE = "Kabel uzunligi taxminiy — ventilyator eng yaqin chiroq liniyasiga ulanadi deb olindi."
 FINISH_STAND_IN_NOTE = (
     "Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi. "
     "Aniq narx uchun o'zingiz mahsulot tanlang."
@@ -1825,6 +1827,51 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     return lines
 
 
+def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: str, qty: int = 1) -> ComputedLine:
+    """Something bought by the piece: the shop's tagged product (sold by the piece), else the norm
+    price, marked approximate."""
+    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    price = int(shop.price_uzs) if priced else int(norm_uzs)
+    return _make_line(
+        label=f"{label}: {shop.name_uz}" if priced else label,
+        formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
+        qty=qty, unit="dona", price_uzs=price, category=category,
+        is_approximate=not priced, warning=None if priced else EXTRAS_NORM_NOTE,
+        **(_shop(shop) if priced else {}),
+    )
+
+
+def _fan_lines(room: "Room", catalog: "dict | None", norms_map: "dict[str, Norm]") -> list[ComputedLine]:
+    """A bathroom's extractor fan (spec 2026-11-10): the fan, a fixed length of cable to the nearest
+    light circuit, and the work. In every bathroom unless the user switched it off (``ventFan`` is
+    exactly False). Its own category, not "elektr": that one switches on the wiring notice."""
+    if not _is_bathroom(room) or _design_state(room).get("ventFan") is False:
+        return []
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    catalog = catalog or {}
+    n = load_bathroom_extras_norms()
+    cable = catalog.get("kabel")
+    elec_norm = norms_map.get("elektr_kabel")
+    params = elec_norm.params if elec_norm and elec_norm.params else {}
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or int(params.get("price_per_m_uzs", ELEC_CABLE_PRICE_UZS))
+    metres = int(n["fan_cable_m"])
+    work = int(n["work_fan_uzs"])
+    return [
+        _piece_line("Tortuvchi ventilyator", catalog.get("ventilyator"), n["fan_uzs"], "ventilyatsiya"),
+        _make_line(
+            label="Elektr kabel (ventilyator)", formula=f"{metres} m × {per_m:,} so'm".replace(",", " "),
+            qty=metres, unit="m", price_uzs=per_m, category="ventilyatsiya",
+            is_approximate=True, warning=FAN_CABLE_NOTE, **(_shop(cable) if shop_price else {}),
+        ),
+        _make_line(
+            label="Ish: ventilyatorni o'rnatish", formula=f"1 dona × {work:,} so'm".replace(",", " "),
+            qty=1, unit="dona", price_uzs=work, category="ventilyatsiya",
+        ),
+    ]
+
+
 def _light_lines(room: "Room", catalog: "dict[str, Material] | None" = None) -> list[ComputedLine]:
     """One line per distinct placed light fixture kind (qty = how many placed).
 
@@ -2380,6 +2427,8 @@ def compute_estimate(
     #     from the electrical line below, which only prices the wiring.    #
     # ------------------------------------------------------------------ #
     lines.extend(_light_lines(room, catalog))
+    # 4b'. A bathroom's extractor fan, with the electrics but not of the wiring plan.
+    lines.extend(_fan_lines(room, catalog, norms_map))
 
     # ------------------------------------------------------------------ #
     # 5. Electrical — measured cable run when the room has a placed plan,  #

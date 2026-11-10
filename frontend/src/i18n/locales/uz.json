@@ -1122,6 +1122,9 @@
       "work_wall_tile": "Ish: devor plitkasini terish",
       "wp_mastic": "Gidroizolyatsiya mastikasi",
       "wp_tape": "Gidroizolyatsiya lentasi",
+      "fan": "Tortuvchi ventilyator",
+      "fan_cable": "Elektr kabel (ventilyator)",
+      "work_fan": "Ish: ventilyatorni o'rnatish",
       "work_wp": "Ish: gidroizolyatsiya"
     },
     "unit": {
@@ -1167,7 +1170,9 @@
       "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.",
       "fittings_norm": "Narx taxminiy — fitinglar uchun o'rtacha narx olindi.",
       "wall_tile_norm": "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi.",
-      "tile_norm": "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
+      "tile_norm": "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi.",
+      "extras_norm": "Narx taxminiy — do'konda bu jihoz topilmadi, o'rtacha narx olindi.",
+      "fan_cable_len": "Kabel uzunligi taxminiy — ventilyator eng yaqin chiroq liniyasiga ulanadi deb olindi."
     },
     "formula": {
       "wall_head": "Devor {{wall}}",
@@ -2119,7 +2124,9 @@
         "plitka_yelimi": "Plitka yelimi",
         "zatirka": "Zatirka",
         "gidro_mastika": "Gidroizolyatsiya mastikasi",
-        "gidro_lenta": "Gidroizolyatsiya lentasi"
+        "gidro_lenta": "Gidroizolyatsiya lentasi",
+        "ventilyator": "Tortuvchi ventilyator",
+        "sochiq_quritgich": "Sochiq quritgich"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

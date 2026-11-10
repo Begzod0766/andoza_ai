@@ -53,6 +53,9 @@
         "work_wall_tile": "Ish: devor plitkasini terish",
         "wp_mastic": "Gidroizolyatsiya mastikasi",
         "wp_tape": "Gidroizolyatsiya lentasi",
+        "fan": "Tortuvchi ventilyator",
+        "fan_cable": "Elektr kabel (ventilyator)",
+        "work_fan": "Ish: ventilyatorni o'rnatish",
         "work_wp": "Ish: gidroizolyatsiya"
       },
       "unit": {
@@ -123,7 +126,9 @@
         "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.",
         "fittings_norm": "Narx taxminiy — fitinglar uchun o'rtacha narx olindi.",
         "wall_tile_norm": "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi.",
-        "tile_norm": "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
+        "tile_norm": "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi.",
+        "extras_norm": "Narx taxminiy — do'konda bu jihoz topilmadi, o'rtacha narx olindi.",
+        "fan_cable_len": "Kabel uzunligi taxminiy — ventilyator eng yaqin chiroq liniyasiga ulanadi deb olindi."
       },
       "toifa": {
         "tayyorlash": "Devorni tayyorlash",
@@ -212,6 +217,9 @@
         "work_wall_tile": "Работа: укладка настенной плитки",
         "wp_mastic": "Гидроизоляционная мастика",
         "wp_tape": "Гидроизоляционная лента",
+        "fan": "Вытяжной вентилятор",
+        "fan_cable": "Электрокабель (вентилятор)",
+        "work_fan": "Работа: установка вентилятора",
         "work_wp": "Работа: гидроизоляция"
       },
       "unit": {
@@ -304,7 +312,9 @@
         "plumbing_norm": "Цена ориентировочная — в магазине нет этой трубы, взята средняя цена.",
         "fittings_norm": "Цена ориентировочная — для фитингов взята средняя цена.",
         "wall_tile_norm": "Цена ориентировочная — в магазине нет плитки, взята средняя цена.",
-        "tile_norm": "Цена ориентировочная — в магазине нет такого товара, взята средняя цена."
+        "tile_norm": "Цена ориентировочная — в магазине нет такого товара, взята средняя цена.",
+        "extras_norm": "Цена приблизительная — в магазине этого изделия нет, взята средняя цена.",
+        "fan_cable_len": "Длина кабеля приблизительная — принято, что вентилятор подключается к ближайшей линии освещения."
       },
       "toifa": {
         "tayyorlash": "Подготовка стен",
@@ -395,6 +405,9 @@
         "work_wall_tile": "Work: laying wall tile",
         "wp_mastic": "Waterproofing mastic",
         "wp_tape": "Waterproofing tape",
+        "fan": "Extractor fan",
+        "fan_cable": "Electric cable (fan)",
+        "work_fan": "Work: fitting the extractor fan",
         "work_wp": "Work: waterproofing"
       },
       "unit": {
@@ -465,7 +478,9 @@
         "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used.",
         "fittings_norm": "Approximate price — an average price is used for the fittings.",
         "wall_tile_norm": "Approximate price — the shop has no tile, an average price was used.",
-        "tile_norm": "Approximate price — the shop has no such product, an average price was used."
+        "tile_norm": "Approximate price — the shop has no such product, an average price was used.",
+        "extras_norm": "Approximate price — the shop has no such item, an average price was used.",
+        "fan_cable_len": "The cable length is approximate — the fan is taken to be wired to the nearest light circuit."
       },
       "toifa": {
         "tayyorlash": "Wall preparation",

@@ -137,6 +137,7 @@ _LABEL_HEADS = {
     "Zatirka": "grout",
     "Gidroizolyatsiya mastikasi": "wp_mastic",
     "Gidroizolyatsiya lentasi": "wp_tape",
+    "Tortuvchi ventilyator": "fan",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -161,6 +162,9 @@ _WHOLE_LABELS = {
     "Gidroizolyatsiya mastikasi": "wp_mastic",
     "Gidroizolyatsiya lentasi": "wp_tape",
     "Ish: gidroizolyatsiya": "work_wp",
+    "Tortuvchi ventilyator": "fan",
+    "Elektr kabel (ventilyator)": "fan_cable",
+    "Ish: ventilyatorni o'rnatish": "work_fan",
     "Ish: nuqtani ulash": "work_point",
     "Ish: vanna o'rnatish": "work_bathtub",
     "Ish: rakovina o'rnatish": "work_sink",
