@@ -112,3 +112,11 @@ export function keepRails(rails: readonly TowelRail[], geometry: RoomGeometry): 
   }
   return changed ? out : (rails as TowelRail[])
 }
+
+/** Rails read from a saved room: anything that is not a sound rail is left out. */
+export function saneRails(saved: unknown): TowelRail[] {
+  if (!Array.isArray(saved)) return []
+  return saved.filter((r): r is TowelRail =>
+    !!r && typeof r === 'object' && typeof r.id === 'string' && r.id !== '' && typeof r.wallId === 'string'
+    && Number.isFinite(r.positionMm) && Number.isFinite(r.heightMm))
+}
