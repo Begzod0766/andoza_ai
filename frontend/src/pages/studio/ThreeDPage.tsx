@@ -550,9 +550,10 @@ export default function ThreeDPage() {
   function applyWallTileTo(
     wallId: string | undefined, size: TileSize, face: TileFace, allWalls = false,
   ) {
-    useRoomStore.getState().setWallCovering(
-      allWalls ? 'ALL' : resolveTargetWall(wallId ?? null), wallTileCovering(size, face),
-    );
+    const target = allWalls ? 'ALL' : resolveTargetWall(wallId ?? null);
+    const coverings = useRoomStore.getState().designState.wallCoverings;
+    // Tiled to a height already: the new tile keeps that height and the paint above it.
+    useRoomStore.getState().setWallCovering(target, wallTileCovering(size, face, coverings[target] ?? coverings.ALL));
   }
 
   /**

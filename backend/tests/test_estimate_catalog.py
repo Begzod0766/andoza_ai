@@ -262,8 +262,10 @@ class TestSeedData:
 
     def test_every_estimate_line_has_at_least_one_product(self):
         keys = {r["smeta_key"] for r in self.ROWS}
-        # galtel has no seed product: the admin adds it
-        assert set(seed.KEY_PACK_UNIT) - {"galtel"} <= keys
+        # galtel has no seed product: the admin adds it. Nor do the tile-work keys (spec 2026-11-10):
+        # their lines fall back to tile_norms.json until a shop tags a product.
+        admin_added = {"galtel", "plitka_yelimi", "zatirka", "gidro_mastika", "gidro_lenta"}
+        assert set(seed.KEY_PACK_UNIT) - admin_added <= keys
         assert {f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS} <= keys
 
 

@@ -116,3 +116,13 @@ describe('the Santexnika group (spec 2026-11-08)', () => {
     expect(groups.map((g) => g.key)).toEqual(['santexnika'])
   })
 })
+
+describe('tile work (spec 2026-11-10)', () => {
+  it('adhesive, grout and laying work group under Plitka ishlari, right after the floor', () => {
+    expect(groupKeyFor('plitka_ish')).toBe('plitka_ish')
+    expect(GROUP_ORDER.indexOf('plitka_ish')).toBe(GROUP_ORDER.indexOf('pol') + 1)
+  })
+  it('wall tile is a wall finish', () => {
+    expect(groupKeyFor('plitka_devor')).toBe('pardoz')
+  })
+})

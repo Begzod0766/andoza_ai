@@ -1,4 +1,4 @@
-import { ChevronDown, Armchair, Droplets, Grid3x3, Hammer, Layers, Package, PaintRoller, Zap, type LucideIcon } from "lucide-react";
+import { ChevronDown, Armchair, Droplets, Grid3x3, LayoutGrid, Hammer, Layers, Package, PaintRoller, Zap, type LucideIcon } from "lucide-react";
 import { GROUP_COLOUR, formatQuantity, formatShare, type GroupKey, type LineGroup } from "@/lib/smetaGroups";
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
@@ -8,6 +8,7 @@ const GROUP_ICON: Record<GroupKey, LucideIcon> = {
   tayyorlash: Hammer,
   pardoz: PaintRoller,
   pol: Grid3x3,
+  plitka_ish: LayoutGrid,
   shift: Layers,
   elektr: Zap,
   santexnika: Droplets,

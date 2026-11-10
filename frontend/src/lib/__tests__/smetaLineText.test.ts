@@ -168,3 +168,36 @@ describe('the fittings warning (review minor 2026-11-09)', () => {
     expect(localizeWarning("Narx taxminiy — fitinglar uchun o'rtacha narx olindi.", en)).toBe('Approximate price — an average price is used for the fittings.')
   })
 })
+
+describe('tile work lines (spec 2026-11-10)', () => {
+  it('translates the labels, with and without a shop product', () => {
+    expect(localizeLabel('Devor plitkasi', en)).toBe('Wall tile')
+    expect(localizeLabel('Devor plitkasi: Kafel 30x60', ru)).toBe('Настенная плитка: Kafel 30x60')
+    expect(localizeLabel('Plitka yelimi', ru)).toBe('Плиточный клей')
+    expect(localizeLabel('Plitka yelimi: Ceresit CM 11', en)).toBe('Tile adhesive: Ceresit CM 11')
+    expect(localizeLabel('Zatirka', en)).toBe('Grout')
+    expect(localizeLabel('Ish: pol plitkasini terish', en)).toBe('Work: laying floor tile')
+    expect(localizeLabel('Ish: devor plitkasini terish', ru)).toBe('Работа: укладка настенной плитки')
+  })
+  it('translates the warnings and the formula', () => {
+    expect(localizeWarning("Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi.", en)).toBe('Approximate price — the shop has no tile, an average price was used.')
+    expect(localizeWarning("Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi.", en)).toBe('Approximate price — the shop has no such product, an average price was used.')
+    expect(localizeFormula('25.00 m² × 5 kg/m² = 125.0 kg → 5 qop (25 kg)', en)).toBe('25.00 m² × 5 kg/m² = 125.0 kg → 5 bags (25 kg)')
+    expect(localizeFormula('24.30 m² × 1.10 (chiqindi) = 26.73 m² (devor A, B)', en)).toBe('24.30 m² × 1.10 (waste) = 26.73 m² (walls A, B)')
+  })
+})
+
+describe('waterproofing lines (spec 2026-11-10)', () => {
+  it('translates the labels', () => {
+    expect(localizeLabel('Gidroizolyatsiya mastikasi', en)).toBe('Waterproofing mastic')
+    expect(localizeLabel('Gidroizolyatsiya mastikasi: Ceresit CL 51', ru)).toBe('Гидроизоляционная мастика: Ceresit CL 51')
+    expect(localizeLabel('Gidroizolyatsiya lentasi', ru)).toBe('Гидроизоляционная лента')
+    expect(localizeLabel('Ish: gidroizolyatsiya', en)).toBe('Work: waterproofing')
+  })
+  it('translates the working: floor, foot of the walls, wet zone', () => {
+    const f = "Pol 5.00 m² + devor tagi 1.66 m² + ho'l zona 3.68 m² = 10.34 m² × 1.5 kg/m² = 15.5 kg"
+    expect(localizeFormula(f, en)).toBe('Floor 5.00 m² + foot of the walls 1.66 m² + wet zone 3.68 m² = 10.34 m² × 1.5 kg/m² = 15.5 kg')
+    expect(localizeFormula(f, ru)).toBe('Пол 5.00 м² + низ стен 1.66 м² + мокрая зона 3.68 м² = 10.34 м² × 1.5 кг/м² = 15.5 кг')
+    expect(localizeFormula(f, uz)).toBe(f)
+  })
+})

@@ -12,12 +12,13 @@ from dataclasses import dataclass, field
 
 from app.services.smeta import ComputedLine
 
-GROUP_ORDER = ("tayyorlash", "pardoz", "pol", "shift", "elektr", "santexnika", "jihoz", "boshqa")
+GROUP_ORDER = ("tayyorlash", "pardoz", "pol", "plitka_ish", "shift", "elektr", "santexnika", "jihoz", "boshqa")
 
 GROUP_LABEL = {
     "tayyorlash": "Devorni tayyorlash",
     "pardoz": "Devor pardozi",
     "pol": "Pol va plintus",
+    "plitka_ish": "Plitka ishlari",
     "shift": "Shift",
     "elektr": "Elektr va yoritish",
     "santexnika": "Santexnika",
@@ -30,6 +31,7 @@ GROUP_COLOUR = {
     "tayyorlash": "#7C8DB5",
     "pardoz": "#2F55D4",
     "pol": "#F59E0B",
+    "plitka_ish": "#E11D48",
     "shift": "#14B8A6",
     "elektr": "#8B5CF6",
     "santexnika": "#0EA5E9",
@@ -44,6 +46,8 @@ CATEGORY_TO_GROUP = {
     "boyoq": "pardoz",
     "oboy": "pardoz",
     "texture": "pardoz",
+    "plitka_devor": "pardoz",
+    "plitka_ish": "plitka_ish",
     "laminat": "pol",
     "plitka": "pol",
     "plintus": "pol",

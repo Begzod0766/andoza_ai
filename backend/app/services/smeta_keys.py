@@ -13,6 +13,8 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "suvoq": "kg", "grunt": "kg", "shpatlyovka": "kg",
     "plintus": "m", "gipsokarton": "m2", "profil": "m", "led_lenta": "m",
     "galtel": "m",
+    # Tile work and waterproofing (spec 2026-11-10)
+    "plitka_yelimi": "kg", "zatirka": "kg", "gidro_mastika": "kg", "gidro_lenta": "m",
     "kabel": None,  # sold per metre: no pack
 }
 

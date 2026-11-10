@@ -134,6 +134,8 @@ FURNITURE_FALLBACK_PRICE_UZS: int = 2_000_000
 
 # On a floor, wallpaper or paint line priced from the median shop product because the
 # user (or the AI designer / a ready-made style) chose the finish but not a product.
+TILE_NORM_NOTE = "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
+WALL_TILE_NORM_NOTE = "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi."
 FINISH_STAND_IN_NOTE = (
     "Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi. "
     "Aniq narx uchun o'zingiz mahsulot tanlang."
@@ -688,6 +690,16 @@ def _painted_wall_areas(
         group[0] += net_area
         group[1].append(wall_key)
 
+    # A wall tiled to a height is painted above it (spec 2026-11-10): that part joins the wall's
+    # own paint product when it has one, else the paint nobody picked a product for.
+    for wall_key, area in _tile_above_areas(room):
+        mat_id = wall_surfaces_map.get(wall_key) or wall_surfaces_map.get("ALL")
+        material = materials_map.get(mat_id) if mat_id else None
+        key = mat_id if material is not None and material.category == "boyoq" else None
+        group = groups.setdefault(key, [0.0, []])
+        group[0] += area
+        group[1].append(wall_key)
+
     return [(mat_id, area, wall_ids) for mat_id, (area, wall_ids) in groups.items()]
 
 
@@ -716,7 +728,7 @@ def _texture_wall_areas(room: "Room") -> list[tuple[str, float, list[str]]]:
     for wall in walls_data:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
-        if not isinstance(covering, dict) or covering.get("kind") != "texture":
+        if not isinstance(covering, dict) or covering.get("kind") != "texture" or _is_tile(covering):
             continue
         url = covering.get("url")
         if not url:
@@ -740,6 +752,248 @@ def _texture_wall_areas(room: "Room") -> list[tuple[str, float, list[str]]]:
         group[1].append(wall_key)
 
     return [(url, area, wall_ids) for url, (area, wall_ids) in groups.items()]
+
+
+# ---------------------------------------------------------------------------
+# Wall tile (spec 2026-11-10)
+# ---------------------------------------------------------------------------
+
+def _is_tile(covering: object) -> bool:
+    """A wall tile covering: the studio stores it as a ``texture`` with ``finish: "tile"``."""
+    return isinstance(covering, dict) and covering.get("kind") == "texture" and covering.get("finish") == "tile"
+
+
+TILE_BAND_MIN_M = 0.3
+
+
+def _tile_band_m(covering: dict, ceiling_h_m: float) -> float:
+    """How high the tile goes on its wall, metres from the floor: the covering's ``tileHeightMm``
+    (never under 30 cm, never past the ceiling), or the ceiling when it has none."""
+    mm = covering.get("tileHeightMm")
+    if isinstance(mm, (int, float)) and not isinstance(mm, bool) and mm > 0:
+        return min(ceiling_h_m, max(TILE_BAND_MIN_M, mm / 1000))
+    return ceiling_h_m
+
+
+def _opening_span_m(element: dict) -> tuple[float, float, float]:
+    """An opening's width and its bottom and top above the floor, metres."""
+    width = _to_metres(float(element.get("width", 0) or 0))
+    bottom = max(0.0, _to_metres(float(element.get("sill_height", 0) or 0)))
+    return width, bottom, bottom + _to_metres(float(element.get("height", 0) or 0))
+
+
+def _band_opening_m2(element: dict, band_m: float) -> float:
+    """The part of an opening between the floor and ``band_m``: what a tile band loses to it."""
+    width, bottom, top = _opening_span_m(element)
+    return width * max(0.0, min(top, band_m) - bottom)
+
+
+def _tiled_walls(room: "Room") -> list[tuple[str, dict, dict, float]]:
+    """(wall id, wall, covering, length m) of every wall whose covering (its own, else ALL) is tile."""
+    geometry: dict = room.geometry or {}
+    wall_coverings: dict = _design_state(room).get("wallCoverings", {})
+    out = []
+    for wall in geometry.get("walls", []) or []:
+        wall_key = str(wall.get("id", ""))
+        covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
+        length = _to_metres(float(wall.get("length", 0) or 0))
+        if _is_tile(covering) and length > 0:
+            out.append((wall_key, wall, covering, length))
+    return out
+
+
+def _tile_wall_areas(room: "Room") -> list[tuple[str, float]]:
+    """(wall id, net m² of tile) per tiled wall: its length by the tile band, less the part of
+    each door and window inside the band."""
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    out = []
+    for wall_key, wall, covering, length in _tiled_walls(room):
+        band = _tile_band_m(covering, ceiling_h_m)
+        openings = sum(_band_opening_m2(el, band) for el in wall.get("elements", []) or [] if isinstance(el, dict))
+        out.append((wall_key, max(0.0, length * band - openings)))
+    return out
+
+
+def _tile_above_areas(room: "Room") -> list[tuple[str, float]]:
+    """(wall id, m²) of each tiled wall ABOVE its tile band, the part that is painted; walls tiled
+    to the ceiling are left out."""
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    out = []
+    for wall_key, wall, covering, length in _tiled_walls(room):
+        band = _tile_band_m(covering, ceiling_h_m)
+        if band >= ceiling_h_m - 1e-9:
+            continue
+        above = 0.0
+        for el in wall.get("elements", []) or []:
+            if isinstance(el, dict):
+                width, bottom, top = _opening_span_m(el)
+                above += width * max(0.0, min(top, ceiling_h_m) - max(bottom, band))
+        out.append((wall_key, max(0.0, length * (ceiling_h_m - band) - above)))
+    return out
+
+
+def _wall_tile_line(area_m2: float, wall_ids: list[str], catalog: dict) -> ComputedLine:
+    """The wall tile to buy: the tiled area plus waste, at the shop's median tile price (nobody
+    picks a tile product for a wall yet), else a norm price. Approximate either way."""
+    from app.services.tile_work import load_tile_norms
+
+    shop = catalog.get("finish:plitka")
+    shop_price = _price_per(shop, "m2")
+    price = shop_price or int(load_tile_norms()["wall_tile_m2_uzs"])
+    qty = _round2(area_m2 * TILE_WASTE)
+    walls = f" (devor {', '.join(wall_ids)})" if wall_ids else ""
+    return _make_line(
+        label=f"Devor plitkasi: {shop.name_uz}" if shop_price else "Devor plitkasi",
+        formula=f"{area_m2:.2f} m² × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²{walls}",
+        qty=qty, unit="m²", price_uzs=price, category="plitka_devor",
+        is_approximate=True,
+        warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
+        **(_shop(shop) if shop_price else {}),
+    )
+
+
+def _floor_tile_area_m2(room: "Room", floor_mat: "Material | None", floor_already_done: bool) -> float:
+    """The floor area laid in tile now: a picked tile product, or the studio's tile floor with no
+    product behind it. Nothing for a floor already finished."""
+    if floor_already_done:
+        return 0.0
+    if floor_mat is not None:
+        is_tile = str(getattr(floor_mat, "category", "")) == "plitka"
+    else:
+        ds = _design_state(room)
+        is_tile = ds.get("floorConfigured") is True and ds.get("floorType") == "tile"
+    return _floor_covering_area_m2(room) if is_tile else 0.0
+
+
+def _packed_line(*, label: str, area_m2: float, kg_m2: float, norm_pack_kg: float, norm_pack_uzs: int,
+                 unit: str, shop: "Material | None") -> ComputedLine:
+    """A material bought in whole packs for an area: the shop's tagged product in its own pack, else
+    the norm pack at the norm price, marked approximate."""
+    kg = area_m2 * kg_m2
+    bag = _bag_from_shop(shop)
+    pack_kg, price = bag if bag else (norm_pack_kg, norm_pack_uzs)
+    packs = max(1, math.ceil(kg / pack_kg - 1e-9))
+    return _make_line(
+        label=f"{label}: {shop.name_uz}" if bag else label,
+        formula=f"{area_m2:.2f} m² × {kg_m2:g} kg/m² = {kg:.1f} kg → {packs} {unit} ({pack_kg:g} kg)",
+        qty=packs, unit=unit, price_uzs=int(price), category="plitka_ish",
+        is_approximate=not bag, warning=None if bag else TILE_NORM_NOTE,
+        **(_shop(shop) if bag else {}),
+    )
+
+
+def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict) -> list[ComputedLine]:
+    """What laying tile takes besides the tile: adhesive and grout for the whole tiled area, and the
+    tiler's work, the floor and the walls at their own rates (spec 2026-11-10)."""
+    from app.services.tile_work import load_tile_norms
+
+    area = floor_m2 + wall_m2
+    if area <= 0:
+        return []
+    n = load_tile_norms()
+    lines = [
+        _packed_line(label="Plitka yelimi", area_m2=area, kg_m2=n["adhesive_kg_m2"], norm_pack_kg=n["adhesive_bag_kg"],
+                     norm_pack_uzs=n["adhesive_bag_uzs"], unit="qop", shop=catalog.get("plitka_yelimi")),
+        _packed_line(label="Zatirka", area_m2=area, kg_m2=n["grout_kg_m2"], norm_pack_kg=n["grout_pack_kg"],
+                     norm_pack_uzs=n["grout_pack_uzs"], unit="dona", shop=catalog.get("zatirka")),
+    ]
+    for label, m2, price in (
+        ("Ish: pol plitkasini terish", floor_m2, n["work_floor_m2_uzs"]),
+        ("Ish: devor plitkasini terish", wall_m2, n["work_wall_m2_uzs"]),
+    ):
+        if m2 > 0:
+            qty = _round2(m2)
+            lines.append(_make_line(
+                label=label, formula=f"{qty:.2f} m² × {int(price):,} so'm".replace(",", " "),
+                qty=qty, unit="m²", price_uzs=int(price), category="plitka_ish",
+            ))
+    return lines
+
+
+def _is_bathroom(room: "Room") -> bool:
+    """The room's own type, or, with none set, what its name reads as (as the studio guesses it)."""
+    from app.services.room_type import guess_room_type
+
+    room_type = getattr(room, "room_type", None)
+    if room_type:
+        return room_type == "hammom"
+    return guess_room_type(str(getattr(room, "name", "") or "")) == "hammom"
+
+
+def _wet_fixtures(room: "Room", catalog: dict) -> list[dict]:
+    """The placed bathtubs and showers, as app.services.waterproofing takes them: where each
+    stands and its footprint (the shop row's, 60 cm when it has none)."""
+    out = []
+    for item in (room.state or {}).get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        if _fixture_role(fid, row, {fid: str(item["name"])} if item.get("name") else {}) not in ("bathtub", "shower"):
+            continue
+        k = _float(item.get("scaleOverride")) or 1
+        out.append({
+            "x": item.get("x"), "y": item.get("y"), "rotation": item.get("rotation"),
+            "w": (_float(getattr(row, "footprint_w", None)) or 60) / 100 * k,
+            "d": (_float(getattr(row, "footprint_d", None)) or 60) / 100 * k,
+        })
+    return out
+
+
+def _waterproofing_lines(room: "Room", catalog: "dict | None" = None, floor_already_done: bool = False) -> list[ComputedLine]:
+    """A bathroom's waterproofing (spec 2026-11-10): mastic and tape for the floor, the foot of the
+    walls and the walls round the bathtub and shower, and the work. Nothing for any other room, and
+    nothing once the floor is finished: the seal lies under the floor finish and was laid before it."""
+    if floor_already_done or not _is_bathroom(room):
+        return []
+    from app.services.tile_work import load_tile_norms
+    from app.services.waterproofing import waterproof_areas
+
+    catalog = catalog or {}
+    n = load_tile_norms()
+    a = waterproof_areas(_plumbing_geometry(room), _wet_fixtures(room, catalog), _floor_covering_area_m2(room), _door_widths_m(room))
+    if a["total"] <= 0:
+        return []
+    kg = a["total"] * n["mastic_kg_m2"]
+    working = (
+        f"Pol {a['floor']:.2f} m² + devor tagi {a['base']:.2f} m² + ho'l zona {a['wet']:.2f} m² "
+        f"= {a['total']:.2f} m² × {n['mastic_kg_m2']:g} kg/m² = {kg:.1f} kg"
+    )
+    mastic = catalog.get("gidro_mastika")
+    bag = _bag_from_shop(mastic)
+    per_kg = None if bag else _price_per(mastic, "kg")
+    if bag:
+        packs = max(1, math.ceil(kg / bag[0] - 1e-9))
+        mastic_line = _make_line(
+            label=f"Gidroizolyatsiya mastikasi: {mastic.name_uz}", formula=f"{working} → {packs} dona ({bag[0]:g} kg)",
+            qty=packs, unit="dona", price_uzs=bag[1], category="plitka_ish", **_shop(mastic),
+        )
+    else:
+        mastic_line = _make_line(
+            label=f"Gidroizolyatsiya mastikasi: {mastic.name_uz}" if per_kg else "Gidroizolyatsiya mastikasi",
+            formula=working, qty=math.ceil(kg - 1e-9), unit="kg",
+            price_uzs=per_kg or int(n["mastic_kg_uzs"]), category="plitka_ish",
+            is_approximate=not per_kg, warning=None if per_kg else TILE_NORM_NOTE,
+            **(_shop(mastic) if per_kg else {}),
+        )
+    tape = catalog.get("gidro_lenta")
+    tape_price = _price_per(tape, "m")
+    metres = math.ceil(a["tape_m"] - 1e-9)
+    tape_line = _make_line(
+        label=f"Gidroizolyatsiya lentasi: {tape.name_uz}" if tape_price else "Gidroizolyatsiya lentasi",
+        formula=f"{a['tape_m']:.2f} m → {metres} m", qty=metres, unit="m",
+        price_uzs=tape_price or int(n["tape_m_uzs"]), category="plitka_ish",
+        is_approximate=not tape_price, warning=None if tape_price else TILE_NORM_NOTE,
+        **(_shop(tape) if tape_price else {}),
+    )
+    work_price = int(n["work_waterproof_m2_uzs"])
+    work_line = _make_line(
+        label="Ish: gidroizolyatsiya", formula=f"{a['total']:.2f} m² × {work_price:,} so'm".replace(",", " "),
+        qty=a["total"], unit="m²", price_uzs=work_price, category="plitka_ish",
+    )
+    return [mastic_line, tape_line, work_line]
 
 
 @dataclass
@@ -789,7 +1043,7 @@ def _shop_wallpaper_lines(room: "Room", catalog: "dict | None") -> tuple[list[Co
     for wall in geometry.get("walls", []) or []:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
-        if not isinstance(covering, dict) or covering.get("kind") != "texture":
+        if not isinstance(covering, dict) or covering.get("kind") != "texture" or _is_tile(covering):
             continue
         url = covering.get("url") or ""
         roll = _shop_wallpaper(catalog, url)
@@ -1951,7 +2205,7 @@ def compute_estimate(
     has_any_paint = any(
         isinstance(c, dict) and c.get("kind") == "paint"
         for c in wall_coverings_state.values()
-    )
+    ) or bool(_tile_above_areas(room))
     # Same reasoning again for a custom-uploaded photo wallpaper ("texture"
     # kind) — it needs plaster/primer/putty under it exactly like oboy does,
     # even though its finish line itself can't be priced deterministically
@@ -2027,6 +2281,8 @@ def compute_estimate(
     #     always emitted needing an AI price (see recompute_totals /      #
     #     app.services.smeta_ai for how the router backfills it).         #
     # ------------------------------------------------------------------ #
+    tiled = _tile_wall_areas(room)
+    wall_tile_m2 = sum(area for _, area in tiled)
     if has_any_texture:
         # A shop's wallpaper from the library is priced by the roll; a user's own photo
         # has no price and keeps the AI-priced placeholder.
@@ -2036,6 +2292,9 @@ def compute_estimate(
             if area <= 0 or url in priced_urls:
                 continue
             lines.append(_texture_line(url, area, wall_ids))
+        # Wall tile is a texture to the studio, but it is bought by the square metre.
+        if wall_tile_m2 > 0:
+            lines.append(_wall_tile_line(wall_tile_m2, [wall for wall, area in tiled if area > 0], catalog))
 
     # ------------------------------------------------------------------ #
     # 3. Floor covering — skipped entirely when floor_state is finished   #
@@ -2052,6 +2311,11 @@ def compute_estimate(
         elif floor_mat.category == "plitka":
             if _float(room.floor_area) > 0:
                 lines.extend(_tile_lines(room, floor_mat, norms_map, catalog.get("plintus")))
+
+    # 3a. Tile work: adhesive, grout and laying, for the floor and wall tile together.
+    lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog))
+    # 3a'. A bathroom is waterproofed whatever it is finished in.
+    lines.extend(_waterproofing_lines(room, catalog, floor_already_done))
 
     # ------------------------------------------------------------------ #
     # 3b. Ceiling construction — skipped entirely when ceiling_state is   #

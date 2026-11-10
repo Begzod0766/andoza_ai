@@ -263,7 +263,9 @@ def test_3_oboy_all_damask_tile(oboy_norm, tile_mat, oboy_mat):
     # (Fix 8: tile floors now get a plinth line too, same as laminate)
     assert sum(1 for ln in est.lines if ln.category in ("suvoq", "grunt", "shpatlyovka")) == 3
     assert any(ln.category == "plintus" for ln in est.lines)
-    assert len(est.lines) == 10
+    # A tile floor also brings adhesive, grout and the laying work (spec 2026-11-10): +3
+    assert sum(1 for ln in est.lines if ln.category == "plitka_ish") == 3
+    assert len(est.lines) == 13
 
     # Wall A: 5.0 * 2.7 = 13.5, waste=13.5*1.15=15.525, rolls=ceil(15.525/10.653)=2
     wall_a = next(ln for ln in oboy_lines if "devor A" in ln.label)
@@ -453,7 +455,9 @@ def test_8_large_tile_paint(boyoq_norm, plitka_norm, paint_mat, tile_mat):
 
     # suvoq + boyoq + grunt + shpatlyovka + plitka + plintus + elektr = 7
     # (Fix 8: tile floors now get a plinth line too, same as laminate)
-    assert len(est.lines) == 7
+    # A tile floor also brings adhesive, grout and the laying work (spec 2026-11-10): +3
+    assert sum(1 for ln in est.lines if ln.category == "plitka_ish") == 3
+    assert len(est.lines) == 10
     assert sum(1 for ln in est.lines if ln.category == "suvoq") == 1
     assert sum(1 for ln in est.lines if ln.category == "plintus") == 1
 
@@ -560,7 +564,9 @@ def test_11_tile_floor_no_wall_material(plitka_norm, tile_mat):
     est = compute_estimate(room, mats, norms)
 
     # plitka + plintus + elektr = 3 (Fix 8: tile now gets a plinth line too)
-    assert len(est.lines) == 3
+    # A tile floor also brings adhesive, grout and the laying work (spec 2026-11-10): +3
+    assert sum(1 for ln in est.lines if ln.category == "plitka_ish") == 3
+    assert len(est.lines) == 6
     assert any(ln.category == "plitka" for ln in est.lines)
     assert any(ln.category == "plintus" for ln in est.lines)
 

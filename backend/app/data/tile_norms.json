@@ -1,0 +1,16 @@
+{
+  "_doc": "Tile work and waterproofing: consumption rates and the prices used when the shop has no product tagged for a line (spec 2026-11-10). Prices in UZS; lines priced from here are marked approximate.",
+  "adhesive_kg_m2": 5,
+  "adhesive_bag_kg": 25,
+  "adhesive_bag_uzs": 45000,
+  "grout_kg_m2": 0.4,
+  "grout_pack_kg": 2,
+  "grout_pack_uzs": 35000,
+  "wall_tile_m2_uzs": 120000,
+  "work_floor_m2_uzs": 80000,
+  "work_wall_m2_uzs": 100000,
+  "mastic_kg_m2": 1.5,
+  "mastic_kg_uzs": 28000,
+  "tape_m_uzs": 7000,
+  "work_waterproof_m2_uzs": 25000
+}
