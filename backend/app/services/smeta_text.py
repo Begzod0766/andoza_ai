@@ -131,6 +131,10 @@ _LABEL_HEADS = {
     "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
     "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
     "Suv quvuri PPR Ø20": "pipe_water_20",
+    # Tile work (spec 2026-11-10): a shop's product follows the colon.
+    "Devor plitkasi": "wall_tile",
+    "Plitka yelimi": "tile_adhesive",
+    "Zatirka": "grout",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -146,6 +150,11 @@ _WHOLE_LABELS = {
     "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
     "Suv quvuri PPR Ø20": "pipe_water_20",
     "Fitinglar": "fittings",
+    "Devor plitkasi": "wall_tile",
+    "Plitka yelimi": "tile_adhesive",
+    "Zatirka": "grout",
+    "Ish: pol plitkasini terish": "work_floor_tile",
+    "Ish: devor plitkasini terish": "work_wall_tile",
     "Ish: nuqtani ulash": "work_point",
     "Ish: vanna o'rnatish": "work_bathtub",
     "Ish: rakovina o'rnatish": "work_sink",

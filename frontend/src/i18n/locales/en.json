@@ -1041,6 +1041,7 @@
       "tayyorlash": "Wall preparation",
       "pardoz": "Wall finishing",
       "pol": "Floor and skirting board",
+      "plitka_ish": "Tile work",
       "shift": "Ceiling",
       "elektr": "Electrics and lighting",
       "santexnika": "Plumbing",
@@ -1106,7 +1107,12 @@
       "fixture_sink": "Sink",
       "fixture_toilet": "Toilet",
       "fixture_shower": "Shower",
-      "fixture_bidet": "Bidet"
+      "fixture_bidet": "Bidet",
+      "wall_tile": "Wall tile",
+      "tile_adhesive": "Tile adhesive",
+      "grout": "Grout",
+      "work_floor_tile": "Work: laying floor tile",
+      "work_wall_tile": "Work: laying wall tile"
     },
     "unit": {
       "qop_one": "bag",
@@ -1149,7 +1155,9 @@
       "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
       "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
       "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used.",
-      "fittings_norm": "Approximate price — an average price is used for the fittings."
+      "fittings_norm": "Approximate price — an average price is used for the fittings.",
+      "wall_tile_norm": "Approximate price — the shop has no tile, an average price was used.",
+      "tile_norm": "Approximate price — the shop has no such product, an average price was used."
     },
     "formula": {
       "wall_head": "Wall {{wall}}",
@@ -2094,7 +2102,11 @@
         "led_lenta": "LED strip",
         "kabel": "Cable",
         "galtel": "Cornice",
-        "light": "Light fixture: {{name}}"
+        "light": "Light fixture: {{name}}",
+        "plitka_yelimi": "Tile adhesive",
+        "zatirka": "Grout",
+        "gidro_mastika": "Waterproofing mastic",
+        "gidro_lenta": "Waterproofing tape"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

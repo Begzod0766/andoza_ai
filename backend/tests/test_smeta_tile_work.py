@@ -99,3 +99,27 @@ def test_a_picked_floor_tile_product_counts_as_a_tile_floor():
 def test_the_group_sits_right_after_the_floor():
     assert group_key_for("plitka_ish") == "plitka_ish"
     assert GROUP_ORDER.index("plitka_ish") == GROUP_ORDER.index("pol") + 1
+
+
+import pytest  # noqa: E402
+
+from app.services.smeta_text import localize_formula, localize_label, localize_warning  # noqa: E402
+
+
+@pytest.mark.parametrize(("label", "ru", "en"), [
+    ("Devor plitkasi", "Настенная плитка", "Wall tile"),
+    ("Devor plitkasi: Kafel 30x60", "Настенная плитка: Kafel 30x60", "Wall tile: Kafel 30x60"),
+    ("Plitka yelimi", "Плиточный клей", "Tile adhesive"),
+    ("Plitka yelimi: Ceresit CM 11", "Плиточный клей: Ceresit CM 11", "Tile adhesive: Ceresit CM 11"),
+    ("Zatirka", "Затирка", "Grout"),
+    ("Ish: pol plitkasini terish", "Работа: укладка напольной плитки", "Work: laying floor tile"),
+    ("Ish: devor plitkasini terish", "Работа: укладка настенной плитки", "Work: laying wall tile"),
+])
+def test_labels_read_in_russian_and_english(label, ru, en):
+    assert localize_label(label, "ru") == ru
+    assert localize_label(label, "en") == en
+
+
+def test_warnings_and_formula_read_in_english():
+    assert localize_warning(TILE_NORM_NOTE, "en") == "Approximate price — the shop has no such product, an average price was used."
+    assert localize_formula("25.00 m² × 5 kg/m² = 125.0 kg → 5 qop (25 kg)", "en") == "25.00 m² × 5 kg/m² = 125.0 kg → 5 bags (25 kg)"

@@ -34,6 +34,10 @@ const LABEL_HEADS = {
   "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
   "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
   "Suv quvuri PPR Ø20": "pipe_water_20",
+  // Tile work (spec 2026-11-10): a shop's product follows the colon.
+  "Devor plitkasi": "wall_tile",
+  "Plitka yelimi": "tile_adhesive",
+  "Zatirka": "grout",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -49,6 +53,11 @@ const WHOLE_LABELS = {
   "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
   "Suv quvuri PPR Ø20": "pipe_water_20",
   "Fitinglar": "fittings",
+  "Devor plitkasi": "wall_tile",
+  "Plitka yelimi": "tile_adhesive",
+  "Zatirka": "grout",
+  "Ish: pol plitkasini terish": "work_floor_tile",
+  "Ish: devor plitkasini terish": "work_wall_tile",
   "Ish: nuqtani ulash": "work_point",
   "Ish: vanna o'rnatish": "work_bathtub",
   "Ish: rakovina o'rnatish": "work_sink",
@@ -190,7 +199,7 @@ const WARNING_KEYS = [
   "norm_missing", "stand_in", "pick_for_exact", "paint_fallback", "pick_paint",
   "wallpaper_missing", "pick_material", "texture_pricing", "furniture_approx", "light_approx",
   "galtel_approx", "cable_measured", "cable_points", "cable_guess", "confirm_electrician",
-  "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price", "plumbing_norm", "fittings_norm",
+  "ceiling_board", "ceiling_frame", "ceiling_strip", "ai_price", "plumbing_norm", "fittings_norm", "wall_tile_norm", "tile_norm",
 ] as const;
 
 /** A warning is one or more fixed sentences joined by spaces: each known one is translated. */

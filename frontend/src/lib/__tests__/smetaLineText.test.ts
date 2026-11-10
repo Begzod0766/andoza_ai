@@ -168,3 +168,21 @@ describe('the fittings warning (review minor 2026-11-09)', () => {
     expect(localizeWarning("Narx taxminiy — fitinglar uchun o'rtacha narx olindi.", en)).toBe('Approximate price — an average price is used for the fittings.')
   })
 })
+
+describe('tile work lines (spec 2026-11-10)', () => {
+  it('translates the labels, with and without a shop product', () => {
+    expect(localizeLabel('Devor plitkasi', en)).toBe('Wall tile')
+    expect(localizeLabel('Devor plitkasi: Kafel 30x60', ru)).toBe('Настенная плитка: Kafel 30x60')
+    expect(localizeLabel('Plitka yelimi', ru)).toBe('Плиточный клей')
+    expect(localizeLabel('Plitka yelimi: Ceresit CM 11', en)).toBe('Tile adhesive: Ceresit CM 11')
+    expect(localizeLabel('Zatirka', en)).toBe('Grout')
+    expect(localizeLabel('Ish: pol plitkasini terish', en)).toBe('Work: laying floor tile')
+    expect(localizeLabel('Ish: devor plitkasini terish', ru)).toBe('Работа: укладка настенной плитки')
+  })
+  it('translates the warnings and the formula', () => {
+    expect(localizeWarning("Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi.", en)).toBe('Approximate price — the shop has no tile, an average price was used.')
+    expect(localizeWarning("Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi.", en)).toBe('Approximate price — the shop has no such product, an average price was used.')
+    expect(localizeFormula('25.00 m² × 5 kg/m² = 125.0 kg → 5 qop (25 kg)', en)).toBe('25.00 m² × 5 kg/m² = 125.0 kg → 5 bags (25 kg)')
+    expect(localizeFormula('24.30 m² × 1.10 (chiqindi) = 26.73 m² (devor A, B)', en)).toBe('24.30 m² × 1.10 (waste) = 26.73 m² (walls A, B)')
+  })
+})

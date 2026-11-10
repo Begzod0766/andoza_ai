@@ -44,7 +44,12 @@
         "fixture_sink": "Rakovina",
         "fixture_toilet": "Unitaz",
         "fixture_shower": "Dush",
-        "fixture_bidet": "Bide"
+        "fixture_bidet": "Bide",
+        "wall_tile": "Devor plitkasi",
+        "tile_adhesive": "Plitka yelimi",
+        "grout": "Zatirka",
+        "work_floor_tile": "Ish: pol plitkasini terish",
+        "work_wall_tile": "Ish: devor plitkasini terish"
       },
       "unit": {
         "qop_one": "qop",
@@ -109,12 +114,15 @@
         "ceiling_strip": "Taxminiy hisob — lenta uzunligi dizayn shakliga qarab farq qiladi.",
         "ai_price": "AI taxminiy narx (tajribali usta bahosi)",
         "plumbing_norm": "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.",
-        "fittings_norm": "Narx taxminiy — fitinglar uchun o'rtacha narx olindi."
+        "fittings_norm": "Narx taxminiy — fitinglar uchun o'rtacha narx olindi.",
+        "wall_tile_norm": "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi.",
+        "tile_norm": "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
       },
       "toifa": {
         "tayyorlash": "Devorni tayyorlash",
         "pardoz": "Devor pardozi",
         "pol": "Pol va plintus",
+        "plitka_ish": "Plitka ishlari",
         "shift": "Shift",
         "elektr": "Elektr va yoritish",
         "santexnika": "Santexnika",
@@ -188,7 +196,12 @@
         "fixture_sink": "Раковина",
         "fixture_toilet": "Унитаз",
         "fixture_shower": "Душ",
-        "fixture_bidet": "Биде"
+        "fixture_bidet": "Биде",
+        "wall_tile": "Настенная плитка",
+        "tile_adhesive": "Плиточный клей",
+        "grout": "Затирка",
+        "work_floor_tile": "Работа: укладка напольной плитки",
+        "work_wall_tile": "Работа: укладка настенной плитки"
       },
       "unit": {
         "qop_one": "мешок",
@@ -275,12 +288,15 @@
         "ceiling_strip": "Ориентировочный расчёт: длина ленты зависит от формы дизайна.",
         "ai_price": "Ориентировочная цена от ИИ (оценка опытного мастера)",
         "plumbing_norm": "Цена ориентировочная — в магазине нет этой трубы, взята средняя цена.",
-        "fittings_norm": "Цена ориентировочная — для фитингов взята средняя цена."
+        "fittings_norm": "Цена ориентировочная — для фитингов взята средняя цена.",
+        "wall_tile_norm": "Цена ориентировочная — в магазине нет плитки, взята средняя цена.",
+        "tile_norm": "Цена ориентировочная — в магазине нет такого товара, взята средняя цена."
       },
       "toifa": {
         "tayyorlash": "Подготовка стен",
         "pardoz": "Отделка стен",
         "pol": "Пол и плинтус",
+        "plitka_ish": "Плиточные работы",
         "shift": "Потолок",
         "elektr": "Электрика и освещение",
         "santexnika": "Сантехника",
@@ -356,7 +372,12 @@
         "fixture_sink": "Sink",
         "fixture_toilet": "Toilet",
         "fixture_shower": "Shower",
-        "fixture_bidet": "Bidet"
+        "fixture_bidet": "Bidet",
+        "wall_tile": "Wall tile",
+        "tile_adhesive": "Tile adhesive",
+        "grout": "Grout",
+        "work_floor_tile": "Work: laying floor tile",
+        "work_wall_tile": "Work: laying wall tile"
       },
       "unit": {
         "qop_one": "bag",
@@ -421,12 +442,15 @@
         "ceiling_strip": "Approximate: the strip length depends on the design's shape.",
         "ai_price": "Approximate AI price (an experienced craftsman's estimate)",
         "plumbing_norm": "Approximate price — the shop has no such pipe, an average price was used.",
-        "fittings_norm": "Approximate price — an average price is used for the fittings."
+        "fittings_norm": "Approximate price — an average price is used for the fittings.",
+        "wall_tile_norm": "Approximate price — the shop has no tile, an average price was used.",
+        "tile_norm": "Approximate price — the shop has no such product, an average price was used."
       },
       "toifa": {
         "tayyorlash": "Wall preparation",
         "pardoz": "Wall finishing",
         "pol": "Floor and skirting board",
+        "plitka_ish": "Tile work",
         "shift": "Ceiling",
         "elektr": "Electrics and lighting",
         "santexnika": "Plumbing",

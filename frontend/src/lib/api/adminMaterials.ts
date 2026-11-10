@@ -156,6 +156,11 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "led_lenta", labelKey: "dokon.admin.smeta_key.led_lenta", packUnit: "m" },
   { id: "kabel", labelKey: "dokon.admin.smeta_key.kabel", packUnit: null, unit: "m" },
   { id: "galtel", labelKey: "dokon.admin.smeta_key.galtel", packUnit: "m" },
+  // Tile work and waterproofing (spec 2026-11-10)
+  { id: "plitka_yelimi", labelKey: "dokon.admin.smeta_key.plitka_yelimi", packUnit: "kg" },
+  { id: "zatirka", labelKey: "dokon.admin.smeta_key.zatirka", packUnit: "kg" },
+  { id: "gidro_mastika", labelKey: "dokon.admin.smeta_key.gidro_mastika", packUnit: "kg" },
+  { id: "gidro_lenta", labelKey: "dokon.admin.smeta_key.gidro_lenta", packUnit: "m" },
   ...LIGHT_TYPES.map((t) => ({
     id: `light:${t.id}`,
     labelKey: t.nameKey,
