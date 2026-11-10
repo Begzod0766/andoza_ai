@@ -129,3 +129,12 @@ describe('keepRails', () => {
     expect(keepRails(rails, rect(400, 2000))).toEqual([rails[1]])
   })
 })
+
+describe('freeSpans sees a door where the room draws it (final review)', () => {
+  it('a door just added from the room settings has no place of its own yet and is drawn centred', () => {
+    const auto = { type: 'eshik', position: 0, positionAuto: true, width: 900 } as unknown as El
+    const g = rect(3000, 2000, { A: [auto] })   // drawn at 1050–1950
+    expect(freeSpans(g, 'A')).toEqual([[250, 800], [2200, 2750]])
+    expect(placeTowelRail(g, { wallId: 'A', positionMm: 0 })).toEqual({ wallId: 'A', positionMm: 600 })
+  })
+})

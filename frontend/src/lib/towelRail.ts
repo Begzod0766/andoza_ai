@@ -1,6 +1,7 @@
 import type { PlumbingPoint, RoomGeometry, TowelRail } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { wallWalk } from '@/lib/plumbingRuns'
+import { resolveElementPositions } from '@/lib/wallPositions'
 
 /**
  * A water-heated towel rail hung on a wall (spec 2026-11-10). It is a record in the room's
@@ -51,7 +52,8 @@ export function freeSpans(geometry: RoomGeometry, wallId: string): Array<[number
   const length = walk.lengthM * 1000
   // An opening is measured from the wall's own start; the walk may run the other way.
   const forward = walk.dirX * own.dirX + walk.dirZ * own.dirZ > 0
-  const blocked = wall.elements
+  // Where the room draws each opening: one just added has no place of its own yet (lib/wallPositions).
+  const blocked = resolveElementPositions(wall.elements, wall.length)
     .filter((e) => Number.isFinite(e.position) && e.width > 0)
     .map((e): [number, number] => (forward ? [e.position, e.position + e.width] : [length - e.position - e.width, length - e.position]))
     .map(([a, b]): [number, number] => [a - HALF, b + HALF])

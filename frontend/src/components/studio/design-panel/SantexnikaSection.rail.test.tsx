@@ -67,3 +67,13 @@ describe('SantexnikaSection: towel rail', () => {
     expect(addButton()).toBeNull()
   })
 })
+
+describe('SantexnikaSection: a rail in a room that is no longer a bathroom (final review)', () => {
+  it('is still listed and can be removed; only adding is for bathrooms', () => {
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 600, heightMm: 1000 }] })
+    render(<SantexnikaSection />)
+    expect(addButton()).toBeNull()
+    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Olib tashlash' }))
+    expect(rails()).toEqual([])
+  })
+})

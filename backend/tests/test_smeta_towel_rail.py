@@ -131,3 +131,18 @@ def test_rail_and_fan_lines_are_in_the_estimate_outside_the_furniture_group():
     assert groups["Sochiq quritgich"] == "santexnika" and groups["Ish: sochiq quritgichni o'rnatish"] == "santexnika"
     assert groups["Tortuvchi ventilyator"] == "elektr"
     assert "jihoz" not in {groups[k] for k in ("Sochiq quritgich", "Tortuvchi ventilyator")}
+
+
+def test_a_room_priced_from_its_saved_geometry_keeps_the_pipe_run_sane():
+    """Final review: with no geometry on the room row the studio's saved one (mm) is used; its
+    vertices were left in mm, so a polygon wall read 1000 times too long and a rail past the wall's
+    end gave a negative pipe line."""
+    saved = {"walls": [{"id": str(i), "length": length, "elements": []} for i, length in enumerate((3000, 2000, 1803, 1803, 2000))],
+             "vertices": [[0, 0], [3000, 0], [3000, 2000], [1500, 3000], [0, 2000]]}
+    r = room(rails=[{"id": "r1", "wallId": "2", "positionMm": 99999, "heightMm": 1000}], geometry=None)
+    r.state["geometry"] = saved
+    got = by_label(_plumbing_lines(r, {}))
+    pipe = got["Suv quvuri PPR Ø20"]
+    assert 0 < pipe.qty < 30 and pipe.subtotal_uzs > 0
+    same = by_label(_plumbing_lines(room(rails=[{"id": "r1", "wallId": "2", "positionMm": 99999, "heightMm": 1000}], geometry=POLYGON), {}))
+    assert pipe.qty == pytest.approx(same["Suv quvuri PPR Ø20"].qty, abs=0.05)

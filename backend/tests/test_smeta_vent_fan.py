@@ -114,3 +114,10 @@ def test_the_new_keys_are_sold_by_the_piece(key):
     assert smeta_key_problem(key, "dona", None, None) is None
     assert smeta_key_problem(key, "m", None, None) is not None
     assert smeta_key_problem(key, "qop", 25, "kg") is not None
+
+
+def test_the_rejection_of_a_wrong_unit_is_translated():
+    """Final review: an admin working in Russian or English got the Uzbek sentence."""
+    from app.i18n import translate
+    uz = smeta_key_problem("ventilyator", "m", None, None)
+    assert translate(uz, "ru") != uz and translate(uz, "en") != uz

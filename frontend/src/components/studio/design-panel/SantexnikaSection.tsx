@@ -126,7 +126,8 @@ export function SantexnikaSection({ bathroom = false }: {
         {t("studio.santexnika.add")}
       </button>
 
-      {bathroom && (
+      {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}
+      {(bathroom || towelRails.length > 0) && (
         <div className="space-y-1.5">
           <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.rail")}</span>
           {towelRails.length > 0 && (
@@ -142,10 +143,12 @@ export function SantexnikaSection({ bathroom = false }: {
               ))}
             </ul>
           )}
-          <button type="button" onClick={() => setNoRailRoom(!addTowelRail())}
-            className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
-            {t("studio.santexnika.rail_add")}
-          </button>
+          {bathroom && (
+            <button type="button" onClick={() => setNoRailRoom(!addTowelRail())}
+              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+              {t("studio.santexnika.rail_add")}
+            </button>
+          )}
           {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
         </div>
       )}
