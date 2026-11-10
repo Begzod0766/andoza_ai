@@ -105,3 +105,45 @@ def test_a_users_own_photo_is_still_a_print():
     got = lines(room({"ALL": PHOTO}))
     assert [ln for ln in got if ln.category == "texture"]
     assert not [ln for ln in got if ln.category == "plitka_devor"]
+
+
+# ─── Tile to a chosen height, paint above (Task 5) ─────────────────────────────
+
+from app.services.smeta import _tile_above_areas  # noqa: E402
+
+
+def band(mm, **extra):
+    return {**TILE, "tileHeightMm": mm, **extra}
+
+
+def test_tile_to_a_height_splits_the_wall():
+    r = room({"ALL": {"kind": "paint", "color": "#fff"}, "A": band(1500)})
+    assert dict(_tile_wall_areas(r)) == {"A": pytest.approx(2.5 * 1.5)}
+    assert dict(_tile_above_areas(r)) == {"A": pytest.approx(2.5 * 1.2)}
+
+
+def test_openings_are_shared_between_the_band_and_what_is_above():
+    r = room({"A": band(1500), "ALL": {"kind": "plaster"}}, elements={"A": [DOOR]})
+    assert dict(_tile_wall_areas(r))["A"] == pytest.approx(2.5 * 1.5 - 0.7 * 1.5)
+    assert dict(_tile_above_areas(r))["A"] == pytest.approx(2.5 * 1.2 - 0.7 * 0.55)
+    r = room({"A": band(1500), "ALL": {"kind": "plaster"}}, elements={"A": [WINDOW]})
+    assert dict(_tile_wall_areas(r))["A"] == pytest.approx(2.5 * 1.5 - 1.2 * 0.6)
+    assert dict(_tile_above_areas(r))["A"] == pytest.approx(2.5 * 1.2 - 1.2 * 0.8)
+
+
+def test_a_height_past_the_ceiling_is_the_ceiling_and_a_tiny_one_is_30_cm():
+    r = room({"A": band(3500), "ALL": {"kind": "plaster"}})
+    assert dict(_tile_wall_areas(r))["A"] == pytest.approx(2.5 * 2.7)
+    assert _tile_above_areas(r) == []
+    r = room({"A": band(100), "ALL": {"kind": "plaster"}})
+    assert dict(_tile_wall_areas(r))["A"] == pytest.approx(2.5 * 0.3)
+
+
+def test_an_old_covering_with_no_height_goes_to_the_ceiling():
+    assert _tile_above_areas(room({"ALL": TILE})) == []
+
+
+def test_the_wall_above_the_tile_is_painted():
+    r = room({"ALL": {"kind": "plaster"}, "A": band(1500, aboveColor="#EEE8DD")})
+    paint = [ln for ln in lines(r) if ln.category == "boyoq"]
+    assert len(paint) == 1 and paint[0].formula.startswith("3.0 m² (devor A)")  # 2.5 × 1.2 m² above the tile

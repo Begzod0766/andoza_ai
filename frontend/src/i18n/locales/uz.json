@@ -997,6 +997,12 @@
       "own": "jihozniki",
       "summary": "Kanalizatsiya: {{dp}} nuqta, ~{{dm}} m · Suv: {{wp}} nuqta, ~{{wm}} m",
       "pipes": "Quvur yo'llarini ko'rsatish"
+    },
+    "tile_height": {
+      "title": "Plitka balandligi",
+      "full": "Shiftgacha",
+      "custom": "Balandligi, sm",
+      "above": "Yuqorisi"
     }
   },
   "smeta": {
@@ -1112,7 +1118,10 @@
       "tile_adhesive": "Plitka yelimi",
       "grout": "Zatirka",
       "work_floor_tile": "Ish: pol plitkasini terish",
-      "work_wall_tile": "Ish: devor plitkasini terish"
+      "work_wall_tile": "Ish: devor plitkasini terish",
+      "wp_mastic": "Gidroizolyatsiya mastikasi",
+      "wp_tape": "Gidroizolyatsiya lentasi",
+      "work_wp": "Ish: gidroizolyatsiya"
     },
     "unit": {
       "qop_one": "qop",
@@ -1179,7 +1188,10 @@
       "qatlam_one": "qatlam",
       "qatlam_other": "qatlam",
       "nuqta_one": "nuqta",
-      "nuqta_other": "nuqta"
+      "nuqta_other": "nuqta",
+      "wp_floor": "Pol",
+      "wp_base": "devor tagi",
+      "wp_wet": "ho'l zona"
     }
   },
   "ustalar": {

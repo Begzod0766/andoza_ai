@@ -20,6 +20,7 @@ import { MaterialSwatch } from "../MaterialSwatch";
 /** The Bo'yoq panel's two tabs. "texture" is labelled Oboy — an
  *  uploaded/library wallpaper image. */
 import { WALL_COLORS, wallColorName } from "@/lib/wallPalette";
+import { TileHeightControls } from "./TileHeightControls";
 import { wallNumber } from "@/lib/wallLabel";
 
 type CoveringMode = "paint" | "texture";
@@ -308,6 +309,9 @@ export function WallSection({
                     </button>
                   </div>
                 </div>
+
+                {/* A tiled wall: how high the tile goes, and the paint above it. */}
+                <TileHeightControls covering={c} ceilingMm={ceilingHeight} onChange={applyWallCovering} />
 
                 {/* UVW controls */}
                 <div className="space-y-2.5 p-3 bg-card-soft rounded-xl border border-line">

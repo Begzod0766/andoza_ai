@@ -49,7 +49,10 @@
         "tile_adhesive": "Plitka yelimi",
         "grout": "Zatirka",
         "work_floor_tile": "Ish: pol plitkasini terish",
-        "work_wall_tile": "Ish: devor plitkasini terish"
+        "work_wall_tile": "Ish: devor plitkasini terish",
+        "wp_mastic": "Gidroizolyatsiya mastikasi",
+        "wp_tape": "Gidroizolyatsiya lentasi",
+        "work_wp": "Ish: gidroizolyatsiya"
       },
       "unit": {
         "qop_one": "qop",
@@ -91,7 +94,10 @@
         "qatlam_one": "qatlam",
         "qatlam_other": "qatlam",
         "nuqta_one": "nuqta",
-        "nuqta_other": "nuqta"
+        "nuqta_other": "nuqta",
+        "wp_floor": "Pol",
+        "wp_base": "devor tagi",
+        "wp_wet": "ho'l zona"
       },
       "warning": {
         "norm_missing": "Bu qism uchun aniq norma topilmadi — standart ko'rsatkich bo'yicha hisoblandi.",
@@ -201,7 +207,10 @@
         "tile_adhesive": "Плиточный клей",
         "grout": "Затирка",
         "work_floor_tile": "Работа: укладка напольной плитки",
-        "work_wall_tile": "Работа: укладка настенной плитки"
+        "work_wall_tile": "Работа: укладка настенной плитки",
+        "wp_mastic": "Гидроизоляционная мастика",
+        "wp_tape": "Гидроизоляционная лента",
+        "work_wp": "Работа: гидроизоляция"
       },
       "unit": {
         "qop_one": "мешок",
@@ -265,7 +274,10 @@
         "nuqta_one": "точка",
         "nuqta_few": "точки",
         "nuqta_many": "точек",
-        "nuqta_other": "точки"
+        "nuqta_other": "точки",
+        "wp_floor": "Пол",
+        "wp_base": "низ стен",
+        "wp_wet": "мокрая зона"
       },
       "warning": {
         "norm_missing": "Точной нормы для этой части нет: посчитано по стандартному показателю.",
@@ -377,7 +389,10 @@
         "tile_adhesive": "Tile adhesive",
         "grout": "Grout",
         "work_floor_tile": "Work: laying floor tile",
-        "work_wall_tile": "Work: laying wall tile"
+        "work_wall_tile": "Work: laying wall tile",
+        "wp_mastic": "Waterproofing mastic",
+        "wp_tape": "Waterproofing tape",
+        "work_wp": "Work: waterproofing"
       },
       "unit": {
         "qop_one": "bag",
@@ -419,7 +434,10 @@
         "qatlam_one": "coat",
         "qatlam_other": "coats",
         "nuqta_one": "point",
-        "nuqta_other": "points"
+        "nuqta_other": "points",
+        "wp_floor": "Floor",
+        "wp_base": "foot of the walls",
+        "wp_wet": "wet zone"
       },
       "warning": {
         "norm_missing": "No exact norm was found for this part: it is calculated with the standard rate.",
