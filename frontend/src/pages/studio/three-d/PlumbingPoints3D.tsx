@@ -6,6 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
 import { pipeRunPath, riserSpot, wallWalk } from "@/lib/plumbingRuns";
+import { withRailPoints } from "@/lib/towelRail";
 
 const COLOUR = { drain: "#9CA3AF", cold: "#3B82F6", hot: "#EF4444" } as const;
 const RADIUS = 0.04;
@@ -34,8 +35,11 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   hiddenWalls?: ReadonlySet<string>;
 }) {
-  const plumbing = useRoomStore((s) => s.plumbing);
+  const saved = useRoomStore((s) => s.plumbing);
+  const towelRails = useRoomStore((s) => s.towelRails);
   const geometry = useRoomStore((s) => s.geometry);
+  // A towel rail's two points are worked out from it, never saved: drawn with the rest.
+  const plumbing = useMemo(() => withRailPoints(saved, towelRails, geometry), [saved, towelRails, geometry]);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
   const movePlumbing = useRoomStore((s) => s.movePlumbing);
   const { camera, gl } = useThree();
@@ -76,7 +80,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   if (plumbing.length === 0) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
-    if (p.fixtureId) return;
+    if (p.fixtureId || p.railId) return;
     e.stopPropagation();
     useRoomStore.getState().beginPlumbingDrag();
     draggingRef.current = p.id;

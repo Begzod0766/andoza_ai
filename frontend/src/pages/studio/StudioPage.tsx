@@ -253,6 +253,7 @@ export default function StudioPage() {
         furniture: s.furniture,
         electricals: s.electricals,
         plumbing: s.plumbing,
+        towelRails: s.towelRails,
         // Where the pipes run to, so the estimate measures from the same corner (lib/plumbingRuns).
         plumbingRiser: riserSpot(s.geometry),
         lights: s.lights,

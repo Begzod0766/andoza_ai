@@ -1,0 +1,130 @@
+import { useEffect, useMemo, useState } from "react";
+import * as THREE from "three";
+import { useThree, type ThreeEvent } from "@react-three/fiber";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import { useRoomStore } from "@/store/roomStore";
+import type { RoomGeometry, TowelRail } from "@/store/types";
+import { wallWalk } from "@/lib/plumbingRuns";
+import { TOWEL_RAIL_H_MM, TOWEL_RAIL_W_MM } from "@/lib/towelRail";
+
+const W = TOWEL_RAIL_W_MM / 1000;
+const H = TOWEL_RAIL_H_MM / 1000;
+/** The rail stands this far off the wall, metres. */
+const OFF_WALL = 0.03;
+const RUNGS = 6;
+/** The rungs stop this far short of the uprights' ends. */
+const RUNG_INSET = 0.05;
+const UPRIGHT_R = 0.012;
+const RUNG_R = 0.009;
+const CHROME = "#C9CDD2";
+
+/** Where a rail hangs: its centre, on its wall, facing into the room (group local +Z = inward). */
+export function towelRailPose(rail: TowelRail, geometry: RoomGeometry): { x: number; y: number; z: number; rotY: number } | null {
+  const w = wallWalk(geometry).find((x) => x.id === rail.wallId);
+  if (!w) return null;
+  const t = Math.min(w.lengthM, Math.max(0, rail.positionMm / 1000));
+  return {
+    x: w.startX + w.dirX * t + w.nx * OFF_WALL,
+    y: (rail.heightMm + TOWEL_RAIL_H_MM / 2) / 1000,
+    z: w.startZ + w.dirZ * t + w.nz * OFF_WALL,
+    rotY: Math.atan2(w.nx, w.nz),
+  };
+}
+
+/** The ladder's bars in the rail's own frame (x along the wall, y up, metres): two uprights, six rungs. */
+export function ladderBars(): Array<{ x: number; y: number; length: number; vertical: boolean }> {
+  const top = H / 2 - RUNG_INSET;
+  return [
+    { x: -W / 2, y: 0, length: H, vertical: true },
+    { x: W / 2, y: 0, length: H, vertical: true },
+    ...Array.from({ length: RUNGS }, (_, i) => ({ x: 0, y: -top + (2 * top * i) / (RUNGS - 1), length: W, vertical: false })),
+  ];
+}
+
+/** A world point (the pointer on the wall's plane) as a position along the wall walk, mm. */
+export function dragToPositionMm(geometry: RoomGeometry, wallId: string, worldX: number, worldZ: number): number | null {
+  const w = wallWalk(geometry).find((x) => x.id === wallId);
+  if (!w) return null;
+  return Math.round(((worldX - w.startX) * w.dirX + (worldZ - w.startZ) * w.dirZ) * 1000);
+}
+
+/**
+ * The heated towel rails on the walls (spec 2026-11-10): a chrome ladder each, drawn in code. A rail
+ * slides along its wall by drag; the store keeps it off doors, windows and the wall's ends.
+ */
+export function TowelRails3D({ controlsRef, hiddenWalls }: {
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  hiddenWalls?: ReadonlySet<string>;
+}) {
+  const towelRails = useRoomStore((s) => s.towelRails);
+  const geometry = useRoomStore((s) => s.geometry);
+  const moveTowelRail = useRoomStore((s) => s.moveTowelRail);
+  const { camera, gl } = useThree();
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const bars = useMemo(ladderBars, []);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const rail = useRoomStore.getState().towelRails.find((r) => r.id === dragging);
+    const w = rail && wallWalk(geometry).find((x) => x.id === rail.wallId);
+    if (!rail || !w) return;
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(w.nx, 0, w.nz), new THREE.Vector3(w.startX, 0, w.startZ));
+    const hit = new THREE.Vector3();
+    const move = (e: PointerEvent) => {
+      const r = gl.domElement.getBoundingClientRect();
+      raycaster.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+      if (!raycaster.ray.intersectPlane(plane, hit)) return;
+      const at = dragToPositionMm(geometry, rail.wallId, hit.x, hit.z);
+      if (at != null) moveTowelRail(dragging, at);
+    };
+    const end = () => {
+      useRoomStore.getState().endTowelRailDrag();
+      setDragging(null);
+      if (controlsRef.current) controlsRef.current.enabled = true;
+      document.body.style.cursor = "";
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+  }, [dragging, geometry, camera, gl, raycaster, moveTowelRail, controlsRef]);
+
+  if (towelRails.length === 0) return null;
+
+  const start = (rail: TowelRail, e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    useRoomStore.getState().beginTowelRailDrag();
+    setDragging(rail.id);
+    if (controlsRef.current) controlsRef.current.enabled = false;
+    document.body.style.cursor = "grabbing";
+  };
+
+  return (
+    <group>
+      {towelRails.filter((r) => !hiddenWalls?.has(r.wallId)).map((rail) => {
+        const pose = towelRailPose(rail, geometry);
+        if (!pose) return null;
+        return (
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} onPointerDown={(e) => start(rail, e)}>
+            {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
+            <mesh>
+              <boxGeometry args={[W + 0.06, H + 0.06, 0.05]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
+            {bars.map((b, i) => (
+              <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow>
+                <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />
+                <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
+    </group>
+  );
+}

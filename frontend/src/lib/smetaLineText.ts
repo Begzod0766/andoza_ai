@@ -41,6 +41,7 @@ const LABEL_HEADS = {
   "Gidroizolyatsiya mastikasi": "wp_mastic",
   "Gidroizolyatsiya lentasi": "wp_tape",
   "Tortuvchi ventilyator": "fan",
+  "Sochiq quritgich": "towel_rail",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -67,6 +68,8 @@ const WHOLE_LABELS = {
   "Tortuvchi ventilyator": "fan",
   "Elektr kabel (ventilyator)": "fan_cable",
   "Ish: ventilyatorni o'rnatish": "work_fan",
+  "Sochiq quritgich": "towel_rail",
+  "Ish: sochiq quritgichni o'rnatish": "work_towel_rail",
   "Ish: gidroizolyatsiya": "work_wp",
   "Ish: nuqtani ulash": "work_point",
   "Ish: vanna o'rnatish": "work_bathtub",

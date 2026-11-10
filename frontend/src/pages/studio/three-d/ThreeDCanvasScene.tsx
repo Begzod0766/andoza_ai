@@ -50,6 +50,7 @@ import { RoomScanReference, type ScanSwapRequest } from "./RoomScanOverlay";
 import { DraggableLightModels } from "./LightingComponents";
 import { DraggableElectricalModels } from "./ElectricalComponents";
 import { PlumbingPoints3D } from "./PlumbingPoints3D";
+import { TowelRails3D } from "./TowelRails3D";
 import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } from "./SiblingRoomLayout";
 import { RealismEffects, SceneLighting, MoonriseSky, SUN_INTENSITY } from "./SceneEnvironment";
 import { MOONRISE_FOG_COLOR, STUDIO_TONE_MAPPING_EXPOSURE } from "@/lib/moonriseSky";
@@ -1005,6 +1006,7 @@ export function ThreeDCanvasScene({
         <QiblaMarker W={W} D={D} visible={showQibla} />
         <DraggableElectricalModels controlsRef={controlsRef} W={W} D={D} hiddenWalls={behind} />
         <PlumbingPoints3D controlsRef={controlsRef} hiddenWalls={behind} />
+        <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} />
         <OpeningLayer
           geometry={ownOpeningGeometry}
           W={W}
