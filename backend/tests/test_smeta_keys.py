@@ -14,6 +14,13 @@ from app.services.smeta_keys import LIGHT_KEYS, smeta_key_problem
     ("gipsokarton", "dona", 3, "m2"),
     ("kabel", "m", None, None),
     ("light:chandelier", "dona", None, None),
+    # Tile work and waterproofing (spec 2026-11-10)
+    ("plitka_yelimi", "qop", 25, "kg"),
+    ("zatirka", "dona", 2, "kg"),
+    ("gidro_mastika", "kg", None, None),   # sold by the kilogram
+    ("gidro_mastika", "dona", 5, "kg"),
+    ("gidro_lenta", "m", None, None),
+    ("gidro_lenta", "rulon", 10, "m"),
 ])
 def test_valid_combinations(key, unit, pack_qty, pack_unit):
     assert smeta_key_problem(key, unit, pack_qty, pack_unit) is None
@@ -27,6 +34,7 @@ def test_valid_combinations(key, unit, pack_qty, pack_unit):
     ("plintus", "litr", 2, "m", "plintus uchun qadoq birligi m bo'lishi kerak"),
     ("kabel", "dona", None, None, "kabel metrlab (m) sotilishi kerak"),
     ("light:chandelier", "m", None, None, "chiroq dona bilan sotilishi kerak"),
+    ("plitka_yelimi", "qop", None, None, "plitka_yelimi uchun qadoq birligi kg bo'lishi kerak"),
 ])
 def test_invalid_combinations(key, unit, pack_qty, pack_unit, message):
     assert smeta_key_problem(key, unit, pack_qty, pack_unit) == message
