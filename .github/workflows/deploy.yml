@@ -72,7 +72,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The server pulls the images from ghcr.io over its own uplink. On 2026-11-09 that ran at
+    # ~100 KB/s and the 30-minute limit cancelled the deploy mid-pull (the site stayed on the
+    # previous images, unharmed). 60 minutes rides out a slow day.
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: read
