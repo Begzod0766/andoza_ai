@@ -15,6 +15,7 @@ import { wallDefsFromVertices } from "@/lib/wallDefsFromVertices";
 import { buildTrimGeometry, resolveTrim, type ResolvedTrim } from "@/lib/trimProfiles";
 import { useRoomStore, PLASTER_BASE_COLOR } from "@/store/roomStore";
 import { DOOR_IVORY } from "@/lib/doorStyles";
+import { aboveCovering, splitAtHeight, tileBandM } from "@/lib/tileBand";
 import { WALLPAPER_WIDTH_M, OPENING_REVEAL_D, openingRevealDepth, noRaycast, FLOOR_COLORS } from "./constants";
 import { architraveFaces, drawsOpeningLining, hiddenByCamera } from "@/lib/flatOpenings";
 import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
@@ -563,6 +564,12 @@ function makeCoverSeg(
   return { px, py, pz, ry, pw, ph, uOffset, uRepeat, vRepeat, startMm: texStartMm, startYm }
 }
 
+/** A segment cut to a new height keeps its place along the wall; what follows its height is redone
+ *  the way `makeCoverSeg` works it out. */
+function recutSeg(seg: Seg, py: number, ph: number): Seg {
+  return { ...seg, py, ph, vRepeat: ph / WALLPAPER_WIDTH_M, startYm: py - ph / 2 };
+}
+
 export const Wall = memo(function Wall({ wallId, length, height, thickness, covering, elements, axis, cx, cz, isSelected = false, onClick, panelSettings, plaster = false, innerFaceDir }: WallProps) {
   const oboyTexture = useMemo(() => {
     if (covering.kind !== 'oboy') return null;
@@ -761,6 +768,25 @@ export const Wall = memo(function Wall({ wallId, length, height, thickness, cove
     return segs;
   }, [resolvedElements, length, height, thickness, axis, cx, cz, innerFaceDir]);
 
+  // A wall tiled to a height (lib/tileBand): its pieces are cut at the tile line, tile below and
+  // the paint above. Any other wall is drawn as one band, exactly as before.
+  const bandM = plaster ? null : tileBandM(covering, height);
+  const above = useMemo(() => aboveCovering(covering),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [covering.kind === 'texture' ? covering.aboveColor : '']);
+  const drawn = useMemo(() => {
+    const all: Array<{ seg: Seg; key: string }> = segments.map((seg, i) => ({ seg, key: String(i) }));
+    if (dragPatchSeg) all.push({ seg: dragPatchSeg, key: `drag-patch-${dragPatchElId}` });
+    if (bandM == null) return all.map((d) => ({ ...d, covering }));
+    return all.flatMap(({ seg, key }) => {
+      const cut = splitAtHeight([seg], bandM, recutSeg);
+      return [
+        ...cut.below.map((sg) => ({ seg: sg, key: `${key}-tile`, covering })),
+        ...cut.above.map((sg) => ({ seg: sg, key: `${key}-above`, covering: above })),
+      ];
+    });
+  }, [segments, dragPatchSeg, dragPatchElId, bandM, covering, above]);
+
   return (
     <group onClick={onClick}>
       {/* Selected: a blue line round the wall's inner face, a hair into the
@@ -774,11 +800,11 @@ export const Wall = memo(function Wall({ wallId, length, height, thickness, cove
           : [cx + faceDir * off, height / 2, cz];
         return <RectOutline w={length} h={height} position={pos} rotation={[0, ry, 0]} />;
       })()}
-      {segments.map((seg, i) => (
+      {drawn.map(({ seg, covering: c, key }) => (
         <WallSegment
-          key={`${i}-${covering.kind === 'oboy' ? covering.patternId : 'p'}`}
+          key={`${key}-${c.kind === 'oboy' ? c.patternId : 'p'}`}
           seg={seg}
-          covering={covering}
+          covering={c}
           baseTexture={oboyTexture}
           imageTexture={imageTexture}
           texAspect={texAspect}
@@ -787,19 +813,6 @@ export const Wall = memo(function Wall({ wallId, length, height, thickness, cove
           plaster={plaster}
         />
       ))}
-      {dragPatchSeg && (
-        <WallSegment
-          key={`drag-patch-${dragPatchElId}-${covering.kind === 'oboy' ? covering.patternId : 'p'}`}
-          seg={dragPatchSeg}
-          covering={covering}
-          baseTexture={oboyTexture}
-          imageTexture={imageTexture}
-          texAspect={texAspect}
-          wallLengthM={length}
-          wallHeightM={height}
-          plaster={plaster}
-        />
-      )}
       {panelSettings?.enabled && (
         <WallPanelGrid
           wallLengthM={length}
