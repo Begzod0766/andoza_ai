@@ -93,3 +93,32 @@ def test_a_scanned_polygon_room():
 def test_a_room_with_no_walls_is_only_its_floor():
     got = waterproof_areas({"walls": []}, [fixture(0, 0, 1, 1)], 5.0, 0.0)
     assert (got["base"], got["wet"], got["tape_m"], got["total"]) == (0, 0, 0, 5.0)
+
+
+# ─── Final review: a fixture must be AT the wall, not merely on its line ───────
+
+U_ROOM = {"walls": [{"id": str(i), "length": length} for i, length in enumerate((6.0, 6.0, 2.0, 4.0, 2.0, 4.0, 2.0, 6.0))],
+          "vertices": [[0, 0], [6, 0], [6, 6], [4, 6], [4, 2], [2, 2], [2, 6], [0, 6]]}
+
+
+def test_a_wall_across_a_notch_is_not_wet_by_a_fixture_behind_its_line():
+    # The vertices' mean is (3.0, 3.5). A shower in the right leg, against the outer wall x = 6 at
+    # z = 4..5: the left leg's inner wall (x = 2) spans the same z, but the shower is 3 m behind it.
+    shower = fixture(6 - 3.0 - GAP - 0.5, 4.5 - 3.5, 1.0, 1.0, rotation=-math.pi / 2)
+    got = waterproof_areas(U_ROOM, [shower], 28.0, 0.8)
+    assert got["wet"] == pytest.approx((1.0 + 0.6) * 1.6, abs=0.02)
+
+
+def test_a_fixture_left_outside_the_room_wets_nothing():
+    assert areas([fixture(2.0, 0, 1.0, 1.0)])["wet"] == 0
+
+
+def test_a_fixture_a_few_millimetres_past_an_inner_corner_does_not_wet_the_next_wall():
+    ell = {"walls": [{"id": str(i), "length": length} for i, length in enumerate((4.0, 2.0, 2.0, 1.5, 2.0, 3.5))],
+           "vertices": [[0, 0], [4, 0], [4, 2], [2, 2], [2, 3.5], [0, 3.5]]}
+    # Wall 2 runs along z = 2 from x = 4 to x = 2 (inner corner at (2, 2)). A tub under it in the
+    # lower leg whose end reaches 5 mm past x = 2 along wall 3's line must not wet wall 3.
+    cx, cz = 2.0, 11 / 6
+    tub = fixture(2.85 - 0.005 - cx, 2 - GAP - 0.35 - cz, 1.7, 0.7, rotation=math.pi)
+    got = waterproof_areas(ell, [tub], 11.0, 0.8)
+    assert got["wet"] == pytest.approx(min(2.0, 1.7 + 0.6) * 1.6, abs=0.02)

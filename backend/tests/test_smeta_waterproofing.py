@@ -109,3 +109,11 @@ def test_the_formula_reads_in_english_and_russian():
     f = "Pol 5.00 m² + devor tagi 1.66 m² + ho'l zona 3.68 m² = 10.34 m² × 1.5 kg/m² = 15.5 kg"
     assert localize_formula(f, "en") == "Floor 5.00 m² + foot of the walls 1.66 m² + wet zone 3.68 m² = 10.34 m² × 1.5 kg/m² = 15.5 kg"
     assert localize_formula(f, "ru") == "Пол 5.00 м² + низ стен 1.66 м² + мокрая зона 3.68 м² = 10.34 м² × 1.5 кг/м² = 15.5 кг"
+
+
+def test_a_bathroom_whose_floor_is_finished_is_not_sealed_again():
+    """Waterproofing lies under the floor finish: a finished floor needs none (final review)."""
+    got = [ln for ln in compute_estimate(room(), {}, {}, catalog=CATALOG, floor_state="tayyor").lines if ln.label.startswith(("Gidro", "Ish: gidro"))]
+    assert got == []
+    still = [ln for ln in compute_estimate(room(), {}, {}, catalog=CATALOG).lines if ln.label.startswith("Gidro")]
+    assert len(still) == 2

@@ -942,10 +942,11 @@ def _wet_fixtures(room: "Room", catalog: dict) -> list[dict]:
     return out
 
 
-def _waterproofing_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
+def _waterproofing_lines(room: "Room", catalog: "dict | None" = None, floor_already_done: bool = False) -> list[ComputedLine]:
     """A bathroom's waterproofing (spec 2026-11-10): mastic and tape for the floor, the foot of the
-    walls and the walls round the bathtub and shower, and the work. Nothing for any other room."""
-    if not _is_bathroom(room):
+    walls and the walls round the bathtub and shower, and the work. Nothing for any other room, and
+    nothing once the floor is finished: the seal lies under the floor finish and was laid before it."""
+    if floor_already_done or not _is_bathroom(room):
         return []
     from app.services.tile_work import load_tile_norms
     from app.services.waterproofing import waterproof_areas
@@ -2314,7 +2315,7 @@ def compute_estimate(
     # 3a. Tile work: adhesive, grout and laying, for the floor and wall tile together.
     lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog))
     # 3a'. A bathroom is waterproofed whatever it is finished in.
-    lines.extend(_waterproofing_lines(room, catalog))
+    lines.extend(_waterproofing_lines(room, catalog, floor_already_done))
 
     # ------------------------------------------------------------------ #
     # 3b. Ceiling construction — skipped entirely when ceiling_state is   #

@@ -16,6 +16,7 @@ BASE_H_M = 0.2        # the foot of the walls
 WET_H_M = 1.8         # how high a wet-zone strip goes
 WET_MARGIN_M = 0.3    # past each end of the fixture
 TOUCH_M = 0.15        # a fixture this near a wall touches it
+MIN_OVERLAP_M = 0.05  # it must run at least this far along the wall
 
 
 def _round2(x: float) -> float:
@@ -61,12 +62,16 @@ def waterproof_areas(geometry: dict | None, fixtures: list[dict], floor_m2: floa
         spans = []
         for f in fixtures:
             pts = _corners(f)
-            if min((px - w["midX"]) * w["nx"] + (pz - w["midZ"]) * w["nz"] for px, pz in pts) > TOUCH_M:
+            # Its nearest edge is at the wall's face: within TOUCH_M in front of it, or at most that
+            # far through it. A fixture far BEHIND the face is on the wall's line only: across a
+            # notch of a U-shaped room, or left outside after the room was resized.
+            nearest = min((px - w["midX"]) * w["nx"] + (pz - w["midZ"]) * w["nz"] for px, pz in pts)
+            if not -TOUCH_M <= nearest <= TOUCH_M:
                 continue
             along = [(px - sx) * w["dirX"] + (pz - sz) * w["dirZ"] for px, pz in pts]
             lo, hi = min(along), max(along)
-            if hi <= 0 or lo >= w["length"]:
-                continue  # beside the wall's line, not against the wall
+            if min(hi, w["length"]) - max(lo, 0.0) < MIN_OVERLAP_M:
+                continue  # beside the wall, or only a sliver past its corner
             spans.append((max(0.0, lo - WET_MARGIN_M), min(w["length"], hi + WET_MARGIN_M)))
         strips.append(_merge(spans))
 
