@@ -1729,12 +1729,17 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     height, ×1.15 reserve), one fitting set per point, and the plumber's work per point and per
     fixture. A shop pipe product under "pipe:<kind>" prices its line; otherwise the norm does,
     flagged approximate."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
     from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+    from app.services.towel_rail import rail_points, valid_rails
 
     catalog = catalog or {}
     state: dict = room.state or {}
     norms = load_plumbing_norms()
     lines: list[ComputedLine] = []
+    # Heated towel rails hung on the walls (spec 2026-11-10): not furniture, a list of their own.
+    geometry = _plumbing_geometry(room)
+    rails = valid_rails(state.get("towelRails"), geometry)
 
     # Fixtures, one line per distinct piece; and how many of each role for the work lines.
     counts: dict[str, int] = {}
@@ -1773,16 +1778,24 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
         ))
 
+    if rails:
+        lines.append(_piece_line(
+            "Sochiq quritgich", catalog.get("sochiq_quritgich"), load_bathroom_extras_norms()["towel_rail_uzs"],
+            "santexnika", qty=len(rails),
+        ))
+
     # Pipes, from the points saved with the room.
     # A fixture's point whose fixture is gone (a design replaced it) belongs to nothing: not priced.
     placed_ids = {item.get("id") for item in state.get("furniture") or [] if isinstance(item, dict)}
     saved_points = state.get("plumbing") if "plumbing" in state else _derived_points(room, catalog, names)
     points = [
         p for p in saved_points or []
-        if isinstance(p, dict) and p.get("wallId") and (not p.get("fixtureId") or p.get("fixtureId") in placed_ids)
+        if isinstance(p, dict) and p.get("wallId") and not p.get("railId")
+        and (not p.get("fixtureId") or p.get("fixtureId") in placed_ids)
     ]
+    # A rail's two points are never saved: they are worked out from the rail, as the studio does.
+    points += rail_points(rails, geometry)
     if points:
-        geometry = _plumbing_geometry(room)
         riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
         runs: dict[str, list[float]] = {}
         for p in points:
@@ -1823,6 +1836,13 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             label=f"Ish: {FIXTURE_WORK_NAMES[role]} o'rnatish",
             formula=f"{roles[role]} dona × {price:,} so'm".replace(",", " "),
             qty=roles[role], unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if rails:
+        price = int(load_bathroom_extras_norms()["work_towel_rail_uzs"])
+        lines.append(_make_line(
+            label="Ish: sochiq quritgichni o'rnatish",
+            formula=f"{len(rails)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(rails), unit="dona", price_uzs=price, category="santexnika",
         ))
     return lines
 

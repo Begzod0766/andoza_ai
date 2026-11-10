@@ -56,6 +56,8 @@
         "fan": "Tortuvchi ventilyator",
         "fan_cable": "Elektr kabel (ventilyator)",
         "work_fan": "Ish: ventilyatorni o'rnatish",
+        "towel_rail": "Sochiq quritgich",
+        "work_towel_rail": "Ish: sochiq quritgichni o'rnatish",
         "work_wp": "Ish: gidroizolyatsiya"
       },
       "unit": {
@@ -220,6 +222,8 @@
         "fan": "Вытяжной вентилятор",
         "fan_cable": "Электрокабель (вентилятор)",
         "work_fan": "Работа: установка вентилятора",
+        "towel_rail": "Полотенцесушитель",
+        "work_towel_rail": "Работа: установка полотенцесушителя",
         "work_wp": "Работа: гидроизоляция"
       },
       "unit": {
@@ -408,6 +412,8 @@
         "fan": "Extractor fan",
         "fan_cable": "Electric cable (fan)",
         "work_fan": "Work: fitting the extractor fan",
+        "towel_rail": "Heated towel rail",
+        "work_towel_rail": "Work: fitting the towel rail",
         "work_wp": "Work: waterproofing"
       },
       "unit": {

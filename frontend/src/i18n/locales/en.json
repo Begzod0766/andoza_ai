@@ -1126,6 +1126,8 @@
       "fan": "Extractor fan",
       "fan_cable": "Electric cable (fan)",
       "work_fan": "Work: fitting the extractor fan",
+      "towel_rail": "Heated towel rail",
+      "work_towel_rail": "Work: fitting the towel rail",
       "work_wp": "Work: waterproofing"
     },
     "unit": {

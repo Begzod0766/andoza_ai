@@ -1126,6 +1126,8 @@
       "fan": "Tortuvchi ventilyator",
       "fan_cable": "Elektr kabel (ventilyator)",
       "work_fan": "Ish: ventilyatorni o'rnatish",
+      "towel_rail": "Sochiq quritgich",
+      "work_towel_rail": "Ish: sochiq quritgichni o'rnatish",
       "work_wp": "Ish: gidroizolyatsiya"
     },
     "unit": {
