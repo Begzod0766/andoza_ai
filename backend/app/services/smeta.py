@@ -1668,9 +1668,16 @@ def _plumbing_geometry(room: "Room") -> dict:
         return geometry
     state_geometry = (room.state or {}).get("geometry")
     if isinstance(state_geometry, dict) and state_geometry.get("walls"):
-        return {**state_geometry, "walls": [
+        out = {**state_geometry, "walls": [
             {**w, "length": _float(w.get("length")) / 1000} for w in state_geometry["walls"] if isinstance(w, dict)
         ]}
+        # The corners are in mm too: left as they were, a polygon wall read 1000 times too long.
+        verts = state_geometry.get("vertices")
+        if isinstance(verts, list):
+            out["vertices"] = [
+                [_float(v[0]) / 1000, _float(v[1]) / 1000] for v in verts if isinstance(v, (list, tuple)) and len(v) >= 2
+            ]
+        return out
     return {"walls": []}
 
 

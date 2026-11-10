@@ -997,7 +997,11 @@
       "own": "jihozniki",
       "summary": "Kanalizatsiya: {{dp}} nuqta, ~{{dm}} m · Suv: {{wp}} nuqta, ~{{wm}} m",
       "pipes": "Quvur yo'llarini ko'rsatish",
-      "fan": "Tortuvchi ventilyator"
+      "fan": "Tortuvchi ventilyator",
+      "rail": "Sochiq quritgich",
+      "rail_add": "Sochiq quritgich qo'shish",
+      "rail_own": "quritgichniki",
+      "rail_no_room": "Devorda sochiq quritgich uchun joy yo'q."
     },
     "tile_height": {
       "title": "Plitka balandligi",

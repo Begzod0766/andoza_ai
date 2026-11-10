@@ -997,7 +997,11 @@
       "own": "fixture's",
       "summary": "Drain: {{dp}} points, ~{{dm}} m · Water: {{wp}} points, ~{{wm}} m",
       "pipes": "Show pipe runs",
-      "fan": "Extractor fan"
+      "fan": "Extractor fan",
+      "rail": "Heated towel rail",
+      "rail_add": "Add a towel rail",
+      "rail_own": "the rail's",
+      "rail_no_room": "No wall has room for a towel rail."
     },
     "tile_height": {
       "title": "Tile height",

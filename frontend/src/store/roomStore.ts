@@ -9,7 +9,7 @@ import type {
   DesignState,
   FloorType,
   PlacedElectrical,
-  PlumbingPoint,
+  PlumbingPoint, TowelRail,
   PlacedFurniture,
   PlacedLight,
   RoomGeometry,
@@ -23,6 +23,7 @@ import { createDesignSlice } from './slices/designSlice'
 import { createFurnitureSlice } from './slices/furnitureSlice'
 import { createElectricalSlice } from './slices/electricalSlice'
 import { createPlumbingSlice } from './slices/plumbingSlice'
+import { createTowelRailSlice } from './slices/towelRailSlice'
 import { createLightSlice } from './slices/lightSlice'
 import { createUiSlice } from './slices/uiSlice'
 import { createLifecycleSlice } from './slices/lifecycleSlice'
@@ -87,6 +88,7 @@ export interface RoomTemporalState {
   furniture: PlacedFurniture[]
   electricals: PlacedElectrical[]
   plumbing: PlumbingPoint[]
+  towelRails: TowelRail[]
   lights: PlacedLight[]
   layoutPos: { x: number; z: number } | null
   ceilingHeight: number
@@ -100,6 +102,7 @@ function partializeTemporal(state: RoomStore): RoomTemporalState {
     furniture: state.furniture,
     electricals: state.electricals,
     plumbing: state.plumbing,
+    towelRails: state.towelRails,
     lights: state.lights,
     layoutPos: state.layoutPos,
     ceilingHeight: state.ceilingHeight,
@@ -145,6 +148,7 @@ export const useRoomStore = create<RoomStore>()(
         ...createFurnitureSlice(...a),
         ...createElectricalSlice(...a),
         ...createPlumbingSlice(...a),
+        ...createTowelRailSlice(...a),
         ...createLightSlice(...a),
         ...createUiSlice(...a),
         ...createLifecycleSlice(...a),
@@ -182,6 +186,7 @@ export const useRoomStore = create<RoomStore>()(
         furniture: state.furniture,
         electricals: state.electricals,
         plumbing: state.plumbing,
+        towelRails: state.towelRails,
         lights: state.lights,
         highQuality3d: state.highQuality3d,
         // Persist metadata but clear modelPath (blob URLs don't survive refresh)
