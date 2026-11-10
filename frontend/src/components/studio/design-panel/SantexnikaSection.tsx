@@ -5,7 +5,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, riserSpot } from "@/lib/plumbingRuns";
-import { railPoints } from "@/lib/towelRail";
+import { withRailPoints } from "@/lib/towelRail";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
@@ -49,7 +49,7 @@ export function SantexnikaSection({ bathroom = false }: {
     return ROLE_GROUP[inferRole(row?.category ?? null, name)] === "plumbing" ? [{ id: f.id, name: fixtureDisplayName(name, t) }] : [];
   });
   // A rail's two points are worked out from it, never saved: shown and summed with the rest.
-  const points = [...plumbing, ...railPoints(towelRails, geometry)];
+  const points = withRailPoints(plumbing, towelRails, geometry);
   const sum = plumbingSummary(geometry, points, riserSpot(geometry));
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
 

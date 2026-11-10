@@ -113,6 +113,12 @@ export function keepRails(rails: readonly TowelRail[], geometry: RoomGeometry): 
   return changed ? out : (rails as TowelRail[])
 }
 
+/** The room's own points with each rail's two after them; the same list when there are no rails. */
+export function withRailPoints(points: PlumbingPoint[], rails: readonly TowelRail[], geometry: RoomGeometry): PlumbingPoint[] {
+  const extra = railPoints(rails, geometry)
+  return extra.length ? [...points, ...extra] : points
+}
+
 /** Rails read from a saved room: anything that is not a sound rail is left out. */
 export function saneRails(saved: unknown): TowelRail[] {
   if (!Array.isArray(saved)) return []
