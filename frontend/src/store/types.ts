@@ -207,6 +207,12 @@ export type WallCovering =
        *  on every covering written before wall tiles existed, all of which
        *  are papers. */
       finish?: 'tile'
+      /** Only read when `finish === 'tile'`: how high the tile goes, mm from the floor
+       *  (spec 2026-11-10). Absent, or not below the ceiling, means to the ceiling —
+       *  every wall tiled before this existed. */
+      tileHeightMm?: number
+      /** The paint above a tile that stops below the ceiling. Default white. */
+      aboveColor?: string
     }
 
 export interface WallPanelSettings {

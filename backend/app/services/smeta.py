@@ -690,6 +690,16 @@ def _painted_wall_areas(
         group[0] += net_area
         group[1].append(wall_key)
 
+    # A wall tiled to a height is painted above it (spec 2026-11-10): that part joins the wall's
+    # own paint product when it has one, else the paint nobody picked a product for.
+    for wall_key, area in _tile_above_areas(room):
+        mat_id = wall_surfaces_map.get(wall_key) or wall_surfaces_map.get("ALL")
+        material = materials_map.get(mat_id) if mat_id else None
+        key = mat_id if material is not None and material.category == "boyoq" else None
+        group = groups.setdefault(key, [0.0, []])
+        group[0] += area
+        group[1].append(wall_key)
+
     return [(mat_id, area, wall_ids) for mat_id, (area, wall_ids) in groups.items()]
 
 
@@ -753,8 +763,15 @@ def _is_tile(covering: object) -> bool:
     return isinstance(covering, dict) and covering.get("kind") == "texture" and covering.get("finish") == "tile"
 
 
+TILE_BAND_MIN_M = 0.3
+
+
 def _tile_band_m(covering: dict, ceiling_h_m: float) -> float:
-    """How high the tile goes on its wall, metres from the floor."""
+    """How high the tile goes on its wall, metres from the floor: the covering's ``tileHeightMm``
+    (never under 30 cm, never past the ceiling), or the ceiling when it has none."""
+    mm = covering.get("tileHeightMm")
+    if isinstance(mm, (int, float)) and not isinstance(mm, bool) and mm > 0:
+        return min(ceiling_h_m, max(TILE_BAND_MIN_M, mm / 1000))
     return ceiling_h_m
 
 
@@ -794,6 +811,24 @@ def _tile_wall_areas(room: "Room") -> list[tuple[str, float]]:
         band = _tile_band_m(covering, ceiling_h_m)
         openings = sum(_band_opening_m2(el, band) for el in wall.get("elements", []) or [] if isinstance(el, dict))
         out.append((wall_key, max(0.0, length * band - openings)))
+    return out
+
+
+def _tile_above_areas(room: "Room") -> list[tuple[str, float]]:
+    """(wall id, m²) of each tiled wall ABOVE its tile band, the part that is painted; walls tiled
+    to the ceiling are left out."""
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    out = []
+    for wall_key, wall, covering, length in _tiled_walls(room):
+        band = _tile_band_m(covering, ceiling_h_m)
+        if band >= ceiling_h_m - 1e-9:
+            continue
+        above = 0.0
+        for el in wall.get("elements", []) or []:
+            if isinstance(el, dict):
+                width, bottom, top = _opening_span_m(el)
+                above += width * max(0.0, min(top, ceiling_h_m) - max(bottom, band))
+        out.append((wall_key, max(0.0, length * (ceiling_h_m - band) - above)))
     return out
 
 
@@ -2084,7 +2119,7 @@ def compute_estimate(
     has_any_paint = any(
         isinstance(c, dict) and c.get("kind") == "paint"
         for c in wall_coverings_state.values()
-    )
+    ) or bool(_tile_above_areas(room))
     # Same reasoning again for a custom-uploaded photo wallpaper ("texture"
     # kind) — it needs plaster/primer/putty under it exactly like oboy does,
     # even though its finish line itself can't be priced deterministically
