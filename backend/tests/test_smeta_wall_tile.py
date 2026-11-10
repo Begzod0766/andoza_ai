@@ -147,3 +147,26 @@ def test_the_wall_above_the_tile_is_painted():
     r = room({"ALL": {"kind": "plaster"}, "A": band(1500, aboveColor="#EEE8DD")})
     paint = [ln for ln in lines(r) if ln.category == "boyoq"]
     assert len(paint) == 1 and paint[0].formula.startswith("3.0 m² (devor A)")  # 2.5 × 1.2 m² above the tile
+
+
+def _prep(r, **kw):
+    return {ln.category: ln for ln in compute_estimate(r, {}, {}, current_state="xom", **kw).lines if ln.category in ("suvoq", "grunt", "shpatlyovka")}
+
+
+def test_no_putty_under_tile_when_every_wall_is_tiled_to_the_ceiling():
+    """Tile is laid on plaster and primer; putty under it is money thrown away."""
+    prep = _prep(room({"ALL": TILE}))
+    assert set(prep) == {"suvoq", "grunt"}
+    assert prep["suvoq"].formula.startswith("24.3 m²")
+
+
+def test_putty_only_for_the_part_of_the_walls_that_is_not_tile():
+    half = {**TILE, "tileHeightMm": 1350}          # half of a 2.7 m wall
+    prep = _prep(room({"ALL": half}))
+    assert prep["shpatlyovka"].formula.startswith("12.2 m² × ")   # 24.3 − 12.15
+    assert prep["grunt"].formula.startswith("24.3 m²")
+
+
+def test_putty_is_unchanged_in_a_room_without_tile():
+    prep = _prep(room({"ALL": {"kind": "paint", "color": "#ffffff"}}))
+    assert prep["shpatlyovka"].formula.startswith("24.3 m² × ")

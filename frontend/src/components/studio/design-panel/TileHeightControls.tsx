@@ -33,9 +33,18 @@ export function TileHeightControls({ covering, ceilingMm, onChange }: {
     }
     onChange({ ...covering, tileHeightMm: Math.max(TILE_BAND_MIN_MM, Math.round(mm)) });
   };
+  const shown = bandMm == null ? "" : String(bandMm / 10);
+  /** To the ceiling: the height goes (when there is one) and the field empties. */
+  const toCeiling = () => {
+    setTyped("");
+    if ("tileHeightMm" in covering) setHeight(null);
+  };
   const commitTyped = () => {
+    if (typed.trim() === "") return toCeiling();
     const cm = Number(typed.replace(",", "."));
-    if (Number.isFinite(cm) && cm > 0) setHeight(cm * 10);
+    if (!Number.isFinite(cm) || cm <= 0) return setTyped(shown);
+    if (cm * 10 >= ceilingMm) return toCeiling();
+    setHeight(cm * 10);
   };
 
   const chip = (on: boolean) =>

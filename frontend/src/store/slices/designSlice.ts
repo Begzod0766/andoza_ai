@@ -11,6 +11,9 @@ export interface DesignSlice {
   setDesignState(patch: Partial<DesignState>): void
   setFloorTexture(url: string | null): void
   setWallCovering(wallId: string, covering: WallCovering): void
+  /** Changes the covering a target already wears (its tile height, its texture mapping). Unlike
+   * setWallCovering under ALL, the walls with a covering of their own keep it. */
+  tweakWallCovering(wallId: string, covering: WallCovering): void
   setWallPanel(wallId: string, settings: WallPanelSettings): void
   resetDesignState(): void
 }
@@ -47,6 +50,16 @@ export const createDesignSlice: StateCreator<
         wallCoverings: wallId === 'ALL'
           ? { ALL: covering }
           : { ...state.designState.wallCoverings, [wallId]: covering },
+      },
+      isDirty: true,
+    }))
+  },
+
+  tweakWallCovering(wallId, covering) {
+    set((state) => ({
+      designState: {
+        ...state.designState,
+        wallCoverings: { ...state.designState.wallCoverings, [wallId]: covering },
       },
       isDirty: true,
     }))
