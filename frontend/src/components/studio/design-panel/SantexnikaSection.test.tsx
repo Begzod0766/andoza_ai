@@ -5,6 +5,8 @@ import type { CatalogFurniture } from '@/lib/api'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { SantexnikaSection } from './SantexnikaSection'
 import { plumbingSummary, riserSpot } from '@/lib/plumbingRuns'
+import { pipeScheme } from '@/lib/pipeScheme'
+import { formatDecimal } from '@/lib/utils'
 
 const row = (id: string, name: string, w: number, d: number) =>
   ({ id, name_uz: name, category: 'boshqa', room_type: 'hammom', store_id: 's', store_name: 'H', placement: 'pol', price_uzs: 1, glb_url: 'x', thumbnail_url: null, footprint_w: w, footprint_d: d }) as CatalogFurniture
@@ -60,6 +62,18 @@ describe('SantexnikaSection', () => {
     const sum = plumbingSummary(s.geometry, s.plumbing, riserSpot(s.geometry))
     expect(screen.getByText(new RegExp(`Kanalizatsiya: ${sum.drain.points} nuqta`))).toBeInTheDocument()
     expect(screen.getByText(new RegExp(`Suv: ${sum.water.points} nuqta`))).toBeInTheDocument()
+  })
+
+  it('its pipe metres are the pipe scheme\'s, the same the estimate prices (spec 2026-11-11)', () => {
+    placeOn('tub', 'vanna', 'A', 0.7)
+    placeOn('sink', 'rak', 'C', 0.62)
+    render(<SantexnikaSection />)
+    const s = useRoomStore.getState()
+    const p = pipeScheme(s.geometry, riserSpot(s.geometry), s.plumbing).pipes
+    const m = (mm: number) => formatDecimal(Math.round(mm / 1000 * 1.15 * 100) / 100, 1)
+    const dm = m(p.drain_50.trunkMm + p.drain_50.branchMm + p.drain_110.trunkMm + p.drain_110.branchMm)
+    const wm = m(p.water_20.trunkMm + p.water_20.branchMm)
+    expect(screen.getByText(`Kanalizatsiya: 2 nuqta, ~${dm} m · Suv: 4 nuqta, ~${wm} m`)).toBeInTheDocument()
   })
 
   it('in a kitchen, a sink brings its three points', () => {

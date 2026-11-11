@@ -40,7 +40,9 @@ def test_riser_falls_back_to_the_door_wall_then_the_first_wall():
 def test_norms_have_every_price():
     n = load_plumbing_norms()
     assert set(n["pipe_m_uzs"]) == {"drain_50", "drain_110", "water_20"}
-    assert n["fitting_set_uzs"] > 0 and n["work_point_uzs"] > 0
+    assert set(n["fitting_uzs"]) == {"tee_20", "elbow_20", "outlet_20", "valve_20", "tee_50", "elbow_50", "tee_110_50", "elbow_110"}
+    assert all(v > 0 for v in n["fitting_uzs"].values()) and n["work_point_uzs"] > 0
+    assert "fitting_set_uzs" not in n  # the set per point went with the pipe scheme (2026-11-11)
     assert set(n["work_fixture_uzs"]) == {"bathtub", "sink", "toilet", "shower", "bidet"}
 
 

@@ -1662,14 +1662,24 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
 
 def _plumbing_geometry(room: "Room") -> dict:
     """The room's walls with lengths in metres: the room's own geometry, else the studio's saved
-    one (in mm)."""
+    one (in mm), turned into the row's form."""
     geometry = getattr(room, "geometry", None)
     if isinstance(geometry, dict) and geometry.get("walls"):
         return geometry
     state_geometry = (room.state or {}).get("geometry")
     if isinstance(state_geometry, dict) and state_geometry.get("walls"):
+        def element(e: dict, length_mm: float) -> dict:
+            # The studio keeps an opening's left edge in mm from the wall's start and its width in mm;
+            # the row keeps the 0–1 fraction of its middle and the width in metres (lib/wallPositions).
+            width = _float(e.get("width"))
+            if length_mm <= 0:
+                return {**e, "width": width / 1000}
+            return {**e, "position": (_float(e.get("position")) + width / 2) / length_mm, "width": width / 1000}
+
         out = {**state_geometry, "walls": [
-            {**w, "length": _float(w.get("length")) / 1000} for w in state_geometry["walls"] if isinstance(w, dict)
+            {**w, "length": _float(w.get("length")) / 1000,
+             "elements": [element(e, _float(w.get("length"))) for e in w.get("elements") or [] if isinstance(e, dict)]}
+            for w in state_geometry["walls"] if isinstance(w, dict)
         ]}
         # The corners are in mm too: left as they were, a polygon wall read 1000 times too long.
         verts = state_geometry.get("vertices")
@@ -1724,20 +1734,42 @@ def _derived_points(room: "Room", catalog: dict, names: dict[str, str]) -> list[
     return out
 
 
-def _pipe_kind(point: dict) -> str:
-    if point.get("kind") != "drain":
-        return "water_20"
-    return "drain_110" if point.get("diameterMm") == 110 else "drain_50"
+# The fittings counted from the pipe scheme, in the order they are listed (spec 2026-11-11).
+PLUMBING_FITTING_LABELS = {
+    "tee_20": "PPR troynik Ø20",
+    "elbow_20": "PPR burchak Ø20",
+    "outlet_20": "Suv rozetkasi Ø20",
+    "valve_20": "Sharli kran Ø20",
+    "tee_50": "Kanalizatsiya troynigi Ø50",
+    "elbow_50": "Kanalizatsiya burchagi Ø50",
+    "tee_110_50": "Kanalizatsiya troynigi Ø110/50",
+    "elbow_110": "Kanalizatsiya burchagi Ø110",
+}
+
+
+def _fitting_formula(key: str, why: dict, count: int) -> str:
+    """Where a fitting's count comes from, in the words smeta_text translates."""
+    if key == "tee_20":
+        return f"{why['branches']} tarmoq + {why['riser']} stoyak = {count} dona" if why["riser"] else f"{why['branches']} tarmoq"
+    if key in ("elbow_20", "elbow_50"):
+        return f"{why['corners']} burchak + {why['ends']} uch = {count} dona"
+    if key == "elbow_110":
+        return f"{why['toilets']} unitaz + {why['corners']} burchak = {count} dona"
+    return {
+        "outlet_20": f"{why.get('points', 0)} nuqta", "valve_20": f"{why.get('lines', 0)} liniya",
+        "tee_50": f"{why.get('branches', 0)} tarmoq", "tee_110_50": f"{why.get('joins', 0)} ulanish",
+    }[key]
 
 
 def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
-    """The "santexnika" section: each fixture placed (priced like furniture), the pipes from each
-    plumbing point to the riser (spec 2026-11-08: the shorter way round the walls plus the point's
-    height, ×1.15 reserve), one fitting set per point, and the plumber's work per point and per
-    fixture. A shop pipe product under "pipe:<kind>" prices its line; otherwise the norm does,
-    flagged approximate."""
+    """The "santexnika" section: each fixture placed (priced like furniture), the pipes of the room's
+    pipe scheme (spec 2026-11-11: a trunk per pipe kind along the walls and a branch to each point,
+    ×1.15 reserve), the fittings counted from that scheme by type, and the plumber's work per point
+    and per fixture. A shop pipe product under "pipe:<kind>" prices its line; otherwise the norm
+    does, flagged approximate."""
     from app.services.bathroom_extras import load_bathroom_extras_norms
-    from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+    from app.services.pipe_scheme import pipe_scheme
+    from app.services.plumbing import load_plumbing_norms, riser_spot
     from app.services.towel_rail import rail_points, valid_rails
 
     catalog = catalog or {}
@@ -1804,31 +1836,36 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     points += rail_points(rails, geometry)
     if points:
         riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
-        runs: dict[str, list[float]] = {}
-        for p in points:
-            runs.setdefault(_pipe_kind(p), []).append(pipe_run_m(geometry, p, riser))
+        # One scheme for the room (spec 2026-11-11): a trunk per pipe kind and a branch to each point.
+        scheme = pipe_scheme(geometry, riser, points)
         for kind in ("drain_50", "drain_110", "water_20"):
-            if kind not in runs:
+            pipe = scheme["pipes"][kind]
+            mm = pipe["trunkMm"] + pipe["branchMm"]
+            if mm <= 0:
                 continue
-            metres = _round2(sum(runs[kind]) * PLUMBING_RESERVE)
+            metres = _round2(mm / 1000 * PLUMBING_RESERVE)
             shop = catalog.get(f"pipe:{kind}")
             shop_price = _price_per(shop, "m")
             price = shop_price or int(norms["pipe_m_uzs"][kind])
-            each = " + ".join(f"{m:g}" for m in runs[kind])
             lines.append(_make_line(
                 label=f"{PIPE_LABELS[kind]}: {shop.name_uz}" if shop_price else PIPE_LABELS[kind],
-                formula=f"{len(runs[kind])} nuqta: {each} m × {PLUMBING_RESERVE} = {metres:g} m",
+                formula=(f"Magistral {pipe['trunkMm'] / 1000:.2f} m + tik {pipe['branchMm'] / 1000:.2f} m"
+                         f" = {mm / 1000:.2f} m × {PLUMBING_RESERVE} = {metres:g} m"),
                 qty=metres, unit="m", price_uzs=price, category="santexnika",
                 is_approximate=not shop_price,
                 warning=None if shop_price else PLUMBING_NORM_WARNING,
                 **(_shop(shop) if shop_price else {}),
             ))
+        for key, label in PLUMBING_FITTING_LABELS.items():
+            count = scheme["fittings"][key]
+            if count <= 0:
+                continue
+            lines.append(_make_line(
+                label=label, formula=_fitting_formula(key, scheme["why"][key], count), qty=count, unit="dona",
+                price_uzs=int(norms["fitting_uzs"][key]), category="santexnika",
+                is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
+            ))
         n = len(points)
-        lines.append(_make_line(
-            label="Fitinglar", formula=f"{n} nuqta × 1 komplekt", qty=n, unit="komplekt",
-            price_uzs=int(norms["fitting_set_uzs"]), category="santexnika",
-            is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
-        ))
         lines.append(_make_line(
             label="Ish: nuqtani ulash",
             formula=f"{n} nuqta × {int(norms['work_point_uzs']):,} so'm".replace(",", " "),

@@ -153,7 +153,15 @@ _WHOLE_LABELS = {
     "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
     "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
     "Suv quvuri PPR Ø20": "pipe_water_20",
-    "Fitinglar": "fittings",
+    "Fitinglar": "fittings",  # the set per point of estimates made before 2026-11-11
+    "PPR troynik Ø20": "fit_tee_20",
+    "PPR burchak Ø20": "fit_elbow_20",
+    "Suv rozetkasi Ø20": "fit_outlet_20",
+    "Sharli kran Ø20": "fit_valve_20",
+    "Kanalizatsiya troynigi Ø50": "fit_tee_50",
+    "Kanalizatsiya burchagi Ø50": "fit_elbow_50",
+    "Kanalizatsiya troynigi Ø110/50": "fit_tee_110_50",
+    "Kanalizatsiya burchagi Ø110": "fit_elbow_110",
     "Devor plitkasi": "wall_tile",
     "Pol plitkasi": "floor_tile",
     "Plitka yelimi": "tile_adhesive",
@@ -307,6 +315,9 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
      lambda lang: t("formula.perimeter", lang)),
     (re.compile(r" − eshiklar "),
      lambda lang: f" − {t('formula.doors', lang)} "),
+    # The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
+    (re.compile(r"\AMagistral (?=\d)"), lambda lang: f"{t('formula.trunk', lang)} "),
+    (re.compile(r" \+ tik (?=\d)"), lambda lang: f" + {t('formula.branch_pipes', lang)} "),
     (re.compile(r" so'm\Z"),
      lambda lang: f" {t('formula.som', lang)}"),
 ]
@@ -315,11 +326,13 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
 _FORMULA_COUNTED = {
     "qop": "unit.qop", "dona": "unit.dona", "rulon": "unit.rulon", "quti": "unit.quti",
     "list": "unit.list", "komplekt": "unit.komplekt", "polosa": "formula.polosa", "qatlam": "formula.qatlam", "nuqta": "formula.nuqta",
+    # What a fitting's count is made of (spec 2026-11-11).
+    "tarmoq": "formula.tarmoq", "stoyak": "formula.stoyak", "burchak": "formula.burchak", "uch": "formula.uch", "unitaz": "formula.unitaz", "liniya": "formula.liniya", "ulanish": "formula.ulanish",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)"
     r"(?=\Z|[\s);,:])"
 )
 
