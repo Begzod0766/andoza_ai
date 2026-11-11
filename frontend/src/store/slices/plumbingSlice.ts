@@ -23,6 +23,10 @@ export interface PlumbingSlice {
   /** Whether the pipe runs to the riser are drawn (the Santexnika stage's toggle). View state only. */
   showPipeRuns: boolean
   setShowPipeRuns(on: boolean): void
+  /** The Santexnika stage is the one open (set by the studio page). View state only: while it is,
+   * a towel rail can be caught and dragged in 3D, ahead of anything standing in front of it. */
+  plumbingStage: boolean
+  setPlumbingStage(on: boolean): void
 }
 
 /** The points as they were when the drag in progress began (see beginPlumbingDrag). */
@@ -31,6 +35,11 @@ let dragStart: PlumbingPoint[] | null = null
 export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice> = (set) => ({
   plumbing: [],
   showPipeRuns: false,
+  plumbingStage: false,
+
+  setPlumbingStage(on) {
+    set({ plumbingStage: on })
+  },
 
   setShowPipeRuns(on) {
     set({ showPipeRuns: on })

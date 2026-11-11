@@ -66,3 +66,36 @@ describe('withRailPoints', () => {
     expect(withRailPoints(own, [], rect)).toBe(own)
   })
 })
+
+// ─── Catching the rail with a finger (mobile QA 2026-11-11 #2) ───────────────
+
+import * as THREE from 'three'
+import { raycastInFront } from '../TowelRails3D'
+
+describe('raycastInFront', () => {
+  const scene = () => {
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.86, 0.05), new THREE.MeshBasicMaterial())
+    slab.position.set(0, 1.4, -1)
+    slab.raycast = raycastInFront
+    // A bathtub's glass screen between the camera and the rail.
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.01), new THREE.MeshBasicMaterial())
+    glass.position.set(0, 1, 0)
+    slab.updateMatrixWorld(); glass.updateMatrixWorld()
+    return { slab, glass }
+  }
+  const ray = (x: number) => new THREE.Raycaster(new THREE.Vector3(x, 1.4, 2), new THREE.Vector3(0, 0, -1))
+
+  it('the rail is the first thing a ray through it finds, whatever stands in front', () => {
+    const { slab, glass } = scene()
+    const hits = ray(0).intersectObjects([glass, slab])
+    expect(hits[0].object).toBe(slab)
+    expect(hits.some((h) => h.object === glass)).toBe(true)
+    // Where it was hit is still the true point on the rail.
+    expect(hits[0].point.z).toBeCloseTo(-0.975)
+  })
+
+  it('a ray that misses the rail does not find it', () => {
+    const { slab, glass } = scene()
+    expect(ray(0.4).intersectObjects([glass, slab]).map((h) => h.object)).toEqual([glass])
+  })
+})

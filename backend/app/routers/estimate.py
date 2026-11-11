@@ -691,6 +691,19 @@ def _pdf_language(request: Request, user: Any) -> str:
     return saved if saved in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
 
 
+# The lines table: item, working, quantity, unit, unit price, total. They add up to the 17 cm between
+# the margins. The unit column holds the longest unit word in any language («комплектов»): narrower,
+# it ran over the quantity beside it. Sized for the server's font (DejaVu), wider than a Mac's.
+_PDF_COL_WIDTHS = [5.0 * cm, 3.5 * cm, 1.5 * cm, 2.4 * cm, 2.3 * cm, 2.3 * cm]
+
+
+def _fmt_qty(n: int | float) -> str:
+    """A quantity as the estimate has it: up to two decimals, none when it is whole (29.92, 2.9, 13)."""
+    whole, _, frac = f"{float(n):,.2f}".partition(".")
+    frac = frac.rstrip("0")
+    return whole.replace(",", " ") + (f".{frac}" if frac else "")
+
+
 def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) -> bytes:
     """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes."""
     buf = io.BytesIO()
@@ -809,8 +822,7 @@ def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, s
         story.append(summary_tbl)
         story.append(Spacer(1, 0.2 * cm))
 
-    # Widths add up to the 17 cm between the margins (they used to be 18.8 and ran over).
-    col_widths = [5.2 * cm, 4.4 * cm, 1.5 * cm, 1.3 * cm, 2.3 * cm, 2.3 * cm]
+    col_widths = _PDF_COL_WIDTHS
 
     def _header_row() -> list[str]:
         return [tx("col_item"), tx("col_formula"), tx("col_qty"), tx("col_unit"),
@@ -836,7 +848,7 @@ def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, s
         return [
             name,
             Paragraph(f"<font size='7'>{xml_escape(localize_formula(ln.formula, lang))}</font>", normal),
-            _fmt_num(ln.qty),
+            _fmt_qty(ln.qty),
             localize_unit(ln.unit, ln.qty, lang),
             _fmt_num(ln.unit_price_uzs),
             prefix + _fmt_num(ln.subtotal_uzs),

@@ -37,7 +37,8 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
   moveTowelRail(id, positionMm) {
     set((state) => {
       const rail = state.towelRails.find((r) => r.id === id)
-      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm)
+      // Mid-drag the rail keeps to the stretch of wall it is on: it does not jump a door.
+      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined)
       if (!rail || at == null || at === rail.positionMm) return state
       return { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }
     })

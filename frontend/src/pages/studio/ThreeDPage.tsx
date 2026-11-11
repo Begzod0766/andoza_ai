@@ -319,6 +319,8 @@ export default function ThreeDPage() {
     tab: isMebelTab ? 'mebel' : isChiroqTab ? 'chiroq' : undefined,
   })
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
+  // The 3D scene does not see the stage: towel rails are caught and dragged only in Santexnika.
+  useEffect(() => { useRoomStore.getState().setPlumbingStage(activePhase === 'santexnika') }, [activePhase])
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);

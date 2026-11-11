@@ -138,3 +138,16 @@ describe('freeSpans sees a door where the room draws it (final review)', () => {
     expect(placeTowelRail(g, { wallId: 'A', positionMm: 0 })).toEqual({ wallId: 'A', positionMm: 600 })
   })
 })
+
+describe('a rail being dragged stays on its side of a door (mobile QA 2026-11-11 #3)', () => {
+  const g = rect(2500, 2000, { D: [DOOR] })   // free: 250–400 and 1600–1750
+  it('with a place to stay near, the nearest free place is in that same stretch of wall', () => {
+    expect(nearestFree(g, 'D', 1200, 300)).toBe(400)     // past the door's middle: still its near edge
+    expect(nearestFree(g, 'D', 1900, 300)).toBe(400)
+    expect(nearestFree(g, 'D', 100, 1700)).toBe(1600)
+    expect(nearestFree(g, 'D', 320, 300)).toBe(320)
+  })
+  it('a place to stay near that is in no free stretch falls back to the whole wall', () => {
+    expect(nearestFree(g, 'D', 1200, 1000)).toBe(1600)
+  })
+})

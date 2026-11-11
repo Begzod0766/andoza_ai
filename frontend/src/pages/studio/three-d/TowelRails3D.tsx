@@ -6,6 +6,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, TowelRail } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
 import { TOWEL_RAIL_H_MM, TOWEL_RAIL_W_MM } from "@/lib/towelRail";
+import { noRaycast } from "./constants";
 
 const W = TOWEL_RAIL_W_MM / 1000;
 const H = TOWEL_RAIL_H_MM / 1000;
@@ -17,6 +18,8 @@ const RUNG_INSET = 0.05;
 const UPRIGHT_R = 0.012;
 const RUNG_R = 0.009;
 const CHROME = "#C9CDD2";
+/** The hit area reaches this far past the rail all round, in total per side pair, metres: room for a fingertip. */
+const HIT_MARGIN = 0.16;
 
 /** Where a rail hangs: its centre, on its wall, facing into the room (group local +Z = inward). */
 export function towelRailPose(rail: TowelRail, geometry: RoomGeometry): { x: number; y: number; z: number; rotY: number } | null {
@@ -49,6 +52,17 @@ export function dragToPositionMm(geometry: RoomGeometry, wallId: string, worldX:
 }
 
 /**
+ * A mesh `raycast` that reports the rail's hit area as the nearest thing on the ray, so a finger on
+ * the rail catches it even with a bathtub's glass screen or other furniture in front (mobile QA
+ * 2026-11-11 #2): pointer events go to the nearest hit first. The hit point stays the true one.
+ */
+export function raycastInFront(this: THREE.Mesh, raycaster: THREE.Raycaster, intersects: THREE.Intersection[]): void {
+  const own: THREE.Intersection[] = [];
+  THREE.Mesh.prototype.raycast.call(this, raycaster, own);
+  for (const hit of own) intersects.push({ ...hit, distance: 0 });
+}
+
+/**
  * The heated towel rails on the walls (spec 2026-11-10): a chrome ladder each, drawn in code. A rail
  * slides along its wall by drag; the store keeps it off doors, windows and the wall's ends.
  */
@@ -59,6 +73,9 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
   const towelRails = useRoomStore((s) => s.towelRails);
   const geometry = useRoomStore((s) => s.geometry);
   const moveTowelRail = useRoomStore((s) => s.moveTowelRail);
+  // Caught and dragged in the Santexnika stage only; in any other it is scenery, and a touch goes
+  // through it to the camera or to whatever is there.
+  const active = useRoomStore((s) => s.plumbingStage);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -97,6 +114,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
   if (towelRails.length === 0) return null;
 
   const start = (rail: TowelRail, e: ThreeEvent<PointerEvent>) => {
+    if (e.button !== 0) return;   // a right-click is not a drag
     e.stopPropagation();
     useRoomStore.getState().beginTowelRailDrag();
     setDragging(rail.id);
@@ -110,14 +128,14 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
         const pose = towelRailPose(rail, geometry);
         if (!pose) return null;
         return (
-          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} onPointerDown={(e) => start(rail, e)}>
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} onPointerDown={active ? (e) => start(rail, e) : undefined}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
-            <mesh>
-              <boxGeometry args={[W + 0.06, H + 0.06, 0.05]} />
+            <mesh raycast={active ? raycastInFront : noRaycast}>
+              <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
             {bars.map((b, i) => (
-              <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow>
+              <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />
                 <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
               </mesh>

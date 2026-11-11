@@ -69,10 +69,16 @@ export function freeSpans(geometry: RoomGeometry, wallId: string): Array<[number
   return spans.filter(([lo, hi]) => hi >= lo).map(([lo, hi]) => [Math.round(lo), Math.round(hi)])
 }
 
-/** The free place on the wall nearest to `positionMm`, or null when the wall has none. */
-export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number): number | null {
+/**
+ * The free place on the wall nearest to `positionMm`, or null when the wall has none. With
+ * `stayNearMm` (where a rail being dragged is now) only the free stretch that holds it is looked at,
+ * so a drag stops at a door's edge instead of jumping to its far side (mobile QA 2026-11-11 #3).
+ */
+export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number, stayNearMm?: number): number | null {
   let best: number | null = null
-  for (const [lo, hi] of freeSpans(geometry, wallId)) {
+  const all = freeSpans(geometry, wallId)
+  const home = stayNearMm == null ? undefined : all.find(([lo, hi]) => stayNearMm >= lo && stayNearMm <= hi)
+  for (const [lo, hi] of home ? [home] : all) {
     const at = Math.min(hi, Math.max(lo, Math.round(positionMm)))
     if (best == null || Math.abs(at - positionMm) < Math.abs(best - positionMm)) best = at
   }
