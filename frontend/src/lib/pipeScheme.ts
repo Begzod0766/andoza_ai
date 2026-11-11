@@ -250,3 +250,66 @@ export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; pos
 export function pipeScheme(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[]): PipeScheme {
   return buildScheme(schemeInput(geometry, riser, points))
 }
+
+// ─── Drawing it ──────────────────────────────────────────────────────────────
+
+/** How far the drawn pipes run off the wall, metres. */
+const OFF_WALL_M = 0.04
+
+export interface SchemePolyline { key: string; kind: SchemeKind; diameterMm: number; points: Array<[number, number, number]> }
+
+/**
+ * The scheme as lines to draw, in world metres `[x, y, z]` (room-centred, like furniture): each trunk
+ * stretch along the walls, 40 mm off them and broken at the room corners it passes, at its height;
+ * each branch a vertical line at its point's place.
+ */
+export function schemePolylines(geometry: RoomGeometry, scheme: PipeScheme): SchemePolyline[] {
+  const walk = wallWalk(geometry)
+  if (walk.length === 0 || (scheme.lines.length === 0 && scheme.branches.length === 0)) return []
+  // The walls as the scheme measured them: whole mm (schemeInput).
+  const lengthMm = walk.map((w) => Math.round(w.lengthM * 1000))
+  const startMm: number[] = []
+  let perimeter = 0
+  for (const l of lengthMm) { startMm.push(perimeter); perimeter += l }
+  if (perimeter <= 0) return []
+
+  /** Plan position of a loop position, off the wall; at a corner, off both walls that meet there. */
+  const at = (posMm: number): [number, number] => {
+    let pos = ((posMm % perimeter) + perimeter) % perimeter
+    if (perimeter - pos < EPS) pos = 0
+    let i = walk.length - 1
+    while (i > 0 && startMm[i] > pos + EPS) i--
+    const w = walk[i]
+    if (Math.abs(pos - startMm[i]) <= EPS) {
+      const prev = walk[(i - 1 + walk.length) % walk.length]
+      const k = OFF_WALL_M / Math.max(1e-3, 1 + prev.nx * w.nx + prev.nz * w.nz)
+      return [w.startX + (prev.nx + w.nx) * k, w.startZ + (prev.nz + w.nz) * k]
+    }
+    const s = lengthMm[i] > 0 ? (pos - startMm[i]) / lengthMm[i] * w.lengthM : 0
+    return [w.startX + w.dirX * s + w.nx * OFF_WALL_M, w.startZ + w.dirZ * s + w.nz * OFF_WALL_M]
+  }
+
+  const out: SchemePolyline[] = []
+  for (const line of scheme.lines) {
+    const y = line.heightMm / 1000
+    const stops = [line.fromMm]
+    for (let lap = Math.floor(line.fromMm / perimeter); lap * perimeter < line.toMm; lap++) {
+      for (const c of startMm) {
+        const corner = c + lap * perimeter
+        if (corner > line.fromMm + EPS && corner < line.toMm - EPS) stops.push(corner)
+      }
+    }
+    stops.sort((a, b) => a - b)
+    stops.push(line.toMm)
+    out.push({
+      key: `trunk-${line.kind}-${line.diameterMm}-${line.fromMm}`, kind: line.kind, diameterMm: line.diameterMm,
+      points: stops.map((s) => { const [x, z] = at(s); return [x, y, z] }),
+    })
+  }
+  for (const b of scheme.branches) {
+    if (b.fromHeightMm === b.toHeightMm) continue
+    const [x, z] = at(b.sMm)
+    out.push({ key: `branch-${b.pointId}`, kind: b.kind, diameterMm: b.diameterMm, points: [[x, b.fromHeightMm / 1000, z], [x, b.toHeightMm / 1000, z]] })
+  }
+  return out
+}

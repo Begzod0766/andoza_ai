@@ -1,7 +1,8 @@
 /** The pipe scheme (spec 2026-11-11): a trunk per pipe kind along the walls, a branch to each point. */
 import { describe, it, expect } from 'vitest'
 import type { PlumbingPoint, RoomGeometry } from '@/store/types'
-import { buildScheme, schemeInput, pipeScheme, EMPTY_SCHEME, WATER_TRUNK_MM, type SchemeInput } from '@/lib/pipeScheme'
+import { buildScheme, schemeInput, pipeScheme, schemePolylines, EMPTY_SCHEME, WATER_TRUNK_MM, type SchemeInput } from '@/lib/pipeScheme'
+import { plumbingSummary, pipeRunM } from '@/lib/plumbingRuns'
 
 // A 2500 × 2000 room walked A, B, C, D: P = 9000, corners at 0, 2500, 4500, 7000.
 const WALLS = [2500, 2000, 2500, 2000]
@@ -241,5 +242,76 @@ describe('the shared fixture', () => {
     const pts = c.points as unknown as PlumbingPoint[]
     expect(schemeInput(g, c.riser, pts)).toEqual(c.input)
     expect(pipeScheme(g, c.riser, pts)).toEqual(c.expected)
+  })
+})
+
+// ─── Drawing the scheme ──────────────────────────────────────────────────────
+
+describe('schemePolylines', () => {
+  const g = rect(2500, 2000, { D: [DOOR] })
+  const riser = { wallId: 'D', positionMm: 0 }
+  const two = [point({ id: 'c1', positionMm: 1000, heightMm: 550 }), point({ id: 'c2', wallId: 'B', positionMm: 500, heightMm: 1050 })]
+  const length = (pts: Array<[number, number, number]>) => pts.slice(1).reduce((m, p, i) => m + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1], p[2] - pts[i][2]), 0)
+
+  it('the cold trunk is one line along the walls, 40 mm off them, with a vertex at each corner it passes', () => {
+    const lines = schemePolylines(g, pipeScheme(g, riser, two))
+    const trunk = lines.filter((l) => l.points.length > 2 || l.points[0][1] === l.points[1][1])
+    expect(trunk).toHaveLength(1)
+    expect(trunk[0]).toMatchObject({ kind: 'cold', diameterMm: 20 })
+    expect(trunk[0].points).toHaveLength(4) // the far point, two corners, the riser
+    for (const [, y] of trunk[0].points) expect(y).toBeCloseTo(0.2, 6)
+    for (const [x, , z] of trunk[0].points.slice(1, 3)) {
+      expect(Math.abs(x)).toBeCloseTo(1.25 - 0.04, 6)
+      expect(Math.abs(z)).toBeCloseTo(1.0 - 0.04, 6)
+    }
+    // 6 m along the walls, less 40 mm each side of the two corners passed, and 40 mm at the riser,
+    // which stands in the C–D corner and is reached off both its walls
+    expect(length(trunk[0].points)).toBeCloseTo(6.0 - 5 * 0.04, 6)
+  })
+
+  it('a branch is vertical at its point\'s place, from the trunk up to the point', () => {
+    const lines = schemePolylines(g, pipeScheme(g, riser, two))
+    const branch = lines.find((l) => l.key === 'branch-c1')!
+    expect(branch.points).toHaveLength(2)
+    const [[x1, y1, z1], [x2, y2, z2]] = branch.points
+    expect([x1, z1]).toEqual([x2, z2])
+    expect([y1, y2]).toEqual([0.2, 0.55])
+    expect(Math.abs(z1)).toBeCloseTo(1.0 - 0.04, 6)
+  })
+
+  it('a trunk that wraps past the loop\'s start is still one continuous line', () => {
+    const open = rect(2500, 2000)
+    const trunk = schemePolylines(open, pipeScheme(open, riser, two)).find((l) => l.key.startsWith('trunk'))!
+    expect(trunk.points).toHaveLength(4) // the riser, the corners at the loop's start and at A–B, the far point
+    expect(length(trunk.points)).toBeCloseTo(5.0 - 5 * 0.04, 6) // as above: two corners passed, the riser in a third
+  })
+
+  it('the Ø110 way is a line of its own with its diameter', () => {
+    const pts = [point({ id: 'bath', kind: 'drain', diameterMm: 50, positionMm: 1000, heightMm: 150 }), point({ id: 'wc', kind: 'drain', diameterMm: 110, wallId: 'B', positionMm: 500, heightMm: 200 })]
+    const lines = schemePolylines(g, pipeScheme(g, riser, pts)).filter((l) => l.key.startsWith('trunk'))
+    expect(lines.map((l) => [l.kind, l.diameterMm])).toEqual([['drain', 50], ['drain', 110]])
+    for (const l of lines) for (const [, y] of l.points) expect(y).toBe(0)
+  })
+
+  it('an empty scheme draws nothing', () => {
+    expect(schemePolylines(g, EMPTY_SCHEME)).toEqual([])
+  })
+})
+
+describe('plumbingSummary from the scheme', () => {
+  const hammom = shared.cases.find((c) => c.name.startsWith('Hammom'))!
+  const g = hammom.geometry as unknown as RoomGeometry
+  const pts = hammom.points as unknown as PlumbingPoint[]
+
+  it('its metres are the scheme\'s, with the reserve', () => {
+    const p = hammom.expected.pipes
+    const s = plumbingSummary(g, pts, hammom.riser)
+    expect(s.water).toEqual({ points: 9, m: Math.round((p.water_20.trunkMm + p.water_20.branchMm) / 1000 * 1.15 * 100) / 100 })
+    expect(s.drain).toEqual({ points: 4, m: Math.round((p.drain_50.trunkMm + p.drain_50.branchMm + p.drain_110.trunkMm + p.drain_110.branchMm) / 1000 * 1.15 * 100) / 100 })
+  })
+
+  it('and less than a run of its own from every point', () => {
+    const old = pts.filter((p) => p.kind !== 'drain').reduce((m, p) => m + pipeRunM(g, p, hammom.riser), 0) * 1.15
+    expect(plumbingSummary(g, pts, hammom.riser).water.m).toBeLessThan(old)
   })
 })
