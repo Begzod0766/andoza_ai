@@ -22,6 +22,8 @@ import { hasAbcdWalls } from "@/lib/roomDims";
 import { effectiveRoomType } from "@/lib/roomType";
 import { useRestoreUserModels } from "@/hooks/useRestoreUserModels";
 import { WebOnly } from "@/lib/embedded";
+import { redoRoom, undoRoom } from "@/lib/roomHistory";
+import { UndoRedoButtons } from "@/components/studio/UndoRedoButtons";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { MENU_ICON, MENU_ROW } from "@/components/studio/menuRow";
 import { UnsavedChangesGuard } from "@/components/studio/UnsavedChangesGuard";
@@ -206,11 +208,11 @@ export default function StudioPage() {
       const key = e.key.toLowerCase();
       if (key === 'z') {
         e.preventDefault();
-        if (e.shiftKey) useRoomStore.temporal.getState().redo();
-        else useRoomStore.temporal.getState().undo();
+        if (e.shiftKey) redoRoom();
+        else undoRoom();
       } else if (key === 'y') {
         e.preventDefault();
-        useRoomStore.temporal.getState().redo();
+        redoRoom();
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -609,6 +611,8 @@ export default function StudioPage() {
               its own (see the autosave above), and this only says how that is
               going — nothing at all when it is simply saved. */}
           <div className="flex items-center gap-2 flex-shrink-0 relative">
+            {/* A phone has no Ctrl+Z (mobile QA 2026-11-11 #1). */}
+            <UndoRedoButtons />
             <div className="flex items-center gap-1.5 text-xs font-semibold" aria-live="polite">
               {saveStatus === 'saving' && (
                 <span className="text-ink-muted">{t('studio.page.saqlanmoqda')}</span>
