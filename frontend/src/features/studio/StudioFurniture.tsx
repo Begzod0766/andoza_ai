@@ -23,6 +23,7 @@ import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { useInViewCard } from "./useInViewCard";
 import { showToast } from "@/components/ui/Toast";
 import { useTranslation } from "react-i18next";
+import { fixtureDisplayName } from "@/lib/fixtureName";
 import { intlLocale } from "@/i18n";
 import { SelectionOutline } from "./SelectionOutline";
 import type { PlacedFurniture, UserFurnitureEntry } from "@/store/roomStore";
@@ -688,7 +689,7 @@ export function DraggableFurnitureItem({
               boxShadow: '0 6px 20px rgba(0,0,0,.18)', whiteSpace: 'nowrap', textAlign: 'center',
             }}
           >
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#111827' }}>{displayInfo.name}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#111827' }}>{fixtureDisplayName(displayInfo.name, t)}</p>
             <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>
               {formatDecimal(fw, 2)} × {formatDecimal(fd, 2)} m
               {displayInfo.priceUzs != null && ` · ${t('studio.shared.price_som', { price: displayInfo.priceUzs.toLocaleString(intlLocale()) })}`}

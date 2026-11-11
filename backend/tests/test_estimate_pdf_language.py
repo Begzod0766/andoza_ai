@@ -146,3 +146,41 @@ class TestCyrillicFont:
             assert router._build_pdf(SimpleNamespace(name="Xona"), _estimate(), lang="en").startswith(b"%PDF")
         finally:
             router._pdf_fonts.cache_clear()
+
+
+# ─── Quantities and units in the lines table (mobile QA 2026-11-11 #5, #6) ───
+
+@pytest.mark.parametrize(("qty", "shown"), [
+    (29.92, "29.92"), (5.94, "5.94"), (15.27, "15.27"), (2.9, "2.9"), (13, "13"), (13.0, "13"),
+    (1234.5, "1 234.5"), (0.4, "0.4"), (7.999, "8"), (2.004, "2"),
+])
+def test_a_quantity_keeps_its_decimals(qty, shown):
+    """The PDF cut 29.92 m to "29": the table disagreed with its own formula and total."""
+    assert router._fmt_qty(qty) == shown
+
+
+def test_the_lines_table_shows_the_quantity_the_formula_ends_in():
+    est = ComputedEstimate(
+        lines=[_line(label="Suv quvuri PPR Ø20", formula="2 nuqta: 13 + 13.02 m × 1.15 = 29.92 m", qty=29.92, unit="m",
+                     unit_price_uzs=9_000, subtotal_uzs=269_280, category="santexnika", is_approximate=False, warning=None, store_name=None)],
+        total_uzs=269_280, total_min=242_352, total_max=323_136, total_approx_uzs=0,
+    )
+    story = router._pdf_story(_room(), est, "en", router._pdf_fonts())
+    cells = [c for item in story if isinstance(item, Table) for row in item._cellvalues for c in row if isinstance(c, str)]
+    assert "29.92" in cells and "29" not in cells
+
+
+def test_every_unit_fits_its_column_in_every_language():
+    """«комплектов» ran over the quantity beside it in the Russian PDF."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    from app.services.smeta_text import _COUNTED_UNITS, _MEASURE_UNITS, localize_unit
+
+    font, _bold = router._pdf_fonts()
+    room_pt = router._PDF_COL_WIDTHS[3] - 12   # reportlab's 6 pt of padding each side
+    for lang in ("uz", "ru", "en"):
+        for unit in [*_COUNTED_UNITS, *_MEASURE_UNITS]:
+            for qty in (1, 2, 5, 13, 21):
+                text = localize_unit(unit, qty, lang)
+                assert stringWidth(text, font, 8) <= room_pt, (lang, text)
+    assert sum(router._PDF_COL_WIDTHS) == pytest.approx(17 * 28.3465, abs=0.5)

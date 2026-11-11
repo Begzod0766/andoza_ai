@@ -105,8 +105,9 @@ export function SantexnikaSection({ bathroom = false }: {
         </ul>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <label className="text-[10px] text-ink-muted">{t("studio.santexnika.kind")}
+      {/* The kind has a row to itself: in a third of the panel «Канализация» was cut short (mobile QA 2026-11-11 #7). */}
+      <div className="grid grid-cols-2 gap-2">
+        <label className="col-span-2 text-[10px] text-ink-muted">{t("studio.santexnika.kind")}
           <select aria-label={t("studio.santexnika.kind")} value={kind} onChange={(e) => setKind(e.target.value as PlumbingKind)} className={field}>
             {KINDS.map((k) => <option key={k} value={k}>{t(`studio.santexnika.${k}`)}</option>)}
           </select>

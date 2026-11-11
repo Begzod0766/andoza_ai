@@ -88,7 +88,7 @@ describe('towel rails in the store', () => {
     const id = st().towelRails[0].id
     const before = st().towelRails[0].positionMm
     st().beginTowelRailDrag()
-    for (const mm of [700, 900, 1100, 1300]) { st().moveTowelRail(id, mm); vi.advanceTimersByTime(500) }
+    for (const mm of [380, 340, 300, 260]) { st().moveTowelRail(id, mm); vi.advanceTimersByTime(500) }   // within its stretch of wall
     st().endTowelRailDrag()
     expect(st().towelRails[0].positionMm).not.toBe(before)
     undo()
@@ -128,5 +128,28 @@ describe('towel rails in the store', () => {
     expect(st().towelRails).toEqual([])
     st().loadDraftState({ geometry, towelRails: [null, 3, { id: 'r' }, { id: 'ok', wallId: 'A', positionMm: 600, heightMm: 1000 }] })
     expect(st().towelRails.map((r) => r.id)).toEqual(['ok'])
+  })
+})
+
+describe('dragging a rail towards a door (mobile QA 2026-11-11 #3)', () => {
+  it('stops at the door edge instead of jumping to its far side; a move outside a drag may still cross', () => {
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'D', positionMm: 300, heightMm: 1000 }] })
+    st().beginTowelRailDrag()
+    for (const mm of [600, 1000, 1300, 1700]) st().moveTowelRail('r', mm)
+    expect(st().towelRails[0].positionMm).toBe(400)
+    st().endTowelRailDrag()
+    st().moveTowelRail('r', 1700)
+    expect(st().towelRails[0].positionMm).toBe(1700)
+  })
+})
+
+describe('the plumbing stage flag', () => {
+  it('is off until set, and is view state: not an undo step, not a change to save', () => {
+    expect(st().plumbingStage).toBe(false)
+    const steps = useRoomStore.temporal.getState().pastStates.length
+    st().setPlumbingStage(true)
+    expect(st().plumbingStage).toBe(true)
+    expect(st().isDirty).toBe(false)
+    expect(useRoomStore.temporal.getState().pastStates.length).toBe(steps)
   })
 })
