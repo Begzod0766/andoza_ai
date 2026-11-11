@@ -35,7 +35,7 @@ describe('wallWalk: each wall from the corner where the walk reaches it', () => 
 })
 
 describe('plumbingSummary', () => {
-  it('counts drain and water points and sums their runs with 15% reserve', () => {
+  it('counts drain and water points and sums their scheme with 15% reserve', () => {
     const g = geom(cases.cases[0].walls)
     const riser = { wallId: 'A', positionMm: 0 }
     const pts = [
@@ -44,9 +44,11 @@ describe('plumbingSummary', () => {
       { id: '3', kind: 'hot' as const, wallId: 'A', positionMm: 1700, heightMm: 500 },
     ]
     const s = plumbingSummary(g, pts, riser)
+    // The pipe scheme (spec 2026-11-11): the drain trunk 1.0 m; the water a cold trunk of 1.5 m and a hot
+    // one of 1.7 m, each with a 0.3 m branch up to 500 mm from the 200 mm trunk.
     expect(s.drain).toEqual({ points: 1, m: 1.15 })
     expect(s.water.points).toBe(2)
-    expect(s.water.m).toBeCloseTo((2.0 + 2.2) * 1.15, 2)
+    expect(s.water.m).toBeCloseTo((1.5 + 0.3 + 1.7 + 0.3) * 1.15, 2)
   })
 })
 

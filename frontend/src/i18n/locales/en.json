@@ -1134,7 +1134,15 @@
       "work_fan": "Work: fitting the extractor fan",
       "towel_rail": "Heated towel rail",
       "work_towel_rail": "Work: fitting the towel rail",
-      "work_wp": "Work: waterproofing"
+      "work_wp": "Work: waterproofing",
+      "fit_tee_20": "PPR tee Ø20",
+      "fit_elbow_20": "PPR elbow Ø20",
+      "fit_outlet_20": "Wall outlet Ø20",
+      "fit_valve_20": "Ball valve Ø20",
+      "fit_tee_50": "Drain tee Ø50",
+      "fit_elbow_50": "Drain elbow Ø50",
+      "fit_tee_110_50": "Drain tee Ø110/50",
+      "fit_elbow_110": "Drain elbow Ø110"
     },
     "unit": {
       "qop_one": "bag",
@@ -1206,7 +1214,23 @@
       "nuqta_other": "points",
       "wp_floor": "Floor",
       "wp_base": "foot of the walls",
-      "wp_wet": "wet zone"
+      "wp_wet": "wet zone",
+      "trunk": "Trunk",
+      "branch_pipes": "branches",
+      "tarmoq_one": "branch",
+      "tarmoq_other": "branches",
+      "stoyak_one": "riser",
+      "stoyak_other": "risers",
+      "burchak_one": "corner",
+      "burchak_other": "corners",
+      "uch_one": "end",
+      "uch_other": "ends",
+      "unitaz_one": "toilet",
+      "unitaz_other": "toilets",
+      "liniya_one": "line",
+      "liniya_other": "lines",
+      "ulanish_one": "join",
+      "ulanish_other": "joins"
     }
   },
   "ustalar": {

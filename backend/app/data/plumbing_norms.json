@@ -1,7 +1,7 @@
 {
-  "_doc": "Plumbing prices for the estimate when the shop has no pipe products (spec 2026-11-08). UZS.",
+  "_doc": "Plumbing prices for the estimate when the shop has no pipe products (spec 2026-11-08); fittings by the piece, counted from the pipe scheme (spec 2026-11-11). UZS.",
   "pipe_m_uzs": {"drain_50": 18000, "drain_110": 42000, "water_20": 9000},
-  "fitting_set_uzs": 35000,
+  "fitting_uzs": {"tee_20": 3000, "elbow_20": 2500, "outlet_20": 12000, "valve_20": 35000, "tee_50": 9000, "elbow_50": 6000, "tee_110_50": 22000, "elbow_110": 18000},
   "work_point_uzs": 120000,
   "work_fixture_uzs": {"bathtub": 450000, "sink": 250000, "toilet": 350000, "shower": 400000, "bidet": 300000}
 }
