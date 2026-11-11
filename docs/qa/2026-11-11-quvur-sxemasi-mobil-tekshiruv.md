@@ -35,7 +35,7 @@ Hammomni oching → ↖ burchak menyusi → Plumbing → **Show pipe runs** belg
 
 | # | Qayerda | Qadamlar | Kutilgan natija | Natija |
 |---|---|---|---|---|
-| 2.1 | Panel | Santexnika panelining pastidagi xulosa ("Drains: N points, ~X m · Water: M points, ~Y m") | Nuqtalar soni avvalgidek; metrlar **avvalgidan kamroq** | |
+| 2.1 | Panel | Santexnika panelining pastidagi xulosa ("Drain: N points, ~X m · Water: M points, ~Y m") | Nuqtalar soni avvalgidek; metrlar **avvalgidan kamroq** | |
 | 2.2 | Panel → Smeta | Xulosadagi suv metrini smetadagi "PPR water pipe Ø20" miqdori bilan solishtiring | Bir xil (xulosada bitta kasr xonagacha yaxlitlangan) | |
 | 2.3 | Panel → Smeta | Kanalizatsiya metrini smetadagi "Drain pipe Ø50" + "Drain pipe Ø110" yig'indisi bilan solishtiring | Bir xil (±0,1 m yaxlitlash) | |
 
