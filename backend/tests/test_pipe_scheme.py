@@ -97,3 +97,45 @@ def test_a_drain_trunk_passes_under_the_door_a_water_trunk_does_not():
     assert drain["pipes"]["drain_50"]["trunkMm"] == 1500
     assert drain["lines"] == [{"kind": "drain", "diameterMm": 50, "fromMm": 7000, "toMm": 8500, "heightMm": 0}]
     assert cold["pipes"]["water_20"]["trunkMm"] == 7500
+
+
+# ─── Review minors (2026-11-11) ──────────────────────────────────────────────
+
+def _cold(pid, s, h=200):
+    return {"id": pid, "kind": "cold", "diameterMm": 20, "sMm": s, "heightMm": h}
+
+
+def test_a_riser_in_a_room_corner_with_points_both_ways_has_no_corner_elbow():
+    base = {"wallsMm": [2500, 2000, 2500, 2000], "doorsMm": [], "riserMm": 2500}
+    s = build_scheme({**base, "points": [_cold("a", 1500), _cold("b", 3500)]})
+    assert s["why"]["tee_20"] == {"branches": 0, "riser": 1}
+    assert s["why"]["elbow_20"] == {"corners": 0, "ends": 2}
+    d = build_scheme({**base, "points": [{"id": "a", "kind": "drain", "diameterMm": 50, "sMm": 1500, "heightMm": 0},
+                                         {"id": "b", "kind": "drain", "diameterMm": 110, "sMm": 3500, "heightMm": 0}]})
+    assert d["why"]["elbow_50"] == {"corners": 0, "ends": 1}
+    assert d["why"]["elbow_110"] == {"toilets": 1, "corners": 0}
+
+
+def _rect_mm(a, b, els):
+    return {"walls": [{"id": i, "length": (a if i in "AC" else b), "elements": els.get(i, [])} for i in "ABCD"]}
+
+
+def test_a_doors_middle_on_a_half_millimetre_rounds_as_the_studio_does():
+    door = {"type": "eshik", "position": 472, "width": 915}
+    assert scheme_input(_metres(_rect_mm(2709, 2000, {"A": [door]})), ("A", 0), [])["doorsMm"] == [930]
+    assert scheme_input(_metres(_rect_mm(2709, 2000, {"C": [door]})), ("A", 0), [])["doorsMm"] == [4709 + 1780]
+
+
+@pytest.mark.parametrize("elements,doors", [
+    ([{"type": "eshik", "position": 0, "width": 800}], [3500]),                                  # legacy: no flag, at 0
+    ([{"type": "eshik", "position": 300, "width": 800, "positionAuto": True}], [3500]),
+    ([{"type": "eshik", "position": 100, "width": 600, "positionAuto": False}, {"type": "eshik", "position": 0, "width": 800}], [2900, 3850]),
+    ([{"type": "eshik", "position": 0, "width": 400}, {"type": "deraza", "position": 0, "width": 400}, {"type": "eshik", "position": 0, "width": 400}], [3000, 4000]),
+])
+def test_a_room_priced_from_its_state_places_openings_as_the_studio_does(elements, doors):
+    """The studio lays out an opening with no place of its own (lib/wallPositions resolveElementPositions);
+    a room priced from its saved state geometry reads it in the same place (review minor 1)."""
+    from app.services.smeta import _plumbing_geometry
+
+    g = _plumbing_geometry(SimpleNamespace(geometry=None, state={"geometry": _rect_mm(2500, 2000, {"B": elements})}))
+    assert scheme_input(g, ("A", 0), [])["doorsMm"] == doors

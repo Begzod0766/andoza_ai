@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.pipe_scheme import pipe_scheme
-from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+from app.services.plumbing import load_plumbing_norms, riser_spot
 from app.services.smeta import _furniture_lines, _plumbing_lines, _round2
 from app.services.smeta_text import localize_label
 
@@ -215,8 +215,10 @@ def test_shop_pipe_names_do_not_match_a_bigger_size_or_the_wrong_kind():
     assert set(pipes) == {"pipe:water_20", "pipe:drain_50", "pipe:drain_110"}
 
 
-def test_a_room_with_points_but_no_walls_has_no_negative_run():
-    assert pipe_run_m({"walls": []}, {"wallId": "A", "positionMm": 500, "heightMm": 700}, ("A", 0.0)) == 0.7
+def test_a_room_with_points_but_no_walls_has_no_negative_line():
+    room = SimpleNamespace(state={"furniture": [], "plumbing": [{"id": "p", "kind": "cold", "wallId": "A", "positionMm": 500, "heightMm": 700}]},
+                           geometry={"walls": []})
+    assert all(ln.qty >= 0 and ln.subtotal_uzs >= 0 for ln in _plumbing_lines(room))
 
 
 def test_the_reserve_rounds_half_up_like_the_studio():

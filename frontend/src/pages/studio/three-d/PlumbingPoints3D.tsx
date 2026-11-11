@@ -86,8 +86,8 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   }, [controlsRef]);
 
   const pipes = useMemo(
-    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, riserSpot(geometry), plumbing)) : []),
-    [showPipeRuns, geometry, plumbing],
+    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, riserSpot(geometry), plumbing), hiddenWalls) : []),
+    [showPipeRuns, geometry, plumbing, hiddenWalls],
   );
   if (plumbing.length === 0) return null;
 

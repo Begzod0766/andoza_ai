@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+from app.services.plumbing import load_plumbing_norms, riser_spot
 
 FIXTURE = Path(__file__).resolve().parents[2] / "frontend/src/lib/__tests__/fixtures/plumbingRuns.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))["cases"]
@@ -22,12 +22,6 @@ def _geometry(walls, door=None):
         {"id": w["id"], "length": w["length"] / 1000, "elements": ([{"type": "eshik", "width": 0.7, "position": 0.5}] if w["id"] == door else [])}
         for w in walls
     ]}
-
-
-@pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
-def test_pipe_run_matches_the_studio(case):
-    riser = (case["riser"]["wallId"], case["riser"]["positionMm"])
-    assert pipe_run_m(_geometry(case["walls"]), case["from"], riser) == pytest.approx(case["expectedM"], abs=0.01)
 
 
 def test_riser_falls_back_to_the_door_wall_then_the_first_wall():
