@@ -693,8 +693,8 @@ def _pdf_language(request: Request, user: Any) -> str:
 
 # The lines table: item, working, quantity, unit, unit price, total. They add up to the 17 cm between
 # the margins. The unit column holds the longest unit word in any language («комплектов»): narrower,
-# it ran over the quantity beside it.
-_PDF_COL_WIDTHS = [5.0 * cm, 3.9 * cm, 1.5 * cm, 2.0 * cm, 2.3 * cm, 2.3 * cm]
+# it ran over the quantity beside it. Sized for the server's font (DejaVu), wider than a Mac's.
+_PDF_COL_WIDTHS = [5.0 * cm, 3.5 * cm, 1.5 * cm, 2.4 * cm, 2.3 * cm, 2.3 * cm]
 
 
 def _fmt_qty(n: int | float) -> str:
