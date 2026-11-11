@@ -98,8 +98,8 @@ export function CategorySection({
                     </span>
                   )}
                   {line.is_approximate && (
-                    // orange-cta is the brand orange darkened to 5.2:1 on white (the plain brand orange is 2.8:1). The default Tailwind orange-700 does not exist here: `orange` is a single colour in the config.
-                    <span className="ml-2 inline-block rounded-full bg-orange-500/15 px-2 py-0.5 align-middle text-[11px] font-medium text-orange-500">
+                    // An amber tint with the page's own text colour on it: the `warn` amber as text on its own tint falls under 4.5:1 by day.
+                    <span className="ml-2 inline-block rounded-full bg-warn/15 px-2 py-0.5 align-middle text-[11px] font-medium text-ink">
                       {t("smeta.taxminiy")}
                     </span>
                   )}
@@ -129,7 +129,7 @@ export function CategorySection({
                 {line.formula && !repeatsQuantityLine(line) && (
                   <p className="mt-0.5 text-xs leading-snug text-ink-muted">{localizeFormula(line.formula, t)}</p>
                 )}
-                {line.warning && <p className="mt-1 text-xs leading-snug text-orange-500">{localizeWarning(line.warning, t)}</p>}
+                {line.warning && <p className="mt-1 text-xs leading-snug text-warn">{localizeWarning(line.warning, t)}</p>}
               </div>
               <p className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-ink">{fmt(line.total_uzs)}</p>
             </li>

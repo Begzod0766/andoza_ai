@@ -431,7 +431,7 @@ export default function SmetaPage() {
                     {t("smeta.diapazon")}: {fmt(view!.min)} – {fmt(view!.max)}
                   </p>
                   {view!.approx > 0 && (
-                    <p className="mt-0.5 text-sm text-orange-500">
+                    <p className="mt-0.5 text-sm text-warn">
                       {t("smeta.shundan_taxminiy")}: ~{fmt(view!.approx)}
                     </p>
                   )}
