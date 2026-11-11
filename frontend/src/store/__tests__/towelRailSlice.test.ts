@@ -153,3 +153,48 @@ describe('the plumbing stage flag', () => {
     expect(useRoomStore.temporal.getState().pastStates.length).toBe(steps)
   })
 })
+
+describe('a door or window that comes onto a rail moves the rail off (review minor)', () => {
+  const rail = { id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000 }
+  beforeEach(() => useRoomStore.setState({ towelRails: [rail] }))
+
+  it('a window added where the rail hangs', () => {
+    st().addElement('A', { type: 'deraza', position: 900, width: 700, height: 1400, sill_height: 900 } as never)
+    const at = st().towelRails[0].positionMm
+    expect(at < 900 - 250 + 1 || at > 1600 + 250 - 1).toBe(true)
+  })
+
+  it('a door dragged onto it pushes it along, in the same undo step as the door', () => {
+    // Wall A runs the way the walk does, so the door's own position is its walk position.
+    const withDoor = { walls: geometry.walls.map((w) => (w.id === 'A' ? { ...w, elements: [{ ...DOOR, id: 'a', position: 0 }] } : w)) } as unknown as RoomGeometry
+    useRoomStore.setState({ geometry: withDoor, towelRails: [{ id: 'r', wallId: 'A', positionMm: 1500, heightMm: 1000 }] })
+    useRoomStore.temporal.getState().clear()
+    settle()
+    st().updateElement('A', 'a', { position: 1100 })   // door now 1100–1800: the rail must leave 850–2050, and 2050 is nearer
+    expect(st().towelRails[0].positionMm).toBe(2050)
+    undo()
+    expect(st().towelRails[0].positionMm).toBe(1500)
+    expect(st().geometry.walls[0].elements[0].position).toBe(0)
+  })
+
+  it('an opening on another wall, or one taken away, leaves the rail where it is', () => {
+    st().addElement('B', { type: 'deraza', position: 400, width: 700, height: 1400, sill_height: 900 } as never)
+    st().removeElement('D', 'd')
+    expect(st().towelRails[0]).toBe(rail)
+  })
+})
+
+describe('ending a drag twice is safe (a scene that unmounts mid-drag ends it too)', () => {
+  it('leaves undo working', () => {
+    st().addTowelRail()
+    settle()
+    st().beginTowelRailDrag()
+    st().endTowelRailDrag()
+    st().endTowelRailDrag()
+    expect(useRoomStore.temporal.getState().isTracking).toBe(true)
+    st().beginPlumbingDrag()
+    st().endPlumbingDrag()
+    st().endPlumbingDrag()
+    expect(useRoomStore.temporal.getState().isTracking).toBe(true)
+  })
+})

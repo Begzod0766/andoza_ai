@@ -76,11 +76,19 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
     return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); };
   }, [dragging, geometry, camera, gl, raycaster, movePlumbing, controlsRef]);
 
+  // The scene can go away mid-drag: the drag ends with it, or undo stays paused and the camera locked.
+  useEffect(() => () => {
+    if (!draggingRef.current) return;
+    useRoomStore.getState().endPlumbingDrag();
+    if (controlsRef.current) controlsRef.current.enabled = true;
+    document.body.style.cursor = "";
+  }, [controlsRef]);
+
   const riser = useMemo(() => riserSpot(geometry), [geometry]);
   if (plumbing.length === 0) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
-    if (p.fixtureId || p.railId) return;
+    if (p.fixtureId || p.railId || e.button !== 0) return;   // not a fixture's or a rail's point, not a right-click
     e.stopPropagation();
     useRoomStore.getState().beginPlumbingDrag();
     draggingRef.current = p.id;

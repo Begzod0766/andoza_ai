@@ -24,7 +24,7 @@ describe('railPoints', () => {
 // ─── Where a rail may hang ───────────────────────────────────────────────────
 
 import { roomModel } from '@/lib/aiDesignLayout'
-import { wallWalk } from '@/lib/plumbingRuns'
+import { pipeRunM, wallWalk } from '@/lib/plumbingRuns'
 import { freeSpans, keepRails, nearestFree, placeTowelRail } from '@/lib/towelRail'
 
 type El = { type: string; position: number; width: number }
@@ -98,12 +98,15 @@ describe('placeTowelRail', () => {
   it('a door in the way: the nearest free place on the same wall', () => {
     expect(placeTowelRail(rect(2500, 2000, { D: [DOOR] }), { wallId: 'D', positionMm: 0 })).toEqual({ wallId: 'D', positionMm: 400 })
   })
-  it('no place on the riser wall: the next wall round the room', () => {
+  it('no place on the riser wall: the wall whose free place is the shortest pipe run from the riser', () => {
+    // Riser at the corner where C ends and D begins; D is all door. C's end is at the riser, A's start is 2 m away.
     const g = rect(2500, 2000, { D: [{ type: 'eshik', position: 100, width: 1800 }] })
-    const got = placeTowelRail(g, { wallId: 'D', positionMm: 0 })!
-    const order = wallWalk(g).map((w) => w.id)
-    expect(got.wallId).toBe(order[(order.indexOf('D') + 1) % 4])
-    expect(freeSpans(g, got.wallId).some(([lo, hi]) => got.positionMm >= lo && got.positionMm <= hi)).toBe(true)
+    const riser = { wallId: 'D', positionMm: 0 }
+    const got = placeTowelRail(g, riser)!
+    const run = (wallId: string, positionMm: number) => pipeRunM(g, { wallId, positionMm, heightMm: 0 }, riser)
+    const others = wallWalk(g).filter((w) => w.id !== 'D').flatMap((w) => freeSpans(g, w.id).flatMap(([lo, hi]) => [run(w.id, lo), run(w.id, hi)]))
+    expect(run(got.wallId, got.positionMm)).toBeCloseTo(Math.min(...others))
+    expect(run(got.wallId, got.positionMm)).toBeLessThan(0.5)   // not a whole wall away, as it used to be
   })
   it('a room with no walls, or no free wall: null', () => {
     expect(placeTowelRail({ walls: [] } as unknown as RoomGeometry, { wallId: 'A', positionMm: 0 })).toBeNull()

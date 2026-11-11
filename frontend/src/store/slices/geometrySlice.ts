@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, WallElement, DesignState } from '../types'
+import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, TowelRail, WallElement, DesignState } from '../types'
 import { withFixturePoints } from '@/lib/plumbingPoints'
 import { keepRails } from '@/lib/towelRail'
 import { defaultGeometry, resizeWall } from '../utils/geometryHelpers'
@@ -22,6 +22,12 @@ export interface GeometrySlice {
    * a fixture's plumbing points are measured again from the new walls.
    */
   applyRoomShape(geometry: RoomGeometry, extra?: { furniture?: PlacedFurniture[]; lights?: PlacedLight[]; electricals?: PlacedElectrical[]; designState?: DesignState }): void
+}
+
+/** A change to a wall's openings, with the towel rails kept clear of them: a door or window that
+ * comes onto a rail moves the rail to the nearest free place (and it is one undo step with the door). */
+function withRails<T extends { geometry: RoomGeometry }>(state: RoomStore, next: T): T & { towelRails: TowelRail[] } {
+  return { ...next, towelRails: keepRails(state.towelRails, next.geometry) }
 }
 
 export const createGeometrySlice: StateCreator<
@@ -60,7 +66,7 @@ export const createGeometrySlice: StateCreator<
 
   addElement(wallId, element) {
     const newElement: WallElement = { ...element, id: nanoid() }
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).
@@ -90,7 +96,7 @@ export const createGeometrySlice: StateCreator<
   },
 
   updateElement(wallId, elementId, patch) {
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).
@@ -105,7 +111,7 @@ export const createGeometrySlice: StateCreator<
   },
 
   swapElements(wallId) {
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).
