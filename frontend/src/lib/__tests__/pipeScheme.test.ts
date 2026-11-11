@@ -230,3 +230,16 @@ describe('schemeInput', () => {
     expect(pipeScheme({ walls: [] } as unknown as RoomGeometry, { wallId: 'A', positionMm: 0 }, pts)).toEqual(EMPTY_SCHEME)
   })
 })
+
+// ─── One rule with the estimate (backend app/services/pipe_scheme.py reads the same file) ────
+
+import shared from './fixtures/pipeScheme.json'
+
+describe('the shared fixture', () => {
+  it.each(shared.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
+    const g = c.geometry as unknown as RoomGeometry
+    const pts = c.points as unknown as PlumbingPoint[]
+    expect(schemeInput(g, c.riser, pts)).toEqual(c.input)
+    expect(pipeScheme(g, c.riser, pts)).toEqual(c.expected)
+  })
+})

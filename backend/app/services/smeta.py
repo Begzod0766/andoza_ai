@@ -1662,14 +1662,24 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
 
 def _plumbing_geometry(room: "Room") -> dict:
     """The room's walls with lengths in metres: the room's own geometry, else the studio's saved
-    one (in mm)."""
+    one (in mm), turned into the row's form."""
     geometry = getattr(room, "geometry", None)
     if isinstance(geometry, dict) and geometry.get("walls"):
         return geometry
     state_geometry = (room.state or {}).get("geometry")
     if isinstance(state_geometry, dict) and state_geometry.get("walls"):
+        def element(e: dict, length_mm: float) -> dict:
+            # The studio keeps an opening's left edge in mm from the wall's start and its width in mm;
+            # the row keeps the 0–1 fraction of its middle and the width in metres (lib/wallPositions).
+            width = _float(e.get("width"))
+            if length_mm <= 0:
+                return {**e, "width": width / 1000}
+            return {**e, "position": (_float(e.get("position")) + width / 2) / length_mm, "width": width / 1000}
+
         out = {**state_geometry, "walls": [
-            {**w, "length": _float(w.get("length")) / 1000} for w in state_geometry["walls"] if isinstance(w, dict)
+            {**w, "length": _float(w.get("length")) / 1000,
+             "elements": [element(e, _float(w.get("length"))) for e in w.get("elements") or [] if isinstance(e, dict)]}
+            for w in state_geometry["walls"] if isinstance(w, dict)
         ]}
         # The corners are in mm too: left as they were, a polygon wall read 1000 times too long.
         verts = state_geometry.get("vertices")
