@@ -1134,7 +1134,15 @@
       "work_fan": "Ish: ventilyatorni o'rnatish",
       "towel_rail": "Sochiq quritgich",
       "work_towel_rail": "Ish: sochiq quritgichni o'rnatish",
-      "work_wp": "Ish: gidroizolyatsiya"
+      "work_wp": "Ish: gidroizolyatsiya",
+      "fit_tee_20": "PPR troynik Ø20",
+      "fit_elbow_20": "PPR burchak Ø20",
+      "fit_outlet_20": "Suv rozetkasi Ø20",
+      "fit_valve_20": "Sharli kran Ø20",
+      "fit_tee_50": "Kanalizatsiya troynigi Ø50",
+      "fit_elbow_50": "Kanalizatsiya burchagi Ø50",
+      "fit_tee_110_50": "Kanalizatsiya troynigi Ø110/50",
+      "fit_elbow_110": "Kanalizatsiya burchagi Ø110"
     },
     "unit": {
       "qop_one": "qop",
@@ -1206,7 +1214,23 @@
       "nuqta_other": "nuqta",
       "wp_floor": "Pol",
       "wp_base": "devor tagi",
-      "wp_wet": "ho'l zona"
+      "wp_wet": "ho'l zona",
+      "trunk": "Magistral",
+      "branch_pipes": "tik",
+      "tarmoq_one": "tarmoq",
+      "tarmoq_other": "tarmoq",
+      "stoyak_one": "stoyak",
+      "stoyak_other": "stoyak",
+      "burchak_one": "burchak",
+      "burchak_other": "burchak",
+      "uch_one": "uch",
+      "uch_other": "uch",
+      "unitaz_one": "unitaz",
+      "unitaz_other": "unitaz",
+      "liniya_one": "liniya",
+      "liniya_other": "liniya",
+      "ulanish_one": "ulanish",
+      "ulanish_other": "ulanish"
     }
   },
   "ustalar": {

@@ -56,7 +56,15 @@ const WHOLE_LABELS = {
   "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
   "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
   "Suv quvuri PPR Ø20": "pipe_water_20",
-  "Fitinglar": "fittings",
+  "Fitinglar": "fittings",  // the set per point of estimates made before 2026-11-11
+  "PPR troynik Ø20": "fit_tee_20",
+  "PPR burchak Ø20": "fit_elbow_20",
+  "Suv rozetkasi Ø20": "fit_outlet_20",
+  "Sharli kran Ø20": "fit_valve_20",
+  "Kanalizatsiya troynigi Ø50": "fit_tee_50",
+  "Kanalizatsiya burchagi Ø50": "fit_elbow_50",
+  "Kanalizatsiya troynigi Ø110/50": "fit_tee_110_50",
+  "Kanalizatsiya burchagi Ø110": "fit_elbow_110",
   "Devor plitkasi": "wall_tile",
   "Pol plitkasi": "floor_tile",
   "Plitka yelimi": "tile_adhesive",
@@ -171,6 +179,9 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
   [/\(devor ([^)]+)\)/g, (t, walls) => `(${t("smeta.formula.walls", { walls, count: walls.split(",").length })})`],
   [/(?<![\p{L}'])Perimetr(?![\p{L}'])/gu, (t) => t("smeta.formula.perimeter")],
   [/ − eshiklar /g, (t) => ` − ${t("smeta.formula.doors")} `],
+  // The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
+  [/^Magistral (?=\d)/g, (t) => `${t("smeta.formula.trunk")} `],
+  [/ \+ tik (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pipes")} `],
   [/ so'm$/g, (t) => ` ${t("smeta.formula.som")}`],
 ];
 
@@ -178,10 +189,12 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
 const FORMULA_COUNTED = {
   qop: "smeta.unit.qop", dona: "smeta.unit.dona", rulon: "smeta.unit.rulon", quti: "smeta.unit.quti",
   list: "smeta.unit.list", komplekt: "smeta.unit.komplekt", polosa: "smeta.formula.polosa", qatlam: "smeta.formula.qatlam", nuqta: "smeta.formula.nuqta",
+  // What a fitting's count is made of (spec 2026-11-11).
+  tarmoq: "smeta.formula.tarmoq", stoyak: "smeta.formula.stoyak", burchak: "smeta.formula.burchak", uch: "smeta.formula.uch", unitaz: "smeta.formula.unitaz", liniya: "smeta.formula.liniya", ulanish: "smeta.formula.ulanish",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|litr|m²|kg|m)(?=$|[\s);,:])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });
