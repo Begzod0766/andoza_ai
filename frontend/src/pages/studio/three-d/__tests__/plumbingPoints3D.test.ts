@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { RoomGeometry } from '@/store/roomStore'
 import { plumbingPointPose } from '../PlumbingPoints3D'
-import { pipeRunPath } from '@/lib/plumbingRuns'
 
 const g = { walls: [
   { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
@@ -25,14 +24,5 @@ describe('plumbingPointPose', () => {
     } as unknown as RoomGeometry
     const p = plumbingPointPose({ id: 'p', kind: 'drain', wallId: '1', positionMm: 1000, heightMm: 0 }, poly)!
     expect(Math.abs(p.x)).toBeCloseTo(1.5 - 0.01, 2)
-  })
-})
-
-describe('pipeRunPath: the run drawn along the walls', () => {
-  it('goes from the point round the shorter way to the riser, through the corners on the way', () => {
-    const path = pipeRunPath(g, { wallId: 'A', positionMm: 500, heightMm: 700 }, { wallId: 'D', positionMm: 1000 })
-    expect(path.length).toBe(3) // the point, the corner of A and D, the riser
-    const len = path.slice(1).reduce((m, p, i) => m + Math.hypot(p[0] - path[i][0], p[1] - path[i][1]), 0)
-    expect(len).toBeCloseTo(1.5, 2)
   })
 })

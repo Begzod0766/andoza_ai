@@ -112,11 +112,13 @@ function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[], d
   // Points at the riser's own place join the right arm if it has points, else the left, else they are an arm of their own.
   if (right.length > 0 || left.length === 0) right.unshift(...at)
   else left.unshift(...at)
+  // A corner the trunk passes. Not one at the riser itself: each arm leaves the riser along its own wall
+  // (the riser's tee turns it), so there is no bend there (review minor 8, 2026-11-11).
   const corners: number[] = []
   let corner = 0
   for (const w of input.wallsMm) {
     const tc = norm(corner - startMm)
-    if (corner < perimeter - EPS && tc > EPS && tc < lengthMm - EPS) corners.push(tc - riserT)
+    if (corner < perimeter - EPS && tc > EPS && tc < lengthMm - EPS && Math.abs(tc - riserT) > EPS) corners.push(tc - riserT)
     corner += w
   }
   return { startMm, lengthMm, riserT, left, right, corners }
@@ -173,7 +175,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
       if (toilets > 0) out.why.tee_110_50.joins += narrow.length - tail.length + (tail.length > 0 ? 1 : 0)
     }
     for (const c of trunk.corners) {
-      const onWide = c < -EPS ? -c < way[0] - EPS : c > EPS ? c < way[1] - EPS : Math.max(way[0], way[1]) > EPS
+      const onWide = c < 0 ? -c < way[0] - EPS : c < way[1] - EPS
       if (onWide) out.why.elbow_110.corners += 1
       else out.why.elbow_50.corners += 1
     }
@@ -220,7 +222,9 @@ export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; pos
   const place = (wallId: string, positionMm: number): number | null => {
     const wall = at.get(wallId)
     if (!wall || !Number.isFinite(positionMm)) return null
-    return wall.startMm + Math.min(wall.lengthMm, Math.max(0, Math.round(positionMm)))
+    // Snapped to a millionth of a mm first: the backend works a door's middle out of a fraction, and a
+    // half millimetre must round the same way on both sides (review minor 5).
+    return wall.startMm + Math.min(wall.lengthMm, Math.max(0, Math.round(Math.round(positionMm * 1e6) / 1e6)))
   }
 
   const doorsMm: number[] = []
@@ -265,9 +269,10 @@ export interface SchemePolyline { key: string; kind: SchemeKind; diameterMm: num
 /**
  * The scheme as lines to draw, in world metres `[x, y, z]` (room-centred, like furniture): each trunk
  * stretch along the walls, 40 mm off them and broken at the room corners it passes, at its height;
- * each branch a vertical line at its point's place.
+ * each branch a vertical line at its point's place. Nothing is drawn on a wall in `hiddenWalls` (the one
+ * the camera looks through): a trunk crossing it is drawn as its stretches on either side.
  */
-export function schemePolylines(geometry: RoomGeometry, scheme: PipeScheme): SchemePolyline[] {
+export function schemePolylines(geometry: RoomGeometry, scheme: PipeScheme, hiddenWalls?: ReadonlySet<string>): SchemePolyline[] {
   const walk = wallWalk(geometry)
   if (walk.length === 0 || (scheme.lines.length === 0 && scheme.branches.length === 0)) return []
   // The walls as the scheme measured them: whole mm (schemeInput).
@@ -277,12 +282,21 @@ export function schemePolylines(geometry: RoomGeometry, scheme: PipeScheme): Sch
   for (const l of lengthMm) { startMm.push(perimeter); perimeter += l }
   if (perimeter <= 0) return []
 
-  /** Plan position of a loop position, off the wall; at a corner, off both walls that meet there. */
-  const at = (posMm: number): [number, number] => {
+  /** The wall a loop position lies on (at a corner, the one that begins there). */
+  const wallAt = (posMm: number): number => {
     let pos = ((posMm % perimeter) + perimeter) % perimeter
     if (perimeter - pos < EPS) pos = 0
     let i = walk.length - 1
     while (i > 0 && startMm[i] > pos + EPS) i--
+    return i
+  }
+  const hidden = (i: number) => hiddenWalls?.has(walk[i].id) ?? false
+
+  /** Plan position of a loop position, off the wall; at a corner, off both walls that meet there. */
+  const at = (posMm: number): [number, number] => {
+    let pos = ((posMm % perimeter) + perimeter) % perimeter
+    if (perimeter - pos < EPS) pos = 0
+    const i = wallAt(pos)
     const w = walk[i]
     if (Math.abs(pos - startMm[i]) <= EPS) {
       const prev = walk[(i - 1 + walk.length) % walk.length]
@@ -305,13 +319,27 @@ export function schemePolylines(geometry: RoomGeometry, scheme: PipeScheme): Sch
     }
     stops.sort((a, b) => a - b)
     stops.push(line.toMm)
-    out.push({
-      key: `trunk-${line.kind}-${line.diameterMm}-${line.fromMm}`, kind: line.kind, diameterMm: line.diameterMm,
-      points: stops.map((s) => { const [x, z] = at(s); return [x, y, z] }),
-    })
+    // Between two stops the line is on one wall: the one holding their middle. Runs of shown walls are drawn.
+    const runs: number[][] = []
+    let run: number[] = []
+    for (let k = 0; k + 1 < stops.length; k++) {
+      if (hidden(wallAt((stops[k] + stops[k + 1]) / 2))) { if (run.length) runs.push(run); run = []; continue }
+      if (run.length === 0) run.push(stops[k])
+      run.push(stops[k + 1])
+    }
+    if (run.length) runs.push(run)
+    const base = `trunk-${line.kind}-${line.diameterMm}-${line.fromMm}`
+    runs.forEach((r, n) => out.push({
+      key: n === 0 ? base : `${base}-${n}`, kind: line.kind, diameterMm: line.diameterMm,
+      points: r.map((s) => { const [x, z] = at(s); return [x, y, z] }),
+    }))
   }
   for (const b of scheme.branches) {
     if (b.fromHeightMm === b.toHeightMm) continue
+    // A point in a corner is on both walls there: hidden with either.
+    const i = wallAt(b.sMm)
+    const atCorner = Math.abs(((b.sMm % perimeter) + perimeter) % perimeter - startMm[i]) <= EPS
+    if (hidden(i) || (atCorner && hidden((i - 1 + walk.length) % walk.length))) continue
     const [x, z] = at(b.sMm)
     out.push({ key: `branch-${b.pointId}`, kind: b.kind, diameterMm: b.diameterMm, points: [[x, b.fromHeightMm / 1000, z], [x, b.toHeightMm / 1000, z]] })
   }

@@ -96,38 +96,3 @@ export function plumbingSummary(geometry: RoomGeometry, points: readonly Plumbin
     water: { points: points.length - drains, m: m(water_20.trunkMm + water_20.branchMm) },
   }
 }
-
-/**
- * The pipe run as drawn: from the point, the shorter way round, through each corner passed, to the
- * riser. Plan positions (x, z) in metres, room-centred like furniture.
- */
-export function pipeRunPath(geometry: RoomGeometry, from: { wallId: string; positionMm: number }, riser: { wallId: string; positionMm: number }): Array<[number, number]> {
-  const walk = wallWalk(geometry)
-  if (!walk.length) return []
-  const cum: number[] = []
-  let total = 0
-  for (const w of walk) { cum.push(total); total += w.lengthM }
-  const idx = (id: string) => Math.max(0, walk.findIndex((w) => w.id === id))
-  const coord = (id: string, posMm: number) => cum[idx(id)] + posMm / 1000
-  const xz = (c: number): [number, number] => {
-    const t = ((c % total) + total) % total
-    let i = walk.length - 1
-    while (i > 0 && cum[i] > t) i--
-    const w = walk[i], s = t - cum[i]
-    return [w.startX + w.dirX * s, w.startZ + w.dirZ * s]
-  }
-  const a = coord(from.wallId, from.positionMm), b = coord(riser.wallId, riser.positionMm)
-  let d = b - a
-  if (Math.abs(d) > total / 2) d -= Math.sign(d) * total
-  const path: Array<[number, number]> = [xz(a)]
-  // Corners passed between a and a + d.
-  for (let k = -walk.length; k <= 2 * walk.length; k++) {
-    const corner = cum[((k % walk.length) + walk.length) % walk.length] + Math.floor(k / walk.length) * total
-    if ((d > 0 && corner > a + 1e-9 && corner < a + d - 1e-9) || (d < 0 && corner < a - 1e-9 && corner > a + d + 1e-9)) {
-      path.push(xz(corner))
-    }
-  }
-  if (d < 0) path.splice(1, path.length - 1, ...path.slice(1).reverse())
-  path.push(xz(a + d))
-  return path
-}

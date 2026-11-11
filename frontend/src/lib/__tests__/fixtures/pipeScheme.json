@@ -984,7 +984,7 @@
      "tee_50": 1,
      "elbow_50": 3,
      "tee_110_50": 0,
-     "elbow_110": 2
+     "elbow_110": 1
     },
     "why": {
      "tee_20": {
@@ -1013,7 +1013,7 @@
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 1
+      "corners": 0
      }
     },
     "lines": [
@@ -1184,7 +1184,7 @@
      "tee_50": 0,
      "elbow_50": 3,
      "tee_110_50": 1,
-     "elbow_110": 3
+     "elbow_110": 2
     },
     "why": {
      "tee_20": {
@@ -1213,7 +1213,7 @@
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 2
+      "corners": 1
      }
     },
     "lines": [
@@ -1391,7 +1391,7 @@
      "tee_50": 0,
      "elbow_50": 1,
      "tee_110_50": 1,
-     "elbow_110": 4
+     "elbow_110": 3
     },
     "why": {
      "tee_20": {
@@ -1420,7 +1420,7 @@
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 3
+      "corners": 2
      }
     },
     "lines": [
@@ -2665,7 +2665,7 @@
      "tee_50": 0,
      "elbow_50": 1,
      "tee_110_50": 1,
-     "elbow_110": 5
+     "elbow_110": 4
     },
     "why": {
      "tee_20": {
@@ -2694,7 +2694,7 @@
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 4
+      "corners": 3
      }
     },
     "lines": [

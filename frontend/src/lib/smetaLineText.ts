@@ -181,7 +181,8 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
   [/ − eshiklar /g, (t) => ` − ${t("smeta.formula.doors")} `],
   // The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
   [/^Magistral (?=\d)/g, (t) => `${t("smeta.formula.trunk")} `],
-  [/ \+ tik (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pipes")} `],
+  [/ \+ tik bo'laklar (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pieces")} `],
+  [/ \+ tik (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pipes")} `], // estimates saved on 2026-11-11
   [/ so'm$/g, (t) => ` ${t("smeta.formula.som")}`],
 ];
 
@@ -191,10 +192,11 @@ const FORMULA_COUNTED = {
   list: "smeta.unit.list", komplekt: "smeta.unit.komplekt", polosa: "smeta.formula.polosa", qatlam: "smeta.formula.qatlam", nuqta: "smeta.formula.nuqta",
   // What a fitting's count is made of (spec 2026-11-11).
   tarmoq: "smeta.formula.tarmoq", stoyak: "smeta.formula.stoyak", burchak: "smeta.formula.burchak", uch: "smeta.formula.uch", unitaz: "smeta.formula.unitaz", liniya: "smeta.formula.liniya", ulanish: "smeta.formula.ulanish",
+  "xona burchagi": "smeta.formula.xona_burchagi", "magistral uchi": "smeta.formula.magistral_uchi",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)(?=$|[\s);,:])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });

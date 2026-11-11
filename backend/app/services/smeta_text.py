@@ -317,7 +317,8 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
      lambda lang: f" − {t('formula.doors', lang)} "),
     # The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
     (re.compile(r"\AMagistral (?=\d)"), lambda lang: f"{t('formula.trunk', lang)} "),
-    (re.compile(r" \+ tik (?=\d)"), lambda lang: f" + {t('formula.branch_pipes', lang)} "),
+    (re.compile(r" \+ tik bo'laklar (?=\d)"), lambda lang: f" + {t('formula.branch_pieces', lang)} "),
+    (re.compile(r" \+ tik (?=\d)"), lambda lang: f" + {t('formula.branch_pipes', lang)} "),  # estimates saved on 2026-11-11
     (re.compile(r" so'm\Z"),
      lambda lang: f" {t('formula.som', lang)}"),
 ]
@@ -328,11 +329,12 @@ _FORMULA_COUNTED = {
     "list": "unit.list", "komplekt": "unit.komplekt", "polosa": "formula.polosa", "qatlam": "formula.qatlam", "nuqta": "formula.nuqta",
     # What a fitting's count is made of (spec 2026-11-11).
     "tarmoq": "formula.tarmoq", "stoyak": "formula.stoyak", "burchak": "formula.burchak", "uch": "formula.uch", "unitaz": "formula.unitaz", "liniya": "formula.liniya", "ulanish": "formula.ulanish",
+    "xona burchagi": "formula.xona_burchagi", "magistral uchi": "formula.magistral_uchi",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)"
     r"(?=\Z|[\s);,:])"
 )
 

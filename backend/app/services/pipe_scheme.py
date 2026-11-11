@@ -43,6 +43,13 @@ def _number(v: object) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
 
 
+def sound_point(p: object) -> bool:
+    """A point the scheme can read: a known kind, a finite position and height (its wall is checked
+    against the room's own). The estimate counts the plumber's work on these only."""
+    return (isinstance(p, dict) and p.get("kind") in KINDS
+            and _number(p.get("positionMm")) is not None and _number(p.get("heightMm")) is not None)
+
+
 def _trunk(inp: dict, perimeter: float, points: list[dict], doors: list) -> dict:
     """The trunk that joins the riser to ``points``: the loop less its cut. ``doors`` are the doors it may
     not pass: a water trunk's are the room's; a drain trunk lies on the floor and passes under them (the
@@ -91,11 +98,13 @@ def _trunk(inp: dict, perimeter: float, points: list[dict], doors: list) -> dict
         right = at + right
     else:
         left = at + left
+    # A corner the trunk passes. Not one at the riser itself: each arm leaves the riser along its own wall
+    # (the riser's tee turns it), so there is no bend there (review minor 8, 2026-11-11).
     corners: list[float] = []
     corner = 0.0
     for w in inp["wallsMm"]:
         tc = norm(corner - start)
-        if corner < perimeter - EPS and EPS < tc < length - EPS:
+        if corner < perimeter - EPS and EPS < tc < length - EPS and abs(tc - riser_t) > EPS:
             corners.append(tc - riser_t)
         corner += w
     return {"start": start, "length": length, "riser_t": riser_t, "left": left, "right": right, "corners": corners}
@@ -150,12 +159,7 @@ def build_scheme(inp: dict) -> dict:
             if toilets:
                 why["tee_110_50"]["joins"] += len(narrow) - len(tail) + (1 if tail else 0)
         for c in tr["corners"]:
-            if c < -EPS:
-                on_wide = -c < way[0] - EPS
-            elif c > EPS:
-                on_wide = c < way[1] - EPS
-            else:
-                on_wide = max(way) > EPS
+            on_wide = -c < way[0] - EPS if c < 0 else c < way[1] - EPS
             why["elbow_110" if on_wide else "elbow_50"]["corners"] += 1
         total = _js_round(tr["length"])
         pipes["drain_110"]["trunkMm"] = _js_round(way[0] + way[1])
@@ -202,7 +206,9 @@ def scheme_input(geometry: dict | None, riser: tuple[str, float], points: list |
         pos = _number(position_mm)
         if wall is None or pos is None:
             return None
-        return wall[0] + min(wall[1], max(0, _js_round(pos)))
+        # Snapped to a millionth of a mm first: a door's middle worked out of a fraction can land a hair
+        # under a half millimetre the studio rounds up (review minor 5).
+        return wall[0] + min(wall[1], max(0, _js_round(_js_round(pos * 1e6) / 1e6)))
 
     raw = {str(w.get("id")): w for w in (geometry or {}).get("walls") or [] if isinstance(w, dict)}
     doors: list[int] = []
@@ -222,12 +228,12 @@ def scheme_input(geometry: dict | None, riser: tuple[str, float], points: list |
 
     out: list[dict] = []
     for p in points or []:
-        if not isinstance(p, dict) or p.get("kind") not in KINDS:
+        if not sound_point(p):
             continue
         s = place(p.get("wallId"), p.get("positionMm"))
-        h = _number(p.get("heightMm"))
-        if s is None or h is None:
+        if s is None:
             continue
+        h = _number(p.get("heightMm"))
         kind = p["kind"]
         out.append({"id": p.get("id"), "kind": kind, "diameterMm": 20 if kind != "drain" else 110 if p.get("diameterMm") == 110 else 50,
                     "sMm": s, "heightMm": max(0, _js_round(h))})

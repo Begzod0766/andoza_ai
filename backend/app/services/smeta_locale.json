@@ -127,7 +127,12 @@
         "liniya_one": "liniya",
         "liniya_other": "liniya",
         "ulanish_one": "ulanish",
-        "ulanish_other": "ulanish"
+        "ulanish_other": "ulanish",
+        "branch_pieces": "tik bo'laklar",
+        "xona_burchagi_one": "xona burchagi",
+        "xona_burchagi_other": "xona burchagi",
+        "magistral_uchi_one": "magistral uchi",
+        "magistral_uchi_other": "magistral uchi"
       },
       "warning": {
         "norm_missing": "Bu qism uchun aniq norma topilmadi — standart ko'rsatkich bo'yicha hisoblandi.",
@@ -353,7 +358,16 @@
         "ulanish_one": "врезка",
         "ulanish_few": "врезки",
         "ulanish_many": "врезок",
-        "ulanish_other": "врезки"
+        "ulanish_other": "врезки",
+        "branch_pieces": "отводы",
+        "xona_burchagi_one": "угол комнаты",
+        "xona_burchagi_few": "угла комнаты",
+        "xona_burchagi_many": "углов комнаты",
+        "xona_burchagi_other": "угла комнаты",
+        "magistral_uchi_one": "конец магистрали",
+        "magistral_uchi_few": "конца магистрали",
+        "magistral_uchi_many": "концов магистрали",
+        "magistral_uchi_other": "конца магистрали"
       },
       "warning": {
         "norm_missing": "Точной нормы для этой части нет: посчитано по стандартному показателю.",
@@ -545,7 +559,12 @@
         "liniya_one": "line",
         "liniya_other": "lines",
         "ulanish_one": "join",
-        "ulanish_other": "joins"
+        "ulanish_other": "joins",
+        "branch_pieces": "branches",
+        "xona_burchagi_one": "room corner",
+        "xona_burchagi_other": "room corners",
+        "magistral_uchi_one": "trunk end",
+        "magistral_uchi_other": "trunk ends"
       },
       "warning": {
         "norm_missing": "No exact norm was found for this part: it is calculated with the standard rate.",

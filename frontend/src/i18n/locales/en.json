@@ -1230,7 +1230,12 @@
       "liniya_one": "line",
       "liniya_other": "lines",
       "ulanish_one": "join",
-      "ulanish_other": "joins"
+      "ulanish_other": "joins",
+      "branch_pieces": "branches",
+      "xona_burchagi_one": "room corner",
+      "xona_burchagi_other": "room corners",
+      "magistral_uchi_one": "trunk end",
+      "magistral_uchi_other": "trunk ends"
     }
   },
   "ustalar": {

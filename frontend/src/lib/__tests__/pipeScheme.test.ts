@@ -332,3 +332,66 @@ describe('plumbingSummary from the scheme', () => {
     expect(plumbingSummary(g, pts, hammom.riser).water.m).toBeLessThan(old)
   })
 })
+
+// ─── Review minors (2026-11-11) ──────────────────────────────────────────────
+
+describe('a riser standing in a room corner, with points both ways', () => {
+  // riser at the A–B corner (2500); points at 1500 and 3500; the trunk 1500 → 3500
+  const input = { wallsMm: WALLS, doorsMm: [], riserMm: 2500 }
+  it('a water trunk leaves it along each wall from the tee: no corner elbow there', () => {
+    const s = buildScheme({ ...input, points: [cold('a', 1500, 200), cold('b', 3500, 200)] })
+    expect(s.why.tee_20).toEqual({ branches: 0, riser: 1 })
+    expect(s.why.elbow_20).toEqual({ corners: 0, ends: 2 })
+  })
+  it('a drain trunk too', () => {
+    const s = buildScheme({ ...input, points: [drain('a', 1500, 0), drain('b', 3500, 0, 110)] })
+    expect(s.why.elbow_50).toEqual({ corners: 0, ends: 1 })
+    expect(s.why.elbow_110).toEqual({ toilets: 1, corners: 0 })
+  })
+  it('a corner the trunk passes away from the riser is still an elbow', () => {
+    const s = buildScheme({ ...input, riserMm: 2000, points: [cold('a', 1500, 200), cold('b', 3500, 200)] })
+    expect(s.why.elbow_20).toEqual({ corners: 1, ends: 2 })
+  })
+})
+
+describe('schemeInput: a door\'s middle on a half millimetre', () => {
+  it('rounds alike on both sides (the backend reads the same rooms)', () => {
+    const door: El = { type: 'eshik', position: 472, width: 915 } // middle 929.5 mm from the wall's own start
+    expect(schemeInput(rect(2709, 2000, { A: [door] }), { wallId: 'A', positionMm: 0 }, []).doorsMm).toEqual([930])
+    // C runs against the walk: 2709 − 929.5 = 1779.5 along it, C starts at 4709
+    expect(schemeInput(rect(2709, 2000, { C: [door] }), { wallId: 'A', positionMm: 0 }, []).doorsMm).toEqual([4709 + 1780])
+  })
+})
+
+describe('schemeInput: openings not placed by hand', () => {
+  const auto = (position: number, width: number, positionAuto?: boolean) => ({ type: 'eshik', position, width, ...(positionAuto === undefined ? {} : { positionAuto }) }) as El
+  it('a lone door with no place of its own sits in the middle of its wall', () => {
+    expect(schemeInput(rect(2500, 2000, { B: [auto(0, 800)] }), { wallId: 'A', positionMm: 0 }, []).doorsMm).toEqual([3500])
+    expect(schemeInput(rect(2500, 2000, { B: [auto(300, 800, true)] }), { wallId: 'A', positionMm: 0 }, []).doorsMm).toEqual([3500])
+  })
+  it('beside an explicit one, in the wider free stretch', () => {
+    expect(schemeInput(rect(2500, 2000, { B: [auto(100, 600, false), auto(0, 800)] }), { wallId: 'A', positionMm: 0 }, []).doorsMm).toEqual([2900, 3850])
+  })
+  it('three on a wall, spread evenly (a window counts)', () => {
+    const win = { type: 'deraza', position: 0, width: 400 } as El
+    expect(schemeInput(rect(2500, 2000, { B: [auto(0, 400), win, auto(0, 400)] }), { wallId: 'A', positionMm: 0 }, []).doorsMm).toEqual([3000, 4000])
+  })
+})
+
+describe('schemePolylines with hidden walls', () => {
+  const g = rect(2500, 2000, { D: [DOOR] })
+  const two = [point({ id: 'c1', positionMm: 1000, heightMm: 550 }), point({ id: 'c2', wallId: 'B', positionMm: 500, heightMm: 1050 })]
+  it('draws neither the trunk nor a branch on a hidden wall', () => {
+    const lines = schemePolylines(g, pipeScheme(g, { wallId: 'D', positionMm: 0 }, two), new Set(['B']))
+    expect(lines.find((l) => l.key === 'branch-c2')).toBeUndefined()
+    expect(lines.find((l) => l.key === 'branch-c1')).toBeDefined()
+    // the cold trunk 1000 → 7000 runs on A, B and C: with B hidden, its A and C stretches are drawn apart
+    const trunks = lines.filter((l) => l.key.startsWith('trunk'))
+    expect(trunks).toHaveLength(2)
+    expect(trunks.map((t) => t.points.length)).toEqual([2, 2])
+  })
+  it('the same lines as before with nothing hidden', () => {
+    const s = pipeScheme(g, { wallId: 'D', positionMm: 0 }, two)
+    expect(schemePolylines(g, s, new Set())).toEqual(schemePolylines(g, s))
+  })
+})

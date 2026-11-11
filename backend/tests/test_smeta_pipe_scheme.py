@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.services.pipe_scheme import pipe_scheme
-from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+from app.services.plumbing import load_plumbing_norms, riser_spot
 from app.services.smeta import PLUMBING_FITTINGS_WARNING, _plumbing_lines, _round2
 from app.services.smeta_text import localize_formula, localize_label
 
@@ -67,14 +67,14 @@ def test_pipe_lines_come_from_the_scheme():
         metres = _round2((p["trunkMm"] + p["branchMm"]) / 1000 * 1.15)
         assert got[label].qty == metres and got[label].unit == "m"
         total = (p["trunkMm"] + p["branchMm"]) / 1000
-        assert got[label].formula == f"Magistral {p['trunkMm'] / 1000:.2f} m + tik {p['branchMm'] / 1000:.2f} m = {total:.2f} m × 1.15 = {metres:g} m"
+        assert got[label].formula == f"Magistral {p['trunkMm'] / 1000:.2f} m + tik bo'laklar {p['branchMm'] / 1000:.2f} m = {total:.2f} m × 1.15 = {metres:g} m"
 
 
 def test_the_room_needs_less_pipe_than_a_run_per_point():
     got = by_label(_plumbing_lines(room(), {}))
-    riser = riser_spot(GEOMETRY, None)
-    old = _round2(sum(pipe_run_m(GEOMETRY, p, riser) for p in PLUMBING if p["kind"] != "drain") * 1.15)
-    assert 0 < got["Suv quvuri PPR Ø20"].qty < old
+    # A run of its own from each water point to the riser, as priced before 2026-11-11:
+    # 3.85 + 4.05 + 3.8 + 2.35 + 2.15 m × 1.15 = 18.63 m.
+    assert 0 < got["Suv quvuri PPR Ø20"].qty < 18.63
 
 
 def test_each_fitting_is_a_line_with_its_count_price_and_working():
@@ -82,15 +82,20 @@ def test_each_fitting_is_a_line_with_its_count_price_and_working():
     got = by_label(_plumbing_lines(room(), {}))
     labels = [ln.label for ln in _plumbing_lines(room(), {})]
     w = s["why"]
+    def terms(n, *parts):
+        """The spec's working: only the parts that are not zero; "= n dona" when there are two."""
+        shown = [f"{count} {word}" for count, word in parts if count]
+        return " + ".join(shown) + (f" = {n} dona" if len(shown) > 1 else "")
+
+    f = s["fittings"]
     formulas = {
-        "tee_20": f"{w['tee_20']['branches']} tarmoq + {w['tee_20']['riser']} stoyak = {s['fittings']['tee_20']} dona"
-        if w["tee_20"]["riser"] else f"{w['tee_20']['branches']} tarmoq",
-        "elbow_20": f"{w['elbow_20']['corners']} burchak + {w['elbow_20']['ends']} uch = {s['fittings']['elbow_20']} dona",
+        "tee_20": terms(f["tee_20"], (w["tee_20"]["branches"], "tarmoq"), (w["tee_20"]["riser"], "stoyak")),
+        "elbow_20": terms(f["elbow_20"], (w["elbow_20"]["corners"], "xona burchagi"), (w["elbow_20"]["ends"], "magistral uchi")),
         "outlet_20": f"{w['outlet_20']['points']} nuqta", "valve_20": f"{w['valve_20']['lines']} liniya",
         "tee_50": f"{w['tee_50']['branches']} tarmoq",
-        "elbow_50": f"{w['elbow_50']['corners']} burchak + {w['elbow_50']['ends']} uch = {s['fittings']['elbow_50']} dona",
+        "elbow_50": terms(f["elbow_50"], (w["elbow_50"]["corners"], "xona burchagi"), (w["elbow_50"]["ends"], "magistral uchi")),
         "tee_110_50": f"{w['tee_110_50']['joins']} ulanish",
-        "elbow_110": f"{w['elbow_110']['toilets']} unitaz + {w['elbow_110']['corners']} burchak = {s['fittings']['elbow_110']} dona",
+        "elbow_110": terms(f["elbow_110"], (w["elbow_110"]["toilets"], "unitaz"), (w["elbow_110"]["corners"], "xona burchagi")),
     }
     listed = [label for key, label, _ in FITTINGS if s["fittings"][key] > 0]
     assert len(listed) >= 6  # this room has toilet, sink and bath: most kinds are there
@@ -181,8 +186,35 @@ def test_labels_read_in_russian_and_english(label, ru, en):
     ("2 liniya", "2 линии", "2 lines"),
     ("3 ulanish", "3 врезки", "3 joins"),
     ("1 tarmoq", "1 отвод", "1 branch"),
+    # The spec's own words (review minor 2); the shorter ones above stay for estimates saved before.
+    ("Magistral 6.00 m + tik bo'laklar 1.20 m = 7.20 m × 1.15 = 8.28 m",
+     "Магистраль 6.00 м + отводы 1.20 м = 7.20 м × 1.15 = 8.28 м", "Trunk 6.00 m + branches 1.20 m = 7.20 m × 1.15 = 8.28 m"),
+    ("2 xona burchagi + 1 magistral uchi = 3 dona", "2 угла комнаты + 1 конец магистрали = 3 шт.", "2 room corners + 1 trunk end = 3 pcs"),
+    ("5 xona burchagi", "5 углов комнаты", "5 room corners"),
+    ("1 unitaz + 1 xona burchagi = 2 dona", "1 унитаз + 1 угол комнаты = 2 шт.", "1 toilet + 1 room corner = 2 pcs"),
+    ("2 magistral uchi", "2 конца магистрали", "2 trunk ends"),
 ])
 def test_formulas_read_in_russian_and_english(formula, ru, en):
     assert localize_formula(formula, "ru") == ru
     assert localize_formula(formula, "en") == en
     assert localize_formula(formula, "uz") == formula
+
+
+# ─── Review minors (2026-11-11) ──────────────────────────────────────────────
+
+def test_a_formula_leaves_out_a_count_of_zero():
+    """One point beside the riser: the trunk passes no corner, so the elbow reads "1 magistral uchi"."""
+    one = [{"id": "c", "kind": "cold", "diameterMm": 20, "wallId": "C", "positionMm": 2000, "heightMm": 500}]
+    got = by_label(_plumbing_lines(room(plumbing=one, furniture=[]), {}))
+    assert got["PPR burchak Ø20"].formula == "1 magistral uchi"
+    import re
+    assert not [ln.formula for ln in got.values() if re.search(r"(?:^|\+ )0 [a-z]", ln.formula)]  # no "0 xona burchagi"
+
+
+def test_a_point_the_scheme_cannot_read_is_not_charged_as_work_either():
+    bad = [{"id": "x", "kind": "cold", "diameterMm": 20, "wallId": "A", "positionMm": 500},          # no height
+           {"id": "y", "kind": "cold", "diameterMm": 20, "wallId": "A", "positionMm": "far", "heightMm": 500},
+           {"id": "z", "kind": "steam", "diameterMm": 20, "wallId": "A", "positionMm": 500, "heightMm": 500}]
+    got = by_label(_plumbing_lines(room(plumbing=PLUMBING + bad), {}))
+    assert got["Ish: nuqtani ulash"].qty == 8
+    assert got["Suv rozetkasi Ø20"].qty == 5

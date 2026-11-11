@@ -1298,7 +1298,16 @@
       "ulanish_one": "врезка",
       "ulanish_few": "врезки",
       "ulanish_many": "врезок",
-      "ulanish_other": "врезки"
+      "ulanish_other": "врезки",
+      "branch_pieces": "отводы",
+      "xona_burchagi_one": "угол комнаты",
+      "xona_burchagi_few": "угла комнаты",
+      "xona_burchagi_many": "углов комнаты",
+      "xona_burchagi_other": "угла комнаты",
+      "magistral_uchi_one": "конец магистрали",
+      "magistral_uchi_few": "конца магистрали",
+      "magistral_uchi_many": "концов магистрали",
+      "magistral_uchi_other": "конца магистрали"
     }
   },
   "ustalar": {
