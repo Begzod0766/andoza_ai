@@ -77,7 +77,7 @@ export default function AdminCatalogPanel() {
             >
               {t(item.labelKey)}
               {badges[item.id] && (
-                <span className={cn("rounded-full px-1.5 text-[11px] font-bold", selected ? "bg-card/20" : "bg-orange-500/15 text-orange-600")}>
+                <span className={cn("rounded-full px-1.5 text-[11px] font-bold", selected ? "bg-card/20" : "bg-warn/15 text-ink")}>
                   {badges[item.id]}
                 </span>
               )}
