@@ -83,6 +83,26 @@ Web uchun 9 ta ish bor: [Web nima qilishi kerak](#web-nima-qilishi-kerak).
 
 **Avvalgi natijalardan tuzatilganlari:** Santexnika paneli endi pastdan chiqadigan oyna. "+ Add a point"da bitta plus. Smeta va PDF'da jihozlar nomi tarjima qilingan. Inglizcha PDF'da "Fittings" ustma-ust tushmaydi.
 
+## Qayta tekshiruv: #235, #236, #237 dan keyin (2026-11-11, 12:10–12:25)
+
+Ilova o'sha (1.0.0+31), server production. Ilova qayta ishga tushirildi, WebView yangi kodni oldi. Ochilganda "Hammom"da quritgich bor edi: kechqurun o'chirilgan edi, demak oraliqda kimdir qo'shgan (web tomondagi tekshiruv bo'lsa kerak).
+
+| Web ishi | Natija |
+|---|---|
+| 1. Undo/Redo telefonda yo'q | ✅ ⋮ yonida ikkita tugma bor. Qiladigan ish bo'lmaganda o'chiq turadi ([rasm](img/2026-11-11-sochiq-ventilyator/16-recheck-undo-redo-buttons.png)). Surishdan keyin Undo yonadi, bosilganda quritgich oldingi joyiga qaytadi va Redo yonadi |
+| 2. Quritgichni ushlash qiyin | ✅ Zinalar orasidan ushlansa ham quritgich suriladi, kamera aylanmaydi. Santexnika bosqichidan tashqarida vannaga tegilsa vanna tanlanadi, quritgich teginishni olmaydi |
+| 3. Eshikdan sakrab o'tadi | ✅ Burchakdan eshik tomonga surildi, barmoq eshik ustidan o'tib ketdi, quritgich eshik chetida to'xtadi ([rasm](img/2026-11-11-sochiq-ventilyator/18-recheck-rail-stops-at-door.png)) |
+| 4. Ma'lumot oynasida "Vanna 1" | ✅ "Bathtub 1 · 1.70 × 0.70 m · 4,500,000 UZS" ([rasm](img/2026-11-11-sochiq-ventilyator/19-recheck-bathtub-tooltip.png)) |
+| 5. PDF'da miqdor kasrsiz | ✅ en PDF: 5.94 m², 5.4 m², 15.27 m², 8.68 m, 2.9 m, 30.27 m |
+| 6. Ruscha PDF'da «Фитинги» ustma-ust | ➖ ruscha PDF bu safar yuklanmadi. Inglizcha PDF'da birlik ustuni kengaygan, ustma-ust tushish yo'q |
+| 7. Ruscha "Тип" maydoni tor | ✅ "Kind" maydoni endi alohida, to'liq qatorda ([rasm](img/2026-11-11-sochiq-ventilyator/17-recheck-kind-row.png)). Ruschada ko'rilmadi |
+| 8. Izohlar ko'rinmaydi | ✅ yorug' mavzuda: "Approximate price — …" va "of which approximate: …" sariq-jigarrang, "approximate" belgisi och fonda ([rasm](img/2026-11-11-sochiq-ventilyator/20-recheck-notes-colour.png)). Studio bugun yorug' mavzuda ochildi, tizimni qorong'iga o'tkazish uni o'zgartirmadi, shuning uchun qorong'i mavzu ko'rilmadi |
+| 9. Undo natijasi saqlanmaydi | ✅ Surish → Undo tugmasi → ilova butunlay yopildi va qayta ochildi: quritgich Undo qaytargan joyda turibdi |
+
+**Yangi kuzatuv (kichik, tasdiqlanmagan).** Bir marta quritgich surilgandan keyin devorning doira menyusi (Wallpaper / Tile / Window / Door) ham ochilib qoldi. Bundan oldingi teginish quritgichni qimirlatmagan edi, chunki u allaqachon eshik chetida turgan edi. Menyu o'sha teginish yoki surishning tugashi bilan ochilgan bo'lishi mumkin. Keyingi ikki surishda bu qaytarilmadi.
+
+Tekshiruvdan keyin quritgich yana o'chirildi, ventilyator yoqilgan qoldi (issue'dagi holat).
+
 ## Mobil tomonda qolgan ish
 
 Bosh sahifadagi "Hammom namunasi" kartasida smeta haliyam **17.5M**, Studio'da esa **19 309 510 so'm**. Karta ilovaning o'z taxminiy hisobini ko'rsatadi (`roomEstimateTotalProvider`), u santexnika, plitka va ventilyatorni bilmaydi.
