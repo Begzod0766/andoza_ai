@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -124,6 +124,17 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
       window.removeEventListener("pointercancel", end);
     };
   }, [dragging, geometry, camera, gl, raycaster, moveTowelRail, controlsRef]);
+
+  // The scene can go away mid-drag (another page, another room): the drag ends with it, or undo
+  // stays paused and the camera stays locked.
+  const draggingRef = useRef<string | null>(null);
+  draggingRef.current = dragging;
+  useEffect(() => () => {
+    if (!draggingRef.current) return;
+    useRoomStore.getState().endTowelRailDrag();
+    if (controlsRef.current) controlsRef.current.enabled = true;
+    document.body.style.cursor = "";
+  }, [controlsRef]);
 
   if (towelRails.length === 0) return null;
 

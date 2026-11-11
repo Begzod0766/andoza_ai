@@ -333,3 +333,32 @@ class TestSeeder:
     async def test_a_missing_store_is_skipped_not_fatal(self):
         result = await seed._apply(_FakeSession([], []))
         assert result["inserted"] == 0 and result["skipped_store"] == len(seed.PRODUCTS) + len(seed.ADOPT)
+
+
+def test_a_piece_product_is_compared_by_its_own_price_whatever_pack_it_names():
+    """Review minor M7: a towel rail entered as "2 per pack" looked half the price and won as the
+    cheapest, then was charged at its full price per rail."""
+    from types import SimpleNamespace
+
+    from app.services.estimate_catalog import pick_cheapest
+
+    def rail(name, price, pack_qty=None):
+        return SimpleNamespace(name_uz=name, smeta_key="sochiq_quritgich", is_active=True, unit="dona", price_uzs=price,
+                               pack_qty=pack_qty, pack_unit="dona" if pack_qty else None)
+
+    best = pick_cheapest([rail("dear, said to be a pair", 900_000, 2), rail("cheap", 600_000)])
+    assert best["sochiq_quritgich"].name_uz == "cheap"
+    fans = [SimpleNamespace(name_uz=n, smeta_key="ventilyator", is_active=True, unit="dona", price_uzs=p, pack_qty=q, pack_unit=None)
+            for n, p, q in (("a", 200_000, 4), ("b", 150_000, None))]
+    assert pick_cheapest(fans)["ventilyator"].name_uz == "b"
+    # A bag is still compared by the kilogram.
+    bags = [SimpleNamespace(name_uz=n, smeta_key="suvoq", is_active=True, unit="qop", price_uzs=p, pack_qty=q, pack_unit="kg")
+            for n, p, q in (("30 kg", 60_000, 30), ("25 kg", 55_000, 25))]
+    assert pick_cheapest(bags)["suvoq"].name_uz == "30 kg"
+
+
+def test_the_piece_keys_are_the_ones_the_key_list_says_are_sold_by_the_piece():
+    from app.services.estimate_catalog import _PIECE_KEYS
+    from app.services.smeta_keys import KEY_SALE_UNIT
+
+    assert _PIECE_KEYS == {k for k, unit in KEY_SALE_UNIT.items() if unit == "dona"}

@@ -34,11 +34,21 @@ def test_a_room_with_no_geometry():
     assert rail_points([{"id": "r", "wallId": "A", "positionMm": 500, "heightMm": 1000}], None) == []
 
 
-def test_a_missing_or_bad_height_reads_as_the_usual_one():
-    got = rail_points([{"id": "r", "wallId": "A", "positionMm": 1000, "heightMm": "high"}, {"id": "q", "wallId": "A", "positionMm": 1000}], _metres(RECT))
-    assert [p["heightMm"] for p in got] == [1000] * 4
-
-
 def test_valid_rails_keeps_only_rails_on_walls_the_room_has():
     rails = [{"id": "r1", "wallId": "A", "positionMm": 600, "heightMm": 1000}, {"id": "r2", "wallId": "Q", "positionMm": 600, "heightMm": 1000}]
     assert [r["id"] for r in valid_rails(rails, _metres(RECT))] == ["r1"]
+
+
+# ─── One rule with the studio for what counts as a rail (review minor M3) ────
+
+@pytest.mark.parametrize("rail", [
+    {"id": "r", "wallId": "A", "positionMm": 1000},                       # no height
+    {"id": "r", "wallId": "A", "positionMm": 1000, "heightMm": "high"},   # a height that is no number
+    {"id": "r", "wallId": 0, "positionMm": 1000, "heightMm": 1000},       # a wall id that is no string
+    {"id": 7, "wallId": "A", "positionMm": 1000, "heightMm": 1000},       # an id that is no string
+    {"id": "r", "wallId": "A", "positionMm": float("nan"), "heightMm": 1000},
+])
+def test_a_rail_the_studio_would_drop_on_load_is_not_priced_either(rail):
+    """frontend lib/towelRail saneRails drops these; the estimate used to price them anyway."""
+    assert valid_rails([rail], _metres(RECT)) == []
+    assert rail_points([rail], _metres(RECT)) == []

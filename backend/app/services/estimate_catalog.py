@@ -26,9 +26,17 @@ from app.services.smeta import WallpaperRoll, _price_per, furniture_catalog_key,
 log = structlog.get_logger(__name__)
 
 
+# The estimate keys sold and priced by the piece (app.services.smeta_keys KEY_SALE_UNIT).
+_PIECE_KEYS = frozenset({"ventilyator", "sochiq_quritgich"})
+
+
 def unit_cost(material: Material) -> float:
     """What a product costs per unit of what it holds, so a 30 kg bag and a 25 kg bag
     compare fairly. A product without a pack size compares by its own price."""
+    # Something bought by the piece (a fan, a towel rail) is priced by the piece in the estimate
+    # whatever pack its row names: divided by a pack, a dearer one looked the cheapest.
+    if material.smeta_key in _PIECE_KEYS:
+        return float(material.price_uzs)
     pack = float(material.pack_qty) if material.pack_qty else 0.0
     return material.price_uzs / pack if pack > 0 else float(material.price_uzs)
 

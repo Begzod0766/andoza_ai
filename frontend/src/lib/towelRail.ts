@@ -1,6 +1,6 @@
 import type { PlumbingPoint, RoomGeometry, TowelRail } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
-import { wallWalk } from '@/lib/plumbingRuns'
+import { pipeRunM, wallWalk } from '@/lib/plumbingRuns'
 import { resolveElementPositions } from '@/lib/wallPositions'
 
 /**
@@ -87,21 +87,27 @@ export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: 
 
 /**
  * Where a new rail goes: on the riser's wall, 600 mm from the riser towards the room, or the nearest
- * free place to that; when that wall has none, the first wall round the room that has one. Null when
+ * free place to that; when that wall has none, the free place on another wall with the shortest pipe
+ * run to the riser (the wall that meets the riser's corner, not just the next one round). Null when
  * no wall can take a rail.
  */
 export function placeTowelRail(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }): { wallId: string; positionMm: number } | null {
   const walk = wallWalk(geometry)
-  const first = walk.findIndex((w) => w.id === riser.wallId)
-  if (first < 0) return null
-  for (let i = 0; i < walk.length; i++) {
-    const w = walk[(first + i) % walk.length]
-    const length = w.lengthM * 1000
-    const want = i > 0 ? 0 : riser.positionMm <= length / 2 ? riser.positionMm + TOWEL_RAIL_RISER_GAP_MM : riser.positionMm - TOWEL_RAIL_RISER_GAP_MM
-    const at = nearestFree(geometry, w.id, want)
-    if (at != null) return { wallId: w.id, positionMm: at }
+  const home = walk.find((w) => w.id === riser.wallId)
+  if (!home) return null
+  const length = home.lengthM * 1000
+  const want = riser.positionMm <= length / 2 ? riser.positionMm + TOWEL_RAIL_RISER_GAP_MM : riser.positionMm - TOWEL_RAIL_RISER_GAP_MM
+  const onHome = nearestFree(geometry, home.id, want)
+  if (onHome != null) return { wallId: home.id, positionMm: onHome }
+  let best: { wallId: string; positionMm: number; run: number } | null = null
+  for (const w of walk) {
+    // On each free stretch the nearest place to the riser is one of its two ends.
+    for (const span of freeSpans(geometry, w.id)) for (const positionMm of span) {
+      const run = pipeRunM(geometry, { wallId: w.id, positionMm, heightMm: 0 }, riser)
+      if (!best || run < best.run - 1e-9) best = { wallId: w.id, positionMm, run }
+    }
   }
-  return null
+  return best && { wallId: best.wallId, positionMm: best.positionMm }
 }
 
 /**
