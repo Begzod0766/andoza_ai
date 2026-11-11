@@ -71,8 +71,12 @@ interface Trunk {
   corners: number[]
 }
 
-/** The trunk that joins the riser to `points`: the loop less its cut (the rule's steps 2–7). */
-function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[]): Trunk {
+/**
+ * The trunk that joins the riser to `points`: the loop less its cut (the rule's steps 2–7). `doorsMm` are
+ * the doors it may not pass: a water trunk's are the room's; a drain trunk lies on the floor and passes
+ * under them (the owner's ruling, 2026-11-11), so it is handed none.
+ */
+function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[], doorsMm: readonly number[]): Trunk {
   const norm = (x: number) => {
     const r = ((x % perimeter) + perimeter) % perimeter
     return perimeter - r < EPS ? 0 : r
@@ -91,7 +95,7 @@ function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[]): 
   for (let i = 0; i < n; i++) {
     const a = distinct[i]
     const len = n === 1 ? perimeter : i < n - 1 ? distinct[i + 1] - a : perimeter - a + distinct[0]
-    const door = input.doorsMm.some((d) => { const f = norm(d - a); return f > EPS && f < len - EPS })
+    const door = doorsMm.some((d) => { const f = norm(d - a); return f > EPS && f < len - EPS })
     if ((door && !cutDoor) || (door === cutDoor && len > cutLen + EPS)) { cut = i; cutLen = len; cutDoor = door }
   }
   const startMm = distinct[(cut + 1) % n]
@@ -130,7 +134,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
   for (const kind of ['cold', 'hot'] as const) {
     const points = input.points.filter((p) => p.kind === kind)
     if (points.length === 0) continue
-    const trunk = trunkOf(input, perimeter, points)
+    const trunk = trunkOf(input, perimeter, points, input.doorsMm)
     const ends = (trunk.left.length > 0 ? 1 : 0) + (trunk.right.length > 0 ? 1 : 0)
     out.pipes.water_20.trunkMm += Math.round(trunk.lengthMm)
     out.pipes.water_20.branchMm += Math.round(points.reduce((sum, p) => sum + Math.abs(height(p) - WATER_TRUNK_MM), 0))
@@ -150,7 +154,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
 
   const drains = input.points.filter((p) => p.kind === 'drain')
   if (drains.length > 0) {
-    const trunk = trunkOf(input, perimeter, drains)
+    const trunk = trunkOf(input, perimeter, drains, [])
     const wide = (p: ArmPoint) => p.point.diameterMm === 110
     // The Ø110 way on each arm: from the riser out to its farthest toilet.
     const way = [trunk.left, trunk.right].map((arm) => far(arm.filter(wide)))

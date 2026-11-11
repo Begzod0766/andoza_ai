@@ -41,7 +41,7 @@ A loop position is the distance walked from the start of the first wall. The ada
 
 1. A set with no points gives nothing.
 2. Sort the distinct positions (riser and points). The gaps are the stretches between neighbours, the last wrapping to the first; one distinct position gives a single gap of `P`.
-3. A gap holds a door when a door's middle lies strictly inside it. If any gap holds a door, the cut is the largest of those; otherwise the largest gap.
+3. A gap holds a door when a door's middle lies strictly inside it. If any gap holds a door, the cut is the largest of those; otherwise the largest gap. **The drain set ignores doors** (owner's ruling after the final review, 2026-11-11): its cut is always the largest gap.
 4. The trunk is the loop less the cut: it starts where the cut ends. `t(x)` is the forward distance from that start. `T = P − cut`.
 5. `trunkMm = max t − min t` over the nodes, which is `T`.
 6. Arms: the left arm holds the points with `t < t(riser)`, the right arm those with `t > t(riser)`. Points at the riser's own place join the right arm if it has points, else the left, else they are an arm of their own.

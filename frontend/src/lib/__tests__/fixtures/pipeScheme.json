@@ -968,7 +968,7 @@
       "branchMm": 0
      },
      "drain_50": {
-      "trunkMm": 5500,
+      "trunkMm": 5000,
       "branchMm": 650
      },
      "drain_110": {
@@ -983,8 +983,8 @@
      "valve_20": 0,
      "tee_50": 1,
      "elbow_50": 3,
-     "tee_110_50": 1,
-     "elbow_110": 1
+     "tee_110_50": 0,
+     "elbow_110": 2
     },
     "why": {
      "tee_20": {
@@ -1009,26 +1009,26 @@
       "ends": 1
      },
      "tee_110_50": {
-      "joins": 1
+      "joins": 0
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 0
+      "corners": 1
      }
     },
     "lines": [
      {
       "kind": "drain",
-      "diameterMm": 50,
-      "fromMm": 1000,
-      "toMm": 6500,
+      "diameterMm": 110,
+      "fromMm": 6500,
+      "toMm": 7000,
       "heightMm": 0
      },
      {
       "kind": "drain",
-      "diameterMm": 110,
-      "fromMm": 6500,
-      "toMm": 7000,
+      "diameterMm": 50,
+      "fromMm": 7000,
+      "toMm": 12000,
       "heightMm": 0
      }
     ],
@@ -1168,11 +1168,11 @@
       "branchMm": 0
      },
      "drain_50": {
-      "trunkMm": 0,
+      "trunkMm": 2500,
       "branchMm": 650
      },
      "drain_110": {
-      "trunkMm": 6000,
+      "trunkMm": 3000,
       "branchMm": 200
      }
     },
@@ -1182,8 +1182,8 @@
      "outlet_20": 0,
      "valve_20": 0,
      "tee_50": 0,
-     "elbow_50": 0,
-     "tee_110_50": 2,
+     "elbow_50": 3,
+     "tee_110_50": 1,
      "elbow_110": 3
     },
     "why": {
@@ -1205,11 +1205,11 @@
       "branches": 0
      },
      "elbow_50": {
-      "corners": 0,
-      "ends": 0
+      "corners": 1,
+      "ends": 2
      },
      "tee_110_50": {
-      "joins": 2
+      "joins": 1
      },
      "elbow_110": {
       "toilets": 1,
@@ -1219,9 +1219,23 @@
     "lines": [
      {
       "kind": "drain",
-      "diameterMm": 110,
-      "fromMm": 1000,
+      "diameterMm": 50,
+      "fromMm": 6500,
       "toMm": 7000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 7000,
+      "toMm": 10000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 10000,
+      "toMm": 12000,
       "heightMm": 0
      }
     ],
@@ -1361,11 +1375,11 @@
       "branchMm": 0
      },
      "drain_50": {
-      "trunkMm": 2000,
+      "trunkMm": 500,
       "branchMm": 650
      },
      "drain_110": {
-      "trunkMm": 4000,
+      "trunkMm": 5000,
       "branchMm": 200
      }
     },
@@ -1375,9 +1389,9 @@
      "outlet_20": 0,
      "valve_20": 0,
      "tee_50": 0,
-     "elbow_50": 2,
-     "tee_110_50": 2,
-     "elbow_110": 2
+     "elbow_50": 1,
+     "tee_110_50": 1,
+     "elbow_110": 4
     },
     "why": {
      "tee_20": {
@@ -1398,30 +1412,30 @@
       "branches": 0
      },
      "elbow_50": {
-      "corners": 1,
+      "corners": 0,
       "ends": 1
      },
      "tee_110_50": {
-      "joins": 2
+      "joins": 1
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 1
+      "corners": 3
      }
     },
     "lines": [
      {
       "kind": "drain",
       "diameterMm": 50,
-      "fromMm": 1000,
-      "toMm": 3000,
+      "fromMm": 6500,
+      "toMm": 7000,
       "heightMm": 0
      },
      {
       "kind": "drain",
       "diameterMm": 110,
-      "fromMm": 3000,
-      "toMm": 7000,
+      "fromMm": 7000,
+      "toMm": 12000,
       "heightMm": 0
      }
     ],
@@ -2635,11 +2649,11 @@
       "branchMm": 1700
      },
      "drain_50": {
-      "trunkMm": 3500,
+      "trunkMm": 2000,
       "branchMm": 650
      },
      "drain_110": {
-      "trunkMm": 7000,
+      "trunkMm": 8000,
       "branchMm": 200
      }
     },
@@ -2649,9 +2663,9 @@
      "outlet_20": 5,
      "valve_20": 2,
      "tee_50": 0,
-     "elbow_50": 3,
-     "tee_110_50": 2,
-     "elbow_110": 3
+     "elbow_50": 1,
+     "tee_110_50": 1,
+     "elbow_110": 5
     },
     "why": {
      "tee_20": {
@@ -2672,15 +2686,15 @@
       "branches": 0
      },
      "elbow_50": {
-      "corners": 2,
+      "corners": 0,
       "ends": 1
      },
      "tee_110_50": {
-      "joins": 2
+      "joins": 1
      },
      "elbow_110": {
       "toilets": 1,
-      "corners": 2
+      "corners": 4
      }
     },
     "lines": [
@@ -2701,15 +2715,15 @@
      {
       "kind": "drain",
       "diameterMm": 110,
-      "fromMm": 0,
-      "toMm": 7000,
+      "fromMm": 7000,
+      "toMm": 15000,
       "heightMm": 0
      },
      {
       "kind": "drain",
       "diameterMm": 50,
-      "fromMm": 7000,
-      "toMm": 10500,
+      "fromMm": 15000,
+      "toMm": 17000,
       "heightMm": 0
      }
     ],

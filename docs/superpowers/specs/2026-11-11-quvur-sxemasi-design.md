@@ -26,6 +26,7 @@ The estimate lays a pipe of its own from every plumbing point to the riser. No p
 | How water is distributed | **In series**: one trunk, each fixture on a tee. A manifold layout is left for later. |
 | How fittings are priced | **Counted by type**, each type a line of its own at a norm price. The "set per point" line goes. |
 | Is the scheme saved | **No.** The studio and the estimate each work it out from the points and the riser, by one rule pinned by a shared fixture file. |
+| May the drain trunk pass a door (owner, 2026-11-11, after the final review) | **Yes.** It lies on the floor and passes under a door, so its cut is always the largest gap. Water trunks still go round a door. Ruled because with the door as a cut a toilet across the door from the riser was reached the whole way round the room (production "Hammom": Ø110 2.9 m → 7.9 m). |
 
 ## Design
 
@@ -37,7 +38,7 @@ The estimate lays a pipe of its own from every plumbing point to the riser. No p
 
 **Where a trunk runs.** A trunk follows the walls and joins the riser to every point of its kind.
 
-- The loop is cut where a trunk may not pass. It does not pass a door at wall height, so each door is a cut.
+- The loop is cut where a trunk may not pass. A water trunk does not pass a door at wall height, so each door is a cut. **A drain trunk lies on the floor and passes under a door** (owner's ruling, see Decisions): for it only the gap rule below applies.
 - With no door, the loop is cut at the largest gap between neighbouring nodes (the riser and the points): the shortest trunk that still reaches them all.
 - With one door, the walls are a line from one side of the door to the other, and the trunk spans from the first node to the last.
 - With two or more doors, the largest gap that holds a door is the cut. The trunk crosses each other door under the floor; that length is counted like any other.

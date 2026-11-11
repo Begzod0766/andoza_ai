@@ -43,8 +43,10 @@ def _number(v: object) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
 
 
-def _trunk(inp: dict, perimeter: float, points: list[dict]) -> dict:
-    """The trunk that joins the riser to ``points``: the loop less its cut."""
+def _trunk(inp: dict, perimeter: float, points: list[dict], doors: list) -> dict:
+    """The trunk that joins the riser to ``points``: the loop less its cut. ``doors`` are the doors it may
+    not pass: a water trunk's are the room's; a drain trunk lies on the floor and passes under them (the
+    owner's ruling, 2026-11-11), so it is handed none."""
     def norm(x: float) -> float:
         r = x % perimeter
         return 0.0 if perimeter - r < EPS else r
@@ -63,7 +65,7 @@ def _trunk(inp: dict, perimeter: float, points: list[dict]) -> dict:
     cut, cut_len, cut_door = 0, -1.0, False
     for i, a in enumerate(distinct):
         length = perimeter if n == 1 else (distinct[i + 1] - a if i < n - 1 else perimeter - a + distinct[0])
-        door = any(EPS < norm(d - a) < length - EPS for d in inp["doorsMm"])
+        door = any(EPS < norm(d - a) < length - EPS for d in doors)
         if (door and not cut_door) or (door == cut_door and length > cut_len + EPS):
             cut, cut_len, cut_door = i, length, door
     start = distinct[(cut + 1) % n]
@@ -112,7 +114,7 @@ def build_scheme(inp: dict) -> dict:
         points = [p for p in inp["points"] if p["kind"] == kind]
         if not points:
             continue
-        tr = _trunk(inp, perimeter, points)
+        tr = _trunk(inp, perimeter, points, inp["doorsMm"])
         ends = (1 if tr["left"] else 0) + (1 if tr["right"] else 0)
         pipes["water_20"]["trunkMm"] += _js_round(tr["length"])
         pipes["water_20"]["branchMm"] += _js_round(sum(abs(height(p) - WATER_TRUNK_MM) for p in points))
@@ -130,7 +132,7 @@ def build_scheme(inp: dict) -> dict:
 
     drains = [p for p in inp["points"] if p["kind"] == "drain"]
     if drains:
-        tr = _trunk(inp, perimeter, drains)
+        tr = _trunk(inp, perimeter, drains, [])
         arms = [tr["left"], tr["right"]]
         # The Ø110 way on each arm: from the riser out to its farthest toilet.
         way = [max((d for p, d in arm if p["diameterMm"] == 110), default=0.0) for arm in arms]

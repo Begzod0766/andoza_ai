@@ -110,6 +110,22 @@ describe('buildScheme: the trunk', () => {
 })
 
 describe('buildScheme: the drain', () => {
+  // A drain trunk lies on the floor and passes under a door (the owner's ruling, 2026-11-11), so its cut
+  // is the largest gap. These cases test the diameters: a long last wall makes the wrap-round gap the
+  // largest, so the trunk runs 1000 → 7000 as the water trunk of the first case does.
+  const scheme = (points: P[], over: Partial<SchemeInput> = {}) => buildScheme({ wallsMm: [2500, 2000, 2500, 6000], doorsMm: [8000], riserMm: 7000, points, ...over })
+
+  it('passes under the door, where a water trunk goes the long way round', () => {
+    // door middle at 8000, riser at 7000, one point at 8500 just past the door
+    const input = { wallsMm: WALLS, doorsMm: [8000], riserMm: 7000 }
+    const d = buildScheme({ ...input, points: [drain('d', 8500, 0)] })
+    const c = buildScheme({ ...input, points: [cold('c', 8500, 200)] })
+    expect(d.pipes.drain_50.trunkMm).toBe(1500)
+    expect(d.lines).toEqual([{ kind: 'drain', diameterMm: 50, fromMm: 7000, toMm: 8500, heightMm: 0 }])
+    expect(c.pipes.water_20.trunkMm).toBe(7500)
+    expect(c.lines).toEqual([{ kind: 'cold', diameterMm: 20, fromMm: 8500, toMm: 16000, heightMm: 200 }])
+  })
+
   it('the toilet beside the riser: a short Ø110 way and a Ø50 tail beyond it', () => {
     // nodes 1000, 3000, 6500, 7000 → trunk 6000, one arm; m110 = 500
     const s = scheme([drain('bath', 1000, 150), drain('sink', 3000, 500), drain('wc', 6500, 200, 110)])
@@ -287,7 +303,8 @@ describe('schemePolylines', () => {
   })
 
   it('the Ø110 way is a line of its own with its diameter', () => {
-    const pts = [point({ id: 'bath', kind: 'drain', diameterMm: 50, positionMm: 1000, heightMm: 150 }), point({ id: 'wc', kind: 'drain', diameterMm: 110, wallId: 'B', positionMm: 500, heightMm: 200 })]
+    // a drain trunk passes under the door: nodes 2000, 4000, 7000 put its cut in the wrap-round gap
+    const pts = [point({ id: 'bath', kind: 'drain', diameterMm: 50, positionMm: 2000, heightMm: 150 }), point({ id: 'wc', kind: 'drain', diameterMm: 110, wallId: 'B', positionMm: 1500, heightMm: 200 })]
     const lines = schemePolylines(g, pipeScheme(g, riser, pts)).filter((l) => l.key.startsWith('trunk'))
     expect(lines.map((l) => [l.kind, l.diameterMm])).toEqual([['drain', 50], ['drain', 110]])
     for (const l of lines) for (const [, y] of l.points) expect(y).toBe(0)

@@ -86,3 +86,14 @@ def test_the_saved_state_geometry_keeps_a_door_width_in_metres():
     door = g["walls"][3]["elements"][0]
     assert door["width"] == pytest.approx(0.7)
     assert door["position"] == pytest.approx(0.5)
+
+
+# ─── A drain trunk passes under a door (the owner's ruling, 2026-11-11) ──────────
+
+def test_a_drain_trunk_passes_under_the_door_a_water_trunk_does_not():
+    base = {"wallsMm": [2500, 2000, 2500, 2000], "doorsMm": [8000], "riserMm": 7000}
+    drain = build_scheme({**base, "points": [{"id": "d", "kind": "drain", "diameterMm": 50, "sMm": 8500, "heightMm": 0}]})
+    cold = build_scheme({**base, "points": [{"id": "c", "kind": "cold", "diameterMm": 20, "sMm": 8500, "heightMm": 200}]})
+    assert drain["pipes"]["drain_50"]["trunkMm"] == 1500
+    assert drain["lines"] == [{"kind": "drain", "diameterMm": 50, "fromMm": 7000, "toMm": 8500, "heightMm": 0}]
+    assert cold["pipes"]["water_20"]["trunkMm"] == 7500

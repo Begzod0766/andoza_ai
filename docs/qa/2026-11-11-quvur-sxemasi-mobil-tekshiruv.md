@@ -24,7 +24,7 @@ Hammomni oching → ↖ burchak menyusi → Plumbing → **Show pipe runs** belg
 | 1.2 ⭐ | 3D | Har bir nuqtaga qarang | Magistraldan nuqtagacha **tik** chiziq ko'tariladi (yoki tushadi). Nuqtalarning hammasi o'z magistraliga ulangan | |
 | 1.3 ⭐ | 3D | Balandliklarga qarang | Suv magistrallari poldan ~20 sm balandda, qizili ko'kidan biroz (~5 sm) yuqorida, ustma-ust tushmaydi. Kanalizatsiya polda yotadi | |
 | 1.4 ⭐ | 3D | Unitazdan stoyakkacha bo'lgan kulrang chiziq | Bu bo'lak qolgan kulrang chiziqdan **qalinroq** (Ø110). Unitazdan narigi bo'lak ingichka (Ø50) | |
-| 1.5 ⭐ | 3D | Eshik atrofiga qarang | Hech bir magistral eshik ochig'i oldidan o'tmaydi: chiziqlar eshikning ikki tomonida tugaydi | |
+| 1.5 ⭐ | 3D | Eshik atrofiga qarang | Ko'k va qizil (suv) magistrallar eshik ochig'i oldidan o'tmaydi: eshikning ikki tomonida tugaydi. Kulrang (kanalizatsiya) polda yotgani uchun eshik ostidan o'tishi mumkin | |
 | 1.6 ⭐ | 3D | Burchaklarga qarang | Chiziq burchakda burilib, keyingi devor bo'ylab davom etadi; devordan ~4 sm narida, devor ichiga kirmaydi | |
 | 1.7 ⭐ | 3D | Rakovinani boshqa devorga suring | Chiziqlar darhol yangi joyga moslashadi: magistral uzayadi yoki qisqaradi, tik chiziq rakovina bilan birga yuradi | |
 | 1.8 ⭐ | 3D | Qo'lda qo'shilgan nuqtani barmoq bilan suring | Uning tik chizig'i va magistral u bilan birga yangilanadi | |
