@@ -8,8 +8,9 @@ Defines:
 
 Rows carry every field the mobile app renders, on a par with
 ``app.seed_catalog``: a material has an ``image_url`` and an usta has
-``lat``/``lng`` (U1 map pin) plus an ``avatar_url``. tests/test_seed_catalogs.py
-pins that, so a row added below without them fails the suite.
+``lat``/``lng`` (U1 map pin). Ustalar get no ``avatar_url``: a stock face did not
+match the name, so the apps show the name's initial until the usta uploads a
+photo. tests/test_seed_catalogs.py pins both.
 
 This module is the *data*; the deploy runs it through two single-purpose
 entry points, so editing the lists below does reach production:
@@ -435,16 +436,13 @@ USTALAR: list[dict] = [
 
 # ---------------------------------------------------------------------------
 # Deterministic image URLs, derived so a row added above can't forget them.
-# Same placeholder services and key scheme as app.seed_catalog: materials use
-# picsum keyed by a slug of name_uz, ustalar use pravatar keyed by phone. Both
-# are placeholders for a real product photo / profile picture; the shop cards
-# (S1/S3) and the U1 map pins fall back to a bare icon without them.
+# Same placeholder service and key scheme as app.seed_catalog: materials use
+# picsum keyed by a slug of name_uz (the shop cards S1/S3 fall back to a bare
+# icon without one). Ustalar deliberately get no avatar: random stock faces
+# (pravatar) did not match the names, so the apps show the initial instead.
 # ---------------------------------------------------------------------------
 for _m in MATERIALS:
     _m["image_url"] = f"https://picsum.photos/seed/{_slugify(_m['name_uz'])}/600/400"
-
-for _u in USTALAR:
-    _u["avatar_url"] = f"https://i.pravatar.cc/300?u={_u['phone']}"
 
 
 # ---------------------------------------------------------------------------
@@ -560,7 +558,7 @@ async def _seed_ustalar(session) -> None:
                 lng=data["lng"],
                 phone=data["phone"],
                 telegram=data["telegram"],
-                avatar_url=data["avatar_url"],
+                avatar_url=data.get("avatar_url"),
                 verified=data["verified"],
                 rating=data["rating"],
                 jobs_count=data["jobs_count"],
