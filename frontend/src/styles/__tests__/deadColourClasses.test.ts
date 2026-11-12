@@ -11,10 +11,6 @@ const SRC = join(__dirname, "..", "..");
 const css = readFileSync(join(__dirname, "..", "global.css"), "utf8");
 const colors = config.theme!.extend!.colors as Record<string, string | Record<string, string>>;
 
-// The estimate page's dead classes are fixed in PR #237 (same token, `warn`). Until it lands
-// these two files still carry them; delete this list once it has.
-const FIXED_IN_PR_237 = ["components/smeta/CategorySection.tsx", "pages/smeta/SmetaPage.tsx"];
-
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
@@ -30,7 +26,6 @@ function deadClasses(): string[] {
   const found: string[] = [];
   for (const file of sourceFiles(SRC)) {
     const name = relative(SRC, file).split("\\").join("/");
-    if (FIXED_IN_PR_237.includes(name)) continue;
     readFileSync(file, "utf8").split("\n").forEach((line, i) => {
       for (const m of line.matchAll(pattern)) {
         const value = colors[m[2]];
