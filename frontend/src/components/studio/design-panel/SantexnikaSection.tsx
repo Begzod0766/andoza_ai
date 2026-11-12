@@ -9,6 +9,7 @@ import { withRailPoints } from "@/lib/towelRail";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
+import { PIPE_COLOUR } from "@/lib/pipeScheme";
 
 const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
 
@@ -90,7 +91,7 @@ export function SantexnikaSection({ bathroom = false }: {
             <li key={p.id} aria-label={`${t(`studio.santexnika.${p.kind}`)}, ${where(p)}`}
               className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
               <span className="flex items-center gap-2 text-[12px] text-ink">
-                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: p.kind === "drain" ? "#9CA3AF" : p.kind === "cold" ? "#3B82F6" : "#EF4444" }} />
+                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: PIPE_COLOUR[p.kind] }} />
                 {t(`studio.santexnika.${p.kind}`)} · {where(p)}
                 {p.fixtureId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.own")})</span>}
                 {p.railId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.rail_own")})</span>}

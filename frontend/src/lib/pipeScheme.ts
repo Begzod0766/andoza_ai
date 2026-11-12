@@ -345,3 +345,14 @@ export function schemePolylines(geometry: RoomGeometry, scheme: PipeScheme, hidd
   }
   return out
 }
+
+/** The pipe colours in 3D and in the panel: the drain a dark slate, so it reads on a light floor (mobile QA 2026-11-12). */
+export const PIPE_COLOUR = { drain: '#475569', cold: '#3B82F6', hot: '#EF4444' } as const
+
+/** How high a line at floor level is drawn, metres: just above the floor, so the floor does not cover it. */
+const FLOOR_LIFT_M = 0.015
+
+/** A scheme line's points as drawn: nothing below `FLOOR_LIFT_M`. The scheme's heights are unchanged. */
+export function drawnPoints(line: SchemePolyline): Array<[number, number, number]> {
+  return line.points.map(([x, y, z]) => [x, Math.max(y, FLOOR_LIFT_M), z])
+}

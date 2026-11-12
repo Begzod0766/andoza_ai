@@ -100,7 +100,7 @@ export function DesignPanelDock({
              its pipe runs in view above (mobile QA 2026-11-09 #1); every other stage takes the right
              half, so the wall being finished stays in view. */
           activePhase === 'santexnika'
-            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
+            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card pb-[env(safe-area-inset-bottom)] ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
             : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full'}`,
           /* desktop override */
           'lg:static lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto',
@@ -109,7 +109,11 @@ export function DesignPanelDock({
         {/* Mobile close button — replaces the old drag-to-dismiss handle,
             which doesn't make sense for a side panel. Tapping the now-
             transparent backdrop on the left half also closes it. */}
-        <div className="lg:hidden flex justify-end p-2">
+        {/* Sticky in the Santexnika bottom sheet: scrolled down, the form slid under the rounded top
+            and this button scrolled away with it (mobile QA 2026-11-12). */}
+        <div className={activePhase === 'santexnika'
+          ? 'lg:hidden sticky top-0 z-10 flex justify-end p-2 bg-card rounded-t-3xl'
+          : 'lg:hidden flex justify-end p-2'}>
           <button
             onClick={() => setShowPanel(false)}
             aria-label={t('common.yopish')}

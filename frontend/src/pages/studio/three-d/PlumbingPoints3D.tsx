@@ -6,10 +6,9 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
 import { riserSpot, wallWalk } from "@/lib/plumbingRuns";
-import { pipeScheme, schemePolylines } from "@/lib/pipeScheme";
+import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 
-const COLOUR = { drain: "#9CA3AF", cold: "#3B82F6", hot: "#EF4444" } as const;
 const RADIUS = 0.04;
 const OFF_WALL = 0.01;
 
@@ -114,7 +113,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
         );
       })}
       {pipes.map((l) => (
-        <Line key={l.key} points={l.points} color={COLOUR[l.kind]} lineWidth={l.diameterMm === 110 ? 4 : 2} />
+        <Line key={l.key} points={drawnPoints(l)} color={COLOUR[l.kind]} lineWidth={l.diameterMm === 110 ? 4 : 2} />
       ))}
     </group>
   );
