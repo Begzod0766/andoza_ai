@@ -239,3 +239,24 @@ describe('waterproofing lines (spec 2026-11-10)', () => {
     expect(localizeFormula(f, uz)).toBe(f)
   })
 })
+
+// A fixture's own parts (2026-11-13), as smeta.py writes them; the PDF reads them the same (smeta_text.py).
+describe('fixture parts', () => {
+  it('each part reads in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Rakovina smesiteli: Grohe Eurosmart', en)).toBe('Basin mixer: Grohe Eurosmart')
+    expect(localizeLabel('Rakovina smesiteli', ru)).toBe('Смеситель для раковины')
+    expect(localizeLabel('Vanna va dush smesiteli', en)).toBe('Bath and shower mixer')
+    expect(localizeLabel('Dush poddoni sifoni', ru)).toBe('Сифон для душевого поддона')
+    expect(localizeLabel('Unitaz gofrasi', en)).toBe('Toilet pan connector')
+    expect(localizeLabel('Ulash shlangi (podvodka)', ru)).toBe('Гибкая подводка')
+    expect(localizeLabel("Ish: smesitel o'rnatish", en)).toBe('Work: fitting a mixer')
+  })
+  it.each([
+    ["2 rakovina + 1 bide = 3 dona × 60 000 so'm", '2 раковины + 1 биде = 3 шт. × 60 000 сум', '2 sinks + 1 bidet = 3 pcs × 60 000 UZS'],
+    ["1 vanna + 1 dush = 2 dona × 650 000 so'm", '1 ванна + 1 душ = 2 шт. × 650 000 сум', '1 bathtub + 1 shower = 2 pcs × 650 000 UZS'],
+    ["3 smesitel × 100 000 so'm", '3 смесителя × 100 000 сум', '3 mixers × 100 000 UZS'],
+  ])('%s', (formula, ruText, enText) => {
+    expect(localizeFormula(formula, ru)).toBe(ruText)
+    expect(localizeFormula(formula, en)).toBe(enText)
+  })
+})

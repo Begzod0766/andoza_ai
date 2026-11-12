@@ -164,6 +164,18 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   // A bathroom's extras (spec 2026-11-10): sold by the piece
   { id: "ventilyator", labelKey: "dokon.admin.smeta_key.ventilyator", packUnit: null, unit: "dona" },
   { id: "sochiq_quritgich", labelKey: "dokon.admin.smeta_key.sochiq_quritgich", packUnit: null, unit: "dona" },
+  // A fixture's own parts (2026-11-13): sold by the piece
+  { id: "smesitel_rakovina", labelKey: "dokon.admin.smeta_key.smesitel_rakovina", packUnit: null, unit: "dona" },
+  { id: "smesitel_oshxona", labelKey: "dokon.admin.smeta_key.smesitel_oshxona", packUnit: null, unit: "dona" },
+  { id: "smesitel_vanna", labelKey: "dokon.admin.smeta_key.smesitel_vanna", packUnit: null, unit: "dona" },
+  { id: "smesitel_dush", labelKey: "dokon.admin.smeta_key.smesitel_dush", packUnit: null, unit: "dona" },
+  { id: "smesitel_bide", labelKey: "dokon.admin.smeta_key.smesitel_bide", packUnit: null, unit: "dona" },
+  { id: "sifon_rakovina", labelKey: "dokon.admin.smeta_key.sifon_rakovina", packUnit: null, unit: "dona" },
+  { id: "sifon_oshxona", labelKey: "dokon.admin.smeta_key.sifon_oshxona", packUnit: null, unit: "dona" },
+  { id: "sifon_vanna", labelKey: "dokon.admin.smeta_key.sifon_vanna", packUnit: null, unit: "dona" },
+  { id: "sifon_dush", labelKey: "dokon.admin.smeta_key.sifon_dush", packUnit: null, unit: "dona" },
+  { id: "gofra_unitaz", labelKey: "dokon.admin.smeta_key.gofra_unitaz", packUnit: null, unit: "dona" },
+  { id: "podvodka", labelKey: "dokon.admin.smeta_key.podvodka", packUnit: null, unit: "dona" },
   ...LIGHT_TYPES.map((t) => ({
     id: `light:${t.id}`,
     labelKey: t.nameKey,

@@ -916,6 +916,16 @@ def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict) -> list[Com
     return lines
 
 
+def _is_kitchen(room: "Room") -> bool:
+    """As _is_bathroom, for a kitchen."""
+    from app.services.room_type import guess_room_type
+
+    room_type = getattr(room, "room_type", None)
+    if room_type:
+        return room_type == "oshxona"
+    return guess_room_type(str(getattr(room, "name", "") or "")) == "oshxona"
+
+
 def _is_bathroom(room: "Room") -> bool:
     """The room's own type, or, with none set, what its name reads as (as the studio guesses it)."""
     from app.services.room_type import guess_room_type
@@ -1565,6 +1575,30 @@ PLUMBING_ROLES = ("bathtub", "sink", "toilet", "shower", "bidet")
 # "Ish: <fixture> o'rnatish": the fixture's plain Uzbek name.
 FIXTURE_WORK_NAMES = {"bathtub": "vanna", "sink": "rakovina", "toilet": "unitaz", "shower": "dush", "bidet": "bide"}
 PLUMBING_RESERVE = 1.15
+# A fixture's own parts (2026-11-13), by kind of fixture: (shop key, how many per fixture). A shower
+# cabin or panel comes with its mixer; a kitchen sink takes the kitchen mixer and trap.
+FIXTURE_PARTS: dict[str, tuple[tuple[str, int], ...]] = {
+    "sink": (("smesitel_rakovina", 1), ("sifon_rakovina", 1), ("podvodka", 2)),
+    "kitchen_sink": (("smesitel_oshxona", 1), ("sifon_oshxona", 1), ("podvodka", 2)),
+    "bathtub": (("smesitel_vanna", 1), ("sifon_vanna", 1)),
+    "shower": (("smesitel_dush", 1), ("sifon_dush", 1)),
+    "shower_own_mixer": (("sifon_dush", 1),),
+    "toilet": (("gofra_unitaz", 1), ("podvodka", 1)),
+    "bidet": (("smesitel_bide", 1), ("sifon_rakovina", 1), ("podvodka", 2)),
+}
+# The word a fixture is counted by in a part's formula ("2 rakovina + 1 bide = 3 dona ...").
+FIXTURE_PART_WORDS = {
+    "sink": "rakovina", "kitchen_sink": "rakovina", "bathtub": "vanna", "shower": "dush",
+    "shower_own_mixer": "dush", "toilet": "unitaz", "bidet": "bide",
+}
+FIXTURE_PART_LABELS = {
+    "smesitel_rakovina": "Rakovina smesiteli", "smesitel_oshxona": "Oshxona smesiteli",
+    "smesitel_vanna": "Vanna va dush smesiteli", "smesitel_dush": "Dush smesiteli", "smesitel_bide": "Gigiyenik smesitel",
+    "sifon_rakovina": "Rakovina sifoni", "sifon_oshxona": "Oshxona sifoni", "sifon_vanna": "Vanna sifoni",
+    "sifon_dush": "Dush poddoni sifoni", "gofra_unitaz": "Unitaz gofrasi", "podvodka": "Ulash shlangi (podvodka)",
+}
+# A shower sold with its own mixer: a cabin or a shower panel.
+_OWN_MIXER = re.compile(r"kabin|кабин|cabin|panel|панел", re.I)
 PIPE_LABELS = {
     "drain_50": "Kanalizatsiya quvuri Ø50",
     "drain_110": "Kanalizatsiya quvuri Ø110",
@@ -1838,6 +1872,9 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         if isinstance(snap, (int, float)) and snap > 0 and fid not in snapshots:
             snapshots[fid] = int(snap)
     roles: dict[str, int] = {}
+    # The same fixtures by the parts they need (FIXTURE_PARTS).
+    part_kinds: dict[str, int] = {}
+    kitchen = _is_kitchen(room)
     for fid, qty in sorted(counts.items()):
         row = catalog.get(furniture_catalog_key(fid))
         if row is not None and not getattr(row, "is_active", False):
@@ -1846,6 +1883,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         if role is None:
             continue
         roles[role] = roles.get(role, 0) + qty
+        kind = _part_kind(role, (getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid, kitchen)
+        part_kinds[kind] = part_kinds.get(kind, 0) + qty
         row_price = getattr(row, "price_uzs", None) if row is not None else None
         price = (int(row_price) if row_price and row_price > 0 else None) or snapshots.get(fid) or FURNITURE_CATALOG_PRICES_UZS.get(fid)
         approx = price is None
@@ -1859,6 +1898,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             is_approximate=approx,
             warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
         ))
+
+    lines.extend(_fixture_part_lines(part_kinds, catalog, norms))
 
     if rails:
         lines.append(_piece_line(
@@ -1926,6 +1967,14 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             formula=f"{roles[role]} dona × {price:,} so'm".replace(",", " "),
             qty=roles[role], unit="dona", price_uzs=price, category="santexnika",
         ))
+    mixers = sum(n for kind, n in part_kinds.items() if any(k.startswith("smesitel_") for k, _ in FIXTURE_PARTS[kind]))
+    if mixers:
+        price = int(norms["work_mixer_uzs"])
+        lines.append(_make_line(
+            label="Ish: smesitel o'rnatish",
+            formula=f"{mixers} smesitel × {price:,} so'm".replace(",", " "),
+            qty=mixers, unit="dona", price_uzs=price, category="santexnika",
+        ))
     if rails:
         price = int(load_bathroom_extras_norms()["work_towel_rail_uzs"])
         lines.append(_make_line(
@@ -1936,18 +1985,48 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     return lines
 
 
-def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: str, qty: int = 1) -> ComputedLine:
+def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: str, qty: int = 1, why: str | None = None) -> ComputedLine:
     """Something bought by the piece: the shop's tagged product (sold by the piece), else the norm
-    price, marked approximate."""
+    price, marked approximate. ``why`` opens the formula with what the count is made of."""
     priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
     price = int(shop.price_uzs) if priced else int(norm_uzs)
     return _make_line(
         label=f"{label}: {shop.name_uz}" if priced else label,
-        formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
+        formula=(f"{why} = " if why else "") + f"{qty} dona × {price:,} so'm".replace(",", " "),
         qty=qty, unit="dona", price_uzs=price, category=category,
         is_approximate=not priced, warning=None if priced else EXTRAS_NORM_NOTE,
         **(_shop(shop) if priced else {}),
     )
+
+
+def _part_kind(role: str, name: str, kitchen: bool) -> str:
+    """The FIXTURE_PARTS entry a fixture of ``role`` named ``name`` takes."""
+    if role == "sink" and kitchen:
+        return "kitchen_sink"
+    if role == "shower" and _OWN_MIXER.search(name):
+        return "shower_own_mixer"
+    return role
+
+
+def _fixture_part_lines(part_kinds: dict[str, int], catalog: dict, norms: dict) -> list[ComputedLine]:
+    """Each fixture's own mixer, trap and hoses (2026-11-13), one line per part, by the piece: a shop
+    product tagged with the part's key, else the norm (approximate). A part none needs is not listed."""
+    need: dict[str, int] = {}
+    why: dict[str, dict[str, int]] = {}
+    for kind in FIXTURE_PARTS:  # in this order, so a formula reads the same however the room was built
+        n = part_kinds.get(kind, 0)
+        if not n:
+            continue
+        for key, per in FIXTURE_PARTS[kind]:
+            need[key] = need.get(key, 0) + per * n
+            words = why.setdefault(key, {})
+            word = FIXTURE_PART_WORDS[kind]
+            words[word] = words.get(word, 0) + n
+    return [
+        _piece_line(FIXTURE_PART_LABELS[key], catalog.get(key), int(norms["part_uzs"][key]), "santexnika",
+                    qty=need[key], why=" + ".join(f"{n} {w}" for w, n in why[key].items()))
+        for key in FIXTURE_PART_LABELS if need.get(key)
+    ]
 
 
 def _fan_lines(room: "Room", catalog: "dict | None", norms_map: "dict[str, Norm]") -> list[ComputedLine]:

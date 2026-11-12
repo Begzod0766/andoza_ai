@@ -1147,7 +1147,19 @@
       "fit_tee_50": "Drain tee Ø50",
       "fit_elbow_50": "Drain elbow Ø50",
       "fit_tee_110_50": "Drain tee Ø110/50",
-      "fit_elbow_110": "Drain elbow Ø110"
+      "fit_elbow_110": "Drain elbow Ø110",
+      "mixer_sink": "Basin mixer",
+      "mixer_kitchen": "Kitchen mixer",
+      "mixer_bath": "Bath and shower mixer",
+      "mixer_shower": "Shower mixer",
+      "mixer_bidet": "Hygiene mixer",
+      "trap_sink": "Basin trap",
+      "trap_kitchen": "Kitchen sink trap",
+      "trap_bath": "Bath trap",
+      "trap_shower": "Shower tray trap",
+      "toilet_gofra": "Toilet pan connector",
+      "hose": "Flexible hose",
+      "work_mixer": "Work: fitting a mixer"
     },
     "unit": {
       "qop_one": "bag",
@@ -1240,7 +1252,17 @@
       "xona_burchagi_one": "room corner",
       "xona_burchagi_other": "room corners",
       "magistral_uchi_one": "trunk end",
-      "magistral_uchi_other": "trunk ends"
+      "magistral_uchi_other": "trunk ends",
+      "rakovina_one": "sink",
+      "rakovina_other": "sinks",
+      "vanna_one": "bathtub",
+      "vanna_other": "bathtubs",
+      "dush_one": "shower",
+      "dush_other": "showers",
+      "bide_one": "bidet",
+      "bide_other": "bidets",
+      "smesitel_one": "mixer",
+      "smesitel_other": "mixers"
     }
   },
   "ustalar": {
@@ -2169,7 +2191,18 @@
         "gidro_mastika": "Waterproofing mastic",
         "gidro_lenta": "Waterproofing tape",
         "ventilyator": "Extractor fan",
-        "sochiq_quritgich": "Heated towel rail"
+        "sochiq_quritgich": "Heated towel rail",
+        "smesitel_rakovina": "Basin mixer",
+        "smesitel_oshxona": "Kitchen mixer",
+        "smesitel_vanna": "Bath and shower mixer",
+        "smesitel_dush": "Shower mixer",
+        "smesitel_bide": "Hygiene mixer",
+        "sifon_rakovina": "Basin trap",
+        "sifon_oshxona": "Kitchen sink trap",
+        "sifon_vanna": "Bath trap",
+        "sifon_dush": "Shower tray trap",
+        "gofra_unitaz": "Toilet pan connector",
+        "podvodka": "Flexible hose"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

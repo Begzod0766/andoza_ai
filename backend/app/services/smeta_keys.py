@@ -18,9 +18,13 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "kabel": None,  # sold per metre: no pack
     # A bathroom's extras (spec 2026-11-10): sold by the piece, no pack
     "ventilyator": None, "sochiq_quritgich": None,
+    # A fixture's own parts (2026-11-13): its mixer, trap and hoses, sold by the piece
+    "smesitel_rakovina": None, "smesitel_oshxona": None, "smesitel_vanna": None, "smesitel_dush": None,
+    "smesitel_bide": None, "sifon_rakovina": None, "sifon_oshxona": None, "sifon_vanna": None,
+    "sifon_dush": None, "gofra_unitaz": None, "podvodka": None,
 }
 # The sale unit a key with no pack must have.
-KEY_SALE_UNIT: dict[str, str] = {"kabel": "m", "ventilyator": "dona", "sochiq_quritgich": "dona"}
+KEY_SALE_UNIT: dict[str, str] = {"kabel": "m", **{k: "dona" for k, pack in KEY_PACK_UNIT.items() if pack is None and k != "kabel"}}
 
 LIGHT_KEYS: frozenset[str] = frozenset(f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS)
 ALL_SMETA_KEYS: frozenset[str] = frozenset(KEY_PACK_UNIT) | LIGHT_KEYS

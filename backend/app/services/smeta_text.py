@@ -139,6 +139,18 @@ _LABEL_HEADS = {
     "Gidroizolyatsiya lentasi": "wp_tape",
     "Tortuvchi ventilyator": "fan",
     "Sochiq quritgich": "towel_rail",
+    # A fixture's own parts (2026-11-13): a shop's product follows the colon.
+    "Rakovina smesiteli": "mixer_sink",
+    "Oshxona smesiteli": "mixer_kitchen",
+    "Vanna va dush smesiteli": "mixer_bath",
+    "Dush smesiteli": "mixer_shower",
+    "Gigiyenik smesitel": "mixer_bidet",
+    "Rakovina sifoni": "trap_sink",
+    "Oshxona sifoni": "trap_kitchen",
+    "Vanna sifoni": "trap_bath",
+    "Dush poddoni sifoni": "trap_shower",
+    "Unitaz gofrasi": "toilet_gofra",
+    "Ulash shlangi (podvodka)": "hose",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -182,6 +194,18 @@ _WHOLE_LABELS = {
     "Ish: unitaz o'rnatish": "work_toilet",
     "Ish: dush o'rnatish": "work_shower",
     "Ish: bide o'rnatish": "work_bidet",
+    "Rakovina smesiteli": "mixer_sink",
+    "Oshxona smesiteli": "mixer_kitchen",
+    "Vanna va dush smesiteli": "mixer_bath",
+    "Dush smesiteli": "mixer_shower",
+    "Gigiyenik smesitel": "mixer_bidet",
+    "Rakovina sifoni": "trap_sink",
+    "Oshxona sifoni": "trap_kitchen",
+    "Vanna sifoni": "trap_bath",
+    "Dush poddoni sifoni": "trap_shower",
+    "Unitaz gofrasi": "toilet_gofra",
+    "Ulash shlangi (podvodka)": "hose",
+    "Ish: smesitel o'rnatish": "work_mixer",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.
@@ -330,11 +354,13 @@ _FORMULA_COUNTED = {
     # What a fitting's count is made of (spec 2026-11-11).
     "tarmoq": "formula.tarmoq", "stoyak": "formula.stoyak", "burchak": "formula.burchak", "uch": "formula.uch", "unitaz": "formula.unitaz", "liniya": "formula.liniya", "ulanish": "formula.ulanish",
     "xona burchagi": "formula.xona_burchagi", "magistral uchi": "formula.magistral_uchi",
+    # What a fixture part's count is made of (2026-11-13).
+    "rakovina": "formula.rakovina", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|litr|m²|kg|m)"
     r"(?=\Z|[\s);,:])"
 )
 
