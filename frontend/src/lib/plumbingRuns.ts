@@ -96,3 +96,33 @@ export function plumbingSummary(geometry: RoomGeometry, points: readonly Plumbin
     water: { points: points.length - drains, m: m(water_20.trunkMm + water_20.branchMm) },
   }
 }
+
+/** A place on the walls: a wall and mm from its start (as the wall walk walks it). */
+export interface RiserAt { wallId: string; positionMm: number }
+
+/**
+ * The room's riser (2026-11-13): the one the user set, kept on its wall, else the door corner
+ * (`riserSpot`). Every consumer asks this, so the panel, the 3D pipes, a towel rail, a new toilet
+ * and the estimate measure from one place. A riser on a wall the room no longer has is ignored.
+ */
+export function roomRiser(geometry: RoomGeometry, manual: RiserAt | null | undefined): RiserAt {
+  const w = manual && wallWalk(geometry).find((x) => x.id === manual.wallId)
+  if (!manual || !w) return riserSpot(geometry)
+  return { wallId: manual.wallId, positionMm: Math.round(Math.min(w.lengthM * 1000, Math.max(0, manual.positionMm))) }
+}
+
+/** A riser from a saved room: only one the user set (`manual: true`). The door corner an older room
+ * saved is worked out again, so it follows the door. */
+export function saneRiser(saved: unknown): RiserAt | null {
+  if (!saved || typeof saved !== 'object') return null
+  const r = saved as Record<string, unknown>
+  if (r.manual !== true || typeof r.wallId !== 'string' || typeof r.positionMm !== 'number' || !Number.isFinite(r.positionMm)) return null
+  return { wallId: r.wallId, positionMm: r.positionMm }
+}
+
+/** What the room saves as `plumbingRiser`: the user's, marked `manual`, else the door corner as before
+ * (the estimate reads either, app.services.smeta._saved_riser). */
+export function riserToSave(geometry: RoomGeometry, manual: RiserAt | null | undefined): RiserAt & { manual?: true } {
+  const at = roomRiser(geometry, manual)
+  return manual && at.wallId === manual.wallId ? { ...at, manual: true } : at
+}

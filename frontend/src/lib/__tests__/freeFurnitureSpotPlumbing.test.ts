@@ -114,3 +114,16 @@ describe('placement rules from the final review', () => {
     expect(spot.onWall).toBe(false)
   })
 })
+
+// The riser the user moves (2026-11-13): a new toilet stands by it, not by the door corner.
+describe('a toilet by a riser the user set', () => {
+  it('stands against the riser\'s wall, near it', () => {
+    const riser = { wallId: 'B', positionMm: 1000 }
+    const s = freeFurnitureSpotMm(geometry(), [], SIZE.toilet, 'toilet', riser)
+    const B = roomModel(geometry()).walls.find((w) => w.id === 'B')!
+    // Its back to wall B: facing B's inward normal.
+    expect(Math.abs(Math.atan2(Math.sin(s.rotation - Math.atan2(B.nx, B.nz)), Math.cos(s.rotation - Math.atan2(B.nx, B.nz))))).toBeLessThan(1e-6)
+    const auto = freeFurnitureSpotMm(geometry(), [], SIZE.toilet, 'toilet')
+    expect([auto.x, auto.y]).not.toEqual([s.x, s.y])
+  })
+})

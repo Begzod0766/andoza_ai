@@ -147,6 +147,8 @@ export function freeFurnitureSpotMm(
   placed: readonly PlacedBox[],
   sizeM: { w: number; d: number },
   role: FurnitureRole,
+  /** The room's riser (lib/plumbingRuns roomRiser): a toilet stands by it. Default: the door corner. */
+  riser?: { wallId: string; positionMm: number },
 ): { x: number; y: number; rotation: number; onWall?: boolean } {
   const model = roomModel(geometry)
   const size = { w: sizeM.w > 0 ? sizeM.w : 0.6, d: sizeM.d > 0 ? sizeM.d : 0.6, tall: TALL_ROLES.has(role) }
@@ -171,7 +173,7 @@ export function freeFurnitureSpotMm(
   const clear = FIXTURE_FRONT_CLEAR[role]
   if (role === 'toilet') {
     // As near the riser as it can stand (spec 2026-11-08): its Ø110 drain is the shortest run then.
-    const spot = nearRiser(geometry, model, size, clear ?? 0, taken)
+    const spot = nearRiser(geometry, model, size, clear ?? 0, taken, riser)
     if (spot) return { ...toMm(spot), onWall: true }
   }
   if (clear !== undefined || role === 'shower' || role === 'bidet') {
@@ -239,8 +241,8 @@ function cornerFarthestFromDoor(model: RoomModel, size: { w: number; d: number; 
  * The spot against a wall, its front clearance free, nearest the riser (lib/plumbingRuns riserSpot);
  * null when no wall has room. Positions are tried every 5 cm along each wall.
  */
-function nearRiser(geometry: RoomGeometry, model: RoomModel, size: { w: number; d: number; tall: boolean }, clear: number, taken: Rect[]) {
-  const r = riserSpot(geometry)
+function nearRiser(geometry: RoomGeometry, model: RoomModel, size: { w: number; d: number; tall: boolean }, clear: number, taken: Rect[], riser?: { wallId: string; positionMm: number }) {
+  const r = riser ?? riserSpot(geometry)
   const ww = wallWalk(geometry).find((w) => w.id === r.wallId)
   if (!ww) return null
   const rx = ww.startX + ww.dirX * r.positionMm / 1000, rz = ww.startZ + ww.dirZ * r.positionMm / 1000

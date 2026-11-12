@@ -1003,7 +1003,12 @@
       "rail": "Sochiq quritgich",
       "rail_add": "Sochiq quritgich qo'shish",
       "rail_own": "quritgichniki",
-      "rail_no_room": "Devorda sochiq quritgich uchun joy yo'q."
+      "rail_no_room": "Devorda sochiq quritgich uchun joy yo'q.",
+      "riser": "Stoyak",
+      "riser_wall": "Stoyak devori",
+      "riser_pos": "Devor boshidan, sm",
+      "riser_auto": "Avtomatik (eshik burchagi)",
+      "riser_hint": "3D'da stoyakni devor bo'ylab surish ham mumkin."
     },
     "tile_height": {
       "title": "Plitka balandligi",

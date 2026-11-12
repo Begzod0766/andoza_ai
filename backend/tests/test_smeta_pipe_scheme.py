@@ -232,3 +232,27 @@ def test_a_point_the_scheme_cannot_read_is_not_charged_as_work_either():
     got = by_label(_plumbing_lines(room(plumbing=PLUMBING + bad), {}))
     assert got["Ish: nuqtani ulash"].qty == 8
     assert got["Suv rozetkasi Ø20"].qty == 5
+
+
+def test_a_riser_the_user_set_is_the_one_measured_from():
+    # The riser the user moves (2026-11-13): the studio saves it with `manual: true`.
+    walls = [str(w["id"]) for w in GEOMETRY["walls"]]
+    auto = riser_spot(GEOMETRY, None)
+    other = next(w for w in walls if w != auto[0])
+    r = room()
+    r.state["plumbingRiser"] = {"wallId": other, "positionMm": 400, "manual": True}
+    got = by_label(_plumbing_lines(r, {}))
+    p = pipe_scheme(GEOMETRY, (other, 400), PLUMBING)["pipes"]["water_20"]
+    assert got[PIPES["water_20"]].qty == _round2((p["trunkMm"] + p["branchMm"]) / 1000 * 1.15)
+    q = pipe_scheme(GEOMETRY, auto, PLUMBING)["pipes"]["water_20"]
+    assert got[PIPES["water_20"]].qty != _round2((q["trunkMm"] + q["branchMm"]) / 1000 * 1.15)
+
+
+def test_a_riser_past_its_wall_end_stands_at_the_end():
+    wall = GEOMETRY["walls"][1]
+    end_mm = wall["length"] * 1000 if wall["length"] < 100 else wall["length"]
+    r = room()
+    r.state["plumbingRiser"] = {"wallId": str(wall["id"]), "positionMm": 99_999, "manual": True}
+    got = by_label(_plumbing_lines(r, {}))
+    p = pipe_scheme(GEOMETRY, (str(wall["id"]), end_mm), PLUMBING)["pipes"]["water_20"]
+    assert got[PIPES["water_20"]].qty == _round2((p["trunkMm"] + p["branchMm"]) / 1000 * 1.15)

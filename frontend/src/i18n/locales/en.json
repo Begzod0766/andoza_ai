@@ -1003,7 +1003,12 @@
       "rail": "Heated towel rail",
       "rail_add": "Add a towel rail",
       "rail_own": "the rail's",
-      "rail_no_room": "No wall has room for a towel rail."
+      "rail_no_room": "No wall has room for a towel rail.",
+      "riser": "Riser",
+      "riser_wall": "Riser wall",
+      "riser_pos": "From the wall's start, cm",
+      "riser_auto": "Automatic (door corner)",
+      "riser_hint": "You can also drag the riser along the walls in 3D."
     },
     "tile_height": {
       "title": "Tile height",
