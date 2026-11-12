@@ -109,6 +109,10 @@ const WHOLE_LABELS = {
   "Unitaz gofrasi": "toilet_gofra",
   "Ulash shlangi (podvodka)": "hose",
   "Ish: smesitel o'rnatish": "work_mixer",
+  "Ish: eski santexnikani demontaj qilish": "work_demolish_fixtures",
+  "Ish: eski quvurlarni demontaj qilish": "work_demolish_pipes",
+  "Ish: shtroba (suv quvuri)": "work_chase_water",
+  "Ish: shtroba (kanalizatsiya Ø50)": "work_chase_drain",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */
@@ -206,6 +210,8 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
   // The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
   [/^Magistral (?=\d)/g, (t) => `${t("smeta.formula.trunk")} `],
   [/ \+ tik bo'laklar (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pieces")} `],
+  // A drain chase (2026-11-13): "Tik bo'laklar 1.20 m × 60 000 so'm".
+  [/^Tik bo'laklar (?=\d)/, (t) => `${t("smeta.formula.branch_pieces_head")} `],
   [/ \+ tik (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pipes")} `], // estimates saved on 2026-11-11
   [/ so'm$/g, (t) => ` ${t("smeta.formula.som")}`],
 ];

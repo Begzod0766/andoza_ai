@@ -1949,6 +1949,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
                 price_uzs=int(norms["fitting_uzs"][key]), category="santexnika",
                 is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
             ))
+        if _design_state(room).get("pipesInWall") is not False:
+            lines.extend(_chase_lines(scheme["pipes"], norms))
         # The plumber connects the points the scheme can read; one with no height or place is not priced.
         n = sum(1 for p in points if sound_point(p))
     if points and n:
@@ -1967,6 +1969,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             formula=f"{roles[role]} dona × {price:,} so'm".replace(",", " "),
             qty=roles[role], unit="dona", price_uzs=price, category="santexnika",
         ))
+    if _design_state(room).get("plumbingDemolition") is True and roles:
+        lines.extend(_demolition_lines(roles, norms))
     mixers = sum(n for kind, n in part_kinds.items() if any(k.startswith("smesitel_") for k, _ in FIXTURE_PARTS[kind]))
     if mixers:
         price = int(norms["work_mixer_uzs"])
@@ -1997,6 +2001,54 @@ def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: st
         is_approximate=not priced, warning=None if priced else EXTRAS_NORM_NOTE,
         **(_shop(shop) if priced else {}),
     )
+
+
+def _chase_lines(pipes: dict, norms: dict) -> list[ComputedLine]:
+    """Chasing the walls for the new pipes (2026-11-13), when they run in the wall (``pipesInWall``,
+    on unless exactly false): the water trunk and its branches, and the Ø50 drain's branches. The
+    drain trunk and the Ø110 way run in the floor. Making the chase good again is in the price."""
+    price = norms["work_chase_m_uzs"]
+    water, drain = pipes["water_20"], pipes["drain_50"]
+    out: list[ComputedLine] = []
+    w_mm = water["trunkMm"] + water["branchMm"]
+    if w_mm > 0:
+        p = int(price["water_20"])
+        out.append(_make_line(
+            label="Ish: shtroba (suv quvuri)",
+            formula=(f"Magistral {water['trunkMm'] / 1000:.2f} m + tik bo'laklar {water['branchMm'] / 1000:.2f} m"
+                     f" = {w_mm / 1000:.2f} m × {p:,} so'm").replace(",", " "),
+            qty=_round2(w_mm / 1000), unit="m", price_uzs=p, category="santexnika",
+        ))
+    if drain["branchMm"] > 0:
+        p = int(price["drain_50"])
+        out.append(_make_line(
+            label="Ish: shtroba (kanalizatsiya Ø50)",
+            formula=f"Tik bo'laklar {drain['branchMm'] / 1000:.2f} m × {p:,} so'm".replace(",", " "),
+            qty=_round2(drain["branchMm"] / 1000), unit="m", price_uzs=p, category="santexnika",
+        ))
+    return out
+
+
+def _demolition_lines(roles: dict[str, int], norms: dict) -> list[ComputedLine]:
+    """Taking the old plumbing out (2026-11-13), when the user switched it on (``plumbingDemolition``
+    exactly true): as many old fixtures as the room has new ones, each at its kind's price, and the
+    old pipes once."""
+    prices = norms["work_demolition_fixture_uzs"]
+    parts = [(role, roles[role], int(prices[role])) for role in ("bathtub", "shower", "sink", "toilet", "bidet") if roles.get(role)]
+    total = sum(n * p for _, n, p in parts)
+    pipes = int(norms["work_demolition_pipes_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        _make_line(
+            label="Ish: eski santexnikani demontaj qilish",
+            formula=" + ".join(f"{n} {FIXTURE_WORK_NAMES[r]} × {fmt(p)}" for r, n, p in parts) + f" = {fmt(total)} so'm",
+            qty=1, unit="komplekt", price_uzs=total, category="santexnika",
+        ),
+        _make_line(
+            label="Ish: eski quvurlarni demontaj qilish", formula=f"1 komplekt × {fmt(pipes)} so'm",
+            qty=1, unit="komplekt", price_uzs=pipes, category="santexnika",
+        ),
+    ]
 
 
 def _part_kind(role: str, name: str, kitchen: bool) -> str:

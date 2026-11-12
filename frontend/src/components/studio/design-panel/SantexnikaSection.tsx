@@ -23,6 +23,8 @@ export function SantexnikaSection({ bathroom = false }: {
 }) {
   const { t } = useTranslation();
   const ventFan = useRoomStore((s) => s.designState.ventFan);
+  const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
+  const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
@@ -197,6 +199,17 @@ export function SantexnikaSection({ bathroom = false }: {
       <label className="flex items-center gap-2 text-[12px] text-ink">
         <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
         {t("studio.santexnika.pipes")}
+      </label>
+
+      {/* For the estimate (2026-11-13): the old plumbing taken out (off unless ticked), the walls
+          chased for the pipes (on unless unticked). smeta.py reads exactly true / exactly false. */}
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={plumbingDemolition === true} onChange={(e) => setDesignState({ plumbingDemolition: e.target.checked })} />
+        {t("studio.santexnika.demolition")}
+      </label>
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />
+        {t("studio.santexnika.in_wall")}
       </label>
 
       {bathroom && (
