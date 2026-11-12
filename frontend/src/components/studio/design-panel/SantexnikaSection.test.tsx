@@ -4,7 +4,7 @@ import { useRoomStore } from '@/store/roomStore'
 import type { CatalogFurniture } from '@/lib/api'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { SantexnikaSection } from './SantexnikaSection'
-import { plumbingSummary, riserSpot } from '@/lib/plumbingRuns'
+import { plumbingSummary, riserSpot, roomRiser } from '@/lib/plumbingRuns'
 import { pipeScheme } from '@/lib/pipeScheme'
 import { formatDecimal } from '@/lib/utils'
 
@@ -74,6 +74,44 @@ describe('SantexnikaSection', () => {
     const dm = m(p.drain_50.trunkMm + p.drain_50.branchMm + p.drain_110.trunkMm + p.drain_110.branchMm)
     const wm = m(p.water_20.trunkMm + p.water_20.branchMm)
     expect(screen.getByText(`Kanalizatsiya: 2 nuqta, ~${dm} m · Suv: 4 nuqta, ~${wm} m`)).toBeInTheDocument()
+  })
+
+  // The riser the user moves (2026-11-13).
+  describe('the riser', () => {
+    it('shows where it is: the door corner until one is set', () => {
+      render(<SantexnikaSection />)
+      const auto = riserSpot(useRoomStore.getState().geometry)
+      expect((screen.getByLabelText('Stoyak devori') as HTMLSelectElement).value).toBe(auto.wallId)
+      expect((screen.getByLabelText('Devor boshidan, sm') as HTMLInputElement).value).toBe(String(Math.round(auto.positionMm / 10)))
+      expect(screen.getByRole('button', { name: /Avtomatik/ })).toBeDisabled()
+    })
+    it('a wall and a distance set it by hand; "Avtomatik" puts it back at the door corner', () => {
+      render(<SantexnikaSection />)
+      fireEvent.change(screen.getByLabelText('Stoyak devori'), { target: { value: 'C' } })
+      expect(useRoomStore.getState().plumbingRiser?.wallId).toBe('C')
+      fireEvent.change(screen.getByLabelText('Devor boshidan, sm'), { target: { value: '120' } })
+      fireEvent.blur(screen.getByLabelText('Devor boshidan, sm'))
+      expect(useRoomStore.getState().plumbingRiser).toEqual({ wallId: 'C', positionMm: 1200 })
+      fireEvent.click(screen.getByRole('button', { name: /Avtomatik/ }))
+      expect(useRoomStore.getState().plumbingRiser).toBeNull()
+    })
+    it('a distance past the wall\'s end stops at its end', () => {
+      render(<SantexnikaSection />)
+      fireEvent.change(screen.getByLabelText('Stoyak devori'), { target: { value: 'B' } })
+      fireEvent.change(screen.getByLabelText('Devor boshidan, sm'), { target: { value: '999' } })
+      fireEvent.blur(screen.getByLabelText('Devor boshidan, sm'))
+      expect(useRoomStore.getState().plumbingRiser).toEqual({ wallId: 'B', positionMm: 2000 })
+    })
+    it('the summary measures from the riser the user set', () => {
+      placeOn('tub', 'vanna', 'A', 0.7)
+      useRoomStore.getState().setPlumbingRiser({ wallId: 'C', positionMm: 1250 })
+      render(<SantexnikaSection />)
+      const s = useRoomStore.getState()
+      const sum = plumbingSummary(s.geometry, s.plumbing, roomRiser(s.geometry, s.plumbingRiser))
+      const auto = plumbingSummary(s.geometry, s.plumbing, riserSpot(s.geometry))
+      expect(sum.water.m).not.toBe(auto.water.m)
+      expect(screen.getByText(new RegExp(`Suv: 2 nuqta, ~${formatDecimal(sum.water.m, 1)} m`))).toBeInTheDocument()
+    })
   })
 
   it('in a kitchen, a sink brings its three points', () => {

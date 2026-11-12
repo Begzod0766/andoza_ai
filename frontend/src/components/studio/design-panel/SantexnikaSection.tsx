@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
-import { plumbingSummary, riserSpot } from "@/lib/plumbingRuns";
+import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { withRailPoints } from "@/lib/towelRail";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
@@ -35,6 +35,10 @@ export function SantexnikaSection({ bathroom = false }: {
   const geometry = useRoomStore((s) => s.geometry);
   const addPlumbing = useRoomStore((s) => s.addPlumbing);
   const removePlumbing = useRoomStore((s) => s.removePlumbing);
+  const plumbingRiser = useRoomStore((s) => s.plumbingRiser);
+  const setPlumbingRiser = useRoomStore((s) => s.setPlumbingRiser);
+  /** The distance being typed, until it is committed (blur or Enter); null shows the riser's own. */
+  const [riserDraft, setRiserDraft] = useState<string | null>(null);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
   const setShowPipeRuns = useRoomStore((s) => s.setShowPipeRuns);
   // The runs stay drawn until the box is unticked, also after the panel closes: on a phone the open
@@ -51,7 +55,17 @@ export function SantexnikaSection({ bathroom = false }: {
   });
   // A rail's two points are worked out from it, never saved: shown and summed with the rest.
   const points = withRailPoints(plumbing, towelRails, geometry);
-  const sum = plumbingSummary(geometry, points, riserSpot(geometry));
+  const riser = roomRiser(geometry, plumbingRiser);
+  const sum = plumbingSummary(geometry, points, riser);
+  /** Sets the riser by hand, kept on its wall (roomRiser clamps it). */
+  const placeRiser = (wallId: string, positionMm: number) =>
+    setPlumbingRiser(roomRiser(geometry, { wallId, positionMm }));
+  function commitRiserDraft() {
+    if (riserDraft == null) return;
+    const cm = Number(riserDraft.replace(",", "."));
+    setRiserDraft(null);
+    if (Number.isFinite(cm)) placeRiser(riser.wallId, Math.round(cm * 10));
+  }
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
 
   // The room's walls can change under an open panel (another room, a resize): the picker keeps to them.
@@ -154,6 +168,31 @@ export function SantexnikaSection({ bathroom = false }: {
           {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
         </div>
       )}
+
+      {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
+      <div className="space-y-1.5">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.riser")}</span>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_wall")}
+            <select aria-label={t("studio.santexnika.riser_wall")} value={riser.wallId} className={field}
+              onChange={(e) => placeRiser(e.target.value, riser.positionMm)}>
+              {geometry.walls.map((w) => <option key={w.id} value={w.id}>{wallNumber(w.id)}</option>)}
+            </select>
+          </label>
+          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_pos")}
+            <input aria-label={t("studio.santexnika.riser_pos")} inputMode="decimal" className={field}
+              value={riserDraft ?? String(Math.round(riser.positionMm / 10))}
+              onChange={(e) => setRiserDraft(e.target.value)} onBlur={commitRiserDraft}
+              onKeyDown={(e) => { if (e.key === "Enter") commitRiserDraft(); }}
+              onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
+          </label>
+        </div>
+        <button type="button" disabled={!plumbingRiser} onClick={() => { setRiserDraft(null); setPlumbingRiser(null); }}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink">
+          {t("studio.santexnika.riser_auto")}
+        </button>
+        <p className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_hint")}</p>
+      </div>
 
       <label className="flex items-center gap-2 text-[12px] text-ink">
         <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />

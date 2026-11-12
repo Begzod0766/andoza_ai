@@ -5,7 +5,7 @@ import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
-import { riserSpot, wallWalk } from "@/lib/plumbingRuns";
+import { roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 
@@ -41,6 +41,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   // A towel rail's two points are worked out from it, never saved: drawn with the rest.
   const plumbing = useMemo(() => withRailPoints(saved, towelRails, geometry), [saved, towelRails, geometry]);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
+  const manualRiser = useRoomStore((s) => s.plumbingRiser);
   const movePlumbing = useRoomStore((s) => s.movePlumbing);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -85,8 +86,8 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   }, [controlsRef]);
 
   const pipes = useMemo(
-    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, riserSpot(geometry), plumbing), hiddenWalls) : []),
-    [showPipeRuns, geometry, plumbing, hiddenWalls],
+    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing), hiddenWalls) : []),
+    [showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser],
   );
   if (plumbing.length === 0) return null;
 

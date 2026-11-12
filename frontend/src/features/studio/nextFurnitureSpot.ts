@@ -5,6 +5,7 @@ import { resolveCatalogEntry } from '@/lib/furnitureEntry'
 import { inferRole } from '@/lib/furnitureRole'
 import { ceilingFitSize } from '@/lib/modelSize'
 import { freeFurnitureSpotMm, type PlacedBox } from '@/lib/placement'
+import { roomRiser } from '@/lib/plumbingRuns'
 import { showToast } from '@/components/ui/Toast'
 
 /** A model of unknown size is taken as this, metres. */
@@ -47,7 +48,7 @@ export function nextFurnitureSpot(item: {
   })
   const known = item.sizeM && item.sizeM.w > 0 && item.sizeM.d > 0 ? item.sizeM : null
   const size = known ? ceilingFitSize(known, item.heightM, s.ceilingHeight) : UNKNOWN
-  const { onWall, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name))
+  const { onWall, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name), roomRiser(s.geometry, s.plumbingRiser))
   if (onWall === false) {
     showToast({
       variant: 'warning',

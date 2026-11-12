@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand'
 import { isRoomType } from '@/lib/roomType'
 import { defaultRoomName } from '@/lib/defaultNames'
 import { saneRails } from '@/lib/towelRail'
+import { saneRiser } from '@/lib/plumbingRuns'
 import { apiGeometryToStoreGeometry, randomElementId } from '@/lib/apiRoomGeometry'
 import type {
   AppliedSurfaces,
@@ -78,6 +79,7 @@ export const createLifecycleSlice: StateCreator<
       electricals?: PlacedElectrical[]
       plumbing?: PlumbingPoint[]
       towelRails?: unknown
+      plumbingRiser?: unknown
       lights?: PlacedLight[]
       userFurniture?: UserFurnitureEntry[]
       layoutPos?: { x: number; z: number }
@@ -105,6 +107,7 @@ export const createLifecycleSlice: StateCreator<
       electricals: s.electricals ?? [],
       plumbing: s.plumbing ?? [],
       towelRails: saneRails(s.towelRails),
+      plumbingRiser: saneRiser(s.plumbingRiser),
       lights: s.lights ?? [],
       userFurniture: s.userFurniture ?? [],
       layoutPos: s.layoutPos ?? null,
@@ -130,6 +133,7 @@ export const createLifecycleSlice: StateCreator<
       electricals: [],
       plumbing: [],
       towelRails: [],
+      plumbingRiser: null,
       lights: [],
       userFurniture: [],
       isDirty: false,

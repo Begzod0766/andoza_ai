@@ -2,7 +2,7 @@ import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
 import type { TowelRail } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
-import { riserSpot } from '@/lib/plumbingRuns'
+import { roomRiser } from '@/lib/plumbingRuns'
 import { nearestFree, placeTowelRail, TOWEL_RAIL_HEIGHT_MM } from '@/lib/towelRail'
 import { useRoomStore } from '../roomStore'
 
@@ -28,7 +28,7 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
 
   addTowelRail() {
     const { geometry } = get()
-    const at = placeTowelRail(geometry, riserSpot(geometry))
+    const at = placeTowelRail(geometry, roomRiser(geometry, get().plumbingRiser))
     if (!at) return false
     set((state) => ({ towelRails: [...state.towelRails, { id: nanoid(), ...at, heightMm: TOWEL_RAIL_HEIGHT_MM }], isDirty: true }))
     return true
