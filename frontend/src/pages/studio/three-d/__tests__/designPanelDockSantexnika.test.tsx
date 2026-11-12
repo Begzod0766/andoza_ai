@@ -25,6 +25,19 @@ describe('the design panel on a phone', () => {
     expect(panel.className).toContain('lg:translate-y-0')
     expect(panel.className).toContain('lg:static')
   })
+  // Mobile QA (iPhone screenshot 2026-11-12): scrolled down, the list slid under the sheet's rounded
+  // top and the close button scrolled away with it; the last line sat on the home indicator.
+  it('Santexnika keeps its close button on top while the form scrolls', () => {
+    render(<DesignPanelDock {...props('santexnika')} />)
+    const bar = screen.getAllByRole('button')[0].parentElement!
+    expect(bar.className).toContain('sticky')
+    expect(bar.className).toContain('top-0')
+    expect(bar.className).toContain('bg-card')
+  })
+  it('Santexnika leaves room for the home indicator at the bottom', () => {
+    render(<DesignPanelDock {...props('santexnika')} />)
+    expect(screen.getByTestId('design-panel-mobile').className).toContain('pb-[env(safe-area-inset-bottom)]')
+  })
   it('other stages keep the right half, so the wall stays in view', () => {
     render(<DesignPanelDock {...props('boyoq')} />)
     expect(screen.getByTestId('design-panel-mobile').className).toContain('w-1/2')
