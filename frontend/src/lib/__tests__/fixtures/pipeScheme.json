@@ -1,0 +1,3462 @@
+{
+ "_doc": "The pipe scheme (spec 2026-11-11), shared by frontend lib/pipeScheme.ts and backend app/services/pipe_scheme.py so both give one scheme for a room. `geometry`, `riser` and `points` are the studio's (mm; an element's position is its left edge from the wall's own start); `input` is the normalised room the rule sees and `expected` the scheme. The backend test converts the geometry to metres and element positions to middle fractions. Regenerate only with the studio code it checks, and read each result against the rule.",
+ "cases": [
+  {
+   "name": "one door on D, two cold points (the hand-worked case)",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "c1",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 550
+    },
+    {
+     "id": "c2",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 1050
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "heightMm": 550
+     },
+     {
+      "id": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "heightMm": 1050
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 6000,
+      "branchMm": 1200
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 1,
+     "elbow_20": 3,
+     "outlet_20": 2,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 1,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 2,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 2
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 1000,
+      "toMm": 7000,
+      "heightMm": 200
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "fromHeightMm": 200,
+      "toHeightMm": 1050
+     }
+    ]
+   }
+  },
+  {
+   "name": "no door: the largest gap is the cut",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "c1",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 550
+    },
+    {
+     "id": "c2",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 1050
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "heightMm": 550
+     },
+     {
+      "id": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "heightMm": 1050
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 5000,
+      "branchMm": 1200
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 1,
+     "elbow_20": 3,
+     "outlet_20": 2,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 1,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 2,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 2
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 7000,
+      "toMm": 12000,
+      "heightMm": 200
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "fromHeightMm": 200,
+      "toHeightMm": 1050
+     }
+    ]
+   }
+  },
+  {
+   "name": "two doors: the largest door gap is the cut, the other is crossed",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": [
+       {
+        "id": "door2",
+        "type": "eshik",
+        "position": 1650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "c1",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 550
+    },
+    {
+     "id": "c2",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 1050
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     2000,
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "heightMm": 550
+     },
+     {
+      "id": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "heightMm": 1050
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 6000,
+      "branchMm": 1200
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 1,
+     "elbow_20": 3,
+     "outlet_20": 2,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 1,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 2,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 2
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 1000,
+      "toMm": 7000,
+      "heightMm": 200
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "fromHeightMm": 200,
+      "toHeightMm": 1050
+     }
+    ]
+   }
+  },
+  {
+   "name": "a window does not cut the loop",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "win",
+        "type": "deraza",
+        "position": 900,
+        "width": 1000,
+        "height": 1200,
+        "sill_height": 900,
+        "positionAuto": false
+       }
+      ]
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "c1",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 550
+    },
+    {
+     "id": "c2",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 1050
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "heightMm": 550
+     },
+     {
+      "id": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "heightMm": 1050
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 6000,
+      "branchMm": 1200
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 1,
+     "elbow_20": 3,
+     "outlet_20": 2,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 1,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 2,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 2
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 1000,
+      "toMm": 7000,
+      "heightMm": 200
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3000,
+      "fromHeightMm": 200,
+      "toHeightMm": 1050
+     }
+    ]
+   }
+  },
+  {
+   "name": "riser mid-wall, points both sides",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "B",
+    "positionMm": 1000
+   },
+   "points": [
+    {
+     "id": "c1",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 550
+    },
+    {
+     "id": "c2",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 1500,
+     "heightMm": 550
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 3500,
+    "points": [
+     {
+      "id": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "heightMm": 550
+     },
+     {
+      "id": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 6000,
+      "heightMm": 550
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 5000,
+      "branchMm": 700
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 1,
+     "elbow_20": 4,
+     "outlet_20": 2,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 0,
+      "riser": 1
+     },
+     "elbow_20": {
+      "corners": 2,
+      "ends": 2
+     },
+     "outlet_20": {
+      "points": 2
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 1000,
+      "toMm": 6000,
+      "heightMm": 200
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "c2",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 6000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     }
+    ]
+   }
+  },
+  {
+   "name": "toilet beside the riser",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "bath",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 150
+    },
+    {
+     "id": "sink",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 500
+    },
+    {
+     "id": "wc",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "C",
+     "positionMm": 2000,
+     "heightMm": 200
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "bath",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 1000,
+      "heightMm": 150
+     },
+     {
+      "id": "sink",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 3000,
+      "heightMm": 500
+     },
+     {
+      "id": "wc",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 6500,
+      "heightMm": 200
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_50": {
+      "trunkMm": 5000,
+      "branchMm": 650
+     },
+     "drain_110": {
+      "trunkMm": 500,
+      "branchMm": 200
+     }
+    },
+    "fittings": {
+     "tee_20": 0,
+     "elbow_20": 0,
+     "outlet_20": 0,
+     "valve_20": 0,
+     "tee_50": 1,
+     "elbow_50": 3,
+     "tee_110_50": 0,
+     "elbow_110": 1
+    },
+    "why": {
+     "tee_20": {
+      "branches": 0,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 0,
+      "ends": 0
+     },
+     "outlet_20": {
+      "points": 0
+     },
+     "valve_20": {
+      "lines": 0
+     },
+     "tee_50": {
+      "branches": 1
+     },
+     "elbow_50": {
+      "corners": 2,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 1,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 6500,
+      "toMm": 7000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 7000,
+      "toMm": 12000,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "bath",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 1000,
+      "fromHeightMm": 0,
+      "toHeightMm": 150
+     },
+     {
+      "pointId": "sink",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 3000,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     },
+     {
+      "pointId": "wc",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 6500,
+      "fromHeightMm": 0,
+      "toHeightMm": 200
+     }
+    ]
+   }
+  },
+  {
+   "name": "toilet farthest from the riser",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "wc",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 200
+    },
+    {
+     "id": "sink",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 500
+    },
+    {
+     "id": "bath",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "C",
+     "positionMm": 2000,
+     "heightMm": 150
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "wc",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 1000,
+      "heightMm": 200
+     },
+     {
+      "id": "sink",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 3000,
+      "heightMm": 500
+     },
+     {
+      "id": "bath",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 6500,
+      "heightMm": 150
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_50": {
+      "trunkMm": 2500,
+      "branchMm": 650
+     },
+     "drain_110": {
+      "trunkMm": 3000,
+      "branchMm": 200
+     }
+    },
+    "fittings": {
+     "tee_20": 0,
+     "elbow_20": 0,
+     "outlet_20": 0,
+     "valve_20": 0,
+     "tee_50": 0,
+     "elbow_50": 3,
+     "tee_110_50": 1,
+     "elbow_110": 2
+    },
+    "why": {
+     "tee_20": {
+      "branches": 0,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 0,
+      "ends": 0
+     },
+     "outlet_20": {
+      "points": 0
+     },
+     "valve_20": {
+      "lines": 0
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 1,
+      "ends": 2
+     },
+     "tee_110_50": {
+      "joins": 1
+     },
+     "elbow_110": {
+      "toilets": 1,
+      "corners": 1
+     }
+    },
+    "lines": [
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 6500,
+      "toMm": 7000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 7000,
+      "toMm": 10000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 10000,
+      "toMm": 12000,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "wc",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 1000,
+      "fromHeightMm": 0,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "sink",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 3000,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     },
+     {
+      "pointId": "bath",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 6500,
+      "fromHeightMm": 0,
+      "toHeightMm": 150
+     }
+    ]
+   }
+  },
+  {
+   "name": "toilet in the middle",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "bath",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1000,
+     "heightMm": 150
+    },
+    {
+     "id": "wc",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "B",
+     "positionMm": 500,
+     "heightMm": 200
+    },
+    {
+     "id": "sink",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "C",
+     "positionMm": 2000,
+     "heightMm": 500
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "bath",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 1000,
+      "heightMm": 150
+     },
+     {
+      "id": "wc",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 3000,
+      "heightMm": 200
+     },
+     {
+      "id": "sink",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 6500,
+      "heightMm": 500
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_50": {
+      "trunkMm": 500,
+      "branchMm": 650
+     },
+     "drain_110": {
+      "trunkMm": 5000,
+      "branchMm": 200
+     }
+    },
+    "fittings": {
+     "tee_20": 0,
+     "elbow_20": 0,
+     "outlet_20": 0,
+     "valve_20": 0,
+     "tee_50": 0,
+     "elbow_50": 1,
+     "tee_110_50": 1,
+     "elbow_110": 3
+    },
+    "why": {
+     "tee_20": {
+      "branches": 0,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 0,
+      "ends": 0
+     },
+     "outlet_20": {
+      "points": 0
+     },
+     "valve_20": {
+      "lines": 0
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 1
+     },
+     "elbow_110": {
+      "toilets": 1,
+      "corners": 2
+     }
+    },
+    "lines": [
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 6500,
+      "toMm": 7000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 7000,
+      "toMm": 12000,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "bath",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 1000,
+      "fromHeightMm": 0,
+      "toHeightMm": 150
+     },
+     {
+      "pointId": "wc",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 3000,
+      "fromHeightMm": 0,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "sink",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 6500,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     }
+    ]
+   }
+  },
+  {
+   "name": "Hammom: bathtub on A, toilet on B, sink on C, shower in a corner, a towel rail, a door on D",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "bath:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1250,
+     "heightMm": 150,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "bath:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1150,
+     "heightMm": 700,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "bath:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1350,
+     "heightMm": 700,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "wc:drain",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "B",
+     "positionMm": 1000,
+     "heightMm": 200,
+     "fixtureId": "wc"
+    },
+    {
+     "id": "wc:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 900,
+     "heightMm": 200,
+     "fixtureId": "wc"
+    },
+    {
+     "id": "sink:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "C",
+     "positionMm": 600,
+     "heightMm": 500,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 500,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 700,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "shower:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 400,
+     "heightMm": 0,
+     "fixtureId": "shower"
+    },
+    {
+     "id": "shower:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 300,
+     "heightMm": 1050,
+     "fixtureId": "shower"
+    },
+    {
+     "id": "shower:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 500,
+     "heightMm": 1050,
+     "fixtureId": "shower"
+    },
+    {
+     "id": "rail:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 1750,
+     "heightMm": 1000,
+     "railId": "rail"
+    },
+    {
+     "id": "rail:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "C",
+     "positionMm": 2250,
+     "heightMm": 1000,
+     "railId": "rail"
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "bath:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 1250,
+      "heightMm": 150
+     },
+     {
+      "id": "bath:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1150,
+      "heightMm": 700
+     },
+     {
+      "id": "bath:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 1350,
+      "heightMm": 700
+     },
+     {
+      "id": "wc:drain",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 3500,
+      "heightMm": 200
+     },
+     {
+      "id": "wc:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3400,
+      "heightMm": 200
+     },
+     {
+      "id": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 5100,
+      "heightMm": 500
+     },
+     {
+      "id": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 5000,
+      "heightMm": 550
+     },
+     {
+      "id": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 5200,
+      "heightMm": 550
+     },
+     {
+      "id": "shower:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 400,
+      "heightMm": 0
+     },
+     {
+      "id": "shower:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 300,
+      "heightMm": 1050
+     },
+     {
+      "id": "shower:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 500,
+      "heightMm": 1050
+     },
+     {
+      "id": "rail:feed",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6250,
+      "heightMm": 1000
+     },
+     {
+      "id": "rail:return",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6750,
+      "heightMm": 1000
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 13200,
+      "branchMm": 5000
+     },
+     "drain_50": {
+      "trunkMm": 3100,
+      "branchMm": 650
+     },
+     "drain_110": {
+      "trunkMm": 3500,
+      "branchMm": 200
+     }
+    },
+    "fittings": {
+     "tee_20": 7,
+     "elbow_20": 6,
+     "outlet_20": 9,
+     "valve_20": 2,
+     "tee_50": 1,
+     "elbow_50": 2,
+     "tee_110_50": 2,
+     "elbow_110": 2
+    },
+    "why": {
+     "tee_20": {
+      "branches": 7,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 4,
+      "ends": 2
+     },
+     "outlet_20": {
+      "points": 9
+     },
+     "valve_20": {
+      "lines": 2
+     },
+     "tee_50": {
+      "branches": 1
+     },
+     "elbow_50": {
+      "corners": 1,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 2
+     },
+     "elbow_110": {
+      "toilets": 1,
+      "corners": 1
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 300,
+      "toMm": 7000,
+      "heightMm": 200
+     },
+     {
+      "kind": "hot",
+      "diameterMm": 20,
+      "fromMm": 500,
+      "toMm": 7000,
+      "heightMm": 250
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 400,
+      "toMm": 3500,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 3500,
+      "toMm": 7000,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "bath:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 1250,
+      "fromHeightMm": 0,
+      "toHeightMm": 150
+     },
+     {
+      "pointId": "bath:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1150,
+      "fromHeightMm": 200,
+      "toHeightMm": 700
+     },
+     {
+      "pointId": "bath:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 1350,
+      "fromHeightMm": 250,
+      "toHeightMm": 700
+     },
+     {
+      "pointId": "wc:drain",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 3500,
+      "fromHeightMm": 0,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "wc:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3400,
+      "fromHeightMm": 200,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 5100,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     },
+     {
+      "pointId": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 5000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 5200,
+      "fromHeightMm": 250,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "shower:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 400,
+      "fromHeightMm": 0,
+      "toHeightMm": 0
+     },
+     {
+      "pointId": "shower:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 300,
+      "fromHeightMm": 200,
+      "toHeightMm": 1050
+     },
+     {
+      "pointId": "shower:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 500,
+      "fromHeightMm": 250,
+      "toHeightMm": 1050
+     },
+     {
+      "pointId": "rail:feed",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6250,
+      "fromHeightMm": 250,
+      "toHeightMm": 1000
+     },
+     {
+      "pointId": "rail:return",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6750,
+      "fromHeightMm": 250,
+      "toHeightMm": 1000
+     }
+    ]
+   }
+  },
+  {
+   "name": "only a towel rail",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "rail:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 350,
+     "heightMm": 1000,
+     "railId": "rail"
+    },
+    {
+     "id": "rail:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 850,
+     "heightMm": 1000,
+     "railId": "rail"
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "rail:feed",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 7350,
+      "heightMm": 1000
+     },
+     {
+      "id": "rail:return",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 7850,
+      "heightMm": 1000
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 850,
+      "branchMm": 1600
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 1,
+     "elbow_20": 1,
+     "outlet_20": 2,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 1,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 0,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 2
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "hot",
+      "diameterMm": 20,
+      "fromMm": 7000,
+      "toMm": 7850,
+      "heightMm": 250
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "rail:feed",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 7350,
+      "fromHeightMm": 250,
+      "toHeightMm": 1000
+     },
+     {
+      "pointId": "rail:return",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 7850,
+      "fromHeightMm": 250,
+      "toHeightMm": 1000
+     }
+    ]
+   }
+  },
+  {
+   "name": "a point at the riser, alone",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "c1",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "D",
+     "positionMm": 0,
+     "heightMm": 550
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 7000,
+      "heightMm": 550
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 0,
+      "branchMm": 350
+     },
+     "drain_50": {
+      "trunkMm": 0,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 0,
+     "elbow_20": 1,
+     "outlet_20": 1,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 0,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 0,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 0,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 1
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 0
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [],
+    "branches": [
+     {
+      "pointId": "c1",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 7000,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     }
+    ]
+   }
+  },
+  {
+   "name": "a point on a wall the room lacks, one past its wall, one below the floor",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 650,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ]
+   },
+   "riser": {
+    "wallId": "D",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "gone",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "Z",
+     "positionMm": 100,
+     "heightMm": 500
+    },
+    {
+     "id": "far",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 9999,
+     "heightMm": 550
+    },
+    {
+     "id": "low",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "B",
+     "positionMm": 800,
+     "heightMm": -50
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     2500,
+     2000,
+     2500,
+     2000
+    ],
+    "doorsMm": [
+     8000
+    ],
+    "riserMm": 7000,
+    "points": [
+     {
+      "id": "far",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 2500,
+      "heightMm": 550
+     },
+     {
+      "id": "low",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 3300,
+      "heightMm": 0
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 4500,
+      "branchMm": 350
+     },
+     "drain_50": {
+      "trunkMm": 3700,
+      "branchMm": 0
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 0,
+     "elbow_20": 2,
+     "outlet_20": 1,
+     "valve_20": 1,
+     "tee_50": 0,
+     "elbow_50": 2,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 0,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 1,
+      "ends": 1
+     },
+     "outlet_20": {
+      "points": 1
+     },
+     "valve_20": {
+      "lines": 1
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 1,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 2500,
+      "toMm": 7000,
+      "heightMm": 200
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 3300,
+      "toMm": 7000,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "far",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 2500,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "low",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 3300,
+      "fromHeightMm": 0,
+      "toHeightMm": 0
+     }
+    ]
+   }
+  },
+  {
+   "name": "L-shaped polygon, door on wall 5",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 4000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1500,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "5",
+      "length": 3500,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 400,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      4000,
+      0
+     ],
+     [
+      4000,
+      2000
+     ],
+     [
+      2000,
+      2000
+     ],
+     [
+      2000,
+      3500
+     ],
+     [
+      0,
+      3500
+     ]
+    ]
+   },
+   "riser": {
+    "wallId": "5",
+    "positionMm": 3500
+   },
+   "points": [
+    {
+     "id": "bath:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "0",
+     "positionMm": 2000,
+     "heightMm": 150,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "bath:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "0",
+     "positionMm": 1900,
+     "heightMm": 700,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "bath:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "0",
+     "positionMm": 2100,
+     "heightMm": 700,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "wc:drain",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "2",
+     "positionMm": 1000,
+     "heightMm": 200,
+     "fixtureId": "wc"
+    },
+    {
+     "id": "wc:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 900,
+     "heightMm": 200,
+     "fixtureId": "wc"
+    },
+    {
+     "id": "sink:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "4",
+     "positionMm": 1000,
+     "heightMm": 500,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "4",
+     "positionMm": 900,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "4",
+     "positionMm": 1100,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     4000,
+     2000,
+     2000,
+     1500,
+     2000,
+     3500
+    ],
+    "doorsMm": [
+     12250
+    ],
+    "riserMm": 15000,
+    "points": [
+     {
+      "id": "bath:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 2000,
+      "heightMm": 150
+     },
+     {
+      "id": "bath:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1900,
+      "heightMm": 700
+     },
+     {
+      "id": "bath:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 2100,
+      "heightMm": 700
+     },
+     {
+      "id": "wc:drain",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 7000,
+      "heightMm": 200
+     },
+     {
+      "id": "wc:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 6900,
+      "heightMm": 200
+     },
+     {
+      "id": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 10500,
+      "heightMm": 500
+     },
+     {
+      "id": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 10400,
+      "heightMm": 550
+     },
+     {
+      "id": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 10600,
+      "heightMm": 550
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 21000,
+      "branchMm": 1700
+     },
+     "drain_50": {
+      "trunkMm": 2000,
+      "branchMm": 650
+     },
+     "drain_110": {
+      "trunkMm": 8000,
+      "branchMm": 200
+     }
+    },
+    "fittings": {
+     "tee_20": 3,
+     "elbow_20": 10,
+     "outlet_20": 5,
+     "valve_20": 2,
+     "tee_50": 0,
+     "elbow_50": 1,
+     "tee_110_50": 1,
+     "elbow_110": 4
+    },
+    "why": {
+     "tee_20": {
+      "branches": 3,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 8,
+      "ends": 2
+     },
+     "outlet_20": {
+      "points": 5
+     },
+     "valve_20": {
+      "lines": 2
+     },
+     "tee_50": {
+      "branches": 0
+     },
+     "elbow_50": {
+      "corners": 0,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 1
+     },
+     "elbow_110": {
+      "toilets": 1,
+      "corners": 3
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 0,
+      "toMm": 10400,
+      "heightMm": 200
+     },
+     {
+      "kind": "hot",
+      "diameterMm": 20,
+      "fromMm": 0,
+      "toMm": 10600,
+      "heightMm": 250
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 7000,
+      "toMm": 15000,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 15000,
+      "toMm": 17000,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "bath:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 2000,
+      "fromHeightMm": 0,
+      "toHeightMm": 150
+     },
+     {
+      "pointId": "bath:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 1900,
+      "fromHeightMm": 200,
+      "toHeightMm": 700
+     },
+     {
+      "pointId": "bath:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 2100,
+      "fromHeightMm": 250,
+      "toHeightMm": 700
+     },
+     {
+      "pointId": "wc:drain",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 7000,
+      "fromHeightMm": 0,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "wc:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 6900,
+      "fromHeightMm": 200,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 10500,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     },
+     {
+      "pointId": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 10400,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 10600,
+      "fromHeightMm": 250,
+      "toHeightMm": 550
+     }
+    ]
+   }
+  },
+  {
+   "name": "polygon with slanted walls of 1802.78 mm",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 3000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 1803,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1803,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": [
+       {
+        "id": "door",
+        "type": "eshik",
+        "position": 300,
+        "width": 700,
+        "height": 2000,
+        "sill_height": 0,
+        "positionAuto": false
+       }
+      ]
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      3000,
+      0
+     ],
+     [
+      3000,
+      2000
+     ],
+     [
+      1500,
+      3000
+     ],
+     [
+      0,
+      2000
+     ]
+    ]
+   },
+   "riser": {
+    "wallId": "4",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "sink:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "2",
+     "positionMm": 900,
+     "heightMm": 500,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 800,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 1000,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "wc:drain",
+     "kind": "drain",
+     "diameterMm": 110,
+     "wallId": "3",
+     "positionMm": 1700,
+     "heightMm": 200,
+     "fixtureId": "wc"
+    },
+    {
+     "id": "wc:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 1600,
+     "heightMm": 200,
+     "fixtureId": "wc"
+    },
+    {
+     "id": "shower:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "1",
+     "positionMm": 1000,
+     "heightMm": 0,
+     "fixtureId": "shower"
+    },
+    {
+     "id": "shower:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "1",
+     "positionMm": 900,
+     "heightMm": 1050,
+     "fixtureId": "shower"
+    },
+    {
+     "id": "shower:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "1",
+     "positionMm": 1100,
+     "heightMm": 1050,
+     "fixtureId": "shower"
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     3000,
+     2000,
+     1803,
+     1803,
+     2000
+    ],
+    "doorsMm": [
+     9256
+    ],
+    "riserMm": 8606,
+    "points": [
+     {
+      "id": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 5900,
+      "heightMm": 500
+     },
+     {
+      "id": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 5800,
+      "heightMm": 550
+     },
+     {
+      "id": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6000,
+      "heightMm": 550
+     },
+     {
+      "id": "wc:drain",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 8503,
+      "heightMm": 200
+     },
+     {
+      "id": "wc:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 8403,
+      "heightMm": 200
+     },
+     {
+      "id": "shower:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 4000,
+      "heightMm": 0
+     },
+     {
+      "id": "shower:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3900,
+      "heightMm": 1050
+     },
+     {
+      "id": "shower:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 4100,
+      "heightMm": 1050
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 9212,
+      "branchMm": 2400
+     },
+     "drain_50": {
+      "trunkMm": 4503,
+      "branchMm": 500
+     },
+     "drain_110": {
+      "trunkMm": 103,
+      "branchMm": 200
+     }
+    },
+    "fittings": {
+     "tee_20": 3,
+     "elbow_20": 6,
+     "outlet_20": 5,
+     "valve_20": 2,
+     "tee_50": 1,
+     "elbow_50": 3,
+     "tee_110_50": 1,
+     "elbow_110": 1
+    },
+    "why": {
+     "tee_20": {
+      "branches": 3,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 4,
+      "ends": 2
+     },
+     "outlet_20": {
+      "points": 5
+     },
+     "valve_20": {
+      "lines": 2
+     },
+     "tee_50": {
+      "branches": 1
+     },
+     "elbow_50": {
+      "corners": 2,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 1
+     },
+     "elbow_110": {
+      "toilets": 1,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 3900,
+      "toMm": 8606,
+      "heightMm": 200
+     },
+     {
+      "kind": "hot",
+      "diameterMm": 20,
+      "fromMm": 4100,
+      "toMm": 8606,
+      "heightMm": 250
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 4000,
+      "toMm": 8503,
+      "heightMm": 0
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 110,
+      "fromMm": 8503,
+      "toMm": 8606,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 5900,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     },
+     {
+      "pointId": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 5800,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6000,
+      "fromHeightMm": 250,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "wc:drain",
+      "kind": "drain",
+      "diameterMm": 110,
+      "sMm": 8503,
+      "fromHeightMm": 0,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "wc:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 8403,
+      "fromHeightMm": 200,
+      "toHeightMm": 200
+     },
+     {
+      "pointId": "shower:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 4000,
+      "fromHeightMm": 0,
+      "toHeightMm": 0
+     },
+     {
+      "pointId": "shower:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 3900,
+      "fromHeightMm": 200,
+      "toHeightMm": 1050
+     },
+     {
+      "pointId": "shower:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 4100,
+      "fromHeightMm": 250,
+      "toHeightMm": 1050
+     }
+    ]
+   }
+  },
+  {
+   "name": "polygon with no door",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 3000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 1803,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1803,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      3000,
+      0
+     ],
+     [
+      3000,
+      2000
+     ],
+     [
+      1500,
+      3000
+     ],
+     [
+      0,
+      2000
+     ]
+    ]
+   },
+   "riser": {
+    "wallId": "0",
+    "positionMm": 0
+   },
+   "points": [
+    {
+     "id": "sink:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "2",
+     "positionMm": 900,
+     "heightMm": 500,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 800,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "sink:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "2",
+     "positionMm": 1000,
+     "heightMm": 550,
+     "fixtureId": "sink"
+    },
+    {
+     "id": "bath:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "3",
+     "positionMm": 1200,
+     "heightMm": 150,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "bath:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 1100,
+     "heightMm": 700,
+     "fixtureId": "bath"
+    },
+    {
+     "id": "bath:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "3",
+     "positionMm": 1300,
+     "heightMm": 700,
+     "fixtureId": "bath"
+    }
+   ],
+   "input": {
+    "wallsMm": [
+     3000,
+     2000,
+     1803,
+     1803,
+     2000
+    ],
+    "doorsMm": [],
+    "riserMm": 0,
+    "points": [
+     {
+      "id": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 5900,
+      "heightMm": 500
+     },
+     {
+      "id": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 5800,
+      "heightMm": 550
+     },
+     {
+      "id": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6000,
+      "heightMm": 550
+     },
+     {
+      "id": "bath:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 8003,
+      "heightMm": 150
+     },
+     {
+      "id": "bath:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 7903,
+      "heightMm": 700
+     },
+     {
+      "id": "bath:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 8103,
+      "heightMm": 700
+     }
+    ]
+   },
+   "expected": {
+    "pipes": {
+     "water_20": {
+      "trunkMm": 9412,
+      "branchMm": 1700
+     },
+     "drain_50": {
+      "trunkMm": 4706,
+      "branchMm": 650
+     },
+     "drain_110": {
+      "trunkMm": 0,
+      "branchMm": 0
+     }
+    },
+    "fittings": {
+     "tee_20": 2,
+     "elbow_20": 6,
+     "outlet_20": 4,
+     "valve_20": 2,
+     "tee_50": 1,
+     "elbow_50": 3,
+     "tee_110_50": 0,
+     "elbow_110": 0
+    },
+    "why": {
+     "tee_20": {
+      "branches": 2,
+      "riser": 0
+     },
+     "elbow_20": {
+      "corners": 4,
+      "ends": 2
+     },
+     "outlet_20": {
+      "points": 4
+     },
+     "valve_20": {
+      "lines": 2
+     },
+     "tee_50": {
+      "branches": 1
+     },
+     "elbow_50": {
+      "corners": 2,
+      "ends": 1
+     },
+     "tee_110_50": {
+      "joins": 0
+     },
+     "elbow_110": {
+      "toilets": 0,
+      "corners": 0
+     }
+    },
+    "lines": [
+     {
+      "kind": "cold",
+      "diameterMm": 20,
+      "fromMm": 5800,
+      "toMm": 10606,
+      "heightMm": 200
+     },
+     {
+      "kind": "hot",
+      "diameterMm": 20,
+      "fromMm": 6000,
+      "toMm": 10606,
+      "heightMm": 250
+     },
+     {
+      "kind": "drain",
+      "diameterMm": 50,
+      "fromMm": 5900,
+      "toMm": 10606,
+      "heightMm": 0
+     }
+    ],
+    "branches": [
+     {
+      "pointId": "sink:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 5900,
+      "fromHeightMm": 0,
+      "toHeightMm": 500
+     },
+     {
+      "pointId": "sink:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 5800,
+      "fromHeightMm": 200,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "sink:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 6000,
+      "fromHeightMm": 250,
+      "toHeightMm": 550
+     },
+     {
+      "pointId": "bath:drain",
+      "kind": "drain",
+      "diameterMm": 50,
+      "sMm": 8003,
+      "fromHeightMm": 0,
+      "toHeightMm": 150
+     },
+     {
+      "pointId": "bath:cold",
+      "kind": "cold",
+      "diameterMm": 20,
+      "sMm": 7903,
+      "fromHeightMm": 200,
+      "toHeightMm": 700
+     },
+     {
+      "pointId": "bath:hot",
+      "kind": "hot",
+      "diameterMm": 20,
+      "sMm": 8103,
+      "fromHeightMm": 250,
+      "toHeightMm": 700
+     }
+    ]
+   }
+  }
+ ]
+}

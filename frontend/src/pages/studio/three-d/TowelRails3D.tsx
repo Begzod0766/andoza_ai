@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -63,6 +63,20 @@ export function raycastInFront(this: THREE.Mesh, raycaster: THREE.Raycaster, int
 }
 
 /**
+ * A rail's pointer handlers. In the Santexnika stage a press starts the drag, and a tap ends at the
+ * rail: its hit area is the nearest thing on the ray but had no click handler, so a tap that moved
+ * nothing went on to the wall behind and opened the wall's menu (mobile re-check 2026-11-11). In any
+ * other stage there are none and a touch goes through.
+ */
+export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void): {
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
+  onClick?: (e: ThreeEvent<MouseEvent>) => void;
+} {
+  if (!active) return {};
+  return { onPointerDown: start, onClick: (e) => e.stopPropagation() };
+}
+
+/**
  * The heated towel rails on the walls (spec 2026-11-10): a chrome ladder each, drawn in code. A rail
  * slides along its wall by drag; the store keeps it off doors, windows and the wall's ends.
  */
@@ -111,6 +125,17 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
     };
   }, [dragging, geometry, camera, gl, raycaster, moveTowelRail, controlsRef]);
 
+  // The scene can go away mid-drag (another page, another room): the drag ends with it, or undo
+  // stays paused and the camera stays locked.
+  const draggingRef = useRef<string | null>(null);
+  draggingRef.current = dragging;
+  useEffect(() => () => {
+    if (!draggingRef.current) return;
+    useRoomStore.getState().endTowelRailDrag();
+    if (controlsRef.current) controlsRef.current.enabled = true;
+    document.body.style.cursor = "";
+  }, [controlsRef]);
+
   if (towelRails.length === 0) return null;
 
   const start = (rail: TowelRail, e: ThreeEvent<PointerEvent>) => {
@@ -128,7 +153,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
         const pose = towelRailPose(rail, geometry);
         if (!pose) return null;
         return (
-          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} onPointerDown={active ? (e) => start(rail, e) : undefined}>
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(rail, e))}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
             <mesh raycast={active ? raycastInFront : noRaycast}>
               <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />

@@ -5,13 +5,12 @@ import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
-import { pipeRunPath, riserSpot, wallWalk } from "@/lib/plumbingRuns";
+import { riserSpot, wallWalk } from "@/lib/plumbingRuns";
+import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 
-const COLOUR = { drain: "#9CA3AF", cold: "#3B82F6", hot: "#EF4444" } as const;
 const RADIUS = 0.04;
 const OFF_WALL = 0.01;
-const PIPE_Y = 0.05;
 
 /** Where a point's disc sits: on its wall, at its height, facing into the room (spec 2026-11-08). */
 export function plumbingPointPose(point: PlumbingPoint, geometry: RoomGeometry): { x: number; y: number; z: number; rotY: number } | null {
@@ -28,8 +27,9 @@ export function plumbingPointPose(point: PlumbingPoint, geometry: RoomGeometry):
 
 /**
  * The drain and water points on the walls, as small coloured discs; a point added by hand can be
- * dragged along its wall and up or down (a fixture's own points move with the fixture). The pipe runs
- * to the riser are drawn while the Santexnika stage's toggle is on.
+ * dragged along its wall and up or down (a fixture's own points move with the fixture). While the
+ * Santexnika stage's toggle is on the room's pipe scheme is drawn: a trunk per pipe kind along the
+ * walls and a vertical branch to each point (spec 2026-11-11), the Ø110 way thicker.
  */
 export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
@@ -76,11 +76,22 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
     return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); };
   }, [dragging, geometry, camera, gl, raycaster, movePlumbing, controlsRef]);
 
-  const riser = useMemo(() => riserSpot(geometry), [geometry]);
+  // The scene can go away mid-drag: the drag ends with it, or undo stays paused and the camera locked.
+  useEffect(() => () => {
+    if (!draggingRef.current) return;
+    useRoomStore.getState().endPlumbingDrag();
+    if (controlsRef.current) controlsRef.current.enabled = true;
+    document.body.style.cursor = "";
+  }, [controlsRef]);
+
+  const pipes = useMemo(
+    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, riserSpot(geometry), plumbing), hiddenWalls) : []),
+    [showPipeRuns, geometry, plumbing, hiddenWalls],
+  );
   if (plumbing.length === 0) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
-    if (p.fixtureId || p.railId) return;
+    if (p.fixtureId || p.railId || e.button !== 0) return;   // not a fixture's or a rail's point, not a right-click
     e.stopPropagation();
     useRoomStore.getState().beginPlumbingDrag();
     draggingRef.current = p.id;
@@ -101,11 +112,9 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
           </mesh>
         );
       })}
-      {showPipeRuns && plumbing.map((p) => {
-        const path = pipeRunPath(geometry, p, riser);
-        if (path.length < 2) return null;
-        return <Line key={`run-${p.id}`} points={path.map(([x, z]) => [x, PIPE_Y, z] as [number, number, number])} color={COLOUR[p.kind]} lineWidth={2} />;
-      })}
+      {pipes.map((l) => (
+        <Line key={l.key} points={drawnPoints(l)} color={COLOUR[l.kind]} lineWidth={l.diameterMm === 110 ? 4 : 2} />
+      ))}
     </group>
   );
 }

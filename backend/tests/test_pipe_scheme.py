@@ -1,0 +1,141 @@
+"""The pipe scheme on the server (spec 2026-11-11): the studio's rule, through one shared file."""
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from app.services.pipe_scheme import EMPTY_SCHEME, build_scheme, pipe_scheme, scheme_input
+
+CASES = json.loads((Path(__file__).resolve().parents[2] / "frontend/src/lib/__tests__/fixtures/pipeScheme.json").read_text(encoding="utf-8"))["cases"]
+BY_NAME = {c["name"]: c for c in CASES}
+
+
+def _metres(g):
+    """The studio's geometry (mm; an element's position its left edge from the wall's own start) as a
+    room row holds it (metres; an element's position the 0–1 fraction of its middle)."""
+    def wall(w):
+        length = w["length"]
+        els = [{**e, "position": (e["position"] + e["width"] / 2) / length, "width": e["width"] / 1000} for e in w.get("elements") or []]
+        return {**w, "length": length / 1000, "elements": els}
+
+    out = {"walls": [wall(w) for w in g["walls"]]}
+    if g.get("vertices"):
+        out["vertices"] = [[x / 1000, z / 1000] for x, z in g["vertices"]]
+    return out
+
+
+def _riser(case):
+    return (case["riser"]["wallId"], case["riser"]["positionMm"])
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
+def test_the_input_matches_the_studio(case):
+    assert scheme_input(_metres(case["geometry"]), _riser(case), case["points"]) == case["input"]
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
+def test_the_scheme_matches_the_studio(case):
+    assert build_scheme(case["input"]) == case["expected"]
+    assert pipe_scheme(_metres(case["geometry"]), _riser(case), case["points"]) == case["expected"]
+
+
+def test_no_room_and_no_points_give_the_empty_scheme():
+    assert pipe_scheme(None, ("A", 0), []) == EMPTY_SCHEME
+    case = CASES[0]
+    assert pipe_scheme(_metres(case["geometry"]), _riser(case), []) == EMPTY_SCHEME
+    assert pipe_scheme({"walls": []}, ("A", 0), case["points"]) == EMPTY_SCHEME
+
+
+@pytest.mark.parametrize("bad", [None, "x", 7, {}, {"kind": "cold"}, {"wallId": "A"}, {"kind": "steam", "wallId": "A", "positionMm": 5, "heightMm": 5},
+                                 {"kind": "cold", "wallId": "A", "positionMm": "far", "heightMm": 5}, {"kind": "cold", "wallId": "A", "positionMm": 5, "heightMm": None}])
+def test_bad_points_are_skipped_without_error(bad):
+    case = CASES[0]
+    got = pipe_scheme(_metres(case["geometry"]), _riser(case), [bad, *case["points"]])
+    assert got == case["expected"]
+
+
+def test_the_empty_scheme_is_not_changed_by_use():
+    before = copy.deepcopy(EMPTY_SCHEME)
+    s = pipe_scheme(None, ("A", 0), [])
+    s["fittings"]["tee_20"] = 99
+    s["lines"].append({})
+    assert EMPTY_SCHEME == before
+
+
+# ─── A room priced from the studio's saved geometry (no geometry on the row) ─────
+
+def test_the_saved_state_geometry_gives_the_same_scheme_as_the_row_geometry():
+    from app.services.smeta import _plumbing_geometry
+
+    for name in ("one door on D, two cold points (the hand-worked case)", "L-shaped polygon, door on wall 5", "two doors: the largest door gap is the cut, the other is crossed"):
+        case = BY_NAME[name]
+        from_state = _plumbing_geometry(SimpleNamespace(geometry=None, state={"geometry": case["geometry"]}))
+        from_row = _plumbing_geometry(SimpleNamespace(geometry=_metres(case["geometry"]), state={}))
+        assert pipe_scheme(from_state, _riser(case), case["points"]) == pipe_scheme(from_row, _riser(case), case["points"]) == case["expected"], name
+
+
+def test_the_saved_state_geometry_keeps_a_door_width_in_metres():
+    from app.services.smeta import _plumbing_geometry
+
+    case = BY_NAME["one door on D, two cold points (the hand-worked case)"]
+    g = _plumbing_geometry(SimpleNamespace(geometry=None, state={"geometry": case["geometry"]}))
+    door = g["walls"][3]["elements"][0]
+    assert door["width"] == pytest.approx(0.7)
+    assert door["position"] == pytest.approx(0.5)
+
+
+# ─── A drain trunk passes under a door (the owner's ruling, 2026-11-11) ──────────
+
+def test_a_drain_trunk_passes_under_the_door_a_water_trunk_does_not():
+    base = {"wallsMm": [2500, 2000, 2500, 2000], "doorsMm": [8000], "riserMm": 7000}
+    drain = build_scheme({**base, "points": [{"id": "d", "kind": "drain", "diameterMm": 50, "sMm": 8500, "heightMm": 0}]})
+    cold = build_scheme({**base, "points": [{"id": "c", "kind": "cold", "diameterMm": 20, "sMm": 8500, "heightMm": 200}]})
+    assert drain["pipes"]["drain_50"]["trunkMm"] == 1500
+    assert drain["lines"] == [{"kind": "drain", "diameterMm": 50, "fromMm": 7000, "toMm": 8500, "heightMm": 0}]
+    assert cold["pipes"]["water_20"]["trunkMm"] == 7500
+
+
+# ─── Review minors (2026-11-11) ──────────────────────────────────────────────
+
+def _cold(pid, s, h=200):
+    return {"id": pid, "kind": "cold", "diameterMm": 20, "sMm": s, "heightMm": h}
+
+
+def test_a_riser_in_a_room_corner_with_points_both_ways_has_no_corner_elbow():
+    base = {"wallsMm": [2500, 2000, 2500, 2000], "doorsMm": [], "riserMm": 2500}
+    s = build_scheme({**base, "points": [_cold("a", 1500), _cold("b", 3500)]})
+    assert s["why"]["tee_20"] == {"branches": 0, "riser": 1}
+    assert s["why"]["elbow_20"] == {"corners": 0, "ends": 2}
+    d = build_scheme({**base, "points": [{"id": "a", "kind": "drain", "diameterMm": 50, "sMm": 1500, "heightMm": 0},
+                                         {"id": "b", "kind": "drain", "diameterMm": 110, "sMm": 3500, "heightMm": 0}]})
+    assert d["why"]["elbow_50"] == {"corners": 0, "ends": 1}
+    assert d["why"]["elbow_110"] == {"toilets": 1, "corners": 0}
+
+
+def _rect_mm(a, b, els):
+    return {"walls": [{"id": i, "length": (a if i in "AC" else b), "elements": els.get(i, [])} for i in "ABCD"]}
+
+
+def test_a_doors_middle_on_a_half_millimetre_rounds_as_the_studio_does():
+    door = {"type": "eshik", "position": 472, "width": 915}
+    assert scheme_input(_metres(_rect_mm(2709, 2000, {"A": [door]})), ("A", 0), [])["doorsMm"] == [930]
+    assert scheme_input(_metres(_rect_mm(2709, 2000, {"C": [door]})), ("A", 0), [])["doorsMm"] == [4709 + 1780]
+
+
+@pytest.mark.parametrize("elements,doors", [
+    ([{"type": "eshik", "position": 0, "width": 800}], [3500]),                                  # legacy: no flag, at 0
+    ([{"type": "eshik", "position": 300, "width": 800, "positionAuto": True}], [3500]),
+    ([{"type": "eshik", "position": 100, "width": 600, "positionAuto": False}, {"type": "eshik", "position": 0, "width": 800}], [2900, 3850]),
+    ([{"type": "eshik", "position": 0, "width": 400}, {"type": "deraza", "position": 0, "width": 400}, {"type": "eshik", "position": 0, "width": 400}], [3000, 4000]),
+])
+def test_a_room_priced_from_its_state_places_openings_as_the_studio_does(elements, doors):
+    """The studio lays out an opening with no place of its own (lib/wallPositions resolveElementPositions);
+    a room priced from its saved state geometry reads it in the same place (review minor 1)."""
+    from app.services.smeta import _plumbing_geometry
+
+    g = _plumbing_geometry(SimpleNamespace(geometry=None, state={"geometry": _rect_mm(2500, 2000, {"B": elements})}))
+    assert scheme_input(g, ("A", 0), [])["doorsMm"] == doors

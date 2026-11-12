@@ -6,7 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.plumbing import pipe_run_m, riser_spot
+from app.services.pipe_scheme import pipe_scheme
+from app.services.plumbing import riser_spot
 from app.services.smeta import EXTRAS_NORM_NOTE, _plumbing_lines, _round2, compute_estimate
 from app.services.smeta_groups import group_key_for
 from app.services.smeta_text import localize_label
@@ -42,8 +43,9 @@ def by_label(lines):
 
 
 def run_m(points, geometry=GEOMETRY):
-    riser = riser_spot(geometry, None)
-    return _round2(sum(pipe_run_m(geometry, p, riser) for p in points) * 1.15)
+    """The water pipe of the room's pipe scheme (spec 2026-11-11), with the reserve."""
+    water = pipe_scheme(geometry, riser_spot(geometry, None), points)["pipes"]["water_20"]
+    return _round2((water["trunkMm"] + water["branchMm"]) / 1000 * 1.15)
 
 
 def test_a_rail_adds_the_rail_its_pipe_fittings_and_work():
@@ -51,9 +53,9 @@ def test_a_rail_adds_the_rail_its_pipe_fittings_and_work():
     rail = got["Sochiq quritgich"]
     assert (rail.qty, rail.unit, rail.unit_price_uzs, rail.category) == (1, "dona", 650_000, "santexnika")
     assert rail.is_approximate and rail.warning == EXTRAS_NORM_NOTE
-    assert got["Fitinglar"].qty == 2 and got["Ish: nuqtani ulash"].qty == 2
+    assert got["Suv rozetkasi Ø20"].qty == 2 and got["Ish: nuqtani ulash"].qty == 2
     pipe = got["Suv quvuri PPR Ø20"]
-    assert pipe.formula.startswith("2 nuqta: ")
+    assert pipe.formula.startswith("Magistral ")
     assert pipe.qty == run_m(rail_points([RAIL], GEOMETRY)) > 0
     work = got["Ish: sochiq quritgichni o'rnatish"]
     assert (work.qty, work.unit, work.unit_price_uzs, work.category) == (1, "dona", 200_000, "santexnika")
@@ -62,25 +64,26 @@ def test_a_rail_adds_the_rail_its_pipe_fittings_and_work():
 def test_two_rails_count_twice():
     got = by_label(_plumbing_lines(room(rails=[RAIL, RAIL2]), {}))
     assert got["Sochiq quritgich"].qty == 2 and got["Sochiq quritgich"].subtotal_uzs == 1_300_000
-    assert got["Fitinglar"].qty == 4 and got["Ish: sochiq quritgichni o'rnatish"].qty == 2
+    assert got["Suv rozetkasi Ø20"].qty == 4 and got["Ish: sochiq quritgichni o'rnatish"].qty == 2
 
 
 def test_rail_points_join_saved_points():
     got = by_label(_plumbing_lines(room(rails=[RAIL], plumbing=[COLD]), {}))
-    assert got["Fitinglar"].qty == 3
+    assert got["Suv rozetkasi Ø20"].qty == 3
     assert got["Suv quvuri PPR Ø20"].qty == run_m([COLD, *rail_points([RAIL], GEOMETRY)])
 
 
 def test_a_room_with_saved_empty_plumbing_and_a_rail_still_gets_the_lines():
     got = by_label(_plumbing_lines(room(rails=[RAIL], plumbing=[]), {}))
-    assert got["Fitinglar"].qty == 2 and "Suv quvuri PPR Ø20" in got
+    assert got["Suv rozetkasi Ø20"].qty == 2 and "Suv quvuri PPR Ø20" in got
 
 
 def test_rail_points_join_derived_points():
     tub = {"id": "tub", "furniture_id": "vanna-1", "name": "Vanna 1", "x": 0, "y": -610, "rotation": 0}
     without = by_label(_plumbing_lines(room(furniture=[tub]), {}))
     with_rail = by_label(_plumbing_lines(room(rails=[RAIL], furniture=[tub]), {}))
-    assert without["Fitinglar"].qty == 3 and with_rail["Fitinglar"].qty == 5
+    assert without["Ish: nuqtani ulash"].qty == 3 and with_rail["Ish: nuqtani ulash"].qty == 5
+    assert without["Suv rozetkasi Ø20"].qty == 2 and with_rail["Suv rozetkasi Ø20"].qty == 4
 
 
 @pytest.mark.parametrize("rails", [[{"id": "r1", "wallId": "Z", "positionMm": 600, "heightMm": 1000}], "x", None, [None, 3]])
@@ -92,7 +95,7 @@ def test_a_saved_rail_point_is_not_counted_twice():
     """Rail points are never saved; one that got into ``plumbing`` anyway is ignored in favour of the rule."""
     stray = {**rail_points([RAIL], GEOMETRY)[0]}
     got = by_label(_plumbing_lines(room(rails=[RAIL], plumbing=[stray]), {}))
-    assert got["Fitinglar"].qty == 2
+    assert got["Suv rozetkasi Ø20"].qty == 2
 
 
 def test_a_tagged_shop_rail_gives_its_price_name_and_shop():

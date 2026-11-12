@@ -99,3 +99,25 @@ describe('raycastInFront', () => {
     expect(ray(0.4).intersectObjects([glass, slab]).map((h) => h.object)).toEqual([glass])
   })
 })
+
+// ─── A tap on the rail is not a tap on the wall behind it (mobile re-check 2026-11-11) ───
+
+import { vi } from 'vitest'
+import { railPointerHandlers } from '../TowelRails3D'
+
+describe('railPointerHandlers', () => {
+  it('in the Santexnika stage a press starts the drag and a tap stops at the rail', () => {
+    const start = vi.fn()
+    const h = railPointerHandlers(true, start)
+    const down = { stopPropagation: vi.fn() }, click = { stopPropagation: vi.fn() }
+    h.onPointerDown!(down as never)
+    expect(start).toHaveBeenCalledWith(down)
+    // Without this the wall behind took the tap and opened its menu.
+    h.onClick!(click as never)
+    expect(click.stopPropagation).toHaveBeenCalled()
+  })
+
+  it('in any other stage the rail has no handlers at all: a touch goes through it', () => {
+    expect(railPointerHandlers(false, vi.fn())).toEqual({})
+  })
+})

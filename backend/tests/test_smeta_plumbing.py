@@ -7,7 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.plumbing import load_plumbing_norms, pipe_run_m, riser_spot
+from app.services.pipe_scheme import pipe_scheme
+from app.services.plumbing import load_plumbing_norms, riser_spot
 from app.services.smeta import _furniture_lines, _plumbing_lines, _round2
 from app.services.smeta_text import localize_label
 
@@ -43,9 +44,10 @@ def _room(plumbing=PLUMBING):
     return SimpleNamespace(state=state, geometry=GEOMETRY)
 
 
-def _runs(pred):
-    riser = riser_spot(GEOMETRY, None)
-    return _round2(sum(pipe_run_m(GEOMETRY, p, riser) for p in PLUMBING if pred(p)) * 1.15)
+def _scheme_m(kind, points=PLUMBING, riser=None, geometry=GEOMETRY):
+    """A pipe kind's metres in the room's pipe scheme (spec 2026-11-11), with the reserve."""
+    pipe = pipe_scheme(geometry, riser or riser_spot(geometry, None), points)["pipes"][kind]
+    return _round2((pipe["trunkMm"] + pipe["branchMm"]) / 1000 * 1.15)
 
 
 def _by_label(lines):
@@ -61,11 +63,11 @@ def test_fixtures_are_listed_under_santexnika_not_jihoz():
     assert all(ln.category == "santexnika" for ln in lines.values())
 
 
-def test_pipe_metres_are_the_runs_to_the_riser_with_the_reserve():
+def test_pipe_metres_are_the_schemes_with_the_reserve():
     lines = _by_label(_plumbing_lines(_room()))
-    assert lines["Kanalizatsiya quvuri Ø50"].qty == pytest.approx(_runs(lambda p: p["kind"] == "drain" and p["diameterMm"] == 50))
-    assert lines["Kanalizatsiya quvuri Ø110"].qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))
-    assert lines["Suv quvuri PPR Ø20"].qty == pytest.approx(_runs(lambda p: p["kind"] != "drain"))
+    assert lines["Kanalizatsiya quvuri Ø50"].qty == pytest.approx(_scheme_m("drain_50"))
+    assert lines["Kanalizatsiya quvuri Ø110"].qty == pytest.approx(_scheme_m("drain_110"))
+    assert lines["Suv quvuri PPR Ø20"].qty == pytest.approx(_scheme_m("water_20"))
     assert lines["Kanalizatsiya quvuri Ø50"].unit == "m"
     assert "× 1.15" in lines["Kanalizatsiya quvuri Ø50"].formula
 
@@ -73,7 +75,8 @@ def test_pipe_metres_are_the_runs_to_the_riser_with_the_reserve():
 def test_fittings_and_work_follow_the_points_and_fixtures():
     norms = load_plumbing_norms()
     lines = _by_label(_plumbing_lines(_room()))
-    assert lines["Fitinglar"].qty == 8 and lines["Fitinglar"].unit_price_uzs == norms["fitting_set_uzs"]
+    assert lines["Suv rozetkasi Ø20"].qty == 5 and lines["Suv rozetkasi Ø20"].unit_price_uzs == norms["fitting_uzs"]["outlet_20"]
+    assert lines["Sharli kran Ø20"].qty == 2 and lines["Kanalizatsiya burchagi Ø110"].qty >= 1
     assert lines["Ish: nuqtani ulash"].qty == 8
     assert lines["Ish: nuqtani ulash"].subtotal_uzs == 8 * norms["work_point_uzs"]
     work = norms["work_fixture_uzs"]
@@ -106,7 +109,7 @@ def test_a_room_saved_before_plumbing_gets_its_fixtures_points_worked_out():
     lines = _by_label(_plumbing_lines(room))
     assert "Santexnika: Vanna Roca 170" in lines
     derived = [pt for f in FURNITURE[:3] for pt in fixture_points(f, {"tub": "bathtub", "wc": "toilet", "sink": "sink"}[f["id"]], 0.6, GEOMETRY)]
-    assert lines["Fitinglar"].qty == len(derived) == 8
+    assert lines["Ish: nuqtani ulash"].qty == len(derived) == 8
     assert "Kanalizatsiya quvuri Ø110" in lines and "Suv quvuri PPR Ø20" in lines
 
 
@@ -117,14 +120,12 @@ def test_derived_points_use_the_shop_rows_depth():
     from app.services.smeta import furniture_catalog_key
     lines = _by_label(_plumbing_lines(room, {furniture_catalog_key("vanna-1"): tub}))
     expected = fixture_points(room.state["furniture"][0], "bathtub", 0.7, GEOMETRY)
-    riser = riser_spot(GEOMETRY, None)
-    drain = [pt for pt in expected if pt["kind"] == "drain"]
-    assert lines["Kanalizatsiya quvuri Ø50"].qty == pytest.approx(_round2(sum(pipe_run_m(GEOMETRY, pt, riser) for pt in drain) * 1.15))
+    assert lines["Kanalizatsiya quvuri Ø50"].qty == pytest.approx(_scheme_m("drain_50", expected))
 
 
 def test_a_room_that_saved_an_empty_plumbing_list_is_taken_as_saved():
     labels = {ln.label for ln in _plumbing_lines(_room(plumbing=[]))}
-    assert "Fitinglar" not in labels
+    assert "Ish: nuqtani ulash" not in labels and "Suv rozetkasi Ø20" not in labels
 
 
 def test_a_room_with_no_fixtures_and_no_points_has_no_section():
@@ -170,18 +171,18 @@ def test_the_riser_the_studio_saved_is_the_one_the_estimate_measures_from():
     room = _room()
     room.state["plumbingRiser"] = {"wallId": "B", "positionMm": 2000}
     line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
-    wc = next(p for p in PLUMBING if p["diameterMm"] == 110)
-    assert line.qty == pytest.approx(_round2(pipe_run_m(GEOMETRY, wc, ("B", 2000)) * 1.15))
+    assert line.qty == pytest.approx(_scheme_m("drain_110", riser=("B", 2000)))
+    assert line.qty != pytest.approx(_scheme_m("drain_110"))
     room.state["plumbingRiser"] = {"wallId": "nope", "positionMm": 5}  # a wall the room no longer has
     line = _by_label(_plumbing_lines(room))["Kanalizatsiya quvuri Ø110"]
-    assert line.qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))
+    assert line.qty == pytest.approx(_scheme_m("drain_110"))
 
 
 def test_a_point_whose_fixture_is_gone_is_not_priced():
     orphan = _pt("gone", "drain", "A", 500, 200, 110)
     lines = _by_label(_plumbing_lines(_room(plumbing=PLUMBING + [orphan])))
-    assert lines["Fitinglar"].qty == 8
-    assert lines["Kanalizatsiya quvuri Ø110"].qty == pytest.approx(_runs(lambda p: p["diameterMm"] == 110))
+    assert lines["Ish: nuqtani ulash"].qty == 8
+    assert lines["Kanalizatsiya quvuri Ø110"].qty == pytest.approx(_scheme_m("drain_110"))
 
 
 def test_the_formula_and_warning_read_in_english():
@@ -198,7 +199,7 @@ def test_uzbek_fixture_names_stay_as_they_are():
 # ─── Deferred review minors (2026-11-09) ───────────────────────────────────────
 
 def test_fittings_are_an_average_price_and_say_so():
-    line = _by_label(_plumbing_lines(_room()))["Fitinglar"]
+    line = _by_label(_plumbing_lines(_room()))["PPR troynik Ø20"]
     assert line.is_approximate is True and line.warning
 
 
@@ -214,8 +215,10 @@ def test_shop_pipe_names_do_not_match_a_bigger_size_or_the_wrong_kind():
     assert set(pipes) == {"pipe:water_20", "pipe:drain_50", "pipe:drain_110"}
 
 
-def test_a_room_with_points_but_no_walls_has_no_negative_run():
-    assert pipe_run_m({"walls": []}, {"wallId": "A", "positionMm": 500, "heightMm": 700}, ("A", 0.0)) == 0.7
+def test_a_room_with_points_but_no_walls_has_no_negative_line():
+    room = SimpleNamespace(state={"furniture": [], "plumbing": [{"id": "p", "kind": "cold", "wallId": "A", "positionMm": 500, "heightMm": 700}]},
+                           geometry={"walls": []})
+    assert all(ln.qty >= 0 and ln.subtotal_uzs >= 0 for ln in _plumbing_lines(room))
 
 
 def test_the_reserve_rounds_half_up_like_the_studio():

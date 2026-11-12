@@ -143,6 +143,44 @@ describe('plumbing lines (spec 2026-11-08)', () => {
     expect(localizeUnit('nuqta', 1, en)).toBe('point')
     expect(localizeFormula('8 nuqta × 1 komplekt', en)).toBe('8 points × 1 set')
   })
+
+  it('reads the pipe scheme\'s fittings and their working (spec 2026-11-11)', () => {
+    const labels: Array<[string, string, string]> = [
+      ['PPR troynik Ø20', 'Тройник PPR Ø20', 'PPR tee Ø20'],
+      ['PPR burchak Ø20', 'Угол PPR Ø20', 'PPR elbow Ø20'],
+      ['Suv rozetkasi Ø20', 'Водорозетка Ø20', 'Wall outlet Ø20'],
+      ['Sharli kran Ø20', 'Шаровой кран Ø20', 'Ball valve Ø20'],
+      ['Kanalizatsiya troynigi Ø50', 'Канализационный тройник Ø50', 'Drain tee Ø50'],
+      ['Kanalizatsiya burchagi Ø50', 'Канализационный отвод Ø50', 'Drain elbow Ø50'],
+      ['Kanalizatsiya troynigi Ø110/50', 'Канализационный тройник Ø110/50', 'Drain tee Ø110/50'],
+      ['Kanalizatsiya burchagi Ø110', 'Канализационный отвод Ø110', 'Drain elbow Ø110'],
+    ]
+    for (const [label, r, e] of labels) {
+      expect(localizeLabel(label, ru)).toBe(r)
+      expect(localizeLabel(label, en)).toBe(e)
+      expect(localizeLabel(label, uz)).toBe(label)
+    }
+    const formulas: Array<[string, string, string]> = [
+      ['Magistral 6.00 m + tik 1.20 m = 7.20 m × 1.15 = 8.28 m', 'Магистраль 6.00 м + отводы 1.20 м = 7.20 м × 1.15 = 8.28 м', 'Trunk 6.00 m + branches 1.20 m = 7.20 m × 1.15 = 8.28 m'],
+      ['5 tarmoq + 1 stoyak = 6 dona', '5 отводов + 1 стояк = 6 шт.', '5 branches + 1 riser = 6 pcs'],
+      ['2 burchak + 1 uch = 3 dona', '2 угла + 1 конец = 3 шт.', '2 corners + 1 end = 3 pcs'],
+      ['1 unitaz + 2 burchak = 3 dona', '1 унитаз + 2 угла = 3 шт.', '1 toilet + 2 corners = 3 pcs'],
+      ['2 liniya', '2 линии', '2 lines'],
+      ['3 ulanish', '3 врезки', '3 joins'],
+      ['1 tarmoq', '1 отвод', '1 branch'],
+      // The spec's own words (review minor 2, 2026-11-11); the shorter ones above stay for estimates saved before.
+      ["Magistral 6.00 m + tik bo'laklar 1.20 m = 7.20 m × 1.15 = 8.28 m", 'Магистраль 6.00 м + отводы 1.20 м = 7.20 м × 1.15 = 8.28 м', 'Trunk 6.00 m + branches 1.20 m = 7.20 m × 1.15 = 8.28 m'],
+      ['2 xona burchagi + 1 magistral uchi = 3 dona', '2 угла комнаты + 1 конец магистрали = 3 шт.', '2 room corners + 1 trunk end = 3 pcs'],
+      ['5 xona burchagi', '5 углов комнаты', '5 room corners'],
+      ['1 unitaz + 1 xona burchagi = 2 dona', '1 унитаз + 1 угол комнаты = 2 шт.', '1 toilet + 1 room corner = 2 pcs'],
+      ['2 magistral uchi', '2 конца магистрали', '2 trunk ends'],
+    ]
+    for (const [formula, r, e] of formulas) {
+      expect(localizeFormula(formula, ru)).toBe(r)
+      expect(localizeFormula(formula, en)).toBe(e)
+      expect(localizeFormula(formula, uz)).toBe(formula)
+    }
+  })
 })
 
 describe('plumbing formula and warning (prod check 2026-11-09)', () => {

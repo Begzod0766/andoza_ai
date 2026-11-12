@@ -1,8 +1,6 @@
-"""Plumbing pipe runs and prices for the estimate (spec 2026-11-08).
-
-Mirrors frontend/src/lib/plumbingRuns.ts so the studio's summary and the estimate give the same metres:
-a run is the shorter way round the perimeter (walls in saved order) from the point to the riser, plus
-the point's height. Saved geometry has wall lengths in metres; plumbing positions are in mm.
+"""Plumbing for the estimate (spec 2026-11-08): where the riser is, the points a fixture brings, the
+norms. The pipes themselves are the room's pipe scheme (app.services.pipe_scheme, spec 2026-11-11).
+Saved geometry has wall lengths in metres; plumbing positions are in mm.
 """
 from __future__ import annotations
 
@@ -30,22 +28,6 @@ def riser_spot(geometry: dict | None, service_features: list | None = None) -> t
         if any(isinstance(e, dict) and e.get("type") == "eshik" for e in w.get("elements") or []):
             return (str(w.get("id")), 0.0)
     return (str(walls[0].get("id")) if walls else "A", 0.0)
-
-
-def pipe_run_m(geometry: dict | None, point: dict, riser: tuple[str, float]) -> float:
-    """Metres from ``point`` (wallId, positionMm, heightMm) to ``riser`` (wall id, position mm)."""
-    cum: dict[str, float] = {}
-    total = 0.0
-    for w in _walls(geometry):
-        cum[str(w.get("id"))] = total
-        total += float(w.get("length") or 0) * 1000
-    at = lambda wall_id, pos: cum.get(str(wall_id), 0.0) + float(pos or 0)  # noqa: E731
-    height = float(point.get("heightMm") or 0)
-    if total <= 0:  # no walls to walk: only the rise or drop
-        return math.floor(height / 10 + 0.5) / 100
-    gap = abs(at(point.get("wallId"), point.get("positionMm")) - at(riser[0], riser[1]))
-    mm = min(gap, total - gap) + height
-    return math.floor(mm / 10 + 0.5) / 100  # JS Math.round, not banker's rounding
 
 
 # ─── Fixture points, derived as the studio derives them ─────────────────────────

@@ -1,5 +1,5 @@
 {
-  "_doc": "Pipe runs from a point to the riser, walking the walls (spec 2026-11-08). Wall lengths in mm (the studio's units); the backend test converts them to metres. Positions are mm from the corner where the wall begins on the walk in wall order. Shared by frontend plumbingRuns.test.ts and backend test_plumbing.py: both must give expectedM.",
+  "_doc": "Pipe runs from a point to the riser, walking the walls (spec 2026-11-08). Wall lengths in mm (the studio's units); the backend test converts them to metres. Positions are mm from the corner where the wall begins on the walk in wall order. Used by frontend plumbingRuns.test.ts (pipeRunM places a towel rail) and, for its walls, backend test_plumbing.py; the estimate prices the pipe scheme instead (2026-11-11).",
   "cases": [
     {
       "name": "rectangle: the short way round through wall D",

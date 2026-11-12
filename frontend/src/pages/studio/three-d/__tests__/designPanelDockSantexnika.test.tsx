@@ -25,6 +25,30 @@ describe('the design panel on a phone', () => {
     expect(panel.className).toContain('lg:translate-y-0')
     expect(panel.className).toContain('lg:static')
   })
+  // Mobile QA 2026-11-12: scrolled down, the list slid under the sheet's rounded top and the close
+  // button scrolled away; the last line sat on the home indicator. A sticky bar did not do: on iOS a
+  // row still showed a few pixels above the rounded top (re-check 2026-11-12, #244). Now only the
+  // body below the close bar scrolls, inside a sheet that clips.
+  it('Santexnika scrolls its body only, below a close bar that stays put', () => {
+    render(<DesignPanelDock {...props('santexnika')} />)
+    const sheet = screen.getByTestId('design-panel-mobile')
+    expect(sheet.className).toContain('overflow-hidden')
+    expect(sheet.className).not.toMatch(/(^| )overflow-y-auto/)
+    const body = screen.getByTestId('design-panel-scroll')
+    expect(body.className).toContain('overflow-y-auto')
+    expect(body.className).toContain('min-h-0')
+    expect(body.className).toContain('pb-[env(safe-area-inset-bottom)]')
+    const bar = screen.getAllByRole('button')[0].parentElement!
+    expect(body.contains(bar)).toBe(false)
+    expect(bar.className).toContain('shrink-0')
+  })
+  // Re-check 2026-11-12, #244: a 1 pt light line down the sheet's left edge — the sidebar's border.
+  it('the left border is a desktop sidebar\'s only', () => {
+    render(<DesignPanelDock {...props('santexnika')} />)
+    const panel = screen.getByTestId('design-panel-mobile')
+    expect(panel.className).toContain('lg:border-l')
+    expect(panel.className).not.toMatch(/(^| )border-l( |$)/)
+  })
   it('other stages keep the right half, so the wall stays in view', () => {
     render(<DesignPanelDock {...props('boyoq')} />)
     expect(screen.getByTestId('design-panel-mobile').className).toContain('w-1/2')
