@@ -100,20 +100,19 @@ export function DesignPanelDock({
              its pipe runs in view above (mobile QA 2026-11-09 #1); every other stage takes the right
              half, so the wall being finished stays in view. */
           activePhase === 'santexnika'
-            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card pb-[env(safe-area-inset-bottom)] ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
+            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-hidden flex flex-col bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
             : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full'}`,
           /* desktop override */
-          'lg:static lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto',
+          'lg:static lg:block lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto lg:border-l lg:border-line',
         ].join(' ')}
       >
         {/* Mobile close button — replaces the old drag-to-dismiss handle,
             which doesn't make sense for a side panel. Tapping the now-
             transparent backdrop on the left half also closes it. */}
-        {/* Sticky in the Santexnika bottom sheet: scrolled down, the form slid under the rounded top
-            and this button scrolled away with it (mobile QA 2026-11-12). */}
-        <div className={activePhase === 'santexnika'
-          ? 'lg:hidden sticky top-0 z-10 flex justify-end p-2 bg-card rounded-t-3xl'
-          : 'lg:hidden flex justify-end p-2'}>
+        {/* In the Santexnika bottom sheet this bar stays put and only the body below it scrolls, so
+            the form never slides up under the rounded top (on iOS a sticky bar still let a row show
+            above it: mobile QA re-check 2026-11-12, #244). */}
+        <div className="lg:hidden shrink-0 flex justify-end p-2">
           <button
             onClick={() => setShowPanel(false)}
             aria-label={t('common.yopish')}
@@ -124,9 +123,18 @@ export function DesignPanelDock({
             </svg>
           </button>
         </div>
-        <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}
+        {activePhase === 'santexnika' ? (
+          <div data-testid="design-panel-scroll"
+            className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)] lg:h-full lg:overflow-visible lg:pb-0">
+            <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}
+            selectedLightId={selectedLightId} onLightChange={selectLight}
+            armedLightType={armedLightType} onArmLight={setArmedLightType} planMode={planMode} />
+          </div>
+        ) : (
+          <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}
           selectedLightId={selectedLightId} onLightChange={selectLight}
           armedLightType={armedLightType} onArmLight={setArmedLightType} planMode={planMode} />
+        )}
       </div>
       </div>
       {/* Docked to the panel's left edge (mirrors the left rail's toggle,

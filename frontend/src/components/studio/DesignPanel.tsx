@@ -313,7 +313,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
     // height, which used to leave a large empty gap below the color swatches
     // whenever the active phase's content was short. Still scrolls (overflow
     // -y-auto + max-h-full) if content ever grows past the viewport.
-    <aside className="w-full lg:w-72 lg:shrink-0 lg:self-start bg-card border-l border-line overflow-y-auto lg:max-h-full">
+    <aside className="w-full lg:w-72 lg:shrink-0 lg:self-start bg-card overflow-y-auto lg:max-h-full">
       {/* Mounted at the root so every phase's upload button can reach it */}
       <input
         ref={textureFileRef}
