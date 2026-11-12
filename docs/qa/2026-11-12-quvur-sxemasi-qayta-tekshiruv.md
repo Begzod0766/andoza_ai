@@ -49,3 +49,25 @@ Majburiy ish yo'q, #246 dagi asosiy tuzatish ishlayapti. Ixtiyoriy, kichik:
 1. Santexnika paneli surilganda ro'yxat panelning tepa chegarasidan tashqariga chiqmasin (suriladigan qismga `overflow: hidden` yoki to'g'ri `clip`).
 2. Panel chap chetidagi 1 pt och chiziqni olib tashlash.
 3. Savol: dush kanalizatsiyasi devordan narida yurishi kerakmi?
+
+## #250 dan keyin (2026-11-13)
+
+Server: production master `1aaa7711` (#250 shu ichida). Ilova va xona o'sha.
+
+| # | Natija |
+|---|---|
+| Panel yuqori chekkasi | ✅ Surilganda hech bir qator panelning yumaloq tepa chizig'idan chiqmaydi ([yaqindan](img/2026-11-12-quvur-qayta/09-panel-250-tepa-chekka.jpg)). ✕ qatori joyida, faqat uning ostidagi qism suriladi ([rasm](img/2026-11-12-quvur-qayta/08-panel-250-surilgan.jpg)) |
+| Panel chap chekkasi | ✅ 1 pt chiziq yo'q, chap chet piksellari panel foni bilan bir xil ([rasm](img/2026-11-12-quvur-qayta/07-panel-250-tepa.jpg)) |
+| Dush kanalizatsiyasi (savol 3) | Web tushuntirishi qabul qilindi: kodda devordan 4 sm narida, pol sathida. Old tomondan qaraganda chiziq B devorga yaqin yuradi. Avvalgi ko'rinish perspektiva tufayli bo'lgan |
+
+### Yangi topilma: iOS WebView deploy'dan keyin eski Studio'ni ko'rsatdi
+
+#250 deploy qilingandan keyin ilova to'liq yopilib qayta ochildi, lekin panel o'zgarmadi: chap chiziq joyida edi. Production'dagi `ThreeDPage-*.js` faylida tuzatish bor edi (`design-panel-scroll`). Simulyatorda ilovaning WebKit HTTP keshi (`Library/Caches/uz.andozaai.app/WebKit/NetworkCache`) o'chirilgandan keyingina yangi panel ko'rindi.
+
+Sabab: `https://andozaai.uz/` (va `/studio/...`) javobida `Cache-Control` yo'q, faqat `ETag` va `Last-Modified` bor. Bunday holda WKWebView `index.html`ni evristik muddat davomida tekshirmasdan keshdan beradi. Natijada eski `index.html` eski JS fayllariga ishora qiladi. Foydalanuvchilar deploy'dan keyin bir necha soat yoki undan ham uzoqroq eski Studio'ni ko'rishi mumkin.
+
+Web uchun taklif: nginx'da `index.html` (SPA fallback) uchun `Cache-Control: no-cache` qo'yish. Xeshli `assets/*` fayllari `immutable` bo'lib qolaveradi.
+
+### Kuzatuv: xulosa raqamlari o'zgardi
+
+Kesh tozalangandan keyin panel xulosasi `Kanalizatsiya: 4 nuqta, ~8.0 m · Suv: 7 nuqta, ~17.8 m` bo'ldi. Kesh tozalanmasdan oldin `~7.8 m` va `~18.4 m` edi. Nuqtalar ro'yxatida ham devor nomi o'zgardi: "Kanalizatsiya · D devor · 50 sm" endi "Kanalizatsiya · B devor · 50 sm". Xonaga hech narsa qo'shilmagan. Ehtimol, oldingi tekshiruvlar qisman eski keshdagi Studio'da o'tgan. Web jamoasi yangi raqamlar to'g'riligini tasdiqlashi kerak.
