@@ -265,7 +265,10 @@ class TestSeedData:
         # galtel has no seed product: the admin adds it. Nor do the tile-work keys (spec 2026-11-10):
         # their lines fall back to tile_norms.json until a shop tags a product.
         # Nor do the bathroom extras (bathroom_extras_norms.json).
-        admin_added = {"galtel", "plitka_yelimi", "zatirka", "gidro_mastika", "gidro_lenta", "ventilyator", "sochiq_quritgich"}
+        # Nor do a fixture's own parts (2026-11-13): plumbing_norms.json "part_uzs" until tagged.
+        admin_added = {"galtel", "plitka_yelimi", "zatirka", "gidro_mastika", "gidro_lenta", "ventilyator", "sochiq_quritgich",
+                       "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
+                       "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka"}
         assert set(seed.KEY_PACK_UNIT) - admin_added <= keys
         assert {f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS} <= keys
 

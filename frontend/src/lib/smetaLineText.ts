@@ -42,6 +42,18 @@ const LABEL_HEADS = {
   "Gidroizolyatsiya lentasi": "wp_tape",
   "Tortuvchi ventilyator": "fan",
   "Sochiq quritgich": "towel_rail",
+  // A fixture's own parts (2026-11-13): a shop's product follows the colon.
+  "Rakovina smesiteli": "mixer_sink",
+  "Oshxona smesiteli": "mixer_kitchen",
+  "Vanna va dush smesiteli": "mixer_bath",
+  "Dush smesiteli": "mixer_shower",
+  "Gigiyenik smesitel": "mixer_bidet",
+  "Rakovina sifoni": "trap_sink",
+  "Oshxona sifoni": "trap_kitchen",
+  "Vanna sifoni": "trap_bath",
+  "Dush poddoni sifoni": "trap_shower",
+  "Unitaz gofrasi": "toilet_gofra",
+  "Ulash shlangi (podvodka)": "hose",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -85,6 +97,18 @@ const WHOLE_LABELS = {
   "Ish: unitaz o'rnatish": "work_toilet",
   "Ish: dush o'rnatish": "work_shower",
   "Ish: bide o'rnatish": "work_bidet",
+  "Rakovina smesiteli": "mixer_sink",
+  "Oshxona smesiteli": "mixer_kitchen",
+  "Vanna va dush smesiteli": "mixer_bath",
+  "Dush smesiteli": "mixer_shower",
+  "Gigiyenik smesitel": "mixer_bidet",
+  "Rakovina sifoni": "trap_sink",
+  "Oshxona sifoni": "trap_kitchen",
+  "Vanna sifoni": "trap_bath",
+  "Dush poddoni sifoni": "trap_shower",
+  "Unitaz gofrasi": "toilet_gofra",
+  "Ulash shlangi (podvodka)": "hose",
+  "Ish: smesitel o'rnatish": "work_mixer",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */
@@ -193,10 +217,12 @@ const FORMULA_COUNTED = {
   // What a fitting's count is made of (spec 2026-11-11).
   tarmoq: "smeta.formula.tarmoq", stoyak: "smeta.formula.stoyak", burchak: "smeta.formula.burchak", uch: "smeta.formula.uch", unitaz: "smeta.formula.unitaz", liniya: "smeta.formula.liniya", ulanish: "smeta.formula.ulanish",
   "xona burchagi": "smeta.formula.xona_burchagi", "magistral uchi": "smeta.formula.magistral_uchi",
+  // What a fixture part's count is made of (2026-11-13).
+  rakovina: "smeta.formula.rakovina", vanna: "smeta.formula.vanna", dush: "smeta.formula.dush", bide: "smeta.formula.bide", smesitel: "smeta.formula.smesitel",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|litr|m²|kg|m)(?=$|[\s);,:])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });

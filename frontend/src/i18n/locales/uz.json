@@ -1147,7 +1147,19 @@
       "fit_tee_50": "Kanalizatsiya troynigi Ø50",
       "fit_elbow_50": "Kanalizatsiya burchagi Ø50",
       "fit_tee_110_50": "Kanalizatsiya troynigi Ø110/50",
-      "fit_elbow_110": "Kanalizatsiya burchagi Ø110"
+      "fit_elbow_110": "Kanalizatsiya burchagi Ø110",
+      "mixer_sink": "Rakovina smesiteli",
+      "mixer_kitchen": "Oshxona smesiteli",
+      "mixer_bath": "Vanna va dush smesiteli",
+      "mixer_shower": "Dush smesiteli",
+      "mixer_bidet": "Gigiyenik smesitel",
+      "trap_sink": "Rakovina sifoni",
+      "trap_kitchen": "Oshxona sifoni",
+      "trap_bath": "Vanna sifoni",
+      "trap_shower": "Dush poddoni sifoni",
+      "toilet_gofra": "Unitaz gofrasi",
+      "hose": "Ulash shlangi (podvodka)",
+      "work_mixer": "Ish: smesitel o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -1240,7 +1252,17 @@
       "xona_burchagi_one": "xona burchagi",
       "xona_burchagi_other": "xona burchagi",
       "magistral_uchi_one": "magistral uchi",
-      "magistral_uchi_other": "magistral uchi"
+      "magistral_uchi_other": "magistral uchi",
+      "rakovina_one": "rakovina",
+      "rakovina_other": "rakovina",
+      "vanna_one": "vanna",
+      "vanna_other": "vanna",
+      "dush_one": "dush",
+      "dush_other": "dush",
+      "bide_one": "bide",
+      "bide_other": "bide",
+      "smesitel_one": "smesitel",
+      "smesitel_other": "smesitel"
     }
   },
   "ustalar": {
@@ -2169,7 +2191,18 @@
         "gidro_mastika": "Gidroizolyatsiya mastikasi",
         "gidro_lenta": "Gidroizolyatsiya lentasi",
         "ventilyator": "Tortuvchi ventilyator",
-        "sochiq_quritgich": "Sochiq quritgich"
+        "sochiq_quritgich": "Sochiq quritgich",
+        "smesitel_rakovina": "Rakovina smesiteli",
+        "smesitel_oshxona": "Oshxona smesiteli",
+        "smesitel_vanna": "Vanna va dush smesiteli",
+        "smesitel_dush": "Dush smesiteli",
+        "smesitel_bide": "Gigiyenik smesitel",
+        "sifon_rakovina": "Rakovina sifoni",
+        "sifon_oshxona": "Oshxona sifoni",
+        "sifon_vanna": "Vanna sifoni",
+        "sifon_dush": "Dush poddoni sifoni",
+        "gofra_unitaz": "Unitaz gofrasi",
+        "podvodka": "Ulash shlangi (podvodka)"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

@@ -1,7 +1,9 @@
 {
-  "_doc": "Plumbing prices for the estimate when the shop has no pipe products (spec 2026-11-08); fittings by the piece, counted from the pipe scheme (spec 2026-11-11). UZS.",
+  "_doc": "Plumbing prices for the estimate when the shop has no pipe products (spec 2026-11-08); fittings by the piece, counted from the pipe scheme (spec 2026-11-11); each fixture's own mixer, trap and hoses, and the work of fitting a mixer (2026-11-13). UZS.",
   "pipe_m_uzs": {"drain_50": 18000, "drain_110": 42000, "water_20": 9000},
   "fitting_uzs": {"tee_20": 3000, "elbow_20": 2500, "outlet_20": 12000, "valve_20": 35000, "tee_50": 9000, "elbow_50": 6000, "tee_110_50": 22000, "elbow_110": 18000},
   "work_point_uzs": 120000,
+  "part_uzs": {"smesitel_rakovina": 450000, "smesitel_oshxona": 500000, "smesitel_vanna": 650000, "smesitel_dush": 550000, "smesitel_bide": 400000, "sifon_rakovina": 60000, "sifon_oshxona": 80000, "sifon_vanna": 120000, "sifon_dush": 90000, "gofra_unitaz": 35000, "podvodka": 25000},
+  "work_mixer_uzs": 100000,
   "work_fixture_uzs": {"bathtub": 450000, "sink": 250000, "toilet": 350000, "shower": 400000, "bidet": 300000}
 }
