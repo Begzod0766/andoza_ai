@@ -82,7 +82,13 @@
         "work_demolish_fixtures": "Ish: eski santexnikani demontaj qilish",
         "work_demolish_pipes": "Ish: eski quvurlarni demontaj qilish",
         "work_chase_water": "Ish: shtroba (suv quvuri)",
-        "work_chase_drain": "Ish: shtroba (kanalizatsiya Ø50)"
+        "work_chase_drain": "Ish: shtroba (kanalizatsiya Ø50)",
+        "frame": "Installyatsiya (osma unitaz uchun)",
+        "work_frame": "Ish: installyatsiya o'rnatish",
+        "heater": "Suv isitgich (boyler)",
+        "heater_kit": "Boyler ulash to'plami",
+        "heater_cable": "Elektr kabel (boyler)",
+        "work_heater": "Ish: boyler o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -304,7 +310,13 @@
         "work_demolish_fixtures": "Работа: демонтаж старой сантехники",
         "work_demolish_pipes": "Работа: демонтаж старых труб",
         "work_chase_water": "Работа: штробление (водопровод)",
-        "work_chase_drain": "Работа: штробление (канализация Ø50)"
+        "work_chase_drain": "Работа: штробление (канализация Ø50)",
+        "frame": "Инсталляция (для подвесного унитаза)",
+        "work_frame": "Работа: монтаж инсталляции",
+        "heater": "Водонагреватель (бойлер)",
+        "heater_kit": "Комплект подключения бойлера",
+        "heater_cable": "Электрокабель (бойлер)",
+        "work_heater": "Работа: установка бойлера"
       },
       "unit": {
         "qop_one": "мешок",
@@ -578,7 +590,13 @@
         "work_demolish_fixtures": "Work: removing the old fixtures",
         "work_demolish_pipes": "Work: removing the old pipes",
         "work_chase_water": "Work: wall chasing (water pipe)",
-        "work_chase_drain": "Work: wall chasing (drain Ø50)"
+        "work_chase_drain": "Work: wall chasing (drain Ø50)",
+        "frame": "Installation frame (wall-hung toilet)",
+        "work_frame": "Work: fitting the installation frame",
+        "heater": "Water heater",
+        "heater_kit": "Water heater connection kit",
+        "heater_cable": "Electric cable (water heater)",
+        "work_heater": "Work: fitting the water heater"
       },
       "unit": {
         "qop_one": "bag",

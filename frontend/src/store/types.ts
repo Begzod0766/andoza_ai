@@ -241,6 +241,8 @@ export interface DesignState {
   plumbingDemolition?: boolean
   /** The pipes run in the wall, so it is chased: on unless exactly false (2026-11-13). */
   pipesInWall?: boolean
+  /** A water heater in the estimate: off unless exactly true (2026-11-13). */
+  waterHeater?: boolean
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).

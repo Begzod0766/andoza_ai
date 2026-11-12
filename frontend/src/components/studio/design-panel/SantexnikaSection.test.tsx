@@ -127,6 +127,13 @@ describe('SantexnikaSection', () => {
     expect(useRoomStore.getState().designState.pipesInWall).toBe(false)
     expect(useRoomStore.getState().isDirty).toBe(true)
   })
+  it('"water heater" is off until ticked, in a bathroom and a kitchen (2026-11-13)', () => {
+    render(<SantexnikaSection />)
+    const heater = screen.getByLabelText('Suv isitgich (boyler)') as HTMLInputElement
+    expect(heater.checked).toBe(false)
+    fireEvent.click(heater)
+    expect(useRoomStore.getState().designState.waterHeater).toBe(true)
+  })
   it('both switches are in a kitchen too', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     render(<SantexnikaSection />)

@@ -151,6 +151,8 @@ _LABEL_HEADS = {
     "Dush poddoni sifoni": "trap_shower",
     "Unitaz gofrasi": "toilet_gofra",
     "Ulash shlangi (podvodka)": "hose",
+    "Installyatsiya (osma unitaz uchun)": "frame",
+    "Suv isitgich (boyler)": "heater",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -210,6 +212,12 @@ _WHOLE_LABELS = {
     "Ish: eski quvurlarni demontaj qilish": "work_demolish_pipes",
     "Ish: shtroba (suv quvuri)": "work_chase_water",
     "Ish: shtroba (kanalizatsiya Ø50)": "work_chase_drain",
+    "Installyatsiya (osma unitaz uchun)": "frame",
+    "Suv isitgich (boyler)": "heater",
+    "Ish: installyatsiya o'rnatish": "work_frame",
+    "Boyler ulash to'plami": "heater_kit",
+    "Elektr kabel (boyler)": "heater_cable",
+    "Ish: boyler o'rnatish": "work_heater",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.

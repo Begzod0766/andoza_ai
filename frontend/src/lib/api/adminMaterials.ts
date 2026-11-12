@@ -176,6 +176,9 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "sifon_dush", labelKey: "dokon.admin.smeta_key.sifon_dush", packUnit: null, unit: "dona" },
   { id: "gofra_unitaz", labelKey: "dokon.admin.smeta_key.gofra_unitaz", packUnit: null, unit: "dona" },
   { id: "podvodka", labelKey: "dokon.admin.smeta_key.podvodka", packUnit: null, unit: "dona" },
+  // A wall-hung toilet's frame and a water heater (2026-11-13): sold by the piece
+  { id: "installyatsiya", labelKey: "dokon.admin.smeta_key.installyatsiya", packUnit: null, unit: "dona" },
+  { id: "boyler", labelKey: "dokon.admin.smeta_key.boyler", packUnit: null, unit: "dona" },
   ...LIGHT_TYPES.map((t) => ({
     id: `light:${t.id}`,
     labelKey: t.nameKey,

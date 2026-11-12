@@ -279,3 +279,15 @@ describe('demolition and chasing', () => {
     expect(localizeFormula(formula, en)).toBe(enText)
   })
 })
+
+// A wall-hung toilet's frame and a water heater (2026-11-13).
+describe('frame and water heater', () => {
+  it('the lines read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Installyatsiya (osma unitaz uchun): Geberit Duofix', en)).toBe('Installation frame (wall-hung toilet): Geberit Duofix')
+    expect(localizeLabel("Ish: installyatsiya o'rnatish", ru)).toBe('Работа: монтаж инсталляции')
+    expect(localizeLabel('Suv isitgich (boyler): Ariston ABS 80', ru)).toBe('Водонагреватель (бойлер): Ariston ABS 80')
+    expect(localizeLabel("Boyler ulash to'plami", en)).toBe('Water heater connection kit')
+    expect(localizeLabel('Elektr kabel (boyler)', en)).toBe('Electric cable (water heater)')
+    expect(localizeLabel("Ish: boyler o'rnatish", ru)).toBe('Работа: установка бойлера')
+  })
+})

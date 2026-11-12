@@ -268,7 +268,8 @@ class TestSeedData:
         # Nor do a fixture's own parts (2026-11-13): plumbing_norms.json "part_uzs" until tagged.
         admin_added = {"galtel", "plitka_yelimi", "zatirka", "gidro_mastika", "gidro_lenta", "ventilyator", "sochiq_quritgich",
                        "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
-                       "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka"}
+                       "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
+                       "installyatsiya", "boyler"}
         assert set(seed.KEY_PACK_UNIT) - admin_added <= keys
         assert {f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS} <= keys
 
