@@ -114,6 +114,26 @@ describe('SantexnikaSection', () => {
     })
   })
 
+  // Old plumbing out and pipes in the wall (2026-11-13): two switches, for the estimate.
+  it('"remove the old plumbing" is off until ticked; "pipes in the wall" is on until unticked', () => {
+    render(<SantexnikaSection />)
+    const demolish = screen.getByLabelText('Eski santexnikani olib tashlash') as HTMLInputElement
+    const inWall = screen.getByLabelText('Quvurlar devor ichida (shtroba)') as HTMLInputElement
+    expect(demolish.checked).toBe(false)
+    expect(inWall.checked).toBe(true)
+    fireEvent.click(demolish)
+    fireEvent.click(inWall)
+    expect(useRoomStore.getState().designState.plumbingDemolition).toBe(true)
+    expect(useRoomStore.getState().designState.pipesInWall).toBe(false)
+    expect(useRoomStore.getState().isDirty).toBe(true)
+  })
+  it('both switches are in a kitchen too', () => {
+    useRoomStore.setState({ roomType: 'oshxona' })
+    render(<SantexnikaSection />)
+    expect(screen.getByLabelText('Eski santexnikani olib tashlash')).toBeInTheDocument()
+    expect(screen.getByLabelText('Quvurlar devor ichida (shtroba)')).toBeInTheDocument()
+  })
+
   it('in a kitchen, a sink brings its three points', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     placeOn('sink', 'rak', 'B', 0.62)

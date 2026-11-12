@@ -206,6 +206,10 @@ _WHOLE_LABELS = {
     "Unitaz gofrasi": "toilet_gofra",
     "Ulash shlangi (podvodka)": "hose",
     "Ish: smesitel o'rnatish": "work_mixer",
+    "Ish: eski santexnikani demontaj qilish": "work_demolish_fixtures",
+    "Ish: eski quvurlarni demontaj qilish": "work_demolish_pipes",
+    "Ish: shtroba (suv quvuri)": "work_chase_water",
+    "Ish: shtroba (kanalizatsiya Ø50)": "work_chase_drain",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.
@@ -342,6 +346,8 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
     # The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
     (re.compile(r"\AMagistral (?=\d)"), lambda lang: f"{t('formula.trunk', lang)} "),
     (re.compile(r" \+ tik bo'laklar (?=\d)"), lambda lang: f" + {t('formula.branch_pieces', lang)} "),
+    # A drain chase (2026-11-13): "Tik bo'laklar 1.20 m × 60 000 so'm".
+    (re.compile(r"\ATik bo'laklar (?=\d)"), lambda lang: f"{t('formula.branch_pieces_head', lang)} "),
     (re.compile(r" \+ tik (?=\d)"), lambda lang: f" + {t('formula.branch_pipes', lang)} "),  # estimates saved on 2026-11-11
     (re.compile(r" so'm\Z"),
      lambda lang: f" {t('formula.som', lang)}"),

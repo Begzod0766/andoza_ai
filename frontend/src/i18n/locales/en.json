@@ -1008,7 +1008,9 @@
       "riser_wall": "Riser wall",
       "riser_pos": "From the wall's start, cm",
       "riser_auto": "Automatic (door corner)",
-      "riser_hint": "You can also drag the riser along the walls in 3D."
+      "riser_hint": "You can also drag the riser along the walls in 3D.",
+      "demolition": "Remove the old plumbing",
+      "in_wall": "Pipes in the wall (chasing)"
     },
     "tile_height": {
       "title": "Tile height",
@@ -1159,7 +1161,11 @@
       "trap_shower": "Shower tray trap",
       "toilet_gofra": "Toilet pan connector",
       "hose": "Flexible hose",
-      "work_mixer": "Work: fitting a mixer"
+      "work_mixer": "Work: fitting a mixer",
+      "work_demolish_fixtures": "Work: removing the old fixtures",
+      "work_demolish_pipes": "Work: removing the old pipes",
+      "work_chase_water": "Work: wall chasing (water pipe)",
+      "work_chase_drain": "Work: wall chasing (drain Ø50)"
     },
     "unit": {
       "qop_one": "bag",
@@ -1262,7 +1268,8 @@
       "bide_one": "bidet",
       "bide_other": "bidets",
       "smesitel_one": "mixer",
-      "smesitel_other": "mixers"
+      "smesitel_other": "mixers",
+      "branch_pieces_head": "Branches"
     }
   },
   "ustalar": {

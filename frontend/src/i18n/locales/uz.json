@@ -1008,7 +1008,9 @@
       "riser_wall": "Stoyak devori",
       "riser_pos": "Devor boshidan, sm",
       "riser_auto": "Avtomatik (eshik burchagi)",
-      "riser_hint": "3D'da stoyakni devor bo'ylab surish ham mumkin."
+      "riser_hint": "3D'da stoyakni devor bo'ylab surish ham mumkin.",
+      "demolition": "Eski santexnikani olib tashlash",
+      "in_wall": "Quvurlar devor ichida (shtroba)"
     },
     "tile_height": {
       "title": "Plitka balandligi",
@@ -1159,7 +1161,11 @@
       "trap_shower": "Dush poddoni sifoni",
       "toilet_gofra": "Unitaz gofrasi",
       "hose": "Ulash shlangi (podvodka)",
-      "work_mixer": "Ish: smesitel o'rnatish"
+      "work_mixer": "Ish: smesitel o'rnatish",
+      "work_demolish_fixtures": "Ish: eski santexnikani demontaj qilish",
+      "work_demolish_pipes": "Ish: eski quvurlarni demontaj qilish",
+      "work_chase_water": "Ish: shtroba (suv quvuri)",
+      "work_chase_drain": "Ish: shtroba (kanalizatsiya Ø50)"
     },
     "unit": {
       "qop_one": "qop",
@@ -1262,7 +1268,8 @@
       "bide_one": "bide",
       "bide_other": "bide",
       "smesitel_one": "smesitel",
-      "smesitel_other": "smesitel"
+      "smesitel_other": "smesitel",
+      "branch_pieces_head": "Tik bo'laklar"
     }
   },
   "ustalar": {

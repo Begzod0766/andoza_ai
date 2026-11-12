@@ -260,3 +260,22 @@ describe('fixture parts', () => {
     expect(localizeFormula(formula, en)).toBe(enText)
   })
 })
+
+// Old plumbing out and wall chasing (2026-11-13); the PDF reads them the same (smeta_text.py).
+describe('demolition and chasing', () => {
+  it('the lines read in Russian and English', () => {
+    expect(localizeLabel('Ish: eski santexnikani demontaj qilish', en)).toBe('Work: removing the old fixtures')
+    expect(localizeLabel('Ish: eski quvurlarni demontaj qilish', ru)).toBe('Работа: демонтаж старых труб')
+    expect(localizeLabel('Ish: shtroba (suv quvuri)', en)).toBe('Work: wall chasing (water pipe)')
+    expect(localizeLabel('Ish: shtroba (kanalizatsiya Ø50)', ru)).toBe('Работа: штробление (канализация Ø50)')
+  })
+  it.each([
+    ["1 vanna × 200 000 + 1 rakovina × 80 000 + 1 unitaz × 100 000 = 380 000 so'm",
+      '1 ванна × 200 000 + 1 раковина × 80 000 + 1 унитаз × 100 000 = 380 000 сум',
+      '1 bathtub × 200 000 + 1 sink × 80 000 + 1 toilet × 100 000 = 380 000 UZS'],
+    ["Tik bo'laklar 1.20 m × 60 000 so'm", 'Отводы 1.20 м × 60 000 сум', 'Branches 1.20 m × 60 000 UZS'],
+  ])('%s', (formula, ruText, enText) => {
+    expect(localizeFormula(formula, ru)).toBe(ruText)
+    expect(localizeFormula(formula, en)).toBe(enText)
+  })
+})
