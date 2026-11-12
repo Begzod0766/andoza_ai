@@ -1,7 +1,7 @@
 /** The pipe scheme (spec 2026-11-11): a trunk per pipe kind along the walls, a branch to each point. */
 import { describe, it, expect } from 'vitest'
 import type { PlumbingPoint, RoomGeometry } from '@/store/types'
-import { buildScheme, schemeInput, pipeScheme, schemePolylines, EMPTY_SCHEME, WATER_TRUNK_MM, type SchemeInput } from '@/lib/pipeScheme'
+import { buildScheme, schemeInput, pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR, EMPTY_SCHEME, WATER_TRUNK_MM, type SchemeInput } from '@/lib/pipeScheme'
 import { plumbingSummary, pipeRunM } from '@/lib/plumbingRuns'
 
 // A 2500 × 2000 room walked A, B, C, D: P = 9000, corners at 0, 2500, 4500, 7000.
@@ -393,5 +393,21 @@ describe('schemePolylines with hidden walls', () => {
   it('the same lines as before with nothing hidden', () => {
     const s = pipeScheme(g, { wallId: 'D', positionMm: 0 }, two)
     expect(schemePolylines(g, s, new Set())).toEqual(schemePolylines(g, s))
+  })
+})
+
+// Mobile QA 2026-11-12: the grey drain line lay on the floor (y = 0) in #9CA3AF and was lost in a
+// light floor; it is drawn darker and just above the floor. The scheme's own heights are unchanged.
+describe('drawing the drain', () => {
+  it('a line at floor level is drawn 15 mm above it; one higher up is left where it is', () => {
+    const floor = { key: 't', kind: 'drain' as const, diameterMm: 50, points: [[0, 0, 0], [1, 0, 0]] as Array<[number, number, number]> }
+    expect(drawnPoints(floor).map((p) => p[1])).toEqual([0.015, 0.015])
+    const up = { ...floor, points: [[0, 0, 0], [0, 0.6, 0]] as Array<[number, number, number]> }
+    expect(drawnPoints(up).map((p) => p[1])).toEqual([0.015, 0.6])
+  })
+  it('the drain colour is dark enough to read on a light floor', () => {
+    expect(PIPE_COLOUR.drain).not.toBe('#9CA3AF')
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(PIPE_COLOUR.drain.slice(i, i + 2), 16))
+    expect(0.2126 * r + 0.7152 * g + 0.0722 * b).toBeLessThan(110)
   })
 })

@@ -67,7 +67,21 @@ def test_pipe_lines_come_from_the_scheme():
         metres = _round2((p["trunkMm"] + p["branchMm"]) / 1000 * 1.15)
         assert got[label].qty == metres and got[label].unit == "m"
         total = (p["trunkMm"] + p["branchMm"]) / 1000
-        assert got[label].formula == f"Magistral {p['trunkMm'] / 1000:.2f} m + tik bo'laklar {p['branchMm'] / 1000:.2f} m = {total:.2f} m × 1.15 = {metres:g} m"
+        assert got[label].formula == f"Magistral {p['trunkMm'] / 1000:.2f} m + tik bo'laklar {p['branchMm'] / 1000:.2f} m = {total:.2f} m × 1.15 = {metres:.2f} m"
+
+
+def test_a_pipe_formula_always_ends_in_two_decimals(monkeypatch):
+    # Mobile QA 2026-11-12: "= 2.52 m × 1.15 = 2.9 m" where every other figure reads "0.00".
+    import app.services.pipe_scheme as ps
+    real = ps.pipe_scheme
+
+    def fake(*a, **kw):
+        out = real(*a, **kw)
+        out["pipes"]["drain_110"].update(trunkMm=2000, branchMm=0)   # 2.00 × 1.15 = 2.30
+        return out
+    monkeypatch.setattr(ps, "pipe_scheme", fake)
+    got = by_label(_plumbing_lines(room(), {}))
+    assert got[PIPES["drain_110"]].formula.endswith("= 2.00 m × 1.15 = 2.30 m")
 
 
 def test_the_room_needs_less_pipe_than_a_run_per_point():

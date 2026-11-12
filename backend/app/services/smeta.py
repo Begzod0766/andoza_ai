@@ -1893,7 +1893,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             lines.append(_make_line(
                 label=f"{PIPE_LABELS[kind]}: {shop.name_uz}" if shop_price else PIPE_LABELS[kind],
                 formula=(f"Magistral {pipe['trunkMm'] / 1000:.2f} m + tik bo'laklar {pipe['branchMm'] / 1000:.2f} m"
-                         f" = {mm / 1000:.2f} m × {PLUMBING_RESERVE} = {metres:g} m"),
+                         f" = {mm / 1000:.2f} m × {PLUMBING_RESERVE} = {metres:.2f} m"),
                 qty=metres, unit="m", price_uzs=price, category="santexnika",
                 is_approximate=not shop_price,
                 warning=None if shop_price else PLUMBING_NORM_WARNING,
