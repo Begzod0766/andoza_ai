@@ -246,18 +246,23 @@ async def test_seeding_does_not_overwrite_an_edited_row(session):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("module", (seed_catalog, seeds), ids=("seed_catalog", "seeds"))
-def test_every_seeded_usta_has_map_coordinates_and_an_avatar(module):
-    """An usta without lat/lng is listed in U3 but has no pin on the U1 map,
-    and one without an avatar_url renders as a bare placeholder circle.
+def test_every_seeded_usta_has_map_coordinates_and_no_stock_face(module):
+    """An usta without lat/lng is listed in U3 but has no pin on the U1 map.
 
-    Driven off the module data, not a hand-written list, so a row added to
-    either USTALAR without these fields fails here instead of on a deploy.
+    No seeded usta gets an avatar_url: the old pravatar URLs were random
+    stock faces keyed by phone, so "Sardor Karimov" showed a woman's photo.
+    Without one the apps draw the name's initial in a circle, which is honest
+    for placeholder craftsmen. Driven off the module data, not a hand-written
+    list, so a row added to either USTALAR fails here instead of on a deploy.
     """
     for row in module.USTALAR:
-        for field in ("lat", "lng", "avatar_url"):
+        for field in ("lat", "lng"):
             assert row.get(field) is not None, (
                 f"{module.__name__}: usta {row['name']!r} has no {field}"
             )
+        assert row.get("avatar_url") is None, (
+            f"{module.__name__}: usta {row['name']!r} has a stock avatar"
+        )
         # Tashkent, loosely — catches a swapped lat/lng or a stray decimal.
         assert 41.0 <= row["lat"] <= 41.6, row["name"]
         assert 69.0 <= row["lng"] <= 69.6, row["name"]
@@ -283,6 +288,6 @@ async def test_inserted_rows_carry_those_fields_through_to_the_database(session)
     for usta in session.of(Usta):
         assert usta.lat is not None, usta.name
         assert usta.lng is not None, usta.name
-        assert usta.avatar_url, usta.name
+        assert usta.avatar_url is None, usta.name
     for material in session.of(Material):
         assert material.image_url, material.name_uz
