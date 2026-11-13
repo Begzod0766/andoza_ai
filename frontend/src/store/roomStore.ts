@@ -9,7 +9,7 @@ import type {
   DesignState,
   FloorType,
   PlacedElectrical,
-  PlumbingPoint, TowelRail,
+  PlumbingPoint, TowelRail, Washer,
   PlacedFurniture,
   PlacedLight,
   RoomGeometry,
@@ -24,6 +24,7 @@ import { createFurnitureSlice } from './slices/furnitureSlice'
 import { createElectricalSlice } from './slices/electricalSlice'
 import { createPlumbingSlice } from './slices/plumbingSlice'
 import { createTowelRailSlice } from './slices/towelRailSlice'
+import { createWasherSlice } from './slices/washerSlice'
 import type { RiserAt } from '@/lib/plumbingRuns'
 import { createLightSlice } from './slices/lightSlice'
 import { createUiSlice } from './slices/uiSlice'
@@ -90,6 +91,7 @@ export interface RoomTemporalState {
   electricals: PlacedElectrical[]
   plumbing: PlumbingPoint[]
   towelRails: TowelRail[]
+  washers: Washer[]
   plumbingRiser: RiserAt | null
   lights: PlacedLight[]
   layoutPos: { x: number; z: number } | null
@@ -105,6 +107,7 @@ function partializeTemporal(state: RoomStore): RoomTemporalState {
     electricals: state.electricals,
     plumbing: state.plumbing,
     towelRails: state.towelRails,
+    washers: state.washers,
     plumbingRiser: state.plumbingRiser,
     lights: state.lights,
     layoutPos: state.layoutPos,
@@ -152,6 +155,7 @@ export const useRoomStore = create<RoomStore>()(
         ...createElectricalSlice(...a),
         ...createPlumbingSlice(...a),
         ...createTowelRailSlice(...a),
+        ...createWasherSlice(...a),
         ...createLightSlice(...a),
         ...createUiSlice(...a),
         ...createLifecycleSlice(...a),
@@ -190,6 +194,7 @@ export const useRoomStore = create<RoomStore>()(
         electricals: state.electricals,
         plumbing: state.plumbing,
         towelRails: state.towelRails,
+        washers: state.washers,
         plumbingRiser: state.plumbingRiser,
         lights: state.lights,
         highQuality3d: state.highQuality3d,

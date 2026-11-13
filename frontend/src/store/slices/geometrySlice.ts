@@ -1,8 +1,9 @@
 import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, TowelRail, WallElement, DesignState } from '../types'
+import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, TowelRail, Washer, WallElement, DesignState } from '../types'
 import { withFixturePoints } from '@/lib/plumbingPoints'
 import { keepRails } from '@/lib/towelRail'
+import { keepWashers } from '@/lib/washer'
 import { defaultGeometry, resizeWall } from '../utils/geometryHelpers'
 import type { RoomStore } from '../roomStoreTypes'
 
@@ -26,8 +27,9 @@ export interface GeometrySlice {
 
 /** A change to a wall's openings, with the towel rails kept clear of them: a door or window that
  * comes onto a rail moves the rail to the nearest free place (and it is one undo step with the door). */
-function withRails<T extends { geometry: RoomGeometry }>(state: RoomStore, next: T): T & { towelRails: TowelRail[] } {
-  return { ...next, towelRails: keepRails(state.towelRails, next.geometry) }
+function withRails<T extends { geometry: RoomGeometry }>(state: RoomStore, next: T): T & { towelRails: TowelRail[]; washers: Washer[] } {
+  const towelRails = keepRails(state.towelRails, next.geometry)
+  return { ...next, towelRails, washers: keepWashers(state.washers, next.geometry, towelRails) }
 }
 
 export const createGeometrySlice: StateCreator<
@@ -49,6 +51,7 @@ export const createGeometrySlice: StateCreator<
       // A point is measured from its wall's start, which moves when the room is resized.
       return {
         isDirty: true, geometry, towelRails: keepRails(state.towelRails, geometry),
+        washers: keepWashers(state.washers, geometry, keepRails(state.towelRails, geometry)),
         plumbing: withFixturePoints(state.plumbing, state.furniture, state.catalogFurniture, geometry),
       }
     })
@@ -60,6 +63,7 @@ export const createGeometrySlice: StateCreator<
       geometry,
       plumbing: withFixturePoints(state.plumbing, extra?.furniture ?? state.furniture, state.catalogFurniture, geometry),
       towelRails: keepRails(state.towelRails, geometry),
+      washers: keepWashers(state.washers, geometry, keepRails(state.towelRails, geometry)),
       isDirty: true,
     }))
   },
