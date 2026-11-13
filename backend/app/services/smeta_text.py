@@ -153,6 +153,9 @@ _LABEL_HEADS = {
     "Ulash shlangi (podvodka)": "hose",
     "Installyatsiya (osma unitaz uchun)": "frame",
     "Suv isitgich (boyler)": "heater",
+    "Kir yuvish mashinasi krani": "washer_tap",
+    "Kir yuvish mashinasi sifoni": "washer_trap",
+    "Pol trapi": "floor_drain",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -218,6 +221,11 @@ _WHOLE_LABELS = {
     "Boyler ulash to'plami": "heater_kit",
     "Elektr kabel (boyler)": "heater_cable",
     "Ish: boyler o'rnatish": "work_heater",
+    "Kir yuvish mashinasi krani": "washer_tap",
+    "Kir yuvish mashinasi sifoni": "washer_trap",
+    "Ish: kir yuvish mashinasini ulash": "work_washer",
+    "Pol trapi": "floor_drain",
+    "Ish: trap o'rnatish": "work_floor_drain",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.
@@ -369,12 +377,12 @@ _FORMULA_COUNTED = {
     "tarmoq": "formula.tarmoq", "stoyak": "formula.stoyak", "burchak": "formula.burchak", "uch": "formula.uch", "unitaz": "formula.unitaz", "liniya": "formula.liniya", "ulanish": "formula.ulanish",
     "xona burchagi": "formula.xona_burchagi", "magistral uchi": "formula.magistral_uchi",
     # What a fixture part's count is made of (2026-11-13).
-    "rakovina": "formula.rakovina", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel",
+    "rakovina": "formula.rakovina", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel", "mashina": "formula.mashina",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|litr|m²|kg|m)"
     r"(?=\Z|[\s);,:])"
 )
 

@@ -88,7 +88,12 @@
         "heater": "Suv isitgich (boyler)",
         "heater_kit": "Boyler ulash to'plami",
         "heater_cable": "Elektr kabel (boyler)",
-        "work_heater": "Ish: boyler o'rnatish"
+        "work_heater": "Ish: boyler o'rnatish",
+        "washer_tap": "Kir yuvish mashinasi krani",
+        "washer_trap": "Kir yuvish mashinasi sifoni",
+        "work_washer": "Ish: kir yuvish mashinasini ulash",
+        "floor_drain": "Pol trapi",
+        "work_floor_drain": "Ish: trap o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -165,7 +170,9 @@
         "bide_other": "bide",
         "smesitel_one": "smesitel",
         "smesitel_other": "smesitel",
-        "branch_pieces_head": "Tik bo'laklar"
+        "branch_pieces_head": "Tik bo'laklar",
+        "mashina_one": "mashina",
+        "mashina_other": "mashina"
       },
       "warning": {
         "norm_missing": "Bu qism uchun aniq norma topilmadi — standart ko'rsatkich bo'yicha hisoblandi.",
@@ -316,7 +323,12 @@
         "heater": "Водонагреватель (бойлер)",
         "heater_kit": "Комплект подключения бойлера",
         "heater_cable": "Электрокабель (бойлер)",
-        "work_heater": "Работа: установка бойлера"
+        "work_heater": "Работа: установка бойлера",
+        "washer_tap": "Кран для стиральной машины",
+        "washer_trap": "Сифон для стиральной машины",
+        "work_washer": "Работа: подключение стиральной машины",
+        "floor_drain": "Трап",
+        "work_floor_drain": "Работа: установка трапа"
       },
       "unit": {
         "qop_one": "мешок",
@@ -443,7 +455,11 @@
         "smesitel_few": "смесителя",
         "smesitel_many": "смесителей",
         "smesitel_other": "смесителя",
-        "branch_pieces_head": "Отводы"
+        "branch_pieces_head": "Отводы",
+        "mashina_one": "машина",
+        "mashina_few": "машины",
+        "mashina_many": "машин",
+        "mashina_other": "машины"
       },
       "warning": {
         "norm_missing": "Точной нормы для этой части нет: посчитано по стандартному показателю.",
@@ -596,7 +612,12 @@
         "heater": "Water heater",
         "heater_kit": "Water heater connection kit",
         "heater_cable": "Electric cable (water heater)",
-        "work_heater": "Work: fitting the water heater"
+        "work_heater": "Work: fitting the water heater",
+        "washer_tap": "Washing machine valve",
+        "washer_trap": "Washing machine trap",
+        "work_washer": "Work: connecting the washing machine",
+        "floor_drain": "Floor drain",
+        "work_floor_drain": "Work: fitting the floor drain"
       },
       "unit": {
         "qop_one": "bag",
@@ -673,7 +694,9 @@
         "bide_other": "bidets",
         "smesitel_one": "mixer",
         "smesitel_other": "mixers",
-        "branch_pieces_head": "Branches"
+        "branch_pieces_head": "Branches",
+        "mashina_one": "machine",
+        "mashina_other": "machines"
       },
       "warning": {
         "norm_missing": "No exact norm was found for this part: it is calculated with the standard rate.",

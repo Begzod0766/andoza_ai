@@ -12,6 +12,31 @@ import { showToast } from '@/components/ui/Toast'
 const UNKNOWN = { w: 0.6, d: 0.6 }
 
 /**
+ * The pieces standing in the open room, as boxes (mm centres, metre sizes, as drawn: a model taller
+ * than the ceiling drawn smaller). Shared by every "add" that must keep clear of them.
+ */
+export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState> = useRoomStore.getState()): PlacedBox[] {
+  const sizeOf = (id: string) => {
+    const row = s.catalogFurniture.find((c) => c.id === id)
+    const size = s.userFurniture.find((e) => e.id === id)?.sizeM
+      ?? resolveCatalogEntry(row)?.sizeM
+      ?? FURNITURE_CATALOG.find((e) => e.id === id)?.sizeM
+    return size && ceilingFitSize(size, row?.height_cm ? row.height_cm / 100 : undefined, s.ceilingHeight)
+  }
+  const roleOf = (id: string) => {
+    const row = s.catalogFurniture.find((c) => c.id === id)
+    if (row) return inferRole(row.category, row.name_uz)
+    const name = s.userFurniture.find((e) => e.id === id)?.name ?? FURNITURE_CATALOG.find((e) => e.id === id)?.name
+    return name ? inferRole(null, name) : undefined
+  }
+  return s.furniture.map((f) => {
+    const size = sizeOf(f.furniture_id) ?? UNKNOWN
+    const k = f.scaleOverride ?? 1
+    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k, role: roleOf(f.furniture_id) }
+  })
+}
+
+/**
  * Where a piece added from a menu goes in the open room, and which way it faces: clear of what is
  * already there, against a wall when it belongs on one (`freeFurnitureSpotMm`). Every "add" surface
  * calls this, so none of them drops a piece on top of another again (QA 2026-11-05 #5).
@@ -28,24 +53,7 @@ export function nextFurnitureSpot(item: {
   x: number; y: number; rotation: number
 } {
   const s = useRoomStore.getState()
-  const sizeOf = (id: string) => {
-    const row = s.catalogFurniture.find((c) => c.id === id)
-    const size = s.userFurniture.find((e) => e.id === id)?.sizeM
-      ?? resolveCatalogEntry(row)?.sizeM
-      ?? FURNITURE_CATALOG.find((e) => e.id === id)?.sizeM
-    return size && ceilingFitSize(size, row?.height_cm ? row.height_cm / 100 : undefined, s.ceilingHeight)
-  }
-  const roleOf = (id: string) => {
-    const row = s.catalogFurniture.find((c) => c.id === id)
-    if (row) return inferRole(row.category, row.name_uz)
-    const name = s.userFurniture.find((e) => e.id === id)?.name ?? FURNITURE_CATALOG.find((e) => e.id === id)?.name
-    return name ? inferRole(null, name) : undefined
-  }
-  const placed: PlacedBox[] = s.furniture.map((f) => {
-    const size = sizeOf(f.furniture_id) ?? UNKNOWN
-    const k = f.scaleOverride ?? 1
-    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k, role: roleOf(f.furniture_id) }
-  })
+  const placed = placedFurnitureBoxes(s)
   const known = item.sizeM && item.sizeM.w > 0 && item.sizeM.d > 0 ? item.sizeM : null
   const size = known ? ceilingFitSize(known, item.heightM, s.ceilingHeight) : UNKNOWN
   const { onWall, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name), roomRiser(s.geometry, s.plumbingRiser))

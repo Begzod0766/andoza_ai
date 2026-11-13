@@ -44,7 +44,7 @@ const HALF = TOWEL_RAIL_W_MM / 2
  * Where on a wall a rail's centre may sit, as [from, to] spans in mm along the wall walk: the wall
  * less half a rail at each end, less every door and window widened by half a rail each side.
  */
-export function freeSpans(geometry: RoomGeometry, wallId: string): Array<[number, number]> {
+export function freeSpans(geometry: RoomGeometry, wallId: string, halfMm: number = HALF): Array<[number, number]> {
   const walk = wallWalk(geometry).find((w) => w.id === wallId)
   const own = roomModel(geometry).walls.find((w) => w.id === wallId)
   const wall = geometry.walls.find((w) => w.id === wallId)
@@ -56,11 +56,11 @@ export function freeSpans(geometry: RoomGeometry, wallId: string): Array<[number
   const blocked = resolveElementPositions(wall.elements, wall.length)
     .filter((e) => Number.isFinite(e.position) && e.width > 0)
     .map((e): [number, number] => (forward ? [e.position, e.position + e.width] : [length - e.position - e.width, length - e.position]))
-    .map(([a, b]): [number, number] => [a - HALF, b + HALF])
+    .map(([a, b]): [number, number] => [a - halfMm, b + halfMm])
     .sort((p, q) => p[0] - q[0])
   const spans: Array<[number, number]> = []
-  let from = HALF
-  const end = length - HALF
+  let from = halfMm
+  const end = length - halfMm
   for (const [a, b] of blocked) {
     if (a > from) spans.push([from, Math.min(a, end)])
     from = Math.max(from, b)

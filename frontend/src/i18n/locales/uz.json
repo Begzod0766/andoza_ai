@@ -1011,7 +1011,13 @@
       "riser_hint": "3D'da stoyakni devor bo'ylab surish ham mumkin.",
       "demolition": "Eski santexnikani olib tashlash",
       "in_wall": "Quvurlar devor ichida (shtroba)",
-      "water_heater": "Suv isitgich (boyler)"
+      "water_heater": "Suv isitgich (boyler)",
+      "washer": "Kir yuvish mashinasi",
+      "washer_add": "Kir yuvish mashinasi qo'shish",
+      "washer_own": "mashinaniki",
+      "washer_where": "{{wall}}-devor",
+      "washer_no_room": "Devorlarda kir yuvish mashinasi uchun joy yo'q.",
+      "floor_drain": "Dush poddonsiz (pol trapi)"
     },
     "tile_height": {
       "title": "Plitka balandligi",
@@ -1172,7 +1178,12 @@
       "heater": "Suv isitgich (boyler)",
       "heater_kit": "Boyler ulash to'plami",
       "heater_cable": "Elektr kabel (boyler)",
-      "work_heater": "Ish: boyler o'rnatish"
+      "work_heater": "Ish: boyler o'rnatish",
+      "washer_tap": "Kir yuvish mashinasi krani",
+      "washer_trap": "Kir yuvish mashinasi sifoni",
+      "work_washer": "Ish: kir yuvish mashinasini ulash",
+      "floor_drain": "Pol trapi",
+      "work_floor_drain": "Ish: trap o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -1276,7 +1287,9 @@
       "bide_other": "bide",
       "smesitel_one": "smesitel",
       "smesitel_other": "smesitel",
-      "branch_pieces_head": "Tik bo'laklar"
+      "branch_pieces_head": "Tik bo'laklar",
+      "mashina_one": "mashina",
+      "mashina_other": "mashina"
     }
   },
   "ustalar": {
@@ -2218,7 +2231,10 @@
         "gofra_unitaz": "Unitaz gofrasi",
         "podvodka": "Ulash shlangi (podvodka)",
         "installyatsiya": "Installyatsiya (osma unitaz uchun)",
-        "boyler": "Suv isitgich (boyler)"
+        "boyler": "Suv isitgich (boyler)",
+        "kran_kir": "Kir yuvish mashinasi krani",
+        "sifon_kir": "Kir yuvish mashinasi sifoni",
+        "trap_pol": "Pol trapi"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

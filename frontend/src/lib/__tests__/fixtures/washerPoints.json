@@ -1,0 +1,238 @@
+{
+ "_doc": "A washing machine's two points (spec 2026-11-13): frontend lib/washer washerPoints and backend app/services/washer washer_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres.",
+ "cases": [
+  {
+   "name": "rect, mid wall A",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "m1",
+     "wallId": "A",
+     "positionMm": 1250
+    }
+   ],
+   "expected": [
+    {
+     "id": "m1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1400,
+     "heightMm": 900,
+     "washerId": "m1"
+    },
+    {
+     "id": "m1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1100,
+     "heightMm": 600,
+     "washerId": "m1"
+    }
+   ]
+  },
+  {
+   "name": "rect, by the start of wall B: the drain clamps to 0",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "m2",
+     "wallId": "B",
+     "positionMm": 100
+    }
+   ],
+   "expected": [
+    {
+     "id": "m2:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "B",
+     "positionMm": 250,
+     "heightMm": 900,
+     "washerId": "m2"
+    },
+    {
+     "id": "m2:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "B",
+     "positionMm": 0,
+     "heightMm": 600,
+     "washerId": "m2"
+    }
+   ]
+  },
+  {
+   "name": "a machine on a wall the room lacks gives none",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "m3",
+     "wallId": "Q",
+     "positionMm": 500
+    }
+   ],
+   "expected": []
+  },
+  {
+   "name": "polygon room",
+   "geometry": {
+    "walls": [
+     {
+      "id": "0",
+      "length": 4000,
+      "elements": []
+     },
+     {
+      "id": "1",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "2",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "3",
+      "length": 1500,
+      "elements": []
+     },
+     {
+      "id": "4",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "5",
+      "length": 3500,
+      "elements": []
+     }
+    ],
+    "vertices": [
+     [
+      0,
+      0
+     ],
+     [
+      4000,
+      0
+     ],
+     [
+      4000,
+      2000
+     ],
+     [
+      2000,
+      2000
+     ],
+     [
+      2000,
+      3500
+     ],
+     [
+      0,
+      3500
+     ]
+    ]
+   },
+   "washers": [
+    {
+     "id": "m4",
+     "wallId": "1",
+     "positionMm": 1000
+    }
+   ],
+   "expected": [
+    {
+     "id": "m4:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "1",
+     "positionMm": 1150,
+     "heightMm": 900,
+     "washerId": "m4"
+    },
+    {
+     "id": "m4:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "1",
+     "positionMm": 850,
+     "heightMm": 600,
+     "washerId": "m4"
+    }
+   ]
+  }
+ ]
+}

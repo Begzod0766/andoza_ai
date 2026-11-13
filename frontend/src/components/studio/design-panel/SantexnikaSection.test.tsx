@@ -141,6 +141,55 @@ describe('SantexnikaSection', () => {
     expect(screen.getByLabelText('Quvurlar devor ichida (shtroba)')).toBeInTheDocument()
   })
 
+  // A washing machine (spec 2026-11-13).
+  describe('the washing machine', () => {
+    it('is added from the panel, listed, its two points with it, and removed with them', () => {
+      render(<SantexnikaSection bathroom />)
+      fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
+      const s = useRoomStore.getState()
+      expect(s.washers).toHaveLength(1)
+      expect(screen.getAllByText('(mashinaniki)')).toHaveLength(2)
+      const row = screen.getByRole('listitem', { name: /^Kir yuvish mashinasi/ })
+      fireEvent.click(within(row).getByRole('button', { name: 'Olib tashlash' }))
+      expect(useRoomStore.getState().washers).toEqual([])
+      expect(screen.queryAllByText('(mashinaniki)')).toHaveLength(0)
+    })
+    it('its points raise the summary by one water and one drain point', () => {
+      render(<SantexnikaSection bathroom />)
+      const before = screen.getByText(/Kanalizatsiya: \d+ nuqta/).textContent!
+      fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
+      const after = screen.getByText(/Kanalizatsiya: \d+ nuqta/).textContent!
+      const n = (t: string, re: RegExp) => Number(re.exec(t)![1])
+      expect(n(after, /Kanalizatsiya: (\d+)/)).toBe(n(before, /Kanalizatsiya: (\d+)/) + 1)
+      expect(n(after, /Suv: (\d+)/)).toBe(n(before, /Suv: (\d+)/) + 1)
+    })
+    it('is offered in a kitchen too', () => {
+      useRoomStore.setState({ roomType: 'oshxona' })
+      render(<SantexnikaSection />)
+      expect(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" })).toBeInTheDocument()
+    })
+    it('no room left: the panel says so', () => {
+      useRoomStore.setState({ geometry: { walls: [] } as never })
+      render(<SantexnikaSection bathroom />)
+      fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
+      expect(screen.getByRole('alert')).toHaveTextContent("Devorlarda kir yuvish mashinasi uchun joy yo'q.")
+    })
+  })
+
+  // A floor drain for a shower with no tray (spec 2026-11-13).
+  it('"shower with no tray" is shown only with a shower, unticked; ticking sets floorDrain', () => {
+    const { unmount } = render(<SantexnikaSection bathroom />)
+    expect(screen.queryByLabelText('Dush poddonsiz (pol trapi)')).toBeNull()
+    unmount()
+    useRoomStore.setState({ catalogFurniture: [...useRoomStore.getState().catalogFurniture, row('dush', 'Dush poddoni 90', 90, 90)] })
+    placeOn('sh', 'dush', 'C', 0.9)
+    render(<SantexnikaSection bathroom />)
+    const box = screen.getByLabelText('Dush poddonsiz (pol trapi)') as HTMLInputElement
+    expect(box.checked).toBe(false)
+    fireEvent.click(box)
+    expect(useRoomStore.getState().designState.floorDrain).toBe(true)
+  })
+
   it('in a kitchen, a sink brings its three points', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     placeOn('sink', 'rak', 'B', 0.62)

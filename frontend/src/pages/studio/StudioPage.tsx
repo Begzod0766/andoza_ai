@@ -256,6 +256,7 @@ export default function StudioPage() {
         electricals: s.electricals,
         plumbing: s.plumbing,
         towelRails: s.towelRails,
+        washers: s.washers,
         // Where the pipes run to, so the estimate measures from the same place: the riser the user
         // set (marked `manual`), else the door corner (lib/plumbingRuns riserToSave).
         plumbingRiser: riserToSave(s.geometry, s.plumbingRiser),

@@ -243,6 +243,8 @@ export interface DesignState {
   pipesInWall?: boolean
   /** A water heater in the estimate: off unless exactly true (2026-11-13). */
   waterHeater?: boolean
+  /** A shower with no tray, draining through a floor drain: off unless exactly true (spec 2026-11-13). */
+  floorDrain?: boolean
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).
@@ -396,6 +398,15 @@ export interface PlumbingPoint {
   fixtureId?: string
   /** A towel rail's point: worked out from the rail, never saved or moved on its own. */
   railId?: string
+  /** A washing machine's point: worked out from the machine, never saved (spec 2026-11-13). */
+  washerId?: string
+}
+
+/** A washing machine standing against a wall (spec 2026-11-13): its centre, mm along the wall walk. */
+export interface Washer {
+  id: string
+  wallId: string
+  positionMm: number
 }
 
 /** A heated towel rail on a wall (spec 2026-11-10): 500 × 800 mm; `positionMm` is its centre along the

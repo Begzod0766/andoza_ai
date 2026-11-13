@@ -56,6 +56,9 @@ const LABEL_HEADS = {
   "Ulash shlangi (podvodka)": "hose",
   "Installyatsiya (osma unitaz uchun)": "frame",
   "Suv isitgich (boyler)": "heater",
+  "Kir yuvish mashinasi krani": "washer_tap",
+  "Kir yuvish mashinasi sifoni": "washer_trap",
+  "Pol trapi": "floor_drain",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -121,6 +124,11 @@ const WHOLE_LABELS = {
   "Boyler ulash to'plami": "heater_kit",
   "Elektr kabel (boyler)": "heater_cable",
   "Ish: boyler o'rnatish": "work_heater",
+  "Kir yuvish mashinasi krani": "washer_tap",
+  "Kir yuvish mashinasi sifoni": "washer_trap",
+  "Ish: kir yuvish mashinasini ulash": "work_washer",
+  "Pol trapi": "floor_drain",
+  "Ish: trap o'rnatish": "work_floor_drain",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */
@@ -232,11 +240,11 @@ const FORMULA_COUNTED = {
   tarmoq: "smeta.formula.tarmoq", stoyak: "smeta.formula.stoyak", burchak: "smeta.formula.burchak", uch: "smeta.formula.uch", unitaz: "smeta.formula.unitaz", liniya: "smeta.formula.liniya", ulanish: "smeta.formula.ulanish",
   "xona burchagi": "smeta.formula.xona_burchagi", "magistral uchi": "smeta.formula.magistral_uchi",
   // What a fixture part's count is made of (2026-11-13).
-  rakovina: "smeta.formula.rakovina", vanna: "smeta.formula.vanna", dush: "smeta.formula.dush", bide: "smeta.formula.bide", smesitel: "smeta.formula.smesitel",
+  rakovina: "smeta.formula.rakovina", vanna: "smeta.formula.vanna", dush: "smeta.formula.dush", bide: "smeta.formula.bide", smesitel: "smeta.formula.smesitel", mashina: "smeta.formula.mashina",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|litr|m²|kg|m)(?=$|[\s);,:])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });
