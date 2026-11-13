@@ -25,6 +25,7 @@ export function SantexnikaSection({ bathroom = false }: {
   const ventFan = useRoomStore((s) => s.designState.ventFan);
   const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
   const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
+  const waterHeater = useRoomStore((s) => s.designState.waterHeater);
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
@@ -210,6 +211,11 @@ export function SantexnikaSection({ bathroom = false }: {
       <label className="flex items-center gap-2 text-[12px] text-ink">
         <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />
         {t("studio.santexnika.in_wall")}
+      </label>
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_heater_lines). */}
+        <input type="checkbox" checked={waterHeater === true} onChange={(e) => setDesignState({ waterHeater: e.target.checked })} />
+        {t("studio.santexnika.water_heater")}
       </label>
 
       {bathroom && (

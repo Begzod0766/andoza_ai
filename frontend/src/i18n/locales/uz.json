@@ -1010,7 +1010,8 @@
       "riser_auto": "Avtomatik (eshik burchagi)",
       "riser_hint": "3D'da stoyakni devor bo'ylab surish ham mumkin.",
       "demolition": "Eski santexnikani olib tashlash",
-      "in_wall": "Quvurlar devor ichida (shtroba)"
+      "in_wall": "Quvurlar devor ichida (shtroba)",
+      "water_heater": "Suv isitgich (boyler)"
     },
     "tile_height": {
       "title": "Plitka balandligi",
@@ -1165,7 +1166,13 @@
       "work_demolish_fixtures": "Ish: eski santexnikani demontaj qilish",
       "work_demolish_pipes": "Ish: eski quvurlarni demontaj qilish",
       "work_chase_water": "Ish: shtroba (suv quvuri)",
-      "work_chase_drain": "Ish: shtroba (kanalizatsiya Ø50)"
+      "work_chase_drain": "Ish: shtroba (kanalizatsiya Ø50)",
+      "frame": "Installyatsiya (osma unitaz uchun)",
+      "work_frame": "Ish: installyatsiya o'rnatish",
+      "heater": "Suv isitgich (boyler)",
+      "heater_kit": "Boyler ulash to'plami",
+      "heater_cable": "Elektr kabel (boyler)",
+      "work_heater": "Ish: boyler o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2209,7 +2216,9 @@
         "sifon_vanna": "Vanna sifoni",
         "sifon_dush": "Dush poddoni sifoni",
         "gofra_unitaz": "Unitaz gofrasi",
-        "podvodka": "Ulash shlangi (podvodka)"
+        "podvodka": "Ulash shlangi (podvodka)",
+        "installyatsiya": "Installyatsiya (osma unitaz uchun)",
+        "boyler": "Suv isitgich (boyler)"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

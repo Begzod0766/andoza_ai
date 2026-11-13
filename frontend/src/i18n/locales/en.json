@@ -1010,7 +1010,8 @@
       "riser_auto": "Automatic (door corner)",
       "riser_hint": "You can also drag the riser along the walls in 3D.",
       "demolition": "Remove the old plumbing",
-      "in_wall": "Pipes in the wall (chasing)"
+      "in_wall": "Pipes in the wall (chasing)",
+      "water_heater": "Water heater"
     },
     "tile_height": {
       "title": "Tile height",
@@ -1165,7 +1166,13 @@
       "work_demolish_fixtures": "Work: removing the old fixtures",
       "work_demolish_pipes": "Work: removing the old pipes",
       "work_chase_water": "Work: wall chasing (water pipe)",
-      "work_chase_drain": "Work: wall chasing (drain Ø50)"
+      "work_chase_drain": "Work: wall chasing (drain Ø50)",
+      "frame": "Installation frame (wall-hung toilet)",
+      "work_frame": "Work: fitting the installation frame",
+      "heater": "Water heater",
+      "heater_kit": "Water heater connection kit",
+      "heater_cable": "Electric cable (water heater)",
+      "work_heater": "Work: fitting the water heater"
     },
     "unit": {
       "qop_one": "bag",
@@ -2209,7 +2216,9 @@
         "sifon_vanna": "Bath trap",
         "sifon_dush": "Shower tray trap",
         "gofra_unitaz": "Toilet pan connector",
-        "podvodka": "Flexible hose"
+        "podvodka": "Flexible hose",
+        "installyatsiya": "Installation frame (wall-hung toilet)",
+        "boyler": "Water heater"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

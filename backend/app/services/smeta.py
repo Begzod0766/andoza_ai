@@ -1584,19 +1584,24 @@ FIXTURE_PARTS: dict[str, tuple[tuple[str, int], ...]] = {
     "shower": (("smesitel_dush", 1), ("sifon_dush", 1)),
     "shower_own_mixer": (("sifon_dush", 1),),
     "toilet": (("gofra_unitaz", 1), ("podvodka", 1)),
+    # Hangs on a frame, which holds the cistern, the pan connector and the hose.
+    "toilet_wall_hung": (("installyatsiya", 1),),
     "bidet": (("smesitel_bide", 1), ("sifon_rakovina", 1), ("podvodka", 2)),
 }
 # The word a fixture is counted by in a part's formula ("2 rakovina + 1 bide = 3 dona ...").
 FIXTURE_PART_WORDS = {
     "sink": "rakovina", "kitchen_sink": "rakovina", "bathtub": "vanna", "shower": "dush",
-    "shower_own_mixer": "dush", "toilet": "unitaz", "bidet": "bide",
+    "shower_own_mixer": "dush", "toilet": "unitaz", "toilet_wall_hung": "unitaz", "bidet": "bide",
 }
 FIXTURE_PART_LABELS = {
     "smesitel_rakovina": "Rakovina smesiteli", "smesitel_oshxona": "Oshxona smesiteli",
     "smesitel_vanna": "Vanna va dush smesiteli", "smesitel_dush": "Dush smesiteli", "smesitel_bide": "Gigiyenik smesitel",
     "sifon_rakovina": "Rakovina sifoni", "sifon_oshxona": "Oshxona sifoni", "sifon_vanna": "Vanna sifoni",
     "sifon_dush": "Dush poddoni sifoni", "gofra_unitaz": "Unitaz gofrasi", "podvodka": "Ulash shlangi (podvodka)",
+    "installyatsiya": "Installyatsiya (osma unitaz uchun)",
 }
+# A toilet that hangs on the wall (on a frame).
+_WALL_HUNG = re.compile(r"osma|подвес|wall[- ]?hung|installyats|инсталляц", re.I)
 # A shower sold with its own mixer: a cabin or a shower panel.
 _OWN_MIXER = re.compile(r"kabin|кабин|cabin|panel|панел", re.I)
 PIPE_LABELS = {
@@ -1979,6 +1984,16 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             formula=f"{mixers} smesitel × {price:,} so'm".replace(",", " "),
             qty=mixers, unit="dona", price_uzs=price, category="santexnika",
         ))
+    frames = part_kinds.get("toilet_wall_hung", 0)
+    if frames:
+        price = int(norms["work_frame_uzs"])
+        lines.append(_make_line(
+            label="Ish: installyatsiya o'rnatish",
+            formula=f"{frames} dona × {price:,} so'm".replace(",", " "),
+            qty=frames, unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if _design_state(room).get("waterHeater") is True:
+        lines.extend(_water_heater_lines(catalog, norms))
     if rails:
         price = int(load_bathroom_extras_norms()["work_towel_rail_uzs"])
         lines.append(_make_line(
@@ -2051,12 +2066,36 @@ def _demolition_lines(roles: dict[str, int], norms: dict) -> list[ComputedLine]:
     ]
 
 
+def _water_heater_lines(catalog: dict, norms: dict) -> list[ComputedLine]:
+    """A water heater (2026-11-13), when the user switched it on (``waterHeater`` exactly true): the
+    heater (a shop's under "boyler", else the norm), its connection kit (a safety valve and two hoses),
+    a cable to the nearest socket circuit, and the work. It stands by the riser: the pipes are as before."""
+    n = norms["water_heater"]
+    cable = catalog.get("kabel")
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or ELEC_CABLE_PRICE_UZS
+    metres = int(n["cable_m"])
+    kit, work = int(n["kit_uzs"]), int(n["work_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        _piece_line("Suv isitgich (boyler)", catalog.get("boyler"), int(n["heater_uzs"]), "santexnika"),
+        _make_line(label="Boyler ulash to'plami", formula=f"1 komplekt × {fmt(kit)} so'm", qty=1, unit="komplekt",
+                   price_uzs=kit, category="santexnika", is_approximate=True, warning=EXTRAS_NORM_NOTE),
+        _make_line(label="Elektr kabel (boyler)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
+        _make_line(label="Ish: boyler o'rnatish", formula=f"1 dona × {fmt(work)} so'm", qty=1, unit="dona",
+                   price_uzs=work, category="santexnika"),
+    ]
+
+
 def _part_kind(role: str, name: str, kitchen: bool) -> str:
     """The FIXTURE_PARTS entry a fixture of ``role`` named ``name`` takes."""
     if role == "sink" and kitchen:
         return "kitchen_sink"
     if role == "shower" and _OWN_MIXER.search(name):
         return "shower_own_mixer"
+    if role == "toilet" and _WALL_HUNG.search(name):
+        return "toilet_wall_hung"
     return role
 
 
