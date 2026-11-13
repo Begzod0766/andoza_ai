@@ -301,3 +301,11 @@ describe('washing machine lines', () => {
     expect(localizeFormula("2 mashina = 2 dona × 60 000 so'm", ru)).toBe('2 машины = 2 шт. × 60 000 сум')
   })
 })
+
+// A floor drain (spec 2026-11-13).
+describe('floor drain lines', () => {
+  it('read in Russian and English', () => {
+    expect(localizeLabel('Pol trapi: Трап кафель 300 мм', en)).toBe('Floor drain: Трап кафель 300 мм')
+    expect(localizeLabel("Ish: trap o'rnatish", ru)).toBe('Работа: установка трапа')
+  })
+})

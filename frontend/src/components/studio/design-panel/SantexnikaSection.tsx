@@ -27,6 +27,7 @@ export function SantexnikaSection({ bathroom = false }: {
   const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
   const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
   const waterHeater = useRoomStore((s) => s.designState.waterHeater);
+  const floorDrain = useRoomStore((s) => s.designState.floorDrain);
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
@@ -57,6 +58,11 @@ export function SantexnikaSection({ bathroom = false }: {
   const [heightCm, setHeightCm] = useState("50");
 
   const byId = new Map(catalog.map((c) => [c.id, c]));
+  // A floor drain is offered only with a shower in the room (spec 2026-11-13).
+  const hasShower = furniture.some((f) => {
+    const row = byId.get(f.furniture_id);
+    return inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? f.furniture_id) === "shower";
+  });
   const fixtures = furniture.flatMap((f) => {
     const row = byId.get(f.furniture_id);
     const name = row?.name_uz ?? f.name ?? f.furniture_id;
@@ -243,6 +249,13 @@ export function SantexnikaSection({ bathroom = false }: {
         <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />
         {t("studio.santexnika.in_wall")}
       </label>
+      {hasShower && (
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          {/* Off unless ticked: the estimate reads only an exact true (smeta.py _fixture_part_lines). */}
+          <input type="checkbox" checked={floorDrain === true} onChange={(e) => setDesignState({ floorDrain: e.target.checked })} />
+          {t("studio.santexnika.floor_drain")}
+        </label>
+      )}
       <label className="flex items-center gap-2 text-[12px] text-ink">
         {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_heater_lines). */}
         <input type="checkbox" checked={waterHeater === true} onChange={(e) => setDesignState({ waterHeater: e.target.checked })} />

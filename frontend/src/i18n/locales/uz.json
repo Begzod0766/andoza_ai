@@ -1016,7 +1016,8 @@
       "washer_add": "Kir yuvish mashinasi qo'shish",
       "washer_own": "mashinaniki",
       "washer_where": "{{wall}}-devor",
-      "washer_no_room": "Devorlarda kir yuvish mashinasi uchun joy yo'q."
+      "washer_no_room": "Devorlarda kir yuvish mashinasi uchun joy yo'q.",
+      "floor_drain": "Dush poddonsiz (pol trapi)"
     },
     "tile_height": {
       "title": "Plitka balandligi",
@@ -1180,7 +1181,9 @@
       "work_heater": "Ish: boyler o'rnatish",
       "washer_tap": "Kir yuvish mashinasi krani",
       "washer_trap": "Kir yuvish mashinasi sifoni",
-      "work_washer": "Ish: kir yuvish mashinasini ulash"
+      "work_washer": "Ish: kir yuvish mashinasini ulash",
+      "floor_drain": "Pol trapi",
+      "work_floor_drain": "Ish: trap o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2230,7 +2233,8 @@
         "installyatsiya": "Installyatsiya (osma unitaz uchun)",
         "boyler": "Suv isitgich (boyler)",
         "kran_kir": "Kir yuvish mashinasi krani",
-        "sifon_kir": "Kir yuvish mashinasi sifoni"
+        "sifon_kir": "Kir yuvish mashinasi sifoni",
+        "trap_pol": "Pol trapi"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

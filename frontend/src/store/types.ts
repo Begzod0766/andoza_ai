@@ -243,6 +243,8 @@ export interface DesignState {
   pipesInWall?: boolean
   /** A water heater in the estimate: off unless exactly true (2026-11-13). */
   waterHeater?: boolean
+  /** A shower with no tray, draining through a floor drain: off unless exactly true (spec 2026-11-13). */
+  floorDrain?: boolean
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).

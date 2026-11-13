@@ -91,7 +91,9 @@
         "work_heater": "Ish: boyler o'rnatish",
         "washer_tap": "Kir yuvish mashinasi krani",
         "washer_trap": "Kir yuvish mashinasi sifoni",
-        "work_washer": "Ish: kir yuvish mashinasini ulash"
+        "work_washer": "Ish: kir yuvish mashinasini ulash",
+        "floor_drain": "Pol trapi",
+        "work_floor_drain": "Ish: trap o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -324,7 +326,9 @@
         "work_heater": "Работа: установка бойлера",
         "washer_tap": "Кран для стиральной машины",
         "washer_trap": "Сифон для стиральной машины",
-        "work_washer": "Работа: подключение стиральной машины"
+        "work_washer": "Работа: подключение стиральной машины",
+        "floor_drain": "Трап",
+        "work_floor_drain": "Работа: установка трапа"
       },
       "unit": {
         "qop_one": "мешок",
@@ -611,7 +615,9 @@
         "work_heater": "Work: fitting the water heater",
         "washer_tap": "Washing machine valve",
         "washer_trap": "Washing machine trap",
-        "work_washer": "Work: connecting the washing machine"
+        "work_washer": "Work: connecting the washing machine",
+        "floor_drain": "Floor drain",
+        "work_floor_drain": "Work: fitting the floor drain"
       },
       "unit": {
         "qop_one": "bag",

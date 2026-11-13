@@ -155,6 +155,7 @@ _LABEL_HEADS = {
     "Suv isitgich (boyler)": "heater",
     "Kir yuvish mashinasi krani": "washer_tap",
     "Kir yuvish mashinasi sifoni": "washer_trap",
+    "Pol trapi": "floor_drain",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -223,6 +224,8 @@ _WHOLE_LABELS = {
     "Kir yuvish mashinasi krani": "washer_tap",
     "Kir yuvish mashinasi sifoni": "washer_trap",
     "Ish: kir yuvish mashinasini ulash": "work_washer",
+    "Pol trapi": "floor_drain",
+    "Ish: trap o'rnatish": "work_floor_drain",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.

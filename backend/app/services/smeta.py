@@ -1599,6 +1599,7 @@ FIXTURE_PART_LABELS = {
     "sifon_rakovina": "Rakovina sifoni", "sifon_oshxona": "Oshxona sifoni", "sifon_vanna": "Vanna sifoni",
     "sifon_dush": "Dush poddoni sifoni", "gofra_unitaz": "Unitaz gofrasi", "podvodka": "Ulash shlangi (podvodka)",
     "installyatsiya": "Installyatsiya (osma unitaz uchun)",
+    "trap_pol": "Pol trapi",
 }
 # A toilet that hangs on the wall (on a frame).
 _WALL_HUNG = re.compile(r"osma|подвес|wall[- ]?hung|installyats|инсталляц", re.I)
@@ -1907,7 +1908,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
         ))
 
-    lines.extend(_fixture_part_lines(part_kinds, catalog, norms))
+    floor_drain = _design_state(room).get("floorDrain") is True
+    lines.extend(_fixture_part_lines(part_kinds, catalog, norms, floor_drain))
     if washers:
         n = len(washers)
         for key, label in (("kran_kir", "Kir yuvish mashinasi krani"), ("sifon_kir", "Kir yuvish mashinasi sifoni")):
@@ -2000,6 +2002,14 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             label="Ish: installyatsiya o'rnatish",
             formula=f"{frames} dona × {price:,} so'm".replace(",", " "),
             qty=frames, unit="dona", price_uzs=price, category="santexnika",
+        ))
+    showers = part_kinds.get("shower", 0) + part_kinds.get("shower_own_mixer", 0)
+    if floor_drain and showers:
+        price = int(norms["work_floor_drain_uzs"])
+        lines.append(_make_line(
+            label="Ish: trap o'rnatish",
+            formula=f"{showers} dona × {price:,} so'm".replace(",", " "),
+            qty=showers, unit="dona", price_uzs=price, category="santexnika",
         ))
     if washers:
         price = int(norms["work_washer_uzs"])
@@ -2115,7 +2125,7 @@ def _part_kind(role: str, name: str, kitchen: bool) -> str:
     return role
 
 
-def _fixture_part_lines(part_kinds: dict[str, int], catalog: dict, norms: dict) -> list[ComputedLine]:
+def _fixture_part_lines(part_kinds: dict[str, int], catalog: dict, norms: dict, floor_drain: bool = False) -> list[ComputedLine]:
     """Each fixture's own mixer, trap and hoses (2026-11-13), one line per part, by the piece: a shop
     product tagged with the part's key, else the norm (approximate). A part none needs is not listed."""
     need: dict[str, int] = {}
@@ -2129,6 +2139,10 @@ def _fixture_part_lines(part_kinds: dict[str, int], catalog: dict, norms: dict) 
             words = why.setdefault(key, {})
             word = FIXTURE_PART_WORDS[kind]
             words[word] = words.get(word, 0) + n
+    if floor_drain and need.get("sifon_dush"):
+        # A shower with no tray (spec 2026-11-13): it drains through the floor, not a tray's trap.
+        need["trap_pol"] = need.pop("sifon_dush")
+        why["trap_pol"] = why.pop("sifon_dush")
     return [
         _piece_line(FIXTURE_PART_LABELS[key], catalog.get(key), int(norms["part_uzs"][key]), "santexnika",
                     qty=need[key], why=" + ".join(f"{n} {w}" for w, n in why[key].items()))

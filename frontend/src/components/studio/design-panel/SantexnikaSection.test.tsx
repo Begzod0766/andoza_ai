@@ -176,6 +176,20 @@ describe('SantexnikaSection', () => {
     })
   })
 
+  // A floor drain for a shower with no tray (spec 2026-11-13).
+  it('"shower with no tray" is shown only with a shower, unticked; ticking sets floorDrain', () => {
+    const { unmount } = render(<SantexnikaSection bathroom />)
+    expect(screen.queryByLabelText('Dush poddonsiz (pol trapi)')).toBeNull()
+    unmount()
+    useRoomStore.setState({ catalogFurniture: [...useRoomStore.getState().catalogFurniture, row('dush', 'Dush poddoni 90', 90, 90)] })
+    placeOn('sh', 'dush', 'C', 0.9)
+    render(<SantexnikaSection bathroom />)
+    const box = screen.getByLabelText('Dush poddonsiz (pol trapi)') as HTMLInputElement
+    expect(box.checked).toBe(false)
+    fireEvent.click(box)
+    expect(useRoomStore.getState().designState.floorDrain).toBe(true)
+  })
+
   it('in a kitchen, a sink brings its three points', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     placeOn('sink', 'rak', 'B', 0.62)

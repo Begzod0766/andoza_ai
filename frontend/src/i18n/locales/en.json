@@ -1016,7 +1016,8 @@
       "washer_add": "Add a washing machine",
       "washer_own": "the machine's",
       "washer_where": "wall {{wall}}",
-      "washer_no_room": "No room on the walls for a washing machine."
+      "washer_no_room": "No room on the walls for a washing machine.",
+      "floor_drain": "Shower with no tray (floor drain)"
     },
     "tile_height": {
       "title": "Tile height",
@@ -1180,7 +1181,9 @@
       "work_heater": "Work: fitting the water heater",
       "washer_tap": "Washing machine valve",
       "washer_trap": "Washing machine trap",
-      "work_washer": "Work: connecting the washing machine"
+      "work_washer": "Work: connecting the washing machine",
+      "floor_drain": "Floor drain",
+      "work_floor_drain": "Work: fitting the floor drain"
     },
     "unit": {
       "qop_one": "bag",
@@ -2230,7 +2233,8 @@
         "installyatsiya": "Installation frame (wall-hung toilet)",
         "boyler": "Water heater",
         "kran_kir": "Washing machine valve",
-        "sifon_kir": "Washing machine trap"
+        "sifon_kir": "Washing machine trap",
+        "trap_pol": "Floor drain"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",
