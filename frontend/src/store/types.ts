@@ -396,6 +396,15 @@ export interface PlumbingPoint {
   fixtureId?: string
   /** A towel rail's point: worked out from the rail, never saved or moved on its own. */
   railId?: string
+  /** A washing machine's point: worked out from the machine, never saved (spec 2026-11-13). */
+  washerId?: string
+}
+
+/** A washing machine standing against a wall (spec 2026-11-13): its centre, mm along the wall walk. */
+export interface Washer {
+  id: string
+  wallId: string
+  positionMm: number
 }
 
 /** A heated towel rail on a wall (spec 2026-11-10): 500 × 800 mm; `positionMm` is its centre along the
