@@ -1177,7 +1177,10 @@
       "heater": "Suv isitgich (boyler)",
       "heater_kit": "Boyler ulash to'plami",
       "heater_cable": "Elektr kabel (boyler)",
-      "work_heater": "Ish: boyler o'rnatish"
+      "work_heater": "Ish: boyler o'rnatish",
+      "washer_tap": "Kir yuvish mashinasi krani",
+      "washer_trap": "Kir yuvish mashinasi sifoni",
+      "work_washer": "Ish: kir yuvish mashinasini ulash"
     },
     "unit": {
       "qop_one": "qop",
@@ -1281,7 +1284,9 @@
       "bide_other": "bide",
       "smesitel_one": "smesitel",
       "smesitel_other": "smesitel",
-      "branch_pieces_head": "Tik bo'laklar"
+      "branch_pieces_head": "Tik bo'laklar",
+      "mashina_one": "mashina",
+      "mashina_other": "mashina"
     }
   },
   "ustalar": {
@@ -2223,7 +2228,9 @@
         "gofra_unitaz": "Unitaz gofrasi",
         "podvodka": "Ulash shlangi (podvodka)",
         "installyatsiya": "Installyatsiya (osma unitaz uchun)",
-        "boyler": "Suv isitgich (boyler)"
+        "boyler": "Suv isitgich (boyler)",
+        "kran_kir": "Kir yuvish mashinasi krani",
+        "sifon_kir": "Kir yuvish mashinasi sifoni"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

@@ -1177,7 +1177,10 @@
       "heater": "Water heater",
       "heater_kit": "Water heater connection kit",
       "heater_cable": "Electric cable (water heater)",
-      "work_heater": "Work: fitting the water heater"
+      "work_heater": "Work: fitting the water heater",
+      "washer_tap": "Washing machine valve",
+      "washer_trap": "Washing machine trap",
+      "work_washer": "Work: connecting the washing machine"
     },
     "unit": {
       "qop_one": "bag",
@@ -1281,7 +1284,9 @@
       "bide_other": "bidets",
       "smesitel_one": "mixer",
       "smesitel_other": "mixers",
-      "branch_pieces_head": "Branches"
+      "branch_pieces_head": "Branches",
+      "mashina_one": "machine",
+      "mashina_other": "machines"
     }
   },
   "ustalar": {
@@ -2223,7 +2228,9 @@
         "gofra_unitaz": "Toilet pan connector",
         "podvodka": "Flexible hose",
         "installyatsiya": "Installation frame (wall-hung toilet)",
-        "boyler": "Water heater"
+        "boyler": "Water heater",
+        "kran_kir": "Washing machine valve",
+        "sifon_kir": "Washing machine trap"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

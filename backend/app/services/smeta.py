@@ -1853,6 +1853,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     from app.services.pipe_scheme import pipe_scheme, sound_point
     from app.services.plumbing import load_plumbing_norms, riser_spot
     from app.services.towel_rail import rail_points, valid_rails
+    from app.services.washer import valid_washers, washer_points
 
     catalog = catalog or {}
     state: dict = room.state or {}
@@ -1861,6 +1862,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     # Heated towel rails hung on the walls (spec 2026-11-10): not furniture, a list of their own.
     geometry = _plumbing_geometry(room)
     rails = valid_rails(state.get("towelRails"), geometry)
+    # Washing machines (spec 2026-11-13): a list of their own too; the machine itself is not priced.
+    washers = valid_washers(state.get("washers"), geometry)
 
     # Fixtures, one line per distinct piece; and how many of each role for the work lines.
     counts: dict[str, int] = {}
@@ -1905,6 +1908,10 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         ))
 
     lines.extend(_fixture_part_lines(part_kinds, catalog, norms))
+    if washers:
+        n = len(washers)
+        for key, label in (("kran_kir", "Kir yuvish mashinasi krani"), ("sifon_kir", "Kir yuvish mashinasi sifoni")):
+            lines.append(_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", qty=n, why=f"{n} mashina"))
 
     if rails:
         lines.append(_piece_line(
@@ -1918,11 +1925,13 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     saved_points = state.get("plumbing") if "plumbing" in state else _derived_points(room, catalog, names)
     points = [
         p for p in saved_points or []
-        if isinstance(p, dict) and p.get("wallId") and not p.get("railId")
+        if isinstance(p, dict) and p.get("wallId") and not p.get("railId") and not p.get("washerId")
         and (not p.get("fixtureId") or p.get("fixtureId") in placed_ids)
     ]
     # A rail's two points are never saved: they are worked out from the rail, as the studio does.
     points += rail_points(rails, geometry)
+    # So are a washing machine's (lib/washer.ts).
+    points += washer_points(washers, geometry)
     if points:
         riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
         # One scheme for the room (spec 2026-11-11): a trunk per pipe kind and a branch to each point.
@@ -1991,6 +2000,13 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             label="Ish: installyatsiya o'rnatish",
             formula=f"{frames} dona × {price:,} so'm".replace(",", " "),
             qty=frames, unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if washers:
+        price = int(norms["work_washer_uzs"])
+        lines.append(_make_line(
+            label="Ish: kir yuvish mashinasini ulash",
+            formula=f"{len(washers)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(washers), unit="dona", price_uzs=price, category="santexnika",
         ))
     if _design_state(room).get("waterHeater") is True:
         lines.extend(_water_heater_lines(catalog, norms))

@@ -291,3 +291,13 @@ describe('frame and water heater', () => {
     expect(localizeLabel("Ish: boyler o'rnatish", ru)).toBe('Работа: установка бойлера')
   })
 })
+
+// A washing machine (spec 2026-11-13).
+describe('washing machine lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Kir yuvish mashinasi krani: Vieir', en)).toBe('Washing machine valve: Vieir')
+    expect(localizeLabel('Kir yuvish mashinasi sifoni', ru)).toBe('Сифон для стиральной машины')
+    expect(localizeLabel('Ish: kir yuvish mashinasini ulash', en)).toBe('Work: connecting the washing machine')
+    expect(localizeFormula("2 mashina = 2 dona × 60 000 so'm", ru)).toBe('2 машины = 2 шт. × 60 000 сум')
+  })
+})
