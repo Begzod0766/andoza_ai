@@ -8,6 +8,7 @@ import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
 import { roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
+import { withWasherPoints } from "@/lib/washer";
 
 const RADIUS = 0.04;
 const OFF_WALL = 0.01;
@@ -37,9 +38,10 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
 }) {
   const saved = useRoomStore((s) => s.plumbing);
   const towelRails = useRoomStore((s) => s.towelRails);
+  const washers = useRoomStore((s) => s.washers);
   const geometry = useRoomStore((s) => s.geometry);
   // A towel rail's two points are worked out from it, never saved: drawn with the rest.
-  const plumbing = useMemo(() => withRailPoints(saved, towelRails, geometry), [saved, towelRails, geometry]);
+  const plumbing = useMemo(() => withWasherPoints(withRailPoints(saved, towelRails, geometry), washers, geometry), [saved, towelRails, washers, geometry]);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
   const manualRiser = useRoomStore((s) => s.plumbingRiser);
   const movePlumbing = useRoomStore((s) => s.movePlumbing);
@@ -92,7 +94,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   if (plumbing.length === 0) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
-    if (p.fixtureId || p.railId || e.button !== 0) return;   // not a fixture's or a rail's point, not a right-click
+    if (p.fixtureId || p.railId || p.washerId || e.button !== 0) return;   // not a fixture's or a rail's point, not a right-click
     e.stopPropagation();
     useRoomStore.getState().beginPlumbingDrag();
     draggingRef.current = p.id;

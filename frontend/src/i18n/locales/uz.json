@@ -1011,7 +1011,12 @@
       "riser_hint": "3D'da stoyakni devor bo'ylab surish ham mumkin.",
       "demolition": "Eski santexnikani olib tashlash",
       "in_wall": "Quvurlar devor ichida (shtroba)",
-      "water_heater": "Suv isitgich (boyler)"
+      "water_heater": "Suv isitgich (boyler)",
+      "washer": "Kir yuvish mashinasi",
+      "washer_add": "Kir yuvish mashinasi qo'shish",
+      "washer_own": "mashinaniki",
+      "washer_where": "{{wall}}-devor",
+      "washer_no_room": "Devorlarda kir yuvish mashinasi uchun joy yo'q."
     },
     "tile_height": {
       "title": "Plitka balandligi",

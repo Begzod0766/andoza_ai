@@ -6,6 +6,7 @@ import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { withRailPoints } from "@/lib/towelRail";
+import { withWasherPoints } from "@/lib/washer";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
@@ -30,6 +31,11 @@ export function SantexnikaSection({ bathroom = false }: {
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
   const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
+  const washers = useRoomStore((s) => s.washers);
+  const addWasher = useRoomStore((s) => s.addWasher);
+  const removeWasher = useRoomStore((s) => s.removeWasher);
+  /** The last "add a washing machine" found no place for one. */
+  const [noWasherRoom, setNoWasherRoom] = useState(false);
   /** The last "add a rail" found no wall with room for one. */
   const [noRailRoom, setNoRailRoom] = useState(false);
   const furniture = useRoomStore((s) => s.furniture);
@@ -57,7 +63,8 @@ export function SantexnikaSection({ bathroom = false }: {
     return ROLE_GROUP[inferRole(row?.category ?? null, name)] === "plumbing" ? [{ id: f.id, name: fixtureDisplayName(name, t) }] : [];
   });
   // A rail's two points are worked out from it, never saved: shown and summed with the rest.
-  const points = withRailPoints(plumbing, towelRails, geometry);
+  // A washing machine's two likewise (spec 2026-11-13).
+  const points = withWasherPoints(withRailPoints(plumbing, towelRails, geometry), washers, geometry);
   const riser = roomRiser(geometry, plumbingRiser);
   const sum = plumbingSummary(geometry, points, riser);
   /** Sets the riser by hand, kept on its wall (roomRiser clamps it). */
@@ -112,8 +119,9 @@ export function SantexnikaSection({ bathroom = false }: {
                 {t(`studio.santexnika.${p.kind}`)} · {where(p)}
                 {p.fixtureId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.own")})</span>}
                 {p.railId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.rail_own")})</span>}
+                {p.washerId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.washer_own")})</span>}
               </span>
-              {!p.fixtureId && !p.railId && (
+              {!p.fixtureId && !p.railId && !p.washerId && (
                 <button type="button" onClick={() => removePlumbing(p.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                   {t("studio.santexnika.remove")}
                 </button>
@@ -171,6 +179,29 @@ export function SantexnikaSection({ bathroom = false }: {
           {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
         </div>
       )}
+
+      {/* A washing machine (spec 2026-11-13), in a bathroom or a kitchen: the panel shows only there. */}
+      <div className="space-y-1.5">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.washer")}</span>
+        {washers.length > 0 && (
+          <ul className="space-y-1">
+            {washers.map((m) => (
+              <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+                className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+                <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                  {t("studio.santexnika.remove")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <button type="button" onClick={() => setNoWasherRoom(!addWasher())}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+          {t("studio.santexnika.washer_add")}
+        </button>
+        {noWasherRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.washer_no_room")}</p>}
+      </div>
 
       {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
       <div className="space-y-1.5">

@@ -1011,7 +1011,12 @@
       "riser_hint": "You can also drag the riser along the walls in 3D.",
       "demolition": "Remove the old plumbing",
       "in_wall": "Pipes in the wall (chasing)",
-      "water_heater": "Water heater"
+      "water_heater": "Water heater",
+      "washer": "Washing machine",
+      "washer_add": "Add a washing machine",
+      "washer_own": "the machine's",
+      "washer_where": "wall {{wall}}",
+      "washer_no_room": "No room on the walls for a washing machine."
     },
     "tile_height": {
       "title": "Tile height",
