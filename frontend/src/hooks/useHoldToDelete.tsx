@@ -64,6 +64,15 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pointercancel', end, true)
 }
 
+/** Puts the hold menu and any hold in progress away. The state is module-level,
+ *  so tests call this between cases: a menu one test left open would otherwise
+ *  still be up in the next one. */
+export function resetHoldToDelete() {
+  tracker.cancel()
+  heldThisPress = false
+  useHoldDeleteStore.getState().close()
+}
+
 /**
  * Handlers to spread onto a mesh. They do NOT stop propagation: the press
  * still has to reach whatever drag or selection the item already has, and the

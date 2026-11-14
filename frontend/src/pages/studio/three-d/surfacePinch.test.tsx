@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useSurfaceRadialMenu } from './useSurfaceRadialMenu'
 
@@ -10,6 +10,18 @@ function touch(type: string, pointerId: number): Event {
 const hit = { clientX: 120, clientY: 300, point: { x: 0, y: 1, z: -1.5 } }
 
 describe('pinching over a wall opens nothing (QA 2026-11-05 #6)', () => {
+  // The window's multi-touch guard is shared and remembers when the last pinch
+  // was, measured against each press's Date.now(). On a real clock a tap that
+  // runs right after a pinch test can press in that same millisecond, and the
+  // fake-timer test leaves its pinch a second "in the future" — either way the
+  // tap read as part of a pinch. Each test gets its own fake clock, well past
+  // the one before, so the order they run in does not matter.
+  let clock = Date.UTC(2026, 10, 5)
+  beforeEach(() => {
+    vi.useFakeTimers()
+    clock += 60_000
+    vi.setSystemTime(clock)
+  })
   afterEach(() => vi.useRealTimers())
 
   it('a tap on the wall still opens its menu', () => {
@@ -41,7 +53,6 @@ describe('pinching over a wall opens nothing (QA 2026-11-05 #6)', () => {
   })
 
   it('nor by holding while the second finger zooms', () => {
-    vi.useFakeTimers()
     const { result } = renderHook(() => useSurfaceRadialMenu({ current: null }))
     const bind = result.current.holdBind('wall', 'A')
     act(() => {
