@@ -321,3 +321,13 @@ describe('water inlet lines', () => {
     expect(localizeFormula("2 liniya = 2 dona × 180 000 so'm", ru)).toBe('2 линии = 2 шт. × 180 000 сум')
   })
 })
+
+// The drywall box around a wall-hung toilet's frame (2026-11-14).
+describe('frame box lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Namga chidamli gipsokarton (quti): Knauf GKLV', ru)).toBe('Влагостойкий гипсокартон (короб): Knauf GKLV')
+    expect(localizeLabel('Quti profili (karkas)', en)).toBe('Box profile (frame)')
+    expect(localizeLabel("Ish: gipsokarton quti yig'ish", ru)).toBe('Работа: сборка короба из гипсокартона')
+    expect(localizeFormula('2 unitaz × 6 m = 12 m', ru)).toBe('2 унитаза × 6 м = 12 м')
+  })
+})

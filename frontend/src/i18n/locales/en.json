@@ -1189,7 +1189,10 @@
       "water_filter": "Coarse water filter",
       "pressure_reducer": "Pressure reducer",
       "check_valve": "Check valve",
-      "work_water_inlet": "Work: assembling the water inlet"
+      "work_water_inlet": "Work: assembling the water inlet",
+      "frame_box_board": "Moisture-resistant drywall (box)",
+      "frame_box_profile": "Box profile (frame)",
+      "work_frame_box": "Work: building the drywall box"
     },
     "unit": {
       "qop_one": "bag",
@@ -2244,7 +2247,8 @@
         "hisoblagich_suv": "Water meter",
         "filtr_suv": "Coarse water filter",
         "reduktor": "Pressure reducer",
-        "klapan_teskari": "Check valve"
+        "klapan_teskari": "Check valve",
+        "gipsokarton_nam": "Moisture-resistant drywall"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

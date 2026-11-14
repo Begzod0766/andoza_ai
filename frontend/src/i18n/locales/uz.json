@@ -1189,7 +1189,10 @@
       "water_filter": "Dag'al filtr",
       "pressure_reducer": "Bosim reduktori",
       "check_valve": "Teskari klapan",
-      "work_water_inlet": "Ish: suv kirish uzelini yig'ish"
+      "work_water_inlet": "Ish: suv kirish uzelini yig'ish",
+      "frame_box_board": "Namga chidamli gipsokarton (quti)",
+      "frame_box_profile": "Quti profili (karkas)",
+      "work_frame_box": "Ish: gipsokarton quti yig'ish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2244,7 +2247,8 @@
         "hisoblagich_suv": "Suv hisoblagichi",
         "filtr_suv": "Dag'al filtr",
         "reduktor": "Bosim reduktori",
-        "klapan_teskari": "Teskari klapan"
+        "klapan_teskari": "Teskari klapan",
+        "gipsokarton_nam": "Namga chidamli gipsokarton"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",
