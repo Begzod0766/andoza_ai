@@ -47,6 +47,16 @@ def test_reject_sets_note(client):
     assert (w.status, w.moderation_note) == ("rejected", "Xira")
 
 
+@pytest.mark.parametrize("note", ["Do'kon olib tashladi", "  Do'kon olib tashladi "])
+def test_reject_refuses_shop_removed_sentinel(client, note):
+    w = _wp(_store(_user()), "pending")
+    _as(_user(is_admin=True), [_R(w)])
+    r = client.post(f"{BASE}/wallpapers/{w.id}/reject", json={"note": note})
+    assert r.status_code == 422
+    assert r.json()["detail"] == "Bu sabab matnini ishlatib bo'lmaydi"
+    assert w.status == "pending"
+
+
 def test_non_admin_403(client):
     _as(_user(), [])
     wid = uuid.uuid4()

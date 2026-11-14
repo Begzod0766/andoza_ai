@@ -434,6 +434,19 @@ class TestModerationVisibility:
         assert response.status_code == 200
         assert "wallpapers.status = 'approved'" in _sql(db)
 
+    def test_public_list_hides_closed_shops_but_keeps_global(self, client):
+        db = _db(_Result(many=[]))
+        _as(_user(), db)
+        assert client.get("/api/v1/wallpapers").status_code == 200
+        sql = _sql(db)
+        assert "wallpapers.store_id IS NULL" in sql and "stores.is_active IS true" in sql
+
+    def test_admin_all_does_not_filter_by_shop(self, client):
+        db = _db(_Result(many=[]))
+        _as(_user(is_admin=True), db)
+        assert client.get("/api/v1/wallpapers/all").status_code == 200
+        assert "stores.is_active" not in _sql(db)
+
     def test_public_list_needs_no_auth(self, client):
         app.dependency_overrides[get_db] = lambda: _db(_Result(many=[]))
         assert client.get("/api/v1/wallpapers").status_code == 200

@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.i18n import translate_detail
 from app.api.v1.deps import AdminUser, CurrentUser, DbSession
 from app.core.storage import absolute_media_url, delete_file, upload_file
-from app.models.store import Store
+from app.models.store import Store, in_open_shop
 from app.models.wallpaper import Wallpaper
 from app.schemas.wallpaper import WallpaperOut, WallpaperUpdate
 
@@ -103,7 +103,10 @@ def _list_query(
 ):
     query = select(Wallpaper).options(selectinload(Wallpaper.store))
     if approved_only:
-        query = query.where(Wallpaper.status == "approved")
+        # A closed/pending/rejected shop takes its wallpapers with it (global
+        # entries, store_id NULL, stay). estimate_catalog is deliberately not
+        # filtered so saved rooms keep their prices.
+        query = query.where(Wallpaper.status == "approved", in_open_shop(Wallpaper))
     if store_id is not None:
         query = query.where(Wallpaper.store_id == store_id)
     if kind is not None:

@@ -144,6 +144,7 @@ MESSAGES: dict[str, dict[str, str]] = _table(
     ("Bu oboy ro'yxatingizda bor, uni tahrirlang", "Эти обои уже есть в вашем списке, отредактируйте их", "This wallpaper is already in your list, edit it instead"),
     ("Bu rasm kutubxonada allaqachon bor", "Это изображение уже есть в библиотеке", "This image is already in the library"),
     ("Tekshiruvni kutayotgan oboylar juda ko'p (50)", "Слишком много обоев ожидают проверки (50)", "Too many wallpapers are awaiting review (50)"),
+    ("Bu sabab matnini ishlatib bo'lmaydi", "Этот текст причины использовать нельзя", "This reason text cannot be used"),
     ("Bu oboy tekshiruvni kutmayapti", "Эти обои не ожидают проверки", "This wallpaper is not awaiting review"),
     ("Tasdiqlangan oboyning rasmini almashtirib bo'lmaydi", "Изображение подтверждённых обоев нельзя заменить", "The image of an approved wallpaper cannot be replaced"),
     ("name bo'sh bo'lmasligi kerak", "name не должно быть пустым", "name must not be empty"),

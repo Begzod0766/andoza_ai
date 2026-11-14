@@ -19,7 +19,7 @@ from app.models.store import Store
 from app.models.usta import Usta
 from app.models.wallpaper import Wallpaper
 from app.routers.admin_catalog import _invalidate_after_commit
-from app.routers.seller import _out as _furniture_out
+from app.routers.seller import _HIDDEN_BY_SHOP, _out as _furniture_out
 from app.routers.wallpapers import _out as _wallpaper_out
 from app.schemas.seller import PendingFurnitureOut, PendingOut, PendingStoreOut, PendingWallpaperOut, RejectIn
 from app.schemas.usta_profile import PendingUstaOut
@@ -156,7 +156,10 @@ async def approve_wallpaper(wallpaper_id: uuid_module.UUID, admin: AdminUser, db
 async def reject_wallpaper(wallpaper_id: uuid_module.UUID, body: RejectIn, admin: AdminUser, db: DbSession) -> None:
     w = await _wallpaper(db, wallpaper_id)
     _must_be_pending(w)
-    _decide_status(w, False, body.note.strip())
+    note = body.note.strip()
+    if note == _HIDDEN_BY_SHOP:  # reserved: it marks a shop's own removal
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Bu sabab matnini ishlatib bo'lmaydi")
+    _decide_status(w, False, note)
     await db.flush()
     logger.info("wallpaper_rejected", id=str(wallpaper_id), admin_id=str(admin.id))
 
