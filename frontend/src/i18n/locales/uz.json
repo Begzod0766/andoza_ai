@@ -981,6 +981,41 @@
     },
     "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
     "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
+    "tour": {
+      "scene": {
+        "title": "Sahna",
+        "body": "Devor yoki polga bosing: shu joy uchun asboblar chiqadi (rang, plitka, oboy va boshqalar)"
+      },
+      "arc": {
+        "title": "Bo'limlar",
+        "body": "Bo'limlar: Mebel, Santexnika, Rang, Chiroq"
+      },
+      "menu": {
+        "title": "Menyu",
+        "body": "⋮ → Smeta: narxlar, material va ish ro'yxati, PDF"
+      },
+      "undo": {
+        "title": "Bekor qilish",
+        "body": "Oxirgi amalni bekor qilish va qaytarish"
+      },
+      "lock": {
+        "title": "Qulf",
+        "body": "Kamerani qotiradi: ekranni surganda xona aylanmaydi"
+      },
+      "camera": {
+        "title": "Kamera",
+        "body": "Tayyor kameralar va realistik render"
+      },
+      "help": {
+        "title": "Qo'llanma",
+        "body": "Qo'llanmani istalgan payt qayta ko'ring"
+      },
+      "next": "Keyingi",
+      "skip": "O'tkazib yuborish",
+      "done": "Tushunarli",
+      "step_of": "{{current}}/{{total}}",
+      "help_btn": "Qo'llanma"
+    },
     "santexnika": {
       "title": "Santexnika",
       "hint": "Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi. Kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",

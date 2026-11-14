@@ -981,6 +981,41 @@
     },
     "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
     "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
+    "tour": {
+      "scene": {
+        "title": "Scene",
+        "body": "Tap a wall or the floor: tools for that spot appear (colour, tile, wallpaper and more)"
+      },
+      "arc": {
+        "title": "Sections",
+        "body": "Sections: Furniture, Plumbing, Paint, Lighting"
+      },
+      "menu": {
+        "title": "Menu",
+        "body": "⋮ → Estimate: prices, materials and work list, PDF"
+      },
+      "undo": {
+        "title": "Undo",
+        "body": "Undo and redo the last action"
+      },
+      "lock": {
+        "title": "Lock",
+        "body": "Locks the camera: the room does not rotate when you drag the screen"
+      },
+      "camera": {
+        "title": "Camera",
+        "body": "Preset cameras and realistic render"
+      },
+      "help": {
+        "title": "Guide",
+        "body": "Watch the guide again any time"
+      },
+      "next": "Next",
+      "skip": "Skip",
+      "done": "Got it",
+      "step_of": "{{current}}/{{total}}",
+      "help_btn": "Guide"
+    },
     "santexnika": {
       "title": "Plumbing",
       "hint": "A fixture brings its points when it is placed. Add an extra point here, for a washing machine say.",
