@@ -1192,7 +1192,11 @@
       "work_water_inlet": "Work: assembling the water inlet",
       "frame_box_board": "Moisture-resistant drywall (box)",
       "frame_box_profile": "Box profile (frame)",
-      "work_frame_box": "Work: building the drywall box"
+      "work_frame_box": "Work: building the drywall box",
+      "backsplash_tile": "Backsplash tile",
+      "skinali": "Skinali (glass backsplash)",
+      "work_backsplash_tile": "Work: laying the backsplash tile",
+      "work_skinali": "Work: fitting the skinali"
     },
     "unit": {
       "qop_one": "bag",
@@ -2248,7 +2252,8 @@
         "filtr_suv": "Coarse water filter",
         "reduktor": "Pressure reducer",
         "klapan_teskari": "Check valve",
-        "gipsokarton_nam": "Moisture-resistant drywall"
+        "gipsokarton_nam": "Moisture-resistant drywall",
+        "skinali": "Skinali (glass backsplash)"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

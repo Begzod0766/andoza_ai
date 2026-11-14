@@ -15,6 +15,8 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "galtel": "m",
     # Tile work and waterproofing (spec 2026-11-10)
     "plitka_yelimi": "kg", "zatirka": "kg", "gidro_mastika": "kg", "gidro_lenta": "m",
+    # A kitchen backsplash in glass (spec 2026-11-14), priced by the square metre
+    "skinali": "m2",
     "kabel": None,  # sold per metre: no pack
     # A bathroom's extras (spec 2026-11-10): sold by the piece, no pack
     "ventilyator": None, "sochiq_quritgich": None,
