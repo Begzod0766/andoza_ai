@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { StudioTourTarget } from "@/lib/studioTour";
+import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourTarget } from "@/lib/studioTour";
 
 const PAD = 8;
 const GAP = 12;
@@ -46,6 +46,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   const finish = () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
+    notifyAppTour(false);
     onFinishRef.current();
   };
   const last = index === ids.length - 1;
@@ -78,6 +79,18 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const empty = ids.length === 0;
+
+  // The app hides its Back button while the tour is open, and its system Back skips the tour.
+  useEffect(() => {
+    if (empty) return;
+    notifyAppTour(true);
+    const onSkip = () => finish();
+    window.addEventListener(TOUR_SKIP_EVENT, onSkip);
+    return () => {
+      window.removeEventListener(TOUR_SKIP_EVENT, onSkip);
+      notifyAppTour(false);
+    };
+  }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
   // Past the last step (nothing left on screen after a rotation) ends the tour too.
   const spent = empty || index >= ids.length;
   useEffect(() => { if (spent) finish(); }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
