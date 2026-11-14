@@ -47,4 +47,31 @@ if (!("ResizeObserver" in globalThis)) {
   };
 }
 
+// Vitest's jsdom environment replaces AbortController/AbortSignal with jsdom's,
+// but leaves Request as Node's own (undici). React Router's data routers build
+// each navigation as `new Request(url, { signal })`, and from Node 24 undici
+// rejects any signal that is not its own AbortSignal — so every test that
+// navigates through a memory router failed on CI (Node 24) but passed locally
+// (Node 22). Node's own AbortController is unreachable once replaced, so build
+// the Request without the caller's signal and hand that signal back from
+// `request.signal`: the router only reads it (`aborted`, "abort" listeners).
+{
+  // Not detectable up front: undici makes its own `request.signal` from the
+  // (replaced) global AbortController, yet validates `init.signal` against
+  // the native class it captured at load — so always take the signal aside.
+  const NativeRequest = globalThis.Request;
+  class BridgedRequest extends NativeRequest {
+    private readonly callerSignal?: AbortSignal;
+    constructor(input: RequestInfo | URL, init?: RequestInit) {
+      const signal = init?.signal ?? undefined;
+      super(input, signal ? { ...init, signal: undefined } : init);
+      this.callerSignal = signal;
+    }
+    get signal(): AbortSignal {
+      return this.callerSignal ?? super.signal;
+    }
+  }
+  globalThis.Request = BridgedRequest as typeof Request;
+}
+
 applyLanguage("uz");

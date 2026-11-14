@@ -91,4 +91,3 @@ jobs:
 
       - name: Run Vitest
         run: cd frontend && npx vitest run
-        continue-on-error: true
