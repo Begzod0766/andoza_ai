@@ -2020,6 +2020,10 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         ))
     if _design_state(room).get("waterHeater") is True:
         lines.extend(_water_heater_lines(catalog, norms))
+    if _design_state(room).get("waterInlet") is True:
+        # Cold always comes in; hot too when a point takes it and no water heater makes it in the flat.
+        hot = any(p.get("kind") == "hot" for p in points) and _design_state(room).get("waterHeater") is not True
+        lines.extend(_water_inlet_lines(2 if hot else 1, catalog, norms))
     if rails:
         price = int(load_bathroom_extras_norms()["work_towel_rail_uzs"])
         lines.append(_make_line(
@@ -2112,6 +2116,29 @@ def _water_heater_lines(catalog: dict, norms: dict) -> list[ComputedLine]:
         _make_line(label="Ish: boyler o'rnatish", formula=f"1 dona × {fmt(work)} so'm", qty=1, unit="dona",
                    price_uzs=work, category="santexnika"),
     ]
+
+
+WATER_INLET_PARTS = (
+    ("hisoblagich_suv", "Suv hisoblagichi"), ("filtr_suv", "Dag'al filtr"),
+    ("reduktor", "Bosim reduktori"), ("klapan_teskari", "Teskari klapan"),
+)
+
+
+def _water_inlet_lines(inlets: int, catalog: dict, norms: dict) -> list[ComputedLine]:
+    """The water inlet unit (2026-11-14), when the user switched it on (``waterInlet`` exactly true):
+    on each of ``inlets`` incoming lines a meter, a coarse filter, a pressure reducer and a check
+    valve (a shop's under the part's key, else the norm), and the work of putting it together. The
+    shut-off valve is already the scheme's "Sharli kran Ø20"."""
+    why = f"{inlets} liniya"
+    out = [_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", inlets, why)
+           for key, label in WATER_INLET_PARTS]
+    price = int(norms["work_water_inlet_uzs"])
+    out.append(_make_line(
+        label="Ish: suv kirish uzelini yig'ish",
+        formula=f"{why} = {inlets} dona × {price:,} so'm".replace(",", " "),
+        qty=inlets, unit="dona", price_uzs=price, category="santexnika",
+    ))
+    return out
 
 
 def _part_kind(role: str, name: str, kitchen: bool) -> str:

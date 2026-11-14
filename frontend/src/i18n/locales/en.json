@@ -1017,7 +1017,8 @@
       "washer_own": "the machine's",
       "washer_where": "wall {{wall}}",
       "washer_no_room": "No room on the walls for a washing machine.",
-      "floor_drain": "Shower with no tray (floor drain)"
+      "floor_drain": "Shower with no tray (floor drain)",
+      "water_inlet": "Water inlet (meter, filter, pressure reducer)"
     },
     "tile_height": {
       "title": "Tile height",
@@ -1183,7 +1184,12 @@
       "washer_trap": "Washing machine trap",
       "work_washer": "Work: connecting the washing machine",
       "floor_drain": "Floor drain",
-      "work_floor_drain": "Work: fitting the floor drain"
+      "work_floor_drain": "Work: fitting the floor drain",
+      "water_meter": "Water meter",
+      "water_filter": "Coarse water filter",
+      "pressure_reducer": "Pressure reducer",
+      "check_valve": "Check valve",
+      "work_water_inlet": "Work: assembling the water inlet"
     },
     "unit": {
       "qop_one": "bag",
@@ -2234,7 +2240,11 @@
         "boyler": "Water heater",
         "kran_kir": "Washing machine valve",
         "sifon_kir": "Washing machine trap",
-        "trap_pol": "Floor drain"
+        "trap_pol": "Floor drain",
+        "hisoblagich_suv": "Water meter",
+        "filtr_suv": "Coarse water filter",
+        "reduktor": "Pressure reducer",
+        "klapan_teskari": "Check valve"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

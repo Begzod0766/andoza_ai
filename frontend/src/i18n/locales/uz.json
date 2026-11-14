@@ -1017,7 +1017,8 @@
       "washer_own": "mashinaniki",
       "washer_where": "{{wall}}-devor",
       "washer_no_room": "Devorlarda kir yuvish mashinasi uchun joy yo'q.",
-      "floor_drain": "Dush poddonsiz (pol trapi)"
+      "floor_drain": "Dush poddonsiz (pol trapi)",
+      "water_inlet": "Suv kirish uzeli (hisoblagich, filtr, reduktor)"
     },
     "tile_height": {
       "title": "Plitka balandligi",
@@ -1183,7 +1184,12 @@
       "washer_trap": "Kir yuvish mashinasi sifoni",
       "work_washer": "Ish: kir yuvish mashinasini ulash",
       "floor_drain": "Pol trapi",
-      "work_floor_drain": "Ish: trap o'rnatish"
+      "work_floor_drain": "Ish: trap o'rnatish",
+      "water_meter": "Suv hisoblagichi",
+      "water_filter": "Dag'al filtr",
+      "pressure_reducer": "Bosim reduktori",
+      "check_valve": "Teskari klapan",
+      "work_water_inlet": "Ish: suv kirish uzelini yig'ish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2234,7 +2240,11 @@
         "boyler": "Suv isitgich (boyler)",
         "kran_kir": "Kir yuvish mashinasi krani",
         "sifon_kir": "Kir yuvish mashinasi sifoni",
-        "trap_pol": "Pol trapi"
+        "trap_pol": "Pol trapi",
+        "hisoblagich_suv": "Suv hisoblagichi",
+        "filtr_suv": "Dag'al filtr",
+        "reduktor": "Bosim reduktori",
+        "klapan_teskari": "Teskari klapan"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",
