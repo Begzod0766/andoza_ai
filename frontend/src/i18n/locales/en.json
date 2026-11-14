@@ -2387,7 +2387,8 @@
         "orders": "Orders",
         "products": "Products",
         "stores": "Shops",
-        "moderation": "Moderation"
+        "moderation": "Moderation",
+        "norms": "Prices"
       },
       "orders": {
         "period": "Period",
@@ -2435,7 +2436,17 @@
         "next_page": "Next page",
         "load_failed": "Could not open"
       },
-      "stores_search": "Shop or district"
+      "stores_search": "Shop or district",
+      "norms": {
+        "intro": "The estimate's approximate prices and rates. A changed value reaches every estimate within a minute; lines priced from a shop product keep its price.",
+        "search": "Search prices",
+        "default": "default: {{value}}",
+        "default_word": "default",
+        "reset": "Back to default",
+        "log": "Recent changes",
+        "save_failed": "Could not save",
+        "load_failed": "Could not load the prices"
+      }
     },
     "order": {
       "status": {

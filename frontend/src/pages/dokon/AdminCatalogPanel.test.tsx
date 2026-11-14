@@ -15,6 +15,7 @@ vi.mock('./admin/AdminOrders', () => ({ AdminOrders: () => <p>orders-panel</p> }
 vi.mock('./admin/ProductsTab', () => ({ ProductsTab: () => <p>products-panel</p> }))
 vi.mock('./admin/CatalogOverview', () => ({ CatalogOverview: () => <p>stores-panel</p> }))
 vi.mock('./admin/StoreProfile', () => ({ StoreProfile: () => <p>store-profile</p> }))
+vi.mock('./admin/NormsTab', () => ({ NormsTab: () => <p>norms-panel</p> }))
 
 let location = { search: '' }
 function Probe() {
@@ -71,5 +72,13 @@ describe('AdminCatalogPanel tabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: /Do'konlar/ }))
     expect(await screen.findByText('stores-panel')).toBeInTheDocument()
     expect(location.search).toBe('?tab=stores')
+  })
+
+  it('Narxlar opens the prices (2026-11-15)', async () => {
+    mount()
+    await screen.findByText('orders-panel')
+    fireEvent.click(screen.getByRole('tab', { name: /Narxlar/ }))
+    expect(await screen.findByText('norms-panel')).toBeInTheDocument()
+    expect(location.search).toBe('?tab=norms')
   })
 })
