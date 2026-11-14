@@ -109,7 +109,10 @@
         "el_towel_rail": "Elektr sochiq quritgich",
         "socket_ip44": "Namga chidamli rozetka (IP44)",
         "el_rail_cable": "Elektr kabel (sochiq quritgich)",
-        "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish"
+        "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish",
+        "washer_socket": "Kir yuvish mashinasi rozetkasi (IP44)",
+        "washer_cable": "Elektr kabel (kir yuvish mashinasi)",
+        "work_washer_socket": "Ish: kir yuvish mashinasi rozetkasini o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -360,7 +363,10 @@
         "el_towel_rail": "Электрический полотенцесушитель",
         "socket_ip44": "Влагозащищённая розетка (IP44)",
         "el_rail_cable": "Электрокабель (полотенцесушитель)",
-        "work_el_towel_rail": "Работа: установка электрического полотенцесушителя"
+        "work_el_towel_rail": "Работа: установка электрического полотенцесушителя",
+        "washer_socket": "Розетка для стиральной машины (IP44)",
+        "washer_cable": "Электрокабель (стиральная машина)",
+        "work_washer_socket": "Работа: установка розетки для стиральной машины"
       },
       "unit": {
         "qop_one": "мешок",
@@ -665,7 +671,10 @@
         "el_towel_rail": "Electric towel rail",
         "socket_ip44": "Moisture-proof socket (IP44)",
         "el_rail_cable": "Electric cable (towel rail)",
-        "work_el_towel_rail": "Work: fitting the electric towel rail"
+        "work_el_towel_rail": "Work: fitting the electric towel rail",
+        "washer_socket": "Washing machine socket (IP44)",
+        "washer_cable": "Electric cable (washing machine)",
+        "work_washer_socket": "Work: fitting the washing machine socket"
       },
       "unit": {
         "qop_one": "bag",

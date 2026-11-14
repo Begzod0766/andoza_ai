@@ -1251,7 +1251,10 @@
       "el_towel_rail": "Electric towel rail",
       "socket_ip44": "Moisture-proof socket (IP44)",
       "el_rail_cable": "Electric cable (towel rail)",
-      "work_el_towel_rail": "Work: fitting the electric towel rail"
+      "work_el_towel_rail": "Work: fitting the electric towel rail",
+      "washer_socket": "Washing machine socket (IP44)",
+      "washer_cable": "Electric cable (washing machine)",
+      "work_washer_socket": "Work: fitting the washing machine socket"
     },
     "unit": {
       "qop_one": "bag",

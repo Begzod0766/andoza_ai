@@ -1251,7 +1251,10 @@
       "el_towel_rail": "Elektr sochiq quritgich",
       "socket_ip44": "Namga chidamli rozetka (IP44)",
       "el_rail_cable": "Elektr kabel (sochiq quritgich)",
-      "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish"
+      "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish",
+      "washer_socket": "Kir yuvish mashinasi rozetkasi (IP44)",
+      "washer_cable": "Elektr kabel (kir yuvish mashinasi)",
+      "work_washer_socket": "Ish: kir yuvish mashinasi rozetkasini o'rnatish"
     },
     "unit": {
       "qop_one": "qop",

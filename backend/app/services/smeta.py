@@ -2113,6 +2113,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         ))
     if electric_rails:
         lines.extend(_electric_rail_lines(len(electric_rails), catalog))
+    if washers:
+        lines.extend(_washer_socket_lines(len(washers), catalog))
     return lines
 
 
@@ -2136,6 +2138,29 @@ def _electric_rail_lines(n: int, catalog: dict) -> list[ComputedLine]:
                    price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
         _make_line(label="Ish: elektr sochiq quritgichni o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n, unit="dona",
                    price_uzs=work, category="santexnika"),
+    ]
+
+
+def _washer_socket_lines(n: int, catalog: dict) -> list[ComputedLine]:
+    """``n`` washing machines' sockets (2026-11-14): a moisture-proof IP44 socket each (a shop's under
+    "rozetka_ip44", else the norm), a short cable to the nearest socket circuit (the shop's "kabel" per
+    metre, else the default price) and the work. Always with the machine: no switch."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    e = load_bathroom_extras_norms()
+    cable = catalog.get("kabel")
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or ELEC_CABLE_PRICE_UZS
+    metres = n * int(e["washer_cable_m"])
+    work = int(e["work_washer_socket_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        _piece_line("Kir yuvish mashinasi rozetkasi (IP44)", catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]),
+                    "santexnika", qty=n, why=f"{n} mashina"),
+        _make_line(label="Elektr kabel (kir yuvish mashinasi)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
+        _make_line(label="Ish: kir yuvish mashinasi rozetkasini o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n,
+                   unit="dona", price_uzs=work, category="santexnika"),
     ]
 
 
