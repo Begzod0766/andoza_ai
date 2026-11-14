@@ -2758,7 +2758,10 @@
       "save_failed": "Oboyni saqlab bo'lmadi",
       "remove_failed": "Oboyni olib tashlab bo'lmadi",
       "edit": "Tahrirlash",
-      "model_hint": "Oboy qo'shmoqchimisiz?",
+      "removed": "Olib tashlangan",
+    "restore": "Qaytarish",
+    "restore_failed": "Qaytarib bo'lmadi",
+    "model_hint": "Oboy qo'shmoqchimisiz?",
       "model_add": "Oboy qo'shish"
     }
   },

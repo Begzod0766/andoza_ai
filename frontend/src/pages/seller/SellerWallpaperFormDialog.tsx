@@ -5,6 +5,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { updateMyWallpaper, uploadMyWallpaper, type Wallpaper } from "@/lib/api";
+import { isRemovedByShop } from "./removedByShop";
 import { type FormError, formErrorText, requestError } from "@/lib/formError";
 
 export const WALLPAPERS_KEY = ["seller", "wallpapers"] as const;
@@ -24,7 +25,7 @@ export function SellerWallpaperFormDialog({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const editing = !!wallpaper;
-  const canReplaceImage = !wallpaper || wallpaper.status !== "approved";
+  const canReplaceImage = !wallpaper || wallpaper.status !== "approved" && !isRemovedByShop(wallpaper);
   const [name, setName] = useState(wallpaper?.name ?? "");
   const [price, setPrice] = useState(wallpaper?.price_uzs != null ? String(wallpaper.price_uzs) : "");
   const [width, setWidth] = useState(wallpaper?.width_cm != null ? String(wallpaper.width_cm) : "");
@@ -38,7 +39,8 @@ export function SellerWallpaperFormDialog({
   }
 
   const complete =
-    !!name.trim() && Number(price) > 0 && Number(width) > 0 && Number(length) > 0 && (editing || !!file);
+    !!name.trim() && Number(price) > 0 &&
+    Number(width) >= 30 && Number(width) <= 150 && Number(length) >= 1 && Number(length) <= 50 && (editing || !!file);
 
   const save = useMutation({
     mutationFn: () => {
@@ -96,7 +98,7 @@ export function SellerWallpaperFormDialog({
           <Input themed label={t("seller.wallpapers.name")} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("seller.wallpapers.name_ph")} maxLength={120} />
           <Input themed label={t("seller.wallpapers.price")} type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="120000" />
           <div className="grid grid-cols-2 gap-3">
-            <Input themed label={t("seller.wallpapers.width")} type="number" min={30} max={150} value={width} onChange={(e) => setWidth(e.target.value)} placeholder="106" />
+            <Input themed label={t("seller.wallpapers.width")} type="number" min={30} max={150} step="any" value={width} onChange={(e) => setWidth(e.target.value)} placeholder="106" />
             <Input themed label={t("seller.wallpapers.length")} type="number" min={1} max={50} step="any" value={length} onChange={(e) => setLength(e.target.value)} placeholder="10" />
           </div>
 

@@ -2758,7 +2758,10 @@
       "save_failed": "Could not save the wallpaper",
       "remove_failed": "Could not remove the wallpaper",
       "edit": "Edit",
-      "model_hint": "Want to add a wallpaper?",
+      "removed": "Removed",
+    "restore": "Restore",
+    "restore_failed": "Could not restore",
+    "model_hint": "Want to add a wallpaper?",
       "model_add": "Add wallpaper"
     }
   },
