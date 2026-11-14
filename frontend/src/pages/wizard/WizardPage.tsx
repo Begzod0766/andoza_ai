@@ -23,6 +23,7 @@ import { Panel } from '@/components/ui/Panel'
 import type { TFunction } from 'i18next'
 import { RoomTypePicker } from '@/components/studio/RoomTypePicker'
 import { guessRoomType } from '@/lib/roomType'
+import { sizeForType } from '@/lib/roomTypeSize'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -750,6 +751,18 @@ export default function WizardPage() {
     setWallLength(wallId, mm)
     if (self && other && other.length === self.length) setWallLength(other.id, mm)
   }
+
+  // A new room starts at its type's usual size (2026-11-15): picking "Hammom" on the untouched room
+  // makes it 2.5 × 2 m. A drawn or scanned room, or walls the user already set, are left alone.
+  const lastType = React.useRef(roomType)
+  React.useEffect(() => {
+    const prev = lastType.current
+    lastType.current = roomType
+    if (isHandoff || prev === roomType) return
+    const next = sizeForType(useRoomStore.getState().geometry, prev ?? null, roomType ?? null)
+    if (next) for (const [id, mm] of Object.entries(next)) setWallLength(id, mm)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomType])
 
   // Keep first-wall lookup for the "link to A" feature in WallStep
   const wallA = geometry.walls.find((w) => w.id === 'A') ?? geometry.walls[0]!

@@ -443,3 +443,25 @@ describe('WizardPage – in a rectangle, C follows A and D follows B', () => {
     expect(wall('C')).toBe(3500)
   })
 })
+
+describe('WizardPage – the walls start at the picked room type’s size (2026-11-15)', () => {
+  it('picking a bathroom on a new room makes it 2.5 × 2 m; a kitchen then 3 × 3', async () => {
+    renderAt('/wizard')
+    await waitFor(() => expect(lengths()).toBe('A4000 B3000 C4000 D3000'))
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'hammom' } })
+    await waitFor(() => expect(lengths()).toBe('A2500 B2000 C2500 D2000'))
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'oshxona' } })
+    await waitFor(() => expect(lengths()).toBe('A3000 B3000 C3000 D3000'))
+  })
+
+  it('walls already set are kept when the type is picked', async () => {
+    useRoomStore.setState({ geometry: { walls: [
+      { id: 'A', length: 3200, elements: [] }, { id: 'B', length: 2100, elements: [] },
+      { id: 'C', length: 3200, elements: [] }, { id: 'D', length: 2100, elements: [] },
+    ] } as never })
+    renderAt('/wizard?from=draw')
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'hammom' } })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(lengths()).toBe('A3200 B2100 C3200 D2100')
+  })
+})
