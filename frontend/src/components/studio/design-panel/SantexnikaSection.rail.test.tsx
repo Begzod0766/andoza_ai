@@ -4,6 +4,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/types'
 import { SantexnikaSection } from './SantexnikaSection'
+import { wallWalk } from '@/lib/plumbingRuns'
 
 // The shop lists ask the server (react-query); here they are stand-ins that say which line they pick for.
 vi.mock('./ShopPickList', () => ({
@@ -131,5 +132,29 @@ describe('SantexnikaSection: a rail size and a shop product (2026-11-15)', () =>
     fireEvent.click(addButton()!)
     expect(screen.getByTestId('pick-sochiq_quritgich')).toBeTruthy()
     expect(screen.queryByTestId('pick-sochiq_quritgich_el')).toBeNull()
+  })
+})
+
+describe('SantexnikaSection: touching furniture (2026-11-15)', () => {
+  /** The couch (2.10 × 0.90 × 0.80 m) against wall A, centred 1250 mm along it. */
+  function couch() {
+    const w = wallWalk(geometry).find((x) => x.id === 'A')!
+    return { id: 'c', furniture_id: 'couch_84', x: (w.startX + w.dirX * 1.25 + w.nx * 0.45) * 1000, y: (w.startZ + w.dirZ * 1.25 + w.nz * 0.45) * 1000, rotation: Math.atan2(w.nx, w.nz) }
+  }
+
+  it('a rail low over the couch says what it touches; hung higher it says nothing', () => {
+    useRoomStore.setState({ furniture: [couch()], towelRails: [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 500 }] })
+    const { unmount } = render(<SantexnikaSection bathroom />)
+    expect(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('alert')).toHaveTextContent("Mebelga tegib turibdi: Uch o'rinli divan")
+    unmount()
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000 }] })
+    render(<SantexnikaSection bathroom />)
+    expect(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).queryByRole('alert')).toBeNull()
+  })
+
+  it('a machine in the couch says so', () => {
+    useRoomStore.setState({ furniture: [couch()], washers: [{ id: 'm', wallId: 'A', positionMm: 800 }] })
+    render(<SantexnikaSection bathroom />)
+    expect(within(screen.getByRole('listitem', { name: /kir yuvish/i })).getByRole('alert')).toHaveTextContent("Mebelga tegib turibdi: Uch o'rinli divan")
   })
 })

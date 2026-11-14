@@ -1039,6 +1039,7 @@
       "rail_add": "Add a towel rail",
       "rail_water": "Water",
       "rail_electric": "Electric",
+      "clash": "Touches furniture: {{names}}",
       "rail_size": "Size",
       "rail_size_option": "{{w}}×{{h}} cm",
       "rail_size_no_room": "This size does not fit on the wall",

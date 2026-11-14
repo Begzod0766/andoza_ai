@@ -7,6 +7,7 @@ import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
+import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import type { TowelRailSize } from "@/store/types";
 import { withWasherPoints } from "@/lib/washer";
 import { wallNumber } from "@/lib/wallLabel";
@@ -37,6 +38,11 @@ export function SantexnikaSection({ bathroom = false }: {
   const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
   const setTowelRailKind = useRoomStore((s) => s.setTowelRailKind);
   const setTowelRailSize = useRoomStore((s) => s.setTowelRailSize);
+  /** Machines and rails touching a piece of furniture (2026-11-15): a warning on their row. */
+  const clashes = useWallItemClashes();
+  const clashNote = (id: string) => clashes[id] && (
+    <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
+  );
   /** The last size picked did not fit on its rail's wall. */
   const [noSizeRoom, setNoSizeRoom] = useState(false);
   const washers = useRoomStore((s) => s.washers);
@@ -200,6 +206,7 @@ export function SantexnikaSection({ bathroom = false }: {
                   <button type="button" onClick={() => removeTowelRail(r.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                     {t("studio.santexnika.remove")}
                   </button>
+                  {clashNote(r.id)}
                 </li>
               ))}
             </ul>
@@ -225,11 +232,12 @@ export function SantexnikaSection({ bathroom = false }: {
           <ul className="space-y-1">
             {washers.map((m) => (
               <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
-                className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
                 <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
                 <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                   {t("studio.santexnika.remove")}
                 </button>
+                {clashNote(m.id)}
               </li>
             ))}
           </ul>
