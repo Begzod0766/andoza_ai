@@ -2387,7 +2387,8 @@
         "orders": "Buyurtmalar",
         "products": "Tovarlar",
         "stores": "Do'konlar",
-        "moderation": "Moderatsiya"
+        "moderation": "Moderatsiya",
+        "norms": "Narxlar"
       },
       "orders": {
         "period": "Davr",
@@ -2435,7 +2436,17 @@
         "next_page": "Keyingi sahifa",
         "load_failed": "Ochib bo'lmadi"
       },
-      "stores_search": "Do'kon yoki tuman"
+      "stores_search": "Do'kon yoki tuman",
+      "norms": {
+        "intro": "Smetadagi taxminiy narxlar va sarflar. O'zgartirilgan qiymat bir daqiqa ichida barcha smetalarga kiradi; do'kon mahsuloti bor qatorlar mahsulot narxida qoladi.",
+        "search": "Narxni qidirish",
+        "default": "asl: {{value}}",
+        "default_word": "asl",
+        "reset": "Asl holiga",
+        "log": "Oxirgi o'zgarishlar",
+        "save_failed": "Saqlab bo'lmadi",
+        "load_failed": "Narxlarni yuklab bo'lmadi"
+      }
     },
     "order": {
       "status": {
