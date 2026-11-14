@@ -59,6 +59,8 @@ export function QuarterArcMenu({
   label,
   className = '',
   onOpenChange,
+  tourId,
+  closed = false,
 }: {
   categories: ArcCategory[]
   /** Accessible name for the corner button itself. */
@@ -68,6 +70,10 @@ export function QuarterArcMenu({
   /** Fires as the menu opens and closes, so the page can clear whatever the
    *  fanned-out ring would otherwise land on top of. */
   onOpenChange?: (open: boolean) => void
+  /** The Studio tour's target id for the corner button (StudioTour). */
+  tourId?: string
+  /** While true the menu is folded away (the Studio tour runs over it). */
+  closed?: boolean
 }) {
   const { t } = useTranslation()
   const buttonLabel = label ?? t('studio.arc.add')
@@ -113,6 +119,8 @@ export function QuarterArcMenu({
     setTrail([])
     setOffset({ inner: 0, outer: 0 })
   }
+
+  useEffect(() => { if (closed) closeAll() }, [closed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { onOpenChange?.(open) }, [open, onOpenChange])
 
@@ -381,6 +389,7 @@ export function QuarterArcMenu({
             to put it away. */}
         <button
           ref={fabRef}
+          data-tour={tourId}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); open ? closeAll() : setOpen(true) }}
           aria-label={buttonLabel}

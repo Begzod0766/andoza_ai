@@ -73,6 +73,8 @@ import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
+import { isStudioTourDone } from "@/lib/studioTour";
+import { studioTourReady, useStudioTourWiring } from "./three-d/useStudioTourWiring";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -125,6 +127,10 @@ export interface StudioContext {
   /** The server's copy of this room is in the store (see StudioPage); edits
    *  made before then would be lost or would stop it loading. */
   roomReady?: boolean;
+  /** The Studio tour is on screen (StudioPage owns it); rings and selections are put away. */
+  studioTourActive?: boolean;
+  /** Tells StudioPage whether this is a live editing view the tour can run over. */
+  setStudioTourReady?: (ready: boolean) => void;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -133,7 +139,7 @@ export type { PhaseKey } from "@/lib/phases"
 
 export default function ThreeDPage() {
   const { t } = useTranslation()
-  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false } = useOutletContext<StudioContext>();
+  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, setStudioTourReady } = useOutletContext<StudioContext>();
   const compact = useCompactStudio();
   const geometry = useRoomStore((s) => s.geometry);
   const designState = useRoomStore((s) => s.designState);
@@ -424,6 +430,19 @@ export default function ThreeDPage() {
   const clearOnSurfaceTap = useRef(clearAllSelections);
   clearOnSurfaceTap.current = clearAllSelections;
   useEffect(() => { if (radial) clearOnSurfaceTap.current(); }, [radial]);
+
+  // The Studio tour (StudioPage owns it) runs over the live editing view on a phone — lock or
+  // no lock — and finds nothing stranded on screen when it starts. TapHint says what its first
+  // step says, so it is folded in: hidden until the tour is done, and seen when it ends.
+  useStudioTourWiring({
+    active: studioTourActive,
+    ready: studioTourReady({ compact, panorama, cameraStation, planShown }),
+    setReady: setStudioTourReady,
+    onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
+    onEnd: markTapHintSeen,
+  });
+  const tapHintShown = shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })
+    && !studioTourActive && (!compact || isStudioTourDone());
 
   /**
    * Select a wall (or the floor) and, from a decorating phase, open the paint
@@ -888,13 +907,14 @@ export default function ThreeDPage() {
           className={`flex-1 min-w-0 min-h-0 relative isolate overflow-hidden ${(isMebelTab && mebelView === '2d') || (isChiroqTab && chiroqView === '2d') ? 'hidden' : ''}`}
           // The first tap on the view also closes the phone hint; it does not stop
           // the tap, so the surface's menu still opens.
-          onPointerDownCapture={() => { if (shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })) markTapHintSeen(); }}
+          data-tour="scene"
+          onPointerDownCapture={() => { if (tapHintShown) markTapHintSeen(); }}
         >
 
           {/* Below lg: once, how to reach the tools — tap a surface. The
               room/stage pill that sat at the top was removed at the user's
               request (2026-11-07). */}
-          {shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked }) && (
+          {tapHintShown && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
               <TapHint onDismiss={markTapHintSeen} />
             </div>
@@ -1010,6 +1030,8 @@ export default function ThreeDPage() {
               className="bottom-5 right-4"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
+              tourId="arc"
+              closed={studioTourActive}
             />
           </div>}
 

@@ -90,6 +90,7 @@ export function CameraBar(p: CameraBarProps) {
             active={p.listOpen || p.panorama || p.cameraStation != null}
             expanded={p.listOpen}
             onClick={p.onToggleList}
+            tourId="camera"
           />
           {/* Rises from the button rather than running across the foot of the
               screen: a column keeps it clear of the arc menu in the opposite
@@ -127,7 +128,7 @@ export function CameraBar(p: CameraBarProps) {
 
         {/* The lock: taps and holds in the 3D view open nothing while it
             is on, so the room can be turned without a menu popping up. */}
-        <LockButton locked={p.viewLocked} onClick={p.onToggleLock} className={hide} />
+        <LockButton locked={p.viewLocked} onClick={p.onToggleLock} className={hide} tourId="lock" />
 
         {/* Move rooms: X / Z arrows on a tapped room (RoomSlide.tsx). */}
         {p.showMoveRooms && <MoveRoomsButton active={p.moveRoomsOn} onClick={p.onToggleMoveRooms} className={hide} />}

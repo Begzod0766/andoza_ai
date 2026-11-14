@@ -32,6 +32,11 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { StudioMenu } from "@/components/studio/StudioMenu";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 import { DiscardDesignMenuItem } from "@/components/studio/DiscardDesignMenuItem";
+import { StudioTour, isTourTargetShown } from "@/components/studio/StudioTour";
+import {
+  STUDIO_TOUR_STEPS, isStudioTourDone, markStudioTourDone, presentSteps, shouldStartStudioTour,
+  type StudioTourTarget,
+} from "@/lib/studioTour";
 
 // Read live at navigation time (not from the last render): a save marks the
 // store clean and may navigate in the same tick.
@@ -97,6 +102,46 @@ export default function StudioPage() {
   const sharePopoverRef = useRef<HTMLDivElement>(null);
   const shareCloseButtonRef = useRef<HTMLButtonElement>(null);
   const sharePopoverWasOpenRef = useRef(false);
+
+  // The Studio tour (StudioTour). The 3D view says when it is a live editing view on a phone
+  // (setStudioTourReady); the first such view starts the tour, and "?" in the header replays it.
+  // It opens only with at least one target on screen, so a tour that showed nothing is never
+  // remembered as seen.
+  const [tourReady, setStudioTourReady] = useState(false);
+  const [tourSteps, setTourSteps] = useState<StudioTourTarget[] | null>(null);
+  // Once the tour has been on screen it never starts on its own again here: with a storage that
+  // will not keep "done", it would reopen the moment Skip closed it.
+  const tourShownRef = useRef(false);
+  // "?" pressed away from the live 3D view (a camera, the 2D plan, the smeta): the tour opens as
+  // soon as that view is back. For this visit only.
+  const [tourReplayPending, setTourReplayPending] = useState(false);
+  const openTour = () => {
+    const steps = presentSteps(STUDIO_TOUR_STEPS, isTourTargetShown);
+    if (steps.length === 0) return;
+    tourShownRef.current = true;
+    setMenuOpen(false);
+    setSharePopoverOpen(false);
+    setTourSteps(steps);
+  };
+  const tourOpen = tourSteps !== null;
+  useEffect(() => {
+    if (tourOpen || !tourReady) return;
+    if (tourReplayPending) {
+      setTourReplayPending(false);
+      openTour();
+      return;
+    }
+    if (!tourShownRef.current && shouldStartStudioTour({ done: isStudioTourDone(), compact, editingView: tourReady })) openTour();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- openTour reads only setters and the DOM
+  }, [compact, tourReady, tourOpen, tourReplayPending]);
+  const onTourHelp = () => {
+    if (tourReady) openTour();
+    else setTourReplayPending(true);
+  };
+  const finishTour = () => {
+    markStudioTourDone();
+    setTourSteps(null);
+  };
 
   // "Ulashish" (Share) — a room-level action like Save, hence living in the
   // kebab menu rather than a new 3D-view-specific toolbar button. A small
@@ -614,7 +659,9 @@ export default function StudioPage() {
               going — nothing at all when it is simply saved. */}
           <div className="flex items-center gap-2 flex-shrink-0 relative">
             {/* A phone has no Ctrl+Z (mobile QA 2026-11-11 #1). */}
-            <UndoRedoButtons />
+            <div data-tour="undo" className="flex-shrink-0">
+              <UndoRedoButtons />
+            </div>
             <div className="flex items-center gap-1.5 text-xs font-semibold" aria-live="polite">
               {saveStatus === 'saving' && (
                 <span className="text-ink-muted">{t('studio.page.saqlanmoqda')}</span>
@@ -634,8 +681,22 @@ export default function StudioPage() {
                 </>
               )}
             </div>
+            {/* The tour again. On every phone view, so the row never shifts; away from the
+                live 3D view the tour waits for it (onTourHelp). */}
+            {compact && (
+              <button
+                type="button"
+                data-tour="help"
+                onClick={onTourHelp}
+                aria-label={t('studio.tour.help_btn')}
+                title={t('studio.tour.help_btn')}
+                className="w-10 h-10 rounded-full bg-card-soft text-ink-muted flex items-center justify-center text-[17px] font-bold hover:bg-line transition-colors"
+              >
+                ?
+              </button>
+            )}
             <div className="relative">
-              <StudioMenu ref={menuButtonRef} open={menuOpen} onOpenChange={setMenuOpen}>
+              <StudioMenu ref={menuButtonRef} tourId="menu" open={menuOpen} onOpenChange={setMenuOpen}>
                 <div ref={setMenuSlotEl} />
                 {/* The way to the sizes on a phone, where the header's size line is hidden. */}
                 <button
@@ -776,9 +837,11 @@ export default function StudioPage() {
             </div>
           }
         >
-          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId }} />
+          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId, studioTourActive: tourOpen, setStudioTourReady }} />
         </Suspense>
       </main>
+
+      {tourSteps && <StudioTour steps={tourSteps} onFinish={finishTour} />}
     </div>
   );
 }
