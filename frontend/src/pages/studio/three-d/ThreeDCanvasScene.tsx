@@ -54,6 +54,7 @@ import { TowelRails3D } from "./TowelRails3D";
 import { Backsplashes3D } from "./Backsplashes3D";
 import { Riser3D } from "./Riser3D";
 import { Washers3D } from "./Washers3D";
+import { VentFan3D } from "./VentFan3D";
 import { FloorDrains3D } from "./FloorDrains3D";
 import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } from "./SiblingRoomLayout";
 import { RealismEffects, SceneLighting, MoonriseSky, SUN_INTENSITY } from "./SceneEnvironment";
@@ -1014,6 +1015,7 @@ export function ThreeDCanvasScene({
         <Backsplashes3D hiddenWalls={behind} />
         <Riser3D controlsRef={controlsRef} hiddenWalls={behind} />
         <Washers3D controlsRef={controlsRef} hiddenWalls={behind} />
+        <VentFan3D hiddenWalls={behind} />
         <FloorDrains3D />
         <OpeningLayer
           geometry={ownOpeningGeometry}

@@ -10,5 +10,11 @@
   "el_rail_cable_m": 3,
   "work_el_towel_rail_uzs": 150000,
   "washer_cable_m": 3,
-  "work_washer_socket_uzs": 50000
+  "work_washer_socket_uzs": 50000,
+  "fan_uzs_by_size": {
+    "100": 180000,
+    "125": 260000,
+    "150": 380000
+  },
+  "fan_air_changes": 6
 }

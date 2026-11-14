@@ -41,6 +41,9 @@ const LABEL_HEADS = {
   "Gidroizolyatsiya mastikasi": "wp_mastic",
   "Gidroizolyatsiya lentasi": "wp_tape",
   "Tortuvchi ventilyator": "fan",
+  "Tortuvchi ventilyator Ø100": "fan_100",
+  "Tortuvchi ventilyator Ø125": "fan_125",
+  "Tortuvchi ventilyator Ø150": "fan_150",
   "Sochiq quritgich": "towel_rail",
   // A fixture's own parts (2026-11-13): a shop's product follows the colon.
   "Rakovina smesiteli": "mixer_sink",
@@ -103,6 +106,9 @@ const WHOLE_LABELS = {
   "Gidroizolyatsiya mastikasi": "wp_mastic",
   "Gidroizolyatsiya lentasi": "wp_tape",
   "Tortuvchi ventilyator": "fan",
+  "Tortuvchi ventilyator Ø100": "fan_100",
+  "Tortuvchi ventilyator Ø125": "fan_125",
+  "Tortuvchi ventilyator Ø150": "fan_150",
   "Elektr kabel (ventilyator)": "fan_cable",
   "Ish: ventilyatorni o'rnatish": "work_fan",
   "Sochiq quritgich": "towel_rail",
@@ -262,6 +268,9 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
   // A drain chase (2026-11-13): "Tik bo'laklar 1.20 m × 60 000 so'm".
   [/^Tik bo'laklar (?=\d)/, (t) => `${t("smeta.formula.branch_pieces_head")} `],
   [/ \+ tik (?=\d)/g, (t) => ` + ${t("smeta.formula.branch_pipes")} `], // estimates saved on 2026-11-11
+  // A fan's sizing (2026-11-14): "13.5 m³ × 6 = 81 m³/soat → Ø100".
+  [/(?<=\d) m³\/soat/g, (t) => ` ${t("smeta.formula.m3h")}`],
+  [/(?<=\d) m³(?=\s|$)/g, (t) => ` ${t("smeta.formula.m3")}`],
   [/ so'm$/g, (t) => ` ${t("smeta.formula.som")}`],
 ];
 

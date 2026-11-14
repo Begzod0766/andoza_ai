@@ -2386,6 +2386,26 @@ def _fixture_part_lines(part_kinds: dict[str, int], catalog: dict, norms: dict, 
     ]
 
 
+def fan_size(room: "Room", n: dict) -> tuple[int, str | None]:
+    """The fan's size (Ø mm) for the room's air (2026-11-14): volume × ``fan_air_changes`` an hour;
+    Ø100 up to 100 m³/h, Ø125 up to 180, else Ø150. With no floor area, Ø100 and no working."""
+    area = _float(getattr(room, "floor_area", None))
+    if area <= 0:
+        return 100, None
+    height = _float(getattr(room, "ceiling_h", None)) or 2.7
+    volume = area * height
+    changes = int(n["fan_air_changes"])
+    air = volume * changes
+    size = 100 if air <= 100 else 125 if air <= 180 else 150
+    return size, f"{area:.2f} m² × {height:.2f} m = {volume:.1f} m³ × {changes} = {air:.0f} m³/soat → Ø{size}"
+
+
+def _fan_line(room: "Room", shop: "Material | None", n: dict) -> ComputedLine:
+    """The fan, named by its size; the shop's tagged fan prices it, else the size's norm."""
+    size, why = fan_size(room, n)
+    return _piece_line(f"Tortuvchi ventilyator Ø{size}", shop, int(n["fan_uzs_by_size"][str(size)]), "ventilyatsiya", why=why)
+
+
 def _fan_lines(room: "Room", catalog: "dict | None", norms_map: "dict[str, Norm]") -> list[ComputedLine]:
     """A bathroom's extractor fan (spec 2026-11-10): the fan, a fixed length of cable to the nearest
     light circuit, and the work. In every bathroom unless the user switched it off (``ventFan`` is
@@ -2404,7 +2424,7 @@ def _fan_lines(room: "Room", catalog: "dict | None", norms_map: "dict[str, Norm]
     metres = int(n["fan_cable_m"])
     work = int(n["work_fan_uzs"])
     return [
-        _piece_line("Tortuvchi ventilyator", catalog.get("ventilyator"), n["fan_uzs"], "ventilyatsiya"),
+        _fan_line(room, catalog.get("ventilyator"), n),
         _make_line(
             label="Elektr kabel (ventilyator)", formula=f"{metres} m × {per_m:,} so'm".replace(",", " "),
             qty=metres, unit="m", price_uzs=per_m, category="ventilyatsiya",

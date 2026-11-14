@@ -132,8 +132,9 @@ def test_rail_and_fan_lines_are_in_the_estimate_outside_the_furniture_group():
     lines = compute_estimate(room(rails=[RAIL]), {}, {}, catalog={}).lines
     groups = {ln.label: group_key_for(ln.category) for ln in lines}
     assert groups["Sochiq quritgich"] == "santexnika" and groups["Ish: sochiq quritgichni o'rnatish"] == "santexnika"
-    assert groups["Tortuvchi ventilyator"] == "elektr"
-    assert "jihoz" not in {groups[k] for k in ("Sochiq quritgich", "Tortuvchi ventilyator")}
+    fan = next(k for k in groups if k.startswith("Tortuvchi ventilyator"))  # named by its size (2026-11-14)
+    assert groups[fan] == "elektr"
+    assert "jihoz" not in {groups[k] for k in ("Sochiq quritgich", fan)}
 
 
 def test_a_room_priced_from_its_saved_geometry_keeps_the_pipe_run_sane():

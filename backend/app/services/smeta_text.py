@@ -138,6 +138,9 @@ _LABEL_HEADS = {
     "Gidroizolyatsiya mastikasi": "wp_mastic",
     "Gidroizolyatsiya lentasi": "wp_tape",
     "Tortuvchi ventilyator": "fan",
+    "Tortuvchi ventilyator Ø100": "fan_100",
+    "Tortuvchi ventilyator Ø125": "fan_125",
+    "Tortuvchi ventilyator Ø150": "fan_150",
     "Sochiq quritgich": "towel_rail",
     # A fixture's own parts (2026-11-13): a shop's product follows the colon.
     "Rakovina smesiteli": "mixer_sink",
@@ -201,6 +204,9 @@ _WHOLE_LABELS = {
     "Gidroizolyatsiya lentasi": "wp_tape",
     "Ish: gidroizolyatsiya": "work_wp",
     "Tortuvchi ventilyator": "fan",
+    "Tortuvchi ventilyator Ø100": "fan_100",
+    "Tortuvchi ventilyator Ø125": "fan_125",
+    "Tortuvchi ventilyator Ø150": "fan_150",
     "Elektr kabel (ventilyator)": "fan_cable",
     "Ish: ventilyatorni o'rnatish": "work_fan",
     "Sochiq quritgich": "towel_rail",
@@ -398,6 +404,9 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
     # A drain chase (2026-11-13): "Tik bo'laklar 1.20 m × 60 000 so'm".
     (re.compile(r"\ATik bo'laklar (?=\d)"), lambda lang: f"{t('formula.branch_pieces_head', lang)} "),
     (re.compile(r" \+ tik (?=\d)"), lambda lang: f" + {t('formula.branch_pipes', lang)} "),  # estimates saved on 2026-11-11
+    # A fan's sizing (2026-11-14): "13.5 m³ × 6 = 81 m³/soat → Ø100".
+    (re.compile(r"(?<=\d) m³/soat"), lambda lang: f" {t('formula.m3h', lang)}"),
+    (re.compile(r"(?<=\d) m³(?=\s|\Z)"), lambda lang: f" {t('formula.m3', lang)}"),
     (re.compile(r" so'm\Z"),
      lambda lang: f" {t('formula.som', lang)}"),
 ]
