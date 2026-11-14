@@ -329,6 +329,11 @@ export default function StudioPage() {
           useRoomStore.getState().markSaved();
           setSaveStatus('saved');
           loadedAtRef.current = saved.updated_at ?? loadedAtRef.current;
+          // The fetched room is the saved one now. Leaving for the estimate (its own page)
+          // unmounts the studio, and the room stays fresh in the cache for minutes: coming
+          // back read the copy fetched when the studio opened, loaded it over the store and
+          // the next autosave wrote it back, losing every edit saved in between.
+          queryClient.setQueryData(["room", roomId], saved);
           // The nav-tab price badge previews room.state as of the last save
           // — without this it'd keep showing the pre-save number for up to
           // its 30s staleTime after a save the user just watched succeed.
