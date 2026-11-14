@@ -16,6 +16,7 @@ from typing import get_args
 import structlog
 from fastapi import APIRouter, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.i18n import translate_detail
@@ -64,6 +65,9 @@ _MAX_THUMB_BYTES = 5 * 1024 * 1024
 _MAX_PENDING_MODELS = 20
 # The same for a shop's wallpapers awaiting review.
 _MAX_PENDING_WALLPAPERS = 50
+# The moderation note of an approved oboy its shop removed. Such a row stays so
+# rooms priced with it keep working, which is why the seller cannot delete it,
+# swap its image or send it back to review (see _is_hidden_by_shop).
 _HIDDEN_BY_SHOP = "Do'kon olib tashladi"
 _THUMB_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 # What the first bytes of each accepted image must look like (a model is
@@ -443,6 +447,20 @@ async def _store_wallpaper_image(file: UploadFile, data: bytes) -> tuple[str, st
     return (stored_url if stored_url.startswith("http") else key), content_type
 
 
+def _is_hidden_by_shop(w: Wallpaper) -> bool:
+    return w.status == "rejected" and w.moderation_note == _HIDDEN_BY_SHOP
+
+
+async def _flush_new_image(db: DbSession) -> None:
+    """Flush, turning a lost race on the (sha256, kind) unique index (two uploads
+    of the same bytes at once) into the same 409 as the lookup before it."""
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bu rasm kutubxonada allaqachon bor") from exc
+
+
 def _clean_wallpaper_name(name: str) -> str:
     name = name.strip()
     if not name:
@@ -492,7 +510,7 @@ async def create_wallpaper(
     )
     w.store = store
     db.add(w)
-    await db.flush()
+    await _flush_new_image(db)
     await db.refresh(w, attribute_names=["created_at"])
     logger.info("seller_wallpaper_added", id=str(w.id), store_id=str(store.id), user_id=str(current_user.id))
     return _wallpaper_out(w, request)
@@ -511,7 +529,8 @@ async def update_wallpaper(
     total_length_m: float | None = Form(default=None, ge=1, le=50),
 ) -> WallpaperOut:
     store, w = await _own_wallpaper(db, current_user, wallpaper_id)
-    if file is not None and w.status == "approved":
+    hidden = _is_hidden_by_shop(w)
+    if file is not None and (w.status == "approved" or hidden):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Tasdiqlangan oboyning rasmini almashtirib bo'lmaydi")
     if name is not None:
         name = _clean_wallpaper_name(name)
@@ -524,7 +543,8 @@ async def update_wallpaper(
         new_image = (data, digest, file.content_type or "image/jpeg")
 
     # An edit to a rejected oboy sends it back for review, so it takes a place in the queue.
-    resubmit = w.status == "rejected"
+    # (A row the shop hid was approved before, so editing it just shows it again.)
+    resubmit = w.status == "rejected" and not hidden
     if resubmit:
         await _require_pending_room(db, store)
 
@@ -537,7 +557,12 @@ async def update_wallpaper(
             setattr(w, field, value)
     if resubmit:
         w.status, w.moderation_note = "pending", None
-    await db.flush()
+    elif hidden:
+        w.status, w.moderation_note = "approved", None
+    if new_image is not None:
+        await _flush_new_image(db)
+    else:
+        await db.flush()
     logger.info("seller_wallpaper_updated", id=str(w.id), user_id=str(current_user.id))
     return _wallpaper_out(w, request)
 
@@ -545,6 +570,8 @@ async def update_wallpaper(
 @router.delete("/wallpapers/{wallpaper_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove one of the caller's wallpapers")
 async def delete_wallpaper(wallpaper_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> None:
     _, w = await _own_wallpaper(db, current_user, wallpaper_id)
+    if _is_hidden_by_shop(w):
+        return  # already removed by the shop; the row stays for the rooms priced with it
     if w.status == "approved":
         # Old rooms priced with it keep working, so the row stays; it just leaves the library.
         w.status, w.moderation_note = "rejected", _HIDDEN_BY_SHOP

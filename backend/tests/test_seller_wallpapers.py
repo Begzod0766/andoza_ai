@@ -13,6 +13,8 @@ import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
+from sqlalchemy.exc import IntegrityError
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -75,6 +77,10 @@ def _patch(client, wid, data=None, **fields):
     return client.patch(f"{URL}/{wid}", data=fields, files=files)
 
 
+def _sql(call) -> str:
+    return str(call.args[0].compile(compile_kwargs={"literal_binds": True})).replace("\n", " ")
+
+
 class TestCreate:
     def test_create_is_pending_in_own_store(self, client):
         u = _user()
@@ -89,6 +95,19 @@ class TestCreate:
         body = res.json()
         assert body["status"] == "pending" and body["store_id"] == str(own.id)
         assert (body["price_uzs"], body["width_cm"], body["total_length_m"]) == (50000, 53.0, 10.0)
+        dup, count = _sql(db.execute.call_args_list[1]), _sql(db.execute.call_args_list[2])
+        assert "wallpapers.kind = 'oboy'" in dup and "wallpapers.sha256 = " in dup
+        assert f"wallpapers.store_id = '{own.id.hex}'" in count and "wallpapers.status = 'pending'" in count
+
+    def test_concurrent_duplicate_at_flush_is_409(self, client):
+        u = _user()
+        db = _as(u, [R(_store(u)), R(None), R(0)])
+        db.flush.side_effect = IntegrityError("insert", {}, Exception("uq_wallpapers_sha256_kind"))
+        with patch(UPLOAD, return_value="/media/x.jpg"):
+            res = _post(client)
+        assert res.status_code == 409
+        assert res.json()["detail"] == "Bu rasm kutubxonada allaqachon bor"
+        db.rollback.assert_awaited()
 
     def test_create_requires_approved_store(self, client):
         u = _user()
@@ -141,8 +160,9 @@ class TestList:
     def test_list_only_own_store(self, client):
         u = _user()
         own = _store(u)
-        _as(u, [R(own), R(many=[_wp(own, "pending"), _wp(own, "rejected")])])
+        db = _as(u, [R(own), R(many=[_wp(own, "pending"), _wp(own, "rejected")])])
         res = client.get(URL)
+        assert f"wallpapers.store_id = '{own.id.hex}'" in _sql(db.execute.call_args_list[1])
         assert res.status_code == 200
         assert [r["status"] for r in res.json()] == ["pending", "rejected"]
         assert {r["store_id"] for r in res.json()} == {str(own.id)}
@@ -261,3 +281,41 @@ class TestDelete:
         assert client.delete(f"{URL}/{w.id}").status_code == 204
         db.delete.assert_not_called()
         assert (w.status, w.moderation_note) == ("rejected", "Do'kon olib tashladi")
+
+
+class TestShopHidden:
+    """A row the shop itself removed keeps old rooms priced: nothing the seller
+    does may delete it, swap its image or send it back to review."""
+
+    def _hidden(self, own):
+        return _wp(own, "rejected", moderation_note="Do'kon olib tashladi")
+
+    def test_delete_hidden_is_noop(self, client):
+        u = _user()
+        own = _store(u)
+        w = self._hidden(own)
+        db = _as(u, [R(own), R(w)])
+        assert client.delete(f"{URL}/{w.id}").status_code == 204
+        db.delete.assert_not_called()
+        assert (w.status, w.moderation_note) == ("rejected", "Do'kon olib tashladi")
+
+    def test_patch_file_on_hidden_409(self, client):
+        u = _user()
+        own = _store(u)
+        w = self._hidden(own)
+        _as(u, [R(own), R(w)])
+        with patch(UPLOAD) as up:
+            res = _patch(client, w.id, data=PNG)
+        assert res.status_code == 409
+        up.assert_not_called()
+        assert w.storage_key == "wallpapers/old.jpg"
+
+    def test_patch_hidden_unhides_to_approved(self, client):
+        u = _user()
+        own = _store(u)
+        w = self._hidden(own)
+        db = _as(u, [R(own), R(w)])  # no cap count: it was approved before
+        res = _patch(client, w.id, name="Yangi")
+        assert res.status_code == 200, res.text
+        assert (w.name, w.status, w.moderation_note, w.storage_key) == ("Yangi", "approved", None, "wallpapers/old.jpg")
+        assert db.execute.await_count == 2
