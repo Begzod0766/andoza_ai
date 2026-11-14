@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import SmetaPage from './SmetaPage'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { formatUZS } from '@/lib/utils'
+import { getRoom } from '@/lib/api'
 import { applyLanguage } from '@/i18n'
 import en from '@/i18n/locales/en.json'
 
@@ -36,26 +37,29 @@ const ESTIMATE_RESPONSE = {
 const previewEstimate = vi.fn().mockResolvedValue(ESTIMATE_RESPONSE)
 const createEstimate = vi.fn().mockResolvedValue({ ...ESTIMATE_RESPONSE, id: 'persisted-id', status: 'final' })
 
+// Hoisted with the mock below, which runs before this module's own consts.
+const ROOM = vi.hoisted(() => ({
+  id: 'room-1',
+  apartment_id: 'apt-1',
+  name: 'Mehmonxona',
+  room_type: 'mehmonxona',
+  area: 12,
+  ceiling_height: 2.7,
+  width: 3,
+  length: 4,
+  num_doors: 0,
+  num_windows: 0,
+  has_balcony: false,
+  renovation_level: 'orta',
+  design_state: {},
+  created_at: '',
+  }))
+
 vi.mock('@/lib/api', () => ({
   previewEstimate: (...args: unknown[]) => previewEstimate(...args),
   createEstimate: (...args: unknown[]) => createEstimate(...args),
   getEstimatePDF: vi.fn(),
-  getRoom: vi.fn().mockResolvedValue({
-    id: 'room-1',
-    apartment_id: 'apt-1',
-    name: 'Mehmonxona',
-    room_type: 'mehmonxona',
-    area: 12,
-    ceiling_height: 2.7,
-    width: 3,
-    length: 4,
-    num_doors: 0,
-    num_windows: 0,
-    has_balcony: false,
-    renovation_level: 'orta',
-    design_state: {},
-    created_at: '',
-  }),
+  getRoom: vi.fn().mockResolvedValue(ROOM),
   smetaAsk: vi.fn(),
 }))
 
@@ -78,10 +82,14 @@ function renderSmetaPage(url = '/smeta/room-1') {
 
 afterEach(() => act(() => applyLanguage('uz')))
 
+// Each test starts from the default answers. mockClear alone kept what a test
+// changed — a never-settling preview, an unused *Once answer — and handed it to
+// whichever test ran next, so the suite passed only in file order.
 beforeEach(() => {
   sessionStorage.clear()
-  previewEstimate.mockClear()
-  createEstimate.mockClear()
+  previewEstimate.mockReset().mockResolvedValue(ESTIMATE_RESPONSE)
+  createEstimate.mockReset().mockResolvedValue({ ...ESTIMATE_RESPONSE, id: 'persisted-id', status: 'final' })
+  vi.mocked(getRoom).mockReset().mockResolvedValue(ROOM as never)
 })
 
 describe('SmetaPage (inside the native app)', () => {

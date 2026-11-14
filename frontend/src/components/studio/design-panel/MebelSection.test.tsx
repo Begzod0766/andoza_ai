@@ -38,8 +38,13 @@ function renderPanel() {
   return render(<QueryClientProvider client={qc}><FeedbackProvider><MebelSection /></FeedbackProvider></QueryClientProvider>)
 }
 
+// The room store is module-level: a room type one test set (a bathroom) would
+// otherwise filter the next test's models out of sight, whatever the order.
+const initialRoom = useRoomStore.getState()
+
 beforeEach(() => {
   getStores.mockReset()
+  useRoomStore.setState(initialRoom, true)
   useRoomStore.getState().setCatalogFurniture([])
 })
 
