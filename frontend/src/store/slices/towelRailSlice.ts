@@ -3,7 +3,8 @@ import { nanoid } from 'nanoid'
 import type { TowelRail } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { roomRiser } from '@/lib/plumbingRuns'
-import { nearestFree, placeTowelRail, TOWEL_RAIL_HEIGHT_MM } from '@/lib/towelRail'
+import { nearestFree, placeTowelRail, TOWEL_RAIL_HEIGHT_MM, type WallTaken } from '@/lib/towelRail'
+import { WASHER_W_MM } from '@/lib/washer'
 import { useRoomStore } from '../roomStore'
 
 /** Heated towel rails hung on the walls (spec 2026-11-10); mirrors plumbingSlice. */
@@ -23,12 +24,17 @@ export interface TowelRailSlice {
 /** The rails as they were when the drag in progress began. */
 let dragStart: TowelRail[] | null = null
 
+/** What a rail keeps clear of on the walls: the washing machines (2026-11-14). */
+function machines(state: RoomStore): WallTaken[] {
+  return state.washers.map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: WASHER_W_MM / 2 }))
+}
+
 export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlice> = (set, get) => ({
   towelRails: [],
 
   addTowelRail() {
     const { geometry } = get()
-    const at = placeTowelRail(geometry, roomRiser(geometry, get().plumbingRiser))
+    const at = placeTowelRail(geometry, roomRiser(geometry, get().plumbingRiser), machines(get()))
     if (!at) return false
     set((state) => ({ towelRails: [...state.towelRails, { id: nanoid(), ...at, heightMm: TOWEL_RAIL_HEIGHT_MM }], isDirty: true }))
     return true
@@ -38,7 +44,7 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
     set((state) => {
       const rail = state.towelRails.find((r) => r.id === id)
       // Mid-drag the rail keeps to the stretch of wall it is on: it does not jump a door.
-      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined)
+      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined, machines(state))
       if (!rail || at == null || at === rail.positionMm) return state
       return { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }
     })

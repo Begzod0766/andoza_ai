@@ -69,14 +69,35 @@ export function freeSpans(geometry: RoomGeometry, wallId: string, halfMm: number
   return spans.filter(([lo, hi]) => hi >= lo).map(([lo, hi]) => [Math.round(lo), Math.round(hi)])
 }
 
+/** Something else on a wall to keep clear of: a towel rail, a washing machine, the riser. */
+export interface WallTaken { wallId: string; positionMm: number; halfMm: number }
+
+/** `spans` on `wallId` less each of `others` there, widened by its own half and by `halfMm`. */
+export function cutSpans(spans: Array<[number, number]>, wallId: string, others: readonly WallTaken[], halfMm: number): Array<[number, number]> {
+  for (const o of others) {
+    if (o.wallId !== wallId) continue
+    const a = o.positionMm - o.halfMm - halfMm
+    const b = o.positionMm + o.halfMm + halfMm
+    spans = spans.flatMap(([lo, hi]): Array<[number, number]> => {
+      if (b <= lo || a >= hi) return [[lo, hi]]
+      const out: Array<[number, number]> = []
+      if (a > lo) out.push([lo, Math.round(a)])
+      if (b < hi) out.push([Math.round(b), hi])
+      return out
+    })
+  }
+  return spans
+}
+
 /**
  * The free place on the wall nearest to `positionMm`, or null when the wall has none. With
  * `stayNearMm` (where a rail being dragged is now) only the free stretch that holds it is looked at,
  * so a drag stops at a door's edge instead of jumping to its far side (mobile QA 2026-11-11 #3).
+ * A rail keeps clear of `others` too: the washing machines (2026-11-14).
  */
-export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number, stayNearMm?: number): number | null {
+export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number, stayNearMm?: number, others: readonly WallTaken[] = []): number | null {
   let best: number | null = null
-  const all = freeSpans(geometry, wallId)
+  const all = cutSpans(freeSpans(geometry, wallId), wallId, others, HALF)
   const home = stayNearMm == null ? undefined : all.find(([lo, hi]) => stayNearMm >= lo && stayNearMm <= hi)
   for (const [lo, hi] of home ? [home] : all) {
     const at = Math.min(hi, Math.max(lo, Math.round(positionMm)))
@@ -89,20 +110,20 @@ export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: 
  * Where a new rail goes: on the riser's wall, 600 mm from the riser towards the room, or the nearest
  * free place to that; when that wall has none, the free place on another wall with the shortest pipe
  * run to the riser (the wall that meets the riser's corner, not just the next one round). Null when
- * no wall can take a rail.
+ * no wall can take a rail. It keeps clear of `others` (the washing machines).
  */
-export function placeTowelRail(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }): { wallId: string; positionMm: number } | null {
+export function placeTowelRail(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, others: readonly WallTaken[] = []): { wallId: string; positionMm: number } | null {
   const walk = wallWalk(geometry)
   const home = walk.find((w) => w.id === riser.wallId)
   if (!home) return null
   const length = home.lengthM * 1000
   const want = riser.positionMm <= length / 2 ? riser.positionMm + TOWEL_RAIL_RISER_GAP_MM : riser.positionMm - TOWEL_RAIL_RISER_GAP_MM
-  const onHome = nearestFree(geometry, home.id, want)
+  const onHome = nearestFree(geometry, home.id, want, undefined, others)
   if (onHome != null) return { wallId: home.id, positionMm: onHome }
   let best: { wallId: string; positionMm: number; run: number } | null = null
   for (const w of walk) {
     // On each free stretch the nearest place to the riser is one of its two ends.
-    for (const span of freeSpans(geometry, w.id)) for (const positionMm of span) {
+    for (const span of cutSpans(freeSpans(geometry, w.id), w.id, others, HALF)) for (const positionMm of span) {
       const run = pipeRunM(geometry, { wallId: w.id, positionMm, heightMm: 0 }, riser)
       if (!best || run < best.run - 1e-9) best = { wallId: w.id, positionMm, run }
     }
