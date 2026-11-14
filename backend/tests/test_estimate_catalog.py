@@ -368,3 +368,16 @@ def test_the_piece_keys_are_the_ones_the_key_list_says_are_sold_by_the_piece():
     from app.services.smeta_keys import KEY_SALE_UNIT
 
     assert _PIECE_KEYS == {k for k, unit in KEY_SALE_UNIT.items() if unit == "dona"}
+
+
+class TestShopWallpaperModeration:
+    async def test_pending_is_not_in_the_catalog_but_rejected_still_is(self):
+        db = AsyncMock()
+        materials = MagicMock(scalars=lambda: MagicMock(all=lambda: []))
+        wallpapers = MagicMock(scalars=lambda: MagicMock(all=lambda: []))
+        db.execute = AsyncMock(side_effect=[materials, wallpapers])
+        await ec.load_estimate_catalog(db)
+        sql = str(db.execute.call_args_list[1].args[0].compile(compile_kwargs={"literal_binds": True}))
+        # only pending is excluded: a rejected (hidden) oboy still prices rooms already saved with it
+        assert "wallpapers.status != 'pending'" in sql
+        assert "rejected" not in sql

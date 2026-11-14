@@ -159,6 +159,7 @@ class TestUpload:
         # silently applied, since the sha256 is derivable from the public URL.
         existing = Wallpaper(
             id=uuid.uuid4(),
+            status="approved",
             name="oboy.png",
             storage_key="wallpapers/existing.png",
             content_type="image/png",
@@ -251,6 +252,7 @@ class TestUpload:
     def test_reuploading_same_image_updates_metadata_on_existing_entry(self, client):
         existing = Wallpaper(
             id=uuid.uuid4(),
+            status="approved",
             name="oboy.png",
             storage_key="wallpapers/existing.png",
             content_type="image/png",
@@ -278,6 +280,7 @@ class TestUpload:
     def test_same_image_twice_reuses_the_entry(self, client):
         existing = Wallpaper(
             id=uuid.uuid4(),
+            status="approved",
             name="oboy.png",
             storage_key="wallpapers/existing.png",
             content_type="image/png",
@@ -311,6 +314,7 @@ class TestDelete:
     def test_admin_removes_row_and_file(self, client):
         wallpaper = Wallpaper(
             id=uuid.uuid4(),
+            status="approved",
             name="oboy.png",
             storage_key="wallpapers/gone.png",
             content_type="image/png",
@@ -343,6 +347,7 @@ class TestUpdate:
     def test_partial_update_only_touches_given_fields(self, client):
         wallpaper = Wallpaper(
             id=uuid.uuid4(),
+            status="approved",
             name="oboy.png",
             storage_key="wallpapers/a.png",
             content_type="image/png",
@@ -371,6 +376,7 @@ class TestUpdate:
     def test_rejects_unknown_store(self, client):
         wallpaper = Wallpaper(
             id=uuid.uuid4(),
+            status="approved",
             name="oboy.png",
             storage_key="wallpapers/a.png",
             content_type="image/png",
@@ -397,3 +403,79 @@ class TestUpdate:
             json={"store_id": str(uuid.uuid4())},
         )
         assert response.status_code == 404
+
+
+def _sql(db) -> str:
+    stmt = db.execute.call_args.args[0]
+    return str(stmt.compile(compile_kwargs={"literal_binds": True}))
+
+
+def _row(**kw) -> Wallpaper:
+    defaults = dict(
+        id=uuid.uuid4(), name="Oboy", kind="oboy", store_id=None, price_uzs=None,
+        description=None, width_cm=None, height_cm=None, total_length_m=None,
+        storage_key="wallpapers/a.png", content_type="image/png", size_bytes=10,
+        sha256="a" * 64, status="approved", moderation_note=None,
+        created_at=datetime.now(timezone.utc),
+    )
+    defaults.update(kw)
+    w = Wallpaper(**defaults)
+    w.store = None
+    return w
+
+
+class TestModerationVisibility:
+    @pytest.mark.parametrize("qs", ["", "?kind=oboy", f"?store_id={uuid.uuid4()}",
+                                    f"?kind=oboy&store_id={uuid.uuid4()}"])
+    def test_public_list_hides_pending_and_rejected(self, client, qs):
+        db = _db(_Result(many=[]))
+        _as(_user(), db)
+        response = client.get(f"/api/v1/wallpapers{qs}")
+        assert response.status_code == 200
+        assert "wallpapers.status = 'approved'" in _sql(db)
+
+    def test_public_list_needs_no_auth(self, client):
+        app.dependency_overrides[get_db] = lambda: _db(_Result(many=[]))
+        assert client.get("/api/v1/wallpapers").status_code == 200
+
+    def test_admin_all_lists_every_status(self, client):
+        db = _db(_Result(many=[_row(status="pending"), _row(status="rejected")]))
+        _as(_user(is_admin=True), db)
+        response = client.get("/api/v1/wallpapers/all?kind=oboy")
+        assert response.status_code == 200
+        sql = _sql(db)
+        assert "wallpapers.status =" not in sql and "wallpapers.status !=" not in sql
+        assert "wallpapers.kind = 'oboy'" in sql
+        assert [w["status"] for w in response.json()] == ["pending", "rejected"]
+
+    def test_plain_user_cannot_list_all(self, client):
+        _as(_user(), _db())
+        assert client.get("/api/v1/wallpapers/all").status_code == 403
+
+    def test_wallpaper_out_has_status(self, client):
+        db = _db(_Result(many=[_row(status="rejected", moderation_note="Xira")]))
+        _as(_user(is_admin=True), db)
+        body = client.get("/api/v1/wallpapers/all").json()[0]
+        assert body["status"] == "rejected"
+        assert body["moderation_note"] == "Xira"
+
+    def test_plain_user_upload_is_approved(self, client):
+        db = _db()
+        _as(_user(), db)
+        with patch("app.routers.wallpapers.upload_file", return_value="wallpapers/x.png"):
+            response = client.post(
+                "/api/v1/wallpapers",
+                files={"file": ("oboy.png", io.BytesIO(PNG), "image/png")},
+            )
+        assert response.status_code == 201
+        assert db.add.call_args.args[0].status == "approved"
+        assert response.json()["status"] == "approved"
+
+    def test_seller_cannot_set_price_via_public_upload(self, client):
+        _as(_user(), _db())
+        response = client.post(
+            "/api/v1/wallpapers",
+            data={"price_uzs": "1000"},
+            files={"file": ("oboy.png", io.BytesIO(PNG), "image/png")},
+        )
+        assert response.status_code == 403

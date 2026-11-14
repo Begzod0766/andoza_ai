@@ -49,6 +49,30 @@ _MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB
 _ALLOWED_KINDS = {"oboy", "suvoq", "shpaklovka", "pol"}
 
 
+async def read_wallpaper_image(file: UploadFile) -> bytes:
+    """Read an uploaded wallpaper image, rejecting a non-image type, an empty
+    file or one over the size limit. Shared by every route that takes a file."""
+    if file.content_type not in _ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=translate_detail("Faqat rasm yuklash mumkin ({formats})", formats=', '.join(sorted(_EXT_BY_TYPE.values()))),
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bo'sh fayl yuborildi",
+        )
+    if len(file_bytes) > _MAX_FILE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=translate_detail("Rasm hajmi {mb} MB dan oshmasligi kerak", mb=_MAX_FILE_SIZE_BYTES // (1024 * 1024)),
+        )
+
+    return file_bytes
+
+
 def _out(w: Wallpaper, request: Request) -> WallpaperOut:
     return WallpaperOut(
         id=w.id,
@@ -64,42 +88,77 @@ def _out(w: Wallpaper, request: Request) -> WallpaperOut:
         url=absolute_media_url(request, w.storage_key),
         content_type=w.content_type,
         size_bytes=w.size_bytes,
+        status=w.status,
+        moderation_note=w.moderation_note,
         created_at=w.created_at,
     )
 
 
-@router.get(
-    "",
-    response_model=list[WallpaperOut],
-    summary="List every uploaded wallpaper (shared by all users)",
-)
-async def list_wallpapers(
-    request: Request,
-    db: DbSession,
-    store_id: uuid_module.UUID | None = Query(
-        default=None,
-        description="Filter to one shop's oboy; global library entries (no "
-                    "shop) are always excluded when this is set — use the "
-                    "admin catalog's unassigned view for those instead",
-    ),
-    kind: str | None = Query(
-        default=None,
-        description="Design-panel scope bucket (oboy|suvoq|shpaklovka|pol). "
-                    "Each studio panel passes its own kind so it only sees the "
-                    "images uploaded from it. Omit to return every bucket.",
-    ),
-    page: int = Query(default=1, ge=1),
-    per_page: int = Query(default=50, ge=1, le=100),
-) -> list[WallpaperOut]:
+def _list_query(
+    store_id: uuid_module.UUID | None,
+    kind: str | None,
+    page: int,
+    per_page: int,
+    approved_only: bool,
+):
     query = select(Wallpaper).options(selectinload(Wallpaper.store))
+    if approved_only:
+        query = query.where(Wallpaper.status == "approved")
     if store_id is not None:
         query = query.where(Wallpaper.store_id == store_id)
     if kind is not None:
         query = query.where(Wallpaper.kind == kind)
     offset = (page - 1) * per_page
-    result = await db.execute(
-        query.order_by(Wallpaper.created_at.desc()).offset(offset).limit(per_page)
-    )
+    return query.order_by(Wallpaper.created_at.desc()).offset(offset).limit(per_page)
+
+
+_STORE_ID_QUERY = Query(
+    default=None,
+    description="Filter to one shop's oboy; global library entries (no "
+                "shop) are always excluded when this is set — use the "
+                "admin catalog's unassigned view for those instead",
+)
+_KIND_QUERY = Query(
+    default=None,
+    description="Design-panel scope bucket (oboy|suvoq|shpaklovka|pol). "
+                "Each studio panel passes its own kind so it only sees the "
+                "images uploaded from it. Omit to return every bucket.",
+)
+
+
+@router.get(
+    "",
+    response_model=list[WallpaperOut],
+    summary="List the approved wallpapers (shared by all users)",
+)
+async def list_wallpapers(
+    request: Request,
+    db: DbSession,
+    store_id: uuid_module.UUID | None = _STORE_ID_QUERY,
+    kind: str | None = _KIND_QUERY,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
+) -> list[WallpaperOut]:
+    result = await db.execute(_list_query(store_id, kind, page, per_page, approved_only=True))
+    return [_out(w, request) for w in result.scalars().all()]
+
+
+# Declared before any `/{wallpaper_id}` route so "all" is never read as an id.
+@router.get(
+    "/all",
+    response_model=list[WallpaperOut],
+    summary="List wallpapers in every moderation status (admins only)",
+)
+async def list_all_wallpapers(
+    request: Request,
+    admin: AdminUser,
+    db: DbSession,
+    store_id: uuid_module.UUID | None = _STORE_ID_QUERY,
+    kind: str | None = _KIND_QUERY,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
+) -> list[WallpaperOut]:
+    result = await db.execute(_list_query(store_id, kind, page, per_page, approved_only=False))
     return [_out(w, request) for w in result.scalars().all()]
 
 
@@ -175,23 +234,7 @@ async def upload_wallpaper(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=translate_detail("{field_name} musbat son bo'lishi kerak", field_name=field_name),
             )
-    if file.content_type not in _ALLOWED_CONTENT_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=translate_detail("Faqat rasm yuklash mumkin ({formats})", formats=', '.join(sorted(_EXT_BY_TYPE.values()))),
-        )
-
-    file_bytes = await file.read()
-    if len(file_bytes) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Bo'sh fayl yuborildi",
-        )
-    if len(file_bytes) > _MAX_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=translate_detail("Rasm hajmi {mb} MB dan oshmasligi kerak", mb=_MAX_FILE_SIZE_BYTES // (1024 * 1024)),
-        )
+    file_bytes = await read_wallpaper_image(file)
 
     # Same image twice → same entry, so the library doesn't fill up with copies.
     # Dedup is scoped to `kind`: re-uploading the same bytes into the SAME panel
@@ -251,6 +294,8 @@ async def upload_wallpaper(
         size_bytes=len(file_bytes),
         sha256=digest,
         uploaded_by=current_user.id,
+        # A plain upload from the studio is the user's own covering: usable at once.
+        status="approved",
     )
     wallpaper.store = store  # set directly, and refresh() below must not clobber it
     db.add(wallpaper)

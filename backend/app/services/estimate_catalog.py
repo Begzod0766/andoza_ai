@@ -122,6 +122,9 @@ async def _shop_wallpapers(db: Any) -> dict[str, WallpaperRoll]:
             .options(selectinload(Wallpaper.store))
             .where(
                 Wallpaper.kind == "oboy",
+                # Only a not-yet-approved oboy is left out: a rejected (hidden) one still
+                # prices rooms that were saved with it.
+                Wallpaper.status != "pending",
                 Wallpaper.price_uzs.is_not(None),
                 Wallpaper.width_cm.is_not(None),
                 Wallpaper.total_length_m.is_not(None),
