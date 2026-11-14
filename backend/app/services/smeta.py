@@ -2091,6 +2091,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             formula=f"{showers} dona × {price:,} so'm".replace(",", " "),
             qty=showers, unit="dona", price_uzs=price, category="santexnika",
         ))
+        lines.extend(_shower_slope_lines(_shower_zones(state, catalog, names), catalog, norms))
     if washers:
         price = int(norms["work_washer_uzs"])
         lines.append(_make_line(
@@ -2161,6 +2162,57 @@ def _washer_socket_lines(n: int, catalog: dict) -> list[ComputedLine]:
                    price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
         _make_line(label="Ish: kir yuvish mashinasi rozetkasini o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n,
                    unit="dona", price_uzs=work, category="santexnika"),
+    ]
+
+
+def _shower_zones(state: dict, catalog: dict, names: dict[str, str]) -> list[tuple[float, float]]:
+    """Each placed shower's zone (w, d) in metres, as the studio's lib/floorDrain showerZones."""
+    from app.services.floor_drain import shower_zone_size
+
+    out = []
+    for item in state.get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        if _fixture_role(fid, row, names) != "shower":
+            continue
+        out.append(shower_zone_size(getattr(row, "footprint_w", None), getattr(row, "footprint_d", None), item.get("scaleOverride")))
+    return out
+
+
+def _shower_slope_lines(zones: list[tuple[float, float]], catalog: dict, norms: dict) -> list[ComputedLine]:
+    """Sloping each tray-less shower's zone to its floor drain (2026-11-14): the screed mix by the
+    bag (a shop's under "styajka", else the norm) and the work by the m²."""
+    from app.services.floor_drain import shower_zones_area_m2
+
+    if not zones:
+        return []
+    n = norms["floor_slope"]
+    area = shower_zones_area_m2(zones)
+    kg = area * float(n["mix_kg_m2"])
+    bags = max(1, math.ceil(round(kg / float(n["bag_kg"]), 6)))
+    shop = catalog.get("styajka")
+    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    bag_price = int(shop.price_uzs) if priced else int(n["bag_uzs"])
+    work = int(n["work_m2_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    sides = (f"{zones[0][0]:.2f} m × {zones[0][1]:.2f} m" if len(zones) == 1
+             else " + ".join(f"{w * d:.2f}" for w, d in zones))
+    return [
+        _make_line(
+            label="Qiyalik styajkasi aralashmasi: " + shop.name_uz if priced else "Qiyalik styajkasi aralashmasi",
+            formula=f"{area:.2f} m² × {n['mix_kg_m2']:g} kg = {kg:.1f} kg ÷ {n['bag_kg']:g} kg → {bags} qop",
+            qty=bags, unit="qop", price_uzs=bag_price, category="santexnika",
+            is_approximate=not priced, warning=None if priced else EXTRAS_NORM_NOTE, **(_shop(shop) if priced else {}),
+        ),
+        _make_line(
+            label="Ish: dush zonasini trapga qiyalatish",
+            formula=f"{sides} = {area:.2f} m² × {fmt(work)} so'm",
+            qty=area, unit="m²", price_uzs=work, category="santexnika",
+        ),
     ]
 
 

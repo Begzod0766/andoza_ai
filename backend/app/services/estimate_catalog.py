@@ -28,7 +28,7 @@ log = structlog.get_logger(__name__)
 
 # The estimate keys sold and priced by the piece (app.services.smeta_keys KEY_SALE_UNIT).
 _PIECE_KEYS = frozenset({
-    "ventilyator", "sochiq_quritgich", "sochiq_quritgich_el", "rozetka_ip44",
+    "ventilyator", "sochiq_quritgich", "sochiq_quritgich_el", "rozetka_ip44", "styajka",
     # A fixture's own parts (2026-11-13); listed here, not imported: smeta_keys imports smeta.
     "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
     "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",

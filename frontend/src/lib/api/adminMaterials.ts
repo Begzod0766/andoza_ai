@@ -157,6 +157,7 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   // An electric towel rail and its moisture-proof socket (2026-11-14): sold by the piece
   { id: "sochiq_quritgich_el", labelKey: "dokon.admin.smeta_key.sochiq_quritgich_el", packUnit: null, unit: "dona" },
   { id: "rozetka_ip44", labelKey: "dokon.admin.smeta_key.rozetka_ip44", packUnit: null, unit: "dona" },
+  { id: "styajka", labelKey: "dokon.admin.smeta_key.styajka", packUnit: null, unit: "dona" },
   { id: "profil", labelKey: "dokon.admin.smeta_key.profil", packUnit: "m" },
   { id: "led_lenta", labelKey: "dokon.admin.smeta_key.led_lenta", packUnit: "m" },
   { id: "kabel", labelKey: "dokon.admin.smeta_key.kabel", packUnit: null, unit: "m" },

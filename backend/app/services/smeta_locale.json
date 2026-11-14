@@ -110,6 +110,8 @@
         "socket_ip44": "Namga chidamli rozetka (IP44)",
         "el_rail_cable": "Elektr kabel (sochiq quritgich)",
         "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish",
+        "slope_mix": "Qiyalik styajkasi aralashmasi",
+        "work_shower_slope": "Ish: dush zonasini trapga qiyalatish",
         "washer_socket": "Kir yuvish mashinasi rozetkasi (IP44)",
         "washer_cable": "Elektr kabel (kir yuvish mashinasi)",
         "work_washer_socket": "Ish: kir yuvish mashinasi rozetkasini o'rnatish"
@@ -364,6 +366,8 @@
         "socket_ip44": "Влагозащищённая розетка (IP44)",
         "el_rail_cable": "Электрокабель (полотенцесушитель)",
         "work_el_towel_rail": "Работа: установка электрического полотенцесушителя",
+        "slope_mix": "Смесь для стяжки с уклоном",
+        "work_shower_slope": "Работа: уклон душевой зоны к трапу",
         "washer_socket": "Розетка для стиральной машины (IP44)",
         "washer_cable": "Электрокабель (стиральная машина)",
         "work_washer_socket": "Работа: установка розетки для стиральной машины"
@@ -672,6 +676,8 @@
         "socket_ip44": "Moisture-proof socket (IP44)",
         "el_rail_cable": "Electric cable (towel rail)",
         "work_el_towel_rail": "Work: fitting the electric towel rail",
+        "slope_mix": "Sloped screed mix",
+        "work_shower_slope": "Work: sloping the shower zone to the drain",
         "washer_socket": "Washing machine socket (IP44)",
         "washer_cable": "Electric cable (washing machine)",
         "work_washer_socket": "Work: fitting the washing machine socket"

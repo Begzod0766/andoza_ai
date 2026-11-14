@@ -71,3 +71,59 @@ def test_the_key_and_labels():
     assert "trap_pol" in ALL_SMETA_KEYS and KEY_SALE_UNIT["trap_pol"] == "dona"
     for label in (DRAIN, WORK):
         assert localize_label(label, "ru") != label and localize_label(label, "en") != label
+
+
+# The shower zone sloped to the drain (spec 2026-11-14).
+MIX, SLOPE = "Qiyalik styajkasi aralashmasi", "Ish: dush zonasini trapga qiyalatish"
+
+
+def test_off_no_slope_lines():
+    got = lines(room("Dush poddoni 90"))
+    assert MIX not in got and SLOPE not in got
+
+
+def test_on_with_no_shower_no_slope_lines():
+    got = lines(room("Rakovina 3", design={"floorDrain": True}))
+    assert MIX not in got and SLOPE not in got
+
+
+def test_on_one_shower_with_no_footprint_slopes_90_by_90():
+    got = lines(room("Dush poddoni 90", design={"floorDrain": True}))
+    m, s = got[MIX], got[SLOPE]
+    assert (m.qty, m.unit, m.unit_price_uzs, m.is_approximate, m.warning) == (2, "qop", 45_000, True, EXTRAS_NORM_NOTE)
+    assert m.formula == "0.81 m² × 54 kg = 43.7 kg ÷ 25 kg → 2 qop"
+    assert (s.qty, s.unit, s.unit_price_uzs) == (0.81, "m²", 150_000)
+    assert s.formula == "0.90 m × 0.90 m = 0.81 m² × 150 000 so'm"
+    assert {m.category, s.category} == {"santexnika"}
+
+
+def test_two_showers_sum_their_zones_from_the_catalog_and_scale():
+    r = room("Dush poddoni", "Dush kabinasi", design={"floorDrain": True})
+    r.state["furniture"][1]["scaleOverride"] = 1.0
+    row = SimpleNamespace(name_uz="Dush poddoni 120x100", category=None, is_active=True, price_uzs=0, footprint_w=120, footprint_d=100,
+                          store=None, id=uuid.uuid4())
+    got = lines(r, {"furniture:slug-0": row})
+    assert got[SLOPE].qty == 2.01
+    assert got[SLOPE].formula == "1.20 + 0.81 = 2.01 m² × 150 000 so'm"
+    assert got[MIX].qty == 5  # 2.01 × 54 = 108.5 kg ÷ 25 → 5
+
+
+def test_a_tagged_shop_bag_gives_its_price():
+    bag = SimpleNamespace(id=uuid.uuid4(), name_uz="Styajka M150 25 kg", unit="dona", price_uzs=52_000, pack_qty=None, pack_unit=None,
+                          smeta_key="styajka", is_active=True, store=SimpleNamespace(name="Qurilish"))
+    by = {ln.label: ln for ln in _plumbing_lines(room("Dush poddoni 90", design={"floorDrain": True}), {"styajka": bag})}
+    got = by[f"{MIX}: Styajka M150 25 kg"]
+    assert (got.unit_price_uzs, got.is_approximate) == (52_000, False)
+
+
+def test_styajka_is_a_piece_key():
+    assert "styajka" in ALL_SMETA_KEYS and KEY_SALE_UNIT["styajka"] == "dona"
+
+
+@pytest.mark.parametrize(("label", "ru", "en"), [
+    (MIX, "Смесь для стяжки с уклоном", "Sloped screed mix"),
+    (SLOPE, "Работа: уклон душевой зоны к трапу", "Work: sloping the shower zone to the drain"),
+])
+def test_slope_labels_read_in_russian_and_english(label, ru, en):
+    assert localize_label(label, "ru") == ru
+    assert localize_label(label, "en") == en

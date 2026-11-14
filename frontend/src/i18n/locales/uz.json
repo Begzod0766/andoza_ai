@@ -1252,6 +1252,8 @@
       "socket_ip44": "Namga chidamli rozetka (IP44)",
       "el_rail_cable": "Elektr kabel (sochiq quritgich)",
       "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish",
+      "slope_mix": "Qiyalik styajkasi aralashmasi",
+      "work_shower_slope": "Ish: dush zonasini trapga qiyalatish",
       "washer_socket": "Kir yuvish mashinasi rozetkasi (IP44)",
       "washer_cable": "Elektr kabel (kir yuvish mashinasi)",
       "work_washer_socket": "Ish: kir yuvish mashinasi rozetkasini o'rnatish"
@@ -2313,7 +2315,8 @@
         "gipsokarton_nam": "Namga chidamli gipsokarton",
         "skinali": "Skinali (shisha fartuk)",
         "sochiq_quritgich_el": "Elektr sochiq quritgich",
-        "rozetka_ip44": "Namga chidamli rozetka (IP44)"
+        "rozetka_ip44": "Namga chidamli rozetka (IP44)",
+        "styajka": "Styajka aralashmasi (qop)"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

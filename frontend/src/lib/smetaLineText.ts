@@ -69,6 +69,7 @@ const LABEL_HEADS = {
   "Quti profili (karkas)": "frame_box_profile",
   "Elektr sochiq quritgich": "el_towel_rail",
   "Namga chidamli rozetka (IP44)": "socket_ip44",
+  "Qiyalik styajkasi aralashmasi": "slope_mix",
   "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
 } as const;
 
@@ -156,6 +157,8 @@ const WHOLE_LABELS = {
   "Namga chidamli rozetka (IP44)": "socket_ip44",
   "Elektr kabel (sochiq quritgich)": "el_rail_cable",
   "Ish: elektr sochiq quritgichni o'rnatish": "work_el_towel_rail",
+  "Qiyalik styajkasi aralashmasi": "slope_mix",
+  "Ish: dush zonasini trapga qiyalatish": "work_shower_slope",
   "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
   "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
   "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",

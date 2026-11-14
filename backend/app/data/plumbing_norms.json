@@ -9,6 +9,7 @@
   "frame_box": {"profile_m": 6, "work_uzs": 300000},
   "work_washer_uzs": 150000,
   "work_floor_drain_uzs": 200000,
+  "floor_slope": {"mix_kg_m2": 54, "bag_kg": 25, "bag_uzs": 45000, "work_m2_uzs": 150000},
   "work_water_inlet_uzs": 200000,
   "water_heater": {"heater_uzs": 1800000, "kit_uzs": 120000, "cable_m": 5, "work_uzs": 250000},
   "work_demolition_fixture_uzs": {"bathtub": 200000, "shower": 150000, "toilet": 100000, "sink": 80000, "bidet": 80000},
