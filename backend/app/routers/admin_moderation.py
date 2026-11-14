@@ -88,6 +88,13 @@ async def _wallpaper(db: DbSession, wallpaper_id: uuid_module.UUID) -> Wallpaper
     return w
 
 
+def _must_be_pending(w: Wallpaper) -> None:
+    """Only a wallpaper awaiting review can be decided; a shop-hidden or already
+    approved one is changed through the admin wallpaper endpoints instead."""
+    if w.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bu oboy tekshiruvni kutmayapti")
+
+
 def _decide_status(row, approved: bool, note: str | None) -> None:
     """The decision itself, for rows that have no ``is_active`` (wallpapers)."""
     row.status = "approved" if approved else "rejected"
@@ -139,6 +146,7 @@ async def reject_furniture(furniture_id: uuid_module.UUID, body: RejectIn, admin
 @router.post("/wallpapers/{wallpaper_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
 async def approve_wallpaper(wallpaper_id: uuid_module.UUID, admin: AdminUser, db: DbSession) -> None:
     w = await _wallpaper(db, wallpaper_id)
+    _must_be_pending(w)
     _decide_status(w, True, None)
     await db.flush()
     logger.info("wallpaper_approved", id=str(wallpaper_id), admin_id=str(admin.id))
@@ -147,6 +155,7 @@ async def approve_wallpaper(wallpaper_id: uuid_module.UUID, admin: AdminUser, db
 @router.post("/wallpapers/{wallpaper_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
 async def reject_wallpaper(wallpaper_id: uuid_module.UUID, body: RejectIn, admin: AdminUser, db: DbSession) -> None:
     w = await _wallpaper(db, wallpaper_id)
+    _must_be_pending(w)
     _decide_status(w, False, body.note.strip())
     await db.flush()
     logger.info("wallpaper_rejected", id=str(wallpaper_id), admin_id=str(admin.id))

@@ -34,7 +34,7 @@ def test_pending_lists_wallpapers(client):
 
 
 def test_approve_sets_approved_clears_note(client):
-    w = _wp(_store(_user()), "rejected")
+    w = _wp(_store(_user()), "pending", moderation_note="eski")
     _as(_user(is_admin=True), [_R(w)])
     assert client.post(f"{BASE}/wallpapers/{w.id}/approve").status_code == 204
     assert (w.status, w.moderation_note) == ("approved", None)
@@ -60,3 +60,20 @@ def test_unknown_404(client):
     r = client.post(f"{BASE}/wallpapers/{wid}/approve")
     assert r.status_code == 404  # detail is translated per request language
     assert client.post(f"{BASE}/wallpapers/{wid}/reject", json={"note": "x"}).status_code == 404
+
+
+@pytest.mark.parametrize("state,note", [("approved", None), ("rejected", "Do'kon olib tashladi")])
+def test_approve_non_pending_409(client, state, note):
+    w = _wp(_store(_user()), state, moderation_note=note)
+    _as(_user(is_admin=True), [_R(w)])
+    assert client.post(f"{BASE}/wallpapers/{w.id}/approve").status_code == 409
+    assert (w.status, w.moderation_note) == (state, note)
+
+
+@pytest.mark.parametrize("state", ["approved", "rejected"])
+def test_reject_non_pending_409(client, state):
+    w = _wp(None, state)
+    note = w.moderation_note
+    _as(_user(is_admin=True), [_R(w)])
+    assert client.post(f"{BASE}/wallpapers/{w.id}/reject", json={"note": "x"}).status_code == 409
+    assert (w.status, w.moderation_note) == (state, note)
