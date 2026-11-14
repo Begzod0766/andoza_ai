@@ -351,3 +351,11 @@ describe('electric towel rail lines', () => {
     expect(localizeLabel("Ish: elektr sochiq quritgichni o'rnatish", en)).toBe('Work: fitting the electric towel rail')
   })
 })
+
+describe("a towel rail by its size (2026-11-15)", () => {
+  it("reads the name and keeps the size", () => {
+    expect(localizeLabel("Sochiq quritgich (60×100)", en)).toBe("Heated towel rail (60×100)");
+    expect(localizeLabel("Elektr sochiq quritgich (50×80)", ru)).toBe("Электрический полотенцесушитель (50×80)");
+    expect(localizeLabel("Sochiq quritgich (50×50)", uz)).toBe("Sochiq quritgich (50×50)");
+  });
+});

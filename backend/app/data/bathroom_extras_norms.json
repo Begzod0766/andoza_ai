@@ -1,5 +1,5 @@
 {
-  "_doc": "Prices for a bathroom's towel rail (water-heated, or electric with its IP44 socket and cable: 2026-11-14), a washing machine's IP44 socket (2026-11-14) and extractor fan when the shop has no tagged product (spec 2026-11-10). UZS. Starting values, the owner's to correct.",
+  "_doc": "Prices for a bathroom's towel rail (water-heated, or electric with its IP44 socket and cable: 2026-11-14), a washing machine's IP44 socket (2026-11-14) and extractor fan when the shop has no tagged product (spec 2026-11-10). UZS. Starting values, the owner's to correct. By size (2026-11-15): the 500x800 prices are the old single ones.",
   "towel_rail_uzs": 650000,
   "work_towel_rail_uzs": 200000,
   "fan_uzs": 180000,
@@ -16,5 +16,19 @@
     "125": 260000,
     "150": 380000
   },
-  "fan_air_changes": 6
+  "fan_air_changes": 6,
+  "towel_rail_uzs_by_size": {
+    "500x500": 450000,
+    "500x600": 520000,
+    "500x800": 650000,
+    "600x800": 750000,
+    "600x1000": 900000
+  },
+  "el_towel_rail_uzs_by_size": {
+    "500x500": 650000,
+    "500x600": 750000,
+    "500x800": 900000,
+    "600x800": 1050000,
+    "600x1000": 1250000
+  }
 }

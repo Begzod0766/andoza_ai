@@ -11,6 +11,19 @@ import math
 from app.services.plumbing import _js_round, _room_walls
 
 RAIL_W_MM = 500
+# The sizes a rail comes in, width × height mm (2026-11-15): the studio's RAIL_SIZES.
+RAIL_SIZES = ("500x500", "500x600", "500x800", "600x800", "600x1000")
+DEFAULT_SIZE = "500x800"
+
+
+def rail_size(rail: dict) -> str:
+    """The rail's size; absent or unknown reads as 500x800, as every rail saved before."""
+    s = rail.get("size")
+    return s if isinstance(s, str) and s in RAIL_SIZES else DEFAULT_SIZE
+
+
+def rail_width_mm(rail: dict) -> int:
+    return int(rail_size(rail).split("x")[0])
 
 
 def _number(v: object) -> float | None:
@@ -42,7 +55,8 @@ def towel_rail_points(rail: dict, wall_length_mm: float) -> list[dict]:
         return {"id": f"{rail['id']}:{end}", "kind": "hot", "diameterMm": 20, "wallId": str(rail["wallId"]),
                 "positionMm": _js_round(min(wall_length_mm, max(0.0, pos + offset))), "heightMm": height, "railId": rail["id"]}
 
-    return [point("feed", -RAIL_W_MM / 2), point("return", RAIL_W_MM / 2)]
+    half = rail_width_mm(rail) / 2
+    return [point("feed", -half), point("return", half)]
 
 
 def is_electric(rail: dict) -> bool:

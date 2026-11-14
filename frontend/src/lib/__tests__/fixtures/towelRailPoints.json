@@ -1,5 +1,5 @@
 {
- "_doc": "A towel rail's two hot water points (spec 2026-11-10): frontend lib/towelRail railPoints and backend app/services/towel_rail rail_points must both give `expected`; an electric rail (`kind: \"electric\"`, 2026-11-14) has none. Geometry in mm (studio units); the backend test converts to metres.",
+ "_doc": "A towel rail's two hot water points (spec 2026-11-10): frontend lib/towelRail railPoints and backend app/services/towel_rail rail_points must both give `expected`; an electric rail (`kind: \"electric\"`, 2026-11-14) has none. Geometry in mm (studio units); the backend test converts to metres. A rail's `size` (2026-11-15) sets its width; an unknown size is 500 wide.",
  "cases": [
   {
    "name": "rect, mid wall A",
@@ -668,6 +668,118 @@
      "positionMm": 1450,
      "heightMm": 1000,
      "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "600 wide (2026-11-15): points 300 either side",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r6",
+     "wallId": "A",
+     "positionMm": 1200,
+     "heightMm": 1000,
+     "size": "600x800"
+    }
+   ],
+   "expected": [
+    {
+     "id": "r6:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 900,
+     "heightMm": 1000,
+     "railId": "r6"
+    },
+    {
+     "id": "r6:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1500,
+     "heightMm": 1000,
+     "railId": "r6"
+    }
+   ]
+  },
+  {
+   "name": "an unknown size reads as 500 wide",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r7",
+     "wallId": "A",
+     "positionMm": 1200,
+     "heightMm": 1000,
+     "size": "999x999"
+    }
+   ],
+   "expected": [
+    {
+     "id": "r7:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 950,
+     "heightMm": 1000,
+     "railId": "r7"
+    },
+    {
+     "id": "r7:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1450,
+     "heightMm": 1000,
+     "railId": "r7"
     }
    ]
   }

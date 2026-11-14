@@ -334,6 +334,9 @@ def localize_label(label: str, lang: str) -> str:
     # "Oboy devor A" or "Oboy devor A: <product>": the wall's letter is a value, not a word.
     if m := re.fullmatch(r"Oboy devor (\S+?)(?:: (.+))?", label, flags=re.DOTALL):
         return t("line.oboy_devor", lang, wall=m[1]) + (f": {m[2]}" if m[2] is not None else "")
+    # A towel rail by its size (2026-11-15): "Sochiq quritgich (50×80)"; the size is a value.
+    if (m := re.fullmatch(r"(Sochiq quritgich|Elektr sochiq quritgich) \((\d+×\d+)\)", label)) and m[1] in _WHOLE_LABELS:
+        return f"{_localize_name(m[1], lang)} ({m[2]})"
     if label in _WHOLE_LABELS:
         return _localize_name(label, lang)
     # The head is everything before the first ": ", so "Shift profili: X" reads as "Shift profili".

@@ -1,9 +1,9 @@
 import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { TowelRail } from '../types'
+import type { TowelRail, TowelRailSize } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { roomRiser } from '@/lib/plumbingRuns'
-import { nearestFree, placeTowelRail, TOWEL_RAIL_HEIGHT_MM, type WallTaken } from '@/lib/towelRail'
+import { nearestFree, placeTowelRail, railHalf, TOWEL_RAIL_HEIGHT_MM, type WallTaken } from '@/lib/towelRail'
 import { WASHER_W_MM } from '@/lib/washer'
 import { useRoomStore } from '../roomStore'
 
@@ -18,6 +18,8 @@ export interface TowelRailSlice {
   removeTowelRail(id: string): void
   /** Heated by water or electric (2026-11-14). */
   setTowelRailKind(id: string, kind: 'water' | 'electric'): void
+  /** Its size (2026-11-15): moved to the nearest free place for the new width; false (unchanged) when its wall has none. */
+  setTowelRailSize(id: string, size: TowelRailSize): boolean
   /** A rail is being dragged: its moves until `endTowelRailDrag` make one undo step. */
   beginTowelRailDrag(): void
   endTowelRailDrag(): void
@@ -46,7 +48,7 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
     set((state) => {
       const rail = state.towelRails.find((r) => r.id === id)
       // Mid-drag the rail keeps to the stretch of wall it is on: it does not jump a door.
-      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined, machines(state))
+      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined, machines(state), railHalf(rail))
       if (!rail || at == null || at === rail.positionMm) return state
       return { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }
     })
@@ -56,6 +58,17 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
     set((state) => (state.towelRails.some((r) => r.id === id)
       ? { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, kind } : r)), isDirty: true }
       : state))
+  },
+
+  setTowelRailSize(id, size) {
+    const state = get()
+    const rail = state.towelRails.find((r) => r.id === id)
+    if (!rail) return false
+    const next = { ...rail, size }
+    const at = nearestFree(state.geometry, rail.wallId, rail.positionMm, undefined, machines(state), railHalf(next))
+    if (at == null) return false
+    set((s) => ({ towelRails: s.towelRails.map((r) => (r.id === id ? { ...next, positionMm: at } : r)), isDirty: true }))
+    return true
   },
 
   removeTowelRail(id) {

@@ -1,4 +1,4 @@
-import type { PlumbingPoint, RoomGeometry, TowelRail } from '@/store/types'
+import type { PlumbingPoint, RoomGeometry, TowelRail, TowelRailSize } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { pipeRunM, wallWalk } from '@/lib/plumbingRuns'
 import { resolveElementPositions } from '@/lib/wallPositions'
@@ -11,6 +11,19 @@ import { resolveElementPositions } from '@/lib/wallPositions'
 
 export const TOWEL_RAIL_W_MM = 500
 export const TOWEL_RAIL_H_MM = 800
+/** The sizes a rail comes in, width × height mm (2026-11-15); a rail with none is 500x800. */
+export const RAIL_SIZES: readonly TowelRailSize[] = ['500x500', '500x600', '500x800', '600x800', '600x1000']
+
+/** A rail's width and height, mm: its size, else (absent or unknown) 500 × 800. */
+export function railSize(rail: TowelRail): { w: number; h: number } {
+  const s = rail.size && RAIL_SIZES.includes(rail.size) ? rail.size : '500x800'
+  const [w, h] = s.split('x').map(Number)
+  return { w, h }
+}
+
+/** Half a rail's width: what it keeps clear of the wall's ends, openings and machines. */
+export const railHalf = (rail: TowelRail) => railSize(rail).w / 2
+
 /** A new rail's bottom edge above the floor. */
 export const TOWEL_RAIL_HEIGHT_MM = 1000
 /** A new rail's centre from the riser, along the wall. */
@@ -23,7 +36,8 @@ export function towelRailPoints(rail: TowelRail, wallLengthMm: number): Plumbing
     id: `${rail.id}:${end}`, kind: 'hot', diameterMm: 20, wallId: rail.wallId,
     positionMm: at(offset), heightMm: rail.heightMm, railId: rail.id,
   })
-  return [point('feed', -TOWEL_RAIL_W_MM / 2), point('return', TOWEL_RAIL_W_MM / 2)]
+  const half = railHalf(rail)
+  return [point('feed', -half), point('return', half)]
 }
 
 /** An electric rail (2026-11-14): `kind` exactly 'electric'; anything else is heated by water. */
@@ -102,9 +116,9 @@ export function cutSpans(spans: Array<[number, number]>, wallId: string, others:
  * so a drag stops at a door's edge instead of jumping to its far side (mobile QA 2026-11-11 #3).
  * A rail keeps clear of `others` too: the washing machines (2026-11-14).
  */
-export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number, stayNearMm?: number, others: readonly WallTaken[] = []): number | null {
+export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number, stayNearMm?: number, others: readonly WallTaken[] = [], halfMm: number = HALF): number | null {
   let best: number | null = null
-  const all = cutSpans(freeSpans(geometry, wallId), wallId, others, HALF)
+  const all = cutSpans(freeSpans(geometry, wallId, halfMm), wallId, others, halfMm)
   const home = stayNearMm == null ? undefined : all.find(([lo, hi]) => stayNearMm >= lo && stayNearMm <= hi)
   for (const [lo, hi] of home ? [home] : all) {
     const at = Math.min(hi, Math.max(lo, Math.round(positionMm)))
@@ -147,7 +161,7 @@ export function keepRails(rails: readonly TowelRail[], geometry: RoomGeometry): 
   let changed = false
   const out: TowelRail[] = []
   for (const rail of rails) {
-    const at = nearestFree(geometry, rail.wallId, rail.positionMm)
+    const at = nearestFree(geometry, rail.wallId, rail.positionMm, undefined, [], railHalf(rail))
     if (at == null) { changed = true; continue }
     if (at !== rail.positionMm) changed = true
     out.push(at === rail.positionMm ? rail : { ...rail, positionMm: at })
@@ -170,8 +184,15 @@ export function saneRails(saved: unknown): TowelRail[] {
       !!r && typeof r === 'object' && typeof r.id === 'string' && r.id !== '' && typeof r.wallId === 'string'
       && Number.isFinite(r.positionMm) && Number.isFinite(r.heightMm))
     .map((r) => {
-      if (r.kind === undefined || r.kind === 'water' || r.kind === 'electric') return r
-      const { kind: _bad, ...rest } = r
-      return rest
+      let out: TowelRail = r
+      if (!(r.kind === undefined || r.kind === 'water' || r.kind === 'electric')) {
+        const { kind: _bad, ...rest } = out
+        out = rest
+      }
+      if (out.size !== undefined && !RAIL_SIZES.includes(out.size)) {
+        const { size: _bad, ...rest } = out
+        out = rest
+      }
+      return out
     })
 }

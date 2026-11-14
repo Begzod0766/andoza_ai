@@ -1,7 +1,7 @@
 import type { PlumbingPoint, RoomGeometry, TowelRail, Washer } from '@/store/types'
 import { overlaps, roomModel, type Rect } from '@/lib/aiDesignLayout'
 import { pipeRunM, riserPose, wallWalk, RISER_RADIUS_M, type RiserAt } from '@/lib/plumbingRuns'
-import { cutSpans, freeSpans, TOWEL_RAIL_W_MM, type WallTaken } from '@/lib/towelRail'
+import { cutSpans, freeSpans, railHalf, type WallTaken } from '@/lib/towelRail'
 
 export type { WallTaken }
 
@@ -137,7 +137,7 @@ export function keepWashers(washers: readonly Washer[], geometry: RoomGeometry, 
   let changed = false
   const out: Washer[] = []
   const others: WallTaken[] = [
-    ...rails.map((r) => ({ wallId: r.wallId, positionMm: r.positionMm, halfMm: TOWEL_RAIL_W_MM / 2 })),
+    ...rails.map((r) => ({ wallId: r.wallId, positionMm: r.positionMm, halfMm: railHalf(r) })),
     ...(riser ? riserTaken(geometry, riser) : []),
   ]
   for (const m of washers) {

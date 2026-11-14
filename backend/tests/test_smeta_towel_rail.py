@@ -50,7 +50,7 @@ def run_m(points, geometry=GEOMETRY):
 
 def test_a_rail_adds_the_rail_its_pipe_fittings_and_work():
     got = by_label(_plumbing_lines(room(rails=[RAIL]), {}))
-    rail = got["Sochiq quritgich"]
+    rail = got["Sochiq quritgich (50×80)"]
     assert (rail.qty, rail.unit, rail.unit_price_uzs, rail.category) == (1, "dona", 650_000, "santexnika")
     assert rail.is_approximate and rail.warning == EXTRAS_NORM_NOTE
     assert got["Suv rozetkasi Ø20"].qty == 2 and got["Ish: nuqtani ulash"].qty == 2
@@ -63,7 +63,7 @@ def test_a_rail_adds_the_rail_its_pipe_fittings_and_work():
 
 def test_two_rails_count_twice():
     got = by_label(_plumbing_lines(room(rails=[RAIL, RAIL2]), {}))
-    assert got["Sochiq quritgich"].qty == 2 and got["Sochiq quritgich"].subtotal_uzs == 1_300_000
+    assert got["Sochiq quritgich (50×80)"].qty == 2 and got["Sochiq quritgich (50×80)"].subtotal_uzs == 1_300_000
     assert got["Suv rozetkasi Ø20"].qty == 4 and got["Ish: sochiq quritgichni o'rnatish"].qty == 2
 
 
@@ -114,7 +114,7 @@ def test_no_rails_no_change():
 def test_a_polygon_room():
     rail = {"id": "r1", "wallId": "2", "positionMm": 900, "heightMm": 1000}
     got = by_label(_plumbing_lines(room(rails=[rail], geometry=POLYGON), {}))
-    assert got["Sochiq quritgich"].qty == 1
+    assert got["Sochiq quritgich (50×80)"].qty == 1
     assert got["Suv quvuri PPR Ø20"].qty == run_m(rail_points([rail], POLYGON), POLYGON)
 
 
@@ -131,10 +131,10 @@ def test_rail_and_fan_lines_are_in_the_estimate_outside_the_furniture_group():
     """The "repair only" view drops the furniture group alone: the rail and the fan stay in its total."""
     lines = compute_estimate(room(rails=[RAIL]), {}, {}, catalog={}).lines
     groups = {ln.label: group_key_for(ln.category) for ln in lines}
-    assert groups["Sochiq quritgich"] == "santexnika" and groups["Ish: sochiq quritgichni o'rnatish"] == "santexnika"
+    assert groups["Sochiq quritgich (50×80)"] == "santexnika" and groups["Ish: sochiq quritgichni o'rnatish"] == "santexnika"
     fan = next(k for k in groups if k.startswith("Tortuvchi ventilyator"))  # named by its size (2026-11-14)
     assert groups[fan] == "elektr"
-    assert "jihoz" not in {groups[k] for k in ("Sochiq quritgich", fan)}
+    assert "jihoz" not in {groups[k] for k in ("Sochiq quritgich (50×80)", fan)}
 
 
 def test_a_room_priced_from_its_saved_geometry_keeps_the_pipe_run_sane():
@@ -150,3 +150,70 @@ def test_a_room_priced_from_its_saved_geometry_keeps_the_pipe_run_sane():
     assert 0 < pipe.qty < 30 and pipe.subtotal_uzs > 0
     same = by_label(_plumbing_lines(room(rails=[{"id": "r1", "wallId": "2", "positionMm": 99999, "heightMm": 1000}], geometry=POLYGON), {}))
     assert pipe.qty == pytest.approx(same["Suv quvuri PPR Ø20"].qty, abs=0.05)
+
+
+# A rail's size and a picked shop product (spec 2026-11-15).
+def _shop(key, price, name):
+    return SimpleNamespace(id=uuid.uuid4(), name_uz=name, unit="dona", price_uzs=price, pack_qty=None, pack_unit=None,
+                           smeta_key=key, is_active=True, store=SimpleNamespace(name="Santex"))
+
+
+def test_with_no_shop_product_one_line_per_size_at_its_norm():
+    got = by_label(_plumbing_lines(room([RAIL, {**RAIL2, "size": "600x1000"}, {**RAIL2, "id": "r3", "positionMm": 400, "size": "600x1000"}]), {}))
+    a, b = got["Sochiq quritgich (50×80)"], got["Sochiq quritgich (60×100)"]
+    assert (a.qty, a.unit_price_uzs, a.is_approximate, a.warning) == (1, 650_000, True, EXTRAS_NORM_NOTE)
+    assert (b.qty, b.unit_price_uzs) == (2, 900_000)
+    assert "Sochiq quritgich" not in got
+
+
+@pytest.mark.parametrize(("size", "price"), [("500x500", 450_000), ("500x600", 520_000), ("500x800", 650_000), ("600x800", 750_000), ("600x1000", 900_000)])
+def test_each_size_has_its_norm(size, price):
+    label = "Sochiq quritgich ({}×{})".format(*(int(v) // 10 for v in size.split("x")))
+    assert by_label(_plumbing_lines(room([{**RAIL, "size": size}]), {}))[label].unit_price_uzs == price
+
+
+def test_an_unknown_size_is_priced_as_50_by_80():
+    assert by_label(_plumbing_lines(room([{**RAIL, "size": "1x1"}]), {}))["Sochiq quritgich (50×80)"].unit_price_uzs == 650_000
+
+
+def test_a_shop_product_prices_every_rail_in_one_line_whatever_its_size():
+    got = by_label(_plumbing_lines(room([RAIL, {**RAIL2, "size": "600x1000"}]), {"sochiq_quritgich": _shop("sochiq_quritgich", 700_000, "Terminus 50x80")}))
+    line = got["Sochiq quritgich: Terminus 50x80"]
+    assert (line.qty, line.unit_price_uzs, line.is_approximate) == (2, 700_000, False)
+    assert not any(k.startswith("Sochiq quritgich (") for k in got)
+
+
+def test_the_users_picked_product_beats_the_cheapest():
+    cheap, picked = _shop("sochiq_quritgich", 400_000, "Arzon"), _shop("sochiq_quritgich", 1_100_000, "Margroid 60x100")
+    r = room([RAIL])
+    r.surfaces = {"smeta:sochiq_quritgich": str(picked.id)}
+    est = compute_estimate(r, {str(picked.id): picked}, {}, catalog={"sochiq_quritgich": cheap})
+    line = next(ln for ln in est.lines if ln.label.startswith("Sochiq quritgich"))
+    assert (line.label, line.unit_price_uzs) == ("Sochiq quritgich: Margroid 60x100", 1_100_000)
+
+
+def test_a_pick_of_a_product_for_another_line_is_ignored():
+    other = _shop("kabel", 9_000, "VVG")
+    r = room([RAIL])
+    r.surfaces = {"smeta:sochiq_quritgich": str(other.id)}
+    est = compute_estimate(r, {str(other.id): other}, {}, catalog={})
+    assert any(ln.label == "Sochiq quritgich (50×80)" for ln in est.lines)
+
+
+def test_an_electric_rail_by_size_and_by_pick():
+    el = {**RAIL, "kind": "electric", "size": "600x800"}
+    assert by_label(_plumbing_lines(room([el]), {}))["Elektr sochiq quritgich (60×80)"].unit_price_uzs == 1_050_000
+    picked = _shop("sochiq_quritgich_el", 1_300_000, "Laris 60x80")
+    r = room([el])
+    r.surfaces = {"smeta:sochiq_quritgich_el": str(picked.id)}
+    est = compute_estimate(r, {str(picked.id): picked}, {}, catalog={})
+    assert any(ln.label == "Elektr sochiq quritgich: Laris 60x80" and ln.unit_price_uzs == 1_300_000 for ln in est.lines)
+
+
+@pytest.mark.parametrize(("label", "ru", "en"), [
+    ("Sochiq quritgich (50×50)", "Полотенцесушитель (50×50)", "Heated towel rail (50×50)"),
+    ("Sochiq quritgich (60×100)", "Полотенцесушитель (60×100)", "Heated towel rail (60×100)"),
+    ("Elektr sochiq quritgich (50×80)", "Электрический полотенцесушитель (50×80)", "Electric towel rail (50×80)"),
+])
+def test_sized_labels_read_in_russian_and_english(label, ru, en):
+    assert (localize_label(label, "ru"), localize_label(label, "en")) == (ru, en)

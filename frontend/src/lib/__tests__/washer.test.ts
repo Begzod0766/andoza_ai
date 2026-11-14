@@ -134,3 +134,15 @@ describe('a machine keeps clear of the riser (2026-11-14)', () => {
     expect(keepWashers([m], g, [], { wallId: 'A', positionMm: 0 })[0].positionMm).toBe(430)
   })
 })
+
+describe('a wide rail (2026-11-15)', () => {
+  it('a machine keeps clear of half the rail’s own width', () => {
+    const g = { walls: [
+      { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
+      { id: 'C', length: 2500, elements: [] }, { id: 'D', length: 2000, elements: [] },
+    ] } as unknown as RoomGeometry
+    const m = [{ id: 'm', wallId: 'A', positionMm: 1500 }]
+    expect(keepWashers(m, g, [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000 }])[0].positionMm).toBe(1800)
+    expect(keepWashers(m, g, [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000, size: '600x800' }])[0].positionMm).toBe(1850)
+  })
+})

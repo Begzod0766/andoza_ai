@@ -200,7 +200,7 @@ NON_WALL_SURFACE_KEYS: frozenset[str] = frozenset({"floor", "ceiling"})
 # estimate's own lines (the ceiling's board, profile, strip, cornice). It prices that line in
 # place of the shop's cheapest product, and, the price being the user's own pick, exactly.
 PICKED_PRODUCT_PREFIX = "smeta:"
-PICKABLE_SMETA_KEYS: frozenset[str] = frozenset({"gipsokarton", "profil", "led_lenta", "galtel"})
+PICKABLE_SMETA_KEYS: frozenset[str] = frozenset({"gipsokarton", "profil", "led_lenta", "galtel", "sochiq_quritgich", "sochiq_quritgich_el"})
 
 
 def _is_wall_surface_key(key: str) -> bool:
@@ -1995,10 +1995,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             lines.append(_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", qty=n, why=f"{n} mashina"))
 
     if rails:
-        lines.append(_piece_line(
-            "Sochiq quritgich", catalog.get("sochiq_quritgich"), load_bathroom_extras_norms()["towel_rail_uzs"],
-            "santexnika", qty=len(rails),
-        ))
+        lines.extend(_rail_lines("Sochiq quritgich", rails, catalog.get("sochiq_quritgich"), load_bathroom_extras_norms()["towel_rail_uzs_by_size"]))
 
     # Pipes, from the points saved with the room.
     # A fixture's point whose fixture is gone (a design replaced it) belongs to nothing: not priced.
@@ -2113,19 +2110,36 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             qty=len(rails), unit="dona", price_uzs=price, category="santexnika",
         ))
     if electric_rails:
-        lines.extend(_electric_rail_lines(len(electric_rails), catalog))
+        lines.extend(_electric_rail_lines(electric_rails, catalog))
     if washers:
         lines.extend(_washer_socket_lines(len(washers), catalog))
     return lines
 
 
-def _electric_rail_lines(n: int, catalog: dict) -> list[ComputedLine]:
-    """``n`` electric towel rails (2026-11-14): each rail (a shop's under "sochiq_quritgich_el", else
-    the norm), a moisture-proof IP44 socket for it ("rozetka_ip44"), a short cable to the nearest
+def _rail_lines(label: str, rails: list[dict], shop: "Material | None", by_size: dict) -> list[ComputedLine]:
+    """The rails themselves (2026-11-15): a shop product (the user's pick, else the cheapest tagged)
+    prices them all in one line, whatever their size; with none, one line per size at its norm."""
+    from app.services.towel_rail import RAIL_SIZES, rail_size
+
+    if shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0:
+        return [_piece_line(label, shop, 0, "santexnika", qty=len(rails))]
+    counts: dict[str, int] = {}
+    for r in rails:
+        counts[rail_size(r)] = counts.get(rail_size(r), 0) + 1
+    return [
+        _piece_line("{} ({}×{})".format(label, *(int(v) // 10 for v in size.split("x"))), None, int(by_size[size]), "santexnika", qty=counts[size])
+        for size in RAIL_SIZES if size in counts
+    ]
+
+
+def _electric_rail_lines(rails: list[dict], catalog: dict) -> list[ComputedLine]:
+    """The electric towel rails (2026-11-14): the rails (the user's pick or a shop's under
+    "sochiq_quritgich_el", else each size's norm, 2026-11-15), a moisture-proof IP44 socket for it ("rozetka_ip44"), a short cable to the nearest
     socket circuit (the shop's "kabel" per metre, else the default price) and the work."""
     from app.services.bathroom_extras import load_bathroom_extras_norms
 
     e = load_bathroom_extras_norms()
+    n = len(rails)
     cable = catalog.get("kabel")
     shop_price = _price_per(cable, "m")
     per_m = shop_price or ELEC_CABLE_PRICE_UZS
@@ -2133,7 +2147,7 @@ def _electric_rail_lines(n: int, catalog: dict) -> list[ComputedLine]:
     work = int(e["work_el_towel_rail_uzs"])
     fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
     return [
-        _piece_line("Elektr sochiq quritgich", catalog.get("sochiq_quritgich_el"), int(e["el_towel_rail_uzs"]), "santexnika", qty=n),
+        *_rail_lines("Elektr sochiq quritgich", rails, catalog.get("sochiq_quritgich_el"), e["el_towel_rail_uzs_by_size"]),
         _piece_line("Namga chidamli rozetka (IP44)", catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]), "santexnika", qty=n),
         _make_line(label="Elektr kabel (sochiq quritgich)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
                    price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
@@ -2988,7 +3002,9 @@ def compute_estimate(
     # 4. Furniture ("jihoz") — every distinct item the user has placed     #
     # ------------------------------------------------------------------ #
     lines.extend(_furniture_lines(room, catalog))
-    lines.extend(_plumbing_lines(room, catalog))
+    # A towel rail the user picked from a shop (2026-11-15) prices the rails in place of the cheapest.
+    rail_picks = {k: v for k, v in picked.items() if k in ("sochiq_quritgich", "sochiq_quritgich_el")}
+    lines.extend(_plumbing_lines(room, {**catalog, **rail_picks}))
 
     # ------------------------------------------------------------------ #
     # 4b. Light fixtures — the purchase price of each placed light. Separate #
