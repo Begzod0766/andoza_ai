@@ -471,11 +471,19 @@ class TestModerationVisibility:
         assert db.add.call_args.args[0].status == "approved"
         assert response.json()["status"] == "approved"
 
-    def test_seller_cannot_set_price_via_public_upload(self, client):
+    @pytest.mark.parametrize("field,value", [
+        ("name", "Mening oboyim"),
+        ("store_id", str(uuid.uuid4())),
+        ("price_uzs", "1000"),
+        ("description", "izoh"),
+        ("width_cm", "53"),
+        ("total_length_m", "10"),
+    ])
+    def test_seller_cannot_set_catalog_fields_via_public_upload(self, client, field, value):
         _as(_user(), _db())
         response = client.post(
             "/api/v1/wallpapers",
-            data={"price_uzs": "1000"},
+            data={field: value},
             files={"file": ("oboy.png", io.BytesIO(PNG), "image/png")},
         )
         assert response.status_code == 403
