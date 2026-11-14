@@ -176,3 +176,51 @@ describe('StudioTour', () => {
     expect(onFinish).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('StudioTour app bridge', () => {
+  let posted: string[]
+  beforeEach(() => {
+    posted = []
+    ;(window as unknown as { AndozaStudioTour?: { postMessage: (m: string) => void } }).AndozaStudioTour = {
+      postMessage: (m: string) => posted.push(m),
+    }
+  })
+  afterEach(() => {
+    delete (window as unknown as { AndozaStudioTour?: unknown }).AndozaStudioTour
+  })
+
+  it('tells the app when the tour opens and when it closes', () => {
+    mount(['scene', 'menu'])
+    render(<StudioTour steps={['scene', 'menu']} onFinish={() => {}} />)
+    expect(posted).toEqual(['open'])
+    fireEvent.click(screen.getByText(i18n.t('studio.tour.skip')))
+    expect(posted).toEqual(['open', 'closed'])
+  })
+
+  it('tells the app the tour closed when it unmounts mid-way', () => {
+    mount(['scene', 'menu'])
+    const { unmount } = render(<StudioTour steps={['scene', 'menu']} onFinish={() => {}} />)
+    unmount()
+    expect(posted.at(-1)).toBe('closed')
+  })
+
+  it('the app asking to skip ends the tour like Skip', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    render(<StudioTour steps={['scene', 'menu']} onFinish={onFinish} />)
+    act(() => { window.dispatchEvent(new Event('andoza:tour-skip')) })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+
+  it('says nothing when no target is on screen', () => {
+    render(<StudioTour steps={['scene']} onFinish={() => {}} />)
+    expect(posted).not.toContain('open')
+  })
+
+  it('works without the app (plain browser)', () => {
+    delete (window as unknown as { AndozaStudioTour?: unknown }).AndozaStudioTour
+    mount(['scene'])
+    render(<StudioTour steps={['scene']} onFinish={() => {}} />)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+})

@@ -34,3 +34,17 @@ export function presentSteps(
 export function shouldStartStudioTour(o: { done: boolean; compact: boolean; editingView: boolean }): boolean {
   return !o.done && o.compact && o.editingView;
 }
+
+/** Event the mobile app dispatches on the page (its system Back) to skip a running tour. */
+export const TOUR_SKIP_EVENT = "andoza:tour-skip";
+
+/**
+ * Tells the mobile app (Flutter WebView channel `AndozaStudioTour`) whether the tour is open,
+ * so it can hide its own Back button over the blur. A no-op in a plain browser.
+ */
+export function notifyAppTour(open: boolean): void {
+  try {
+    (window as unknown as { AndozaStudioTour?: { postMessage: (m: string) => void } })
+      .AndozaStudioTour?.postMessage(open ? "open" : "closed");
+  } catch { /* the app is optional */ }
+}
