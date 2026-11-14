@@ -21,6 +21,9 @@ import { MaterialSwatch } from "../MaterialSwatch";
  *  uploaded/library wallpaper image. */
 import { WALL_COLORS, wallColorName } from "@/lib/wallPalette";
 import { TileHeightControls } from "./TileHeightControls";
+import { BacksplashControls } from "./BacksplashControls";
+import { effectiveRoomType } from "@/lib/roomType";
+import type { Backsplash } from "@/store/types";
 import { isTileCovering } from "@/lib/tileBand";
 import { wallNumber } from "@/lib/wallLabel";
 
@@ -72,6 +75,14 @@ export function WallSection({
   const surfaces = useRoomStore((s) => s.surfaces);
   const applySurface = useRoomStore((s) => s.applySurface);
   const tweakWallCovering = useRoomStore((s) => s.tweakWallCovering);
+  const roomType = useRoomStore((s) => s.roomType);
+  const setDesignState = useRoomStore((s) => s.setDesignState);
+  // A kitchen's backsplash block (spec 2026-11-14): by the room's type, else what its name reads as.
+  const isKitchen = effectiveRoomType(roomType, room.name ?? "") === "oshxona";
+  function setBacksplashes(backsplashes: Backsplash[]) {
+    setDesignState({ backsplashes });
+    syncToApi({ ...useRoomStore.getState().designState, backsplashes });
+  }
 
   /** A change to the covering the target already wears (tile height, texture mapping). Under ALL
    * the walls with a covering of their own keep it, here and in what is saved. */
@@ -213,6 +224,12 @@ export function WallSection({
       {isTileCovering(targetCovering) && (
         <section className="pt-5 border-t border-line">
           <TileHeightControls covering={targetCovering} ceilingMm={ceilingHeight} onChange={tweakCovering} />
+        </section>
+      )}
+      {isKitchen && (
+        <section className="pt-5 border-t border-line">
+          <BacksplashControls geometry={geometry} ceilingMm={ceilingHeight} targetWall={targetWall}
+            value={designState.backsplashes} onChange={setBacksplashes} />
         </section>
       )}
       <section className="pt-5 border-t border-line">

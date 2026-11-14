@@ -1020,6 +1020,19 @@
       "floor_drain": "Dush poddonsiz (pol trapi)",
       "water_inlet": "Suv kirish uzeli (hisoblagich, filtr, reduktor)"
     },
+    "backsplash": {
+      "title": "Oshxona fartugi",
+      "add": "Fartuk qo'shish",
+      "wall": "Devor",
+      "wall_n": "Devor {{n}}",
+      "tile": "Plitka",
+      "skinali": "Skinali",
+      "start": "Boshlanishi, sm",
+      "length": "Uzunligi, sm",
+      "bottom": "Pastdan, sm",
+      "top": "Yuqorigacha, sm",
+      "remove": "Olib tashlash"
+    },
     "tile_height": {
       "title": "Plitka balandligi",
       "full": "Shiftgacha",

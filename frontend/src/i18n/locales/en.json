@@ -1020,6 +1020,19 @@
       "floor_drain": "Shower with no tray (floor drain)",
       "water_inlet": "Water inlet (meter, filter, pressure reducer)"
     },
+    "backsplash": {
+      "title": "Kitchen backsplash",
+      "add": "Add a backsplash",
+      "wall": "Wall",
+      "wall_n": "Wall {{n}}",
+      "tile": "Tile",
+      "skinali": "Skinali",
+      "start": "Starts at, cm",
+      "length": "Length, cm",
+      "bottom": "From, cm",
+      "top": "Up to, cm",
+      "remove": "Remove"
+    },
     "tile_height": {
       "title": "Tile height",
       "full": "To the ceiling",
