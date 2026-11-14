@@ -53,3 +53,16 @@ describe('an item that hands over to a panel closes the menu (mobile QA 2026-11-
     expect(onOpenChange).toHaveBeenLastCalledWith(false)
   })
 })
+
+describe('the Studio tour folds the menu away', () => {
+  it('closes a fanned-out ring when `closed` turns true', () => {
+    const cats = [category(2)]
+    const { rerender } = render(<QuarterArcMenu categories={cats} />)
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.arc.add') }))
+    fireEvent.click(screen.getByRole('button', { name: /Devor/ }))
+    expect(screen.getByRole('button', { name: /Oboy 1/ })).toBeInTheDocument()
+    rerender(<QuarterArcMenu categories={cats} closed />)
+    expect(screen.queryByRole('button', { name: /Oboy 1/ })).toBeNull()
+    expect(screen.getByRole('button', { name: i18n.t('studio.arc.add') })).toHaveAttribute('aria-expanded', 'false')
+  })
+})

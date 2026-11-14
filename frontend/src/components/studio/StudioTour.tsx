@@ -31,7 +31,9 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   const { t } = useTranslation();
   // The targets on screen when the tour opens; a step whose target is missing is dropped.
   const [ids] = useState(() => steps.filter((s) => measure(s) !== null));
-  const [index, setIndex] = useState(0);
+  // `gone` counts the steps dropped along the way, so the counter reads "2/6", not "3/7".
+  const [pos, setPos] = useState({ index: 0, gone: 0 });
+  const { index, gone } = pos;
   const id = ids[index];
   const [box, setBox] = useState<Box | null>(() => (id ? measure(id) : null));
   const [cardH, setCardH] = useState(0);
@@ -47,15 +49,24 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
     onFinishRef.current();
   };
   const last = index === ids.length - 1;
-  const next = () => (last ? finish() : setIndex((i) => i + 1));
+  const next = () => (last ? finish() : setPos((p) => ({ ...p, index: p.index + 1 })));
 
   useLayoutEffect(() => {
     if (!id) return;
     const update = () => {
       const b = measure(id);
       if (b) setBox(b);
-      else if (last) finish(); // the target vanished: move on, or end on the last step
-      else setIndex((i) => i + 1);
+      else {
+        // The target vanished: move to the next step still on screen (the updater only acts
+        // while the position is still on this step, so resize + orientationchange together
+        // advance once), or end when none is left.
+        setPos((p) => {
+          if (ids[p.index] !== id) return p;
+          let k = p.index + 1;
+          while (k < ids.length && measure(ids[k]) === null) k++;
+          return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
+        });
+      }
     };
     update();
     window.addEventListener("resize", update);
@@ -67,7 +78,9 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const empty = ids.length === 0;
-  useEffect(() => { if (empty) finish(); }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Past the last step (nothing left on screen after a rotation) ends the tour too.
+  const spent = empty || index >= ids.length;
+  useEffect(() => { if (spent) finish(); }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useLayoutEffect(() => {
     const h = cardRef.current?.getBoundingClientRect().height ?? 0;
@@ -107,6 +120,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
       <div
         ref={cardRef}
         role="dialog"
+        aria-modal="true"
         aria-label={t(`studio.tour.${id}.title`)}
         className="fixed inset-x-4 mx-auto max-w-sm overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         style={cardStyle}
@@ -115,7 +129,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
         <p className="mt-1 text-sm text-ink-muted">{t(`studio.tour.${id}.body`)}</p>
         <div className="mt-3 flex items-center gap-3">
           <span className="text-xs tabular-nums text-ink-muted">
-            {t("studio.tour.step_of", { current: index + 1, total: ids.length })}
+            {t("studio.tour.step_of", { current: index + 1 - gone, total: ids.length - gone })}
           </span>
           <button type="button" onClick={finish} className="ml-auto rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10">
             {t("studio.tour.skip")}

@@ -115,6 +115,44 @@ describe('StudioTour', () => {
     expect(onFinish).toHaveBeenCalledTimes(1)
   })
 
+  it('a rotation (resize + orientationchange back to back) with a vanished target moves on once', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu', 'arc'])
+    rects.arc = { left: 10, top: 300, width: 40, height: 40 }
+    render(<StudioTour steps={['scene', 'menu', 'arc']} onFinish={onFinish} />)
+    rects.scene = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+      window.dispatchEvent(new Event('orientationchange'))
+    })
+    // menu is still there: it must not be skipped, and the counter does not jump
+    expect(screen.getByText(i18n.t('studio.tour.menu.title'))).toBeInTheDocument()
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('a rotation that takes the remaining targets away finishes once instead of hanging', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu', 'arc'])
+    rects.arc = { left: 10, top: 300, width: 40, height: 40 }
+    const { container } = render(<StudioTour steps={['scene', 'menu', 'arc']} onFinish={onFinish} />)
+    fireEvent.click(container.querySelector('[data-tour-hole]') as HTMLElement)
+    expect(screen.getByText(i18n.t('studio.tour.menu.title'))).toBeInTheDocument()
+    rects.menu = { left: 0, top: 0, width: 0, height: 0 }
+    rects.arc = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+      window.dispatchEvent(new Event('orientationchange'))
+    })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+
+  it('the card is a modal dialog', () => {
+    mount(['scene'])
+    render(<StudioTour steps={['scene']} onFinish={() => {}} />)
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
+  })
+
   it('treats an off-screen target as absent', () => {
     rects.scene = { left: 5000, top: 5000, width: 50, height: 50 }
     mount(['scene', 'menu'])

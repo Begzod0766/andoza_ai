@@ -1031,6 +1031,7 @@ export default function ThreeDPage() {
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
               tourId="arc"
+              closed={studioTourActive}
             />
           </div>}
 
