@@ -5,9 +5,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { deleteWallpaper, listWallpapers, type AdminStore, type Wallpaper } from "@/lib/api";
+import { deleteWallpaper, listAllWallpapers, type AdminStore, type Wallpaper } from "@/lib/api";
 import { intlLocale } from "@/i18n";
 import type { TFunction } from "i18next";
+import { StatusBadge } from "@/pages/seller/StatusBadge";
+import { isRemovedByShop } from "@/pages/seller/removedByShop";
 import { WallpaperEditDialog } from "./WallpaperEditDialog";
 import { WallpaperFormDialog } from "./WallpaperFormDialog";
 import { requestError, type FormError } from "@/lib/formError";
@@ -53,7 +55,7 @@ export function WallpaperSection({
 
   const { data: allWallpapers = [] } = useQuery<Wallpaper[]>({
     queryKey: ["wallpapers", storeId ?? "all"],
-    queryFn: () => listWallpapers(storeId ? { store_id: storeId } : {}),
+    queryFn: () => listAllWallpapers(storeId ? { store_id: storeId } : {}),
   });
   // The overview's global view only wants unassigned entries — a shop's own
   // oboy show up on that shop's profile instead, not duplicated here.
@@ -119,6 +121,13 @@ export function WallpaperSection({
                 className="w-full aspect-square rounded-lg object-cover border border-line"
               />
               <p className="text-xs font-medium text-ink truncate" title={w.name}>{w.name}</p>
+              {isRemovedByShop(w) ? (
+                <span className="inline-flex items-center rounded-full border border-line px-2.5 py-0.5 text-[11px] font-bold text-ink-muted">
+                  {t("seller.wallpapers.removed")}
+                </span>
+              ) : (
+                <StatusBadge status={w.status} />
+              )}
               {dimensionsLabel(w, t) && (
                 <p className="text-[11px] text-ink-muted">{dimensionsLabel(w, t)}</p>
               )}
