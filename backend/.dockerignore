@@ -1,0 +1,5 @@
+# Kept out of the image: in production every service that runs this image (api, worker,
+# styles-worker, converter, beat) mounts the media_data volume over /app/media, so a copy baked
+# into the image is never seen. It was 533 MB of the repo's 3D model library, and re-pulling it
+# made every backend deploy take 13-25 minutes instead of 2-3 (2026-11-14).
+media/
