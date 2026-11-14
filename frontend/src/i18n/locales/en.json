@@ -1252,6 +1252,8 @@
       "socket_ip44": "Moisture-proof socket (IP44)",
       "el_rail_cable": "Electric cable (towel rail)",
       "work_el_towel_rail": "Work: fitting the electric towel rail",
+      "slope_mix": "Sloped screed mix",
+      "work_shower_slope": "Work: sloping the shower zone to the drain",
       "washer_socket": "Washing machine socket (IP44)",
       "washer_cable": "Electric cable (washing machine)",
       "work_washer_socket": "Work: fitting the washing machine socket"
@@ -2313,7 +2315,8 @@
         "gipsokarton_nam": "Moisture-resistant drywall",
         "skinali": "Skinali (glass backsplash)",
         "sochiq_quritgich_el": "Electric towel rail",
-        "rozetka_ip44": "Moisture-proof socket (IP44)"
+        "rozetka_ip44": "Moisture-proof socket (IP44)",
+        "styajka": "Screed mix (bag)"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",
