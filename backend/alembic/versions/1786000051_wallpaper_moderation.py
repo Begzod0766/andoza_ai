@@ -4,8 +4,8 @@ A shop owner can now add an oboy that waits for an admin. Every existing row
 (and every plain studio upload) stays approved; only the seller flow creates
 `pending` rows. Same shape as furniture.status / moderation_note.
 
-Revision ID: 1786000050
-Revises: 1786000049
+Revision ID: 1786000051
+Revises: 1786000050
 Create Date: 2026-11-15 00:00:00.000000
 """
 from __future__ import annotations
@@ -15,8 +15,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "1786000050"
-down_revision: Union[str, None] = "1786000049"
+revision: str = "1786000051"
+down_revision: Union[str, None] = "1786000050"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
