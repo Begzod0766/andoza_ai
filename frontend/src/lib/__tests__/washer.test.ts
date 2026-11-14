@@ -2,9 +2,9 @@
 import { describe, it, expect } from 'vitest'
 import type { RoomGeometry, Washer } from '@/store/types'
 import { roomModel, overlaps, type Rect } from '@/lib/aiDesignLayout'
-import { wallWalk } from '@/lib/plumbingRuns'
+import { riserPose, wallWalk } from '@/lib/plumbingRuns'
 import {
-  washerPoints, withWasherPoints, washerSpans, nearestFreeWasher, placeWasher, keepWashers, saneWashers, washerBox,
+  washerPoints, withWasherPoints, washerSpans, nearestFreeWasher, placeWasher, keepWashers, saneWashers, washerBox, riserTaken,
   WASHER_W_MM, WASHER_D_MM, WASHER_H_MM,
 } from '@/lib/washer'
 import shared from './fixtures/washerPoints.json'
@@ -53,13 +53,13 @@ describe('where a machine may stand', () => {
 describe('placeWasher', () => {
   const riser = { wallId: 'A', positionMm: 0 }
   it('on the riser\'s wall, as near it as it fits', () => {
-    expect(placeWasher(rect(2500, 2000), riser, [], [])).toEqual({ wallId: 'A', positionMm: 300 })
+    expect(placeWasher(rect(2500, 2000), riser, [], [])).toMatchObject({ wallId: 'A' })
   })
   it('furniture on that spot moves it on to a place whose floor box is clear', () => {
     const g = rect(2500, 2000)
-    const blocker: Rect = { ...washerBox(g, { wallId: 'A', positionMm: 300 })!, w: 0.9 }
+    const blocker: Rect = { ...washerBox(g, { wallId: 'A', positionMm: 430 })!, w: 0.9 }
     const at = placeWasher(g, riser, [], [blocker])!
-    expect(at).not.toEqual({ wallId: 'A', positionMm: 300 })
+    expect(at).not.toEqual({ wallId: 'A', positionMm: 430 })
     expect(overlaps(washerBox(g, at)!, blocker, 0)).toBe(false)
   })
   it('a second machine does not overlap the first', () => {
@@ -104,5 +104,33 @@ describe('saneWashers', () => {
     expect(saneWashers([{ id: 'a', wallId: 'A', positionMm: 5 }, null, 3, { id: '', wallId: 'A', positionMm: 1 }, { id: 'b', positionMm: 1 }, { id: 'c', wallId: 'A', positionMm: NaN }]))
       .toEqual([{ id: 'a', wallId: 'A', positionMm: 5 }])
     expect(saneWashers('x')).toEqual([])
+  })
+})
+
+describe('a machine keeps clear of the riser (2026-11-14)', () => {
+  const g = rect(2500, 2000)
+  const riserRect = (r: { wallId: string; positionMm: number }): Rect => {
+    const p = riserPose(r, g)!
+    return { x: p.x, z: p.z, w: 0.11, d: 0.11, rotation: 0 }
+  }
+  it.each([
+    ['in the corner', { wallId: 'A', positionMm: 0 }],
+    ['at the far corner', { wallId: 'A', positionMm: 2500 }],
+    ['mid-wall', { wallId: 'A', positionMm: 1200 }],
+  ])('a new machine is not stood over a riser %s', (_n, riser) => {
+    const at = placeWasher(g, riser, [], [])!
+    expect(overlaps(washerBox(g, at)!, riserRect(riser), 0)).toBe(false)
+  })
+  it('in the corner it stands just past the pipe: 70 + 55 + 5 + 300 mm along', () => {
+    expect(placeWasher(g, { wallId: 'A', positionMm: 0 }, [], [])).toEqual({ wallId: 'A', positionMm: 430 })
+  })
+  it('the riser blocks the wall it stands on and, in a corner, the wall that meets it', () => {
+    const corner = riserTaken(g, { wallId: 'A', positionMm: 0 })
+    expect(corner.map((t) => t.wallId).sort()).toEqual(['A', 'D'])
+    expect(riserTaken(g, { wallId: 'A', positionMm: 1200 })).toEqual([{ wallId: 'A', positionMm: 1200, halfMm: 60 }])
+  })
+  it('keepWashers moves a machine off a riser', () => {
+    const m: Washer = { id: 'm', wallId: 'A', positionMm: 300 }
+    expect(keepWashers([m], g, [], { wallId: 'A', positionMm: 0 })[0].positionMm).toBe(430)
   })
 })

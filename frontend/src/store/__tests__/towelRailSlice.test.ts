@@ -3,7 +3,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import { useRoomStore, UNDO_COALESCE_MS } from '../roomStore'
 import { roomContentChanged } from '@/lib/autosave'
 import { riserSpot } from '@/lib/plumbingRuns'
-import { placeTowelRail, TOWEL_RAIL_HEIGHT_MM } from '@/lib/towelRail'
+import { nearestFree, placeTowelRail, TOWEL_RAIL_HEIGHT_MM } from '@/lib/towelRail'
 import type { RoomGeometry } from '../types'
 
 const DOOR = { id: 'd', type: 'eshik', position: 650, width: 700, height: 2050 }
@@ -196,5 +196,40 @@ describe('ending a drag twice is safe (a scene that unmounts mid-drag ends it to
     st().endPlumbingDrag()
     st().endPlumbingDrag()
     expect(useRoomStore.temporal.getState().isTracking).toBe(true)
+  })
+})
+
+describe('a rail and a washing machine (2026-11-14)', () => {
+  it('a new rail is not hung over a machine', () => {
+    st().addWasher()
+    st().addTowelRail()
+    const [m] = st().washers
+    const [r] = st().towelRails
+    expect(r.wallId !== m.wallId || Math.abs(r.positionMm - m.positionMm) >= 550).toBe(true)
+  })
+  it('a rail slid onto a machine stops beside it', () => {
+    useRoomStore.setState({
+      washers: [{ id: 'm', wallId: 'B', positionMm: 1000 }],
+      towelRails: [{ id: 'r', wallId: 'B', positionMm: 300, heightMm: TOWEL_RAIL_HEIGHT_MM }],
+    })
+    st().moveTowelRail('r', 1000)
+    expect(st().towelRails[0].positionMm).toBe(1000 - 300 - 250)
+  })
+})
+
+describe('swapping two openings keeps rails and machines clear (2026-11-14)', () => {
+  it('a window swapped onto a rail moves the rail off it', () => {
+    const wall = (els: unknown[]) => ({ ...geometry, walls: geometry.walls.map((w) => (w.id === 'A' ? { ...w, length: 3000, elements: els } : w)) }) as unknown as RoomGeometry
+    useRoomStore.setState({
+      geometry: wall([
+        { id: 'door', type: 'eshik', position: 100, width: 700, height: 2050 },
+        { id: 'win', type: 'deraza', position: 2000, width: 900, height: 1200 },
+      ]),
+      towelRails: [{ id: 'r', wallId: 'A', positionMm: 1150, heightMm: TOWEL_RAIL_HEIGHT_MM }],
+    })
+    st().swapAdjacentElements('A', 'door', 'win')
+    const g = st().geometry
+    expect(st().towelRails[0].positionMm).not.toBe(1150)
+    expect(nearestFree(g, 'A', st().towelRails[0].positionMm)).toBe(st().towelRails[0].positionMm)
   })
 })

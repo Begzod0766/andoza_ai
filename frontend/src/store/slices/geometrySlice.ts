@@ -4,6 +4,7 @@ import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, Towe
 import { withFixturePoints } from '@/lib/plumbingPoints'
 import { keepRails } from '@/lib/towelRail'
 import { keepWashers } from '@/lib/washer'
+import { roomRiser } from '@/lib/plumbingRuns'
 import { defaultGeometry, resizeWall } from '../utils/geometryHelpers'
 import type { RoomStore } from '../roomStoreTypes'
 
@@ -25,11 +26,18 @@ export interface GeometrySlice {
   applyRoomShape(geometry: RoomGeometry, extra?: { furniture?: PlacedFurniture[]; lights?: PlacedLight[]; electricals?: PlacedElectrical[]; designState?: DesignState }): void
 }
 
-/** A change to a wall's openings, with the towel rails kept clear of them: a door or window that
- * comes onto a rail moves the rail to the nearest free place (and it is one undo step with the door). */
+/** The rails and machines a new room shape keeps: the rails kept clear of the openings, the machines
+ * of the openings, the rails and the riser. */
+function kept(state: RoomStore, geometry: RoomGeometry): { towelRails: TowelRail[]; washers: Washer[] } {
+  const towelRails = keepRails(state.towelRails, geometry)
+  return { towelRails, washers: keepWashers(state.washers, geometry, towelRails, roomRiser(geometry, state.plumbingRiser)) }
+}
+
+/** A change to a wall's openings, with the towel rails and machines kept clear of them: a door or
+ * window that comes onto a rail moves the rail to the nearest free place (and it is one undo step
+ * with the door). */
 function withRails<T extends { geometry: RoomGeometry }>(state: RoomStore, next: T): T & { towelRails: TowelRail[]; washers: Washer[] } {
-  const towelRails = keepRails(state.towelRails, next.geometry)
-  return { ...next, towelRails, washers: keepWashers(state.washers, next.geometry, towelRails) }
+  return { ...next, ...kept(state, next.geometry) }
 }
 
 export const createGeometrySlice: StateCreator<
@@ -50,8 +58,7 @@ export const createGeometrySlice: StateCreator<
       const geometry = resizeWall(state.geometry, wallId, length)
       // A point is measured from its wall's start, which moves when the room is resized.
       return {
-        isDirty: true, geometry, towelRails: keepRails(state.towelRails, geometry),
-        washers: keepWashers(state.washers, geometry, keepRails(state.towelRails, geometry)),
+        isDirty: true, geometry, ...kept(state, geometry),
         plumbing: withFixturePoints(state.plumbing, state.furniture, state.catalogFurniture, geometry),
       }
     })
@@ -62,8 +69,7 @@ export const createGeometrySlice: StateCreator<
       ...(extra ?? {}),
       geometry,
       plumbing: withFixturePoints(state.plumbing, extra?.furniture ?? state.furniture, state.catalogFurniture, geometry),
-      towelRails: keepRails(state.towelRails, geometry),
-      washers: keepWashers(state.washers, geometry, keepRails(state.towelRails, geometry)),
+      ...kept(state, geometry),
       isDirty: true,
     }))
   },
@@ -130,7 +136,7 @@ export const createGeometrySlice: StateCreator<
   },
 
   swapAdjacentElements(wallId, id1, id2) {
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).

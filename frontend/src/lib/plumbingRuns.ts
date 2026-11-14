@@ -126,3 +126,31 @@ export function riserToSave(geometry: RoomGeometry, manual: RiserAt | null | und
   const at = roomRiser(geometry, manual)
   return manual && at.wallId === manual.wallId ? { ...at, manual: true } : at
 }
+
+/** From the wall to the pipe's centre, metres: a Ø110 pipe standing against it. */
+export const RISER_OFF_WALL_M = 0.07
+/** The pipe's radius, metres. */
+export const RISER_RADIUS_M = 0.055
+
+/** Where the riser stands (plan, world metres): on its wall, off it into the room; in a corner off both walls. */
+export function riserPose(riser: RiserAt, geometry: RoomGeometry): { x: number; z: number } | null {
+  const walk = wallWalk(geometry)
+  const i = walk.findIndex((w) => w.id === riser.wallId)
+  if (i < 0) return null
+  const w = walk[i]
+  const t = Math.min(w.lengthM, Math.max(0, riser.positionMm / 1000))
+  let x = w.startX + w.dirX * t + w.nx * RISER_OFF_WALL_M
+  let z = w.startZ + w.dirZ * t + w.nz * RISER_OFF_WALL_M
+  // Near a corner the wall that meets this one would cut through the pipe: step off it too.
+  const prev = walk[(i - 1 + walk.length) % walk.length]
+  const next = walk[(i + 1) % walk.length]
+  if (t < RISER_OFF_WALL_M) {
+    x += prev.nx * (RISER_OFF_WALL_M - t)
+    z += prev.nz * (RISER_OFF_WALL_M - t)
+  }
+  if (w.lengthM - t < RISER_OFF_WALL_M) {
+    x += next.nx * (RISER_OFF_WALL_M - (w.lengthM - t))
+    z += next.nz * (RISER_OFF_WALL_M - (w.lengthM - t))
+  }
+  return { x, z }
+}

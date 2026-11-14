@@ -154,3 +154,17 @@ describe('a rail being dragged stays on its side of a door (mobile QA 2026-11-11
     expect(nearestFree(g, 'D', 1200, 1000)).toBe(1600)
   })
 })
+
+describe('a rail keeps clear of a washing machine (2026-11-14)', () => {
+  const g = rect(2500, 2000)
+  const machine = { wallId: 'A', positionMm: 1000, halfMm: 300 }
+  it('nearestFree does not hang it over the machine', () => {
+    expect(nearestFree(g, 'A', 1100, undefined, [machine])).toBe(1000 + 300 + 250)
+    // A machine on another wall changes nothing here.
+    expect(nearestFree(g, 'A', 1100, undefined, [{ ...machine, wallId: 'B' }])).toBe(1100)
+  })
+  it('a new rail is not hung over a machine by the riser', () => {
+    const at = placeTowelRail(g, { wallId: 'A', positionMm: 0 }, [{ wallId: 'A', positionMm: 600, halfMm: 300 }])!
+    expect(at.wallId !== 'A' || Math.abs(at.positionMm - 600) >= 550).toBe(true)
+  })
+})
