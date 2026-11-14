@@ -59,6 +59,7 @@ export function QuarterArcMenu({
   label,
   className = '',
   onOpenChange,
+  tourId,
 }: {
   categories: ArcCategory[]
   /** Accessible name for the corner button itself. */
@@ -68,6 +69,8 @@ export function QuarterArcMenu({
   /** Fires as the menu opens and closes, so the page can clear whatever the
    *  fanned-out ring would otherwise land on top of. */
   onOpenChange?: (open: boolean) => void
+  /** The Studio tour's target id for the corner button (StudioTour). */
+  tourId?: string
 }) {
   const { t } = useTranslation()
   const buttonLabel = label ?? t('studio.arc.add')
@@ -381,6 +384,7 @@ export function QuarterArcMenu({
             to put it away. */}
         <button
           ref={fabRef}
+          data-tour={tourId}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); open ? closeAll() : setOpen(true) }}
           aria-label={buttonLabel}

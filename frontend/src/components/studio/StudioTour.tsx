@@ -17,6 +17,11 @@ function measure(id: StudioTourTarget): Box | null {
   return { left: r.left, top: r.top, width: r.width, height: r.height };
 }
 
+/** Whether the tour would show this target right now (in the DOM, with a box, on screen). */
+export function isTourTargetShown(id: StudioTourTarget): boolean {
+  return measure(id) !== null;
+}
+
 /**
  * First-run tour of the Studio: a spotlight over each target in turn, the rest of the view
  * blurred and dimmed. It never marks itself done — `onFinish` (skip or the last step) tells
