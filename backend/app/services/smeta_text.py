@@ -160,6 +160,7 @@ _LABEL_HEADS = {
     "Skinali (shisha fartuk)": "skinali",
     "Elektr sochiq quritgich": "el_towel_rail",
     "Namga chidamli rozetka (IP44)": "socket_ip44",
+    "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
     "Suv hisoblagichi": "water_meter",
     "Dag'al filtr": "water_filter",
     "Bosim reduktori": "pressure_reducer",
@@ -252,6 +253,9 @@ _WHOLE_LABELS = {
     "Namga chidamli rozetka (IP44)": "socket_ip44",
     "Elektr kabel (sochiq quritgich)": "el_rail_cable",
     "Ish: elektr sochiq quritgichni o'rnatish": "work_el_towel_rail",
+    "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
+    "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
+    "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.

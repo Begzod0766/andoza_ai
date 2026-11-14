@@ -69,6 +69,7 @@ const LABEL_HEADS = {
   "Quti profili (karkas)": "frame_box_profile",
   "Elektr sochiq quritgich": "el_towel_rail",
   "Namga chidamli rozetka (IP44)": "socket_ip44",
+  "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -155,6 +156,9 @@ const WHOLE_LABELS = {
   "Namga chidamli rozetka (IP44)": "socket_ip44",
   "Elektr kabel (sochiq quritgich)": "el_rail_cable",
   "Ish: elektr sochiq quritgichni o'rnatish": "work_el_towel_rail",
+  "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
+  "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
+  "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */
