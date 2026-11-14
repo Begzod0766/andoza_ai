@@ -32,4 +32,7 @@ describe('saneBacksplashes', () => {
     expect(saneBacksplashes('x')).toEqual([])
     expect(saneBacksplashes(undefined)).toEqual([])
   })
+  it('a missing or bad colour reads as the material\'s own', () => {
+    expect(saneBacksplashes([{ ...good, color: undefined }, { ...good, id: 'b', material: 'tile', color: 7 }]).map((b) => b.color)).toEqual(['#FFFFFF', '#F2EFE9'])
+  })
 })

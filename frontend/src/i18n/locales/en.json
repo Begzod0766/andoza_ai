@@ -1031,7 +1031,8 @@
       "length": "Length, cm",
       "bottom": "From, cm",
       "top": "Up to, cm",
-      "remove": "Remove"
+      "remove": "Remove",
+      "chip": "{{lo}}–{{hi}} cm"
     },
     "tile_height": {
       "title": "Tile height",

@@ -1031,7 +1031,8 @@
       "length": "Uzunligi, sm",
       "bottom": "Pastdan, sm",
       "top": "Yuqorigacha, sm",
-      "remove": "Olib tashlash"
+      "remove": "Olib tashlash",
+      "chip": "{{lo}}–{{hi}} sm"
     },
     "tile_height": {
       "title": "Plitka balandligi",

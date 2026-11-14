@@ -32,13 +32,16 @@ export function newBacksplash(geometry: RoomGeometry, wallId: string): Backsplas
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
-/** Backsplashes read from a saved room: anything that is not a sound one is left out. */
+/** Backsplashes read from a saved room: anything that is not a sound one is left out; a missing or
+ * bad colour reads as its material's own. */
 export function saneBacksplashes(saved: unknown): Backsplash[] {
   if (!Array.isArray(saved)) return []
-  return saved.filter((b): b is Backsplash =>
-    !!b && typeof b === 'object' && typeof b.id === 'string' && b.id !== '' && typeof b.wallId === 'string' && b.wallId !== ''
-    && (b.material === 'tile' || b.material === 'skinali')
-    && finite(b.startMm) && finite(b.lengthMm) && finite(b.bottomMm) && finite(b.topMm))
+  return saved
+    .filter((b): b is Backsplash =>
+      !!b && typeof b === 'object' && typeof b.id === 'string' && b.id !== '' && typeof b.wallId === 'string' && b.wallId !== ''
+      && (b.material === 'tile' || b.material === 'skinali')
+      && finite(b.startMm) && finite(b.lengthMm) && finite(b.bottomMm) && finite(b.topMm))
+    .map((b) => (typeof b.color === 'string' && /^#[0-9a-f]{6}$/i.test(b.color) ? b : { ...b, color: BACKSPLASH_COLOR[b.material] }))
 }
 
 /** Its rectangle kept on its wall and under the ceiling; null when what is left is under 10 cm a side. */

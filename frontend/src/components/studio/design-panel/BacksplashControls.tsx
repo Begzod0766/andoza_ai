@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import type { Backsplash, RoomGeometry } from "@/store/types";
-import { BACKSPLASH_COLOR, backsplashAreaM2, backsplashPieces, newBacksplash } from "@/lib/backsplash";
+import { BACKSPLASH_COLOR, backsplashAreaM2, backsplashPieces, newBacksplash, saneBacksplashes } from "@/lib/backsplash";
 import { WALL_COLORS, wallColorName } from "@/lib/wallPalette";
 import { wallNumber } from "@/lib/wallLabel";
 
@@ -22,7 +22,8 @@ export function BacksplashControls({ geometry, ceilingMm, targetWall, value, onC
   onChange: (next: Backsplash[]) => void;
 }) {
   const { t } = useTranslation();
-  const list = value ?? [];
+  // What a saved room holds is read as the studio draws it: a broken entry is left out.
+  const list = React.useMemo(() => saneBacksplashes(value), [value]);
   const walls = geometry.walls;
   const add = () => {
     const wallId = walls.some((w) => w.id === targetWall) ? targetWall : walls[0]?.id;
@@ -34,11 +35,11 @@ export function BacksplashControls({ geometry, ceilingMm, targetWall, value, onC
     <div className="space-y-3 rounded-xl border border-line bg-card-soft p-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{t("studio.backsplash.title")}</p>
       {list.map((b) => (
-        <BacksplashRow key={b.id} b={b} geometry={geometry} ceilingMm={ceilingMm} t={t}
+        <BacksplashRow key={b.id} b={b} geometry={geometry} ceilingMm={ceilingMm}
           onPatch={(p) => patch(b.id, p)} onRemove={() => onChange(list.filter((x) => x.id !== b.id))} wallIds={walls.map((w) => w.id)} />
       ))}
       <button type="button" onClick={add}
-        className="w-full rounded-lg border border-dashed border-brand/60 py-1.5 text-[12px] font-medium text-brand hover:bg-brand/5">
+        className="w-full rounded-lg border border-dashed border-brand/60 py-1.5 text-[12px] font-medium text-ink hover:bg-brand/5">
         {t("studio.backsplash.add")}
       </button>
     </div>
@@ -65,10 +66,11 @@ function CmField({ label, mm, onCommit }: { label: string; mm: number; onCommit:
   );
 }
 
-function BacksplashRow({ b, geometry, ceilingMm, wallIds, onPatch, onRemove, t }: {
+function BacksplashRow({ b, geometry, ceilingMm, wallIds, onPatch, onRemove }: {
   b: Backsplash; geometry: RoomGeometry; ceilingMm: number; wallIds: string[];
-  onPatch: (p: Partial<Backsplash>) => void; onRemove: () => void; t: (k: string, o?: Record<string, unknown>) => string;
+  onPatch: (p: Partial<Backsplash>) => void; onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const wallId = React.useId();
   const wallLen = geometry.walls.find((w) => w.id === b.wallId)?.length ?? 0;
   const area = backsplashAreaM2(backsplashPieces(b, geometry, ceilingMm));
@@ -103,7 +105,7 @@ function BacksplashRow({ b, geometry, ceilingMm, wallIds, onPatch, onRemove, t }
         {HEIGHT_CHIPS.map(([lo, hi]) => (
           <button key={`${lo}-${hi}`} type="button" aria-pressed={b.bottomMm === lo && b.topMm === hi}
             className={chip(b.bottomMm === lo && b.topMm === hi)} onClick={() => onPatch({ bottomMm: lo, topMm: hi })}>
-            {lo / 10}–{hi / 10} sm
+            {t("studio.backsplash.chip", { lo: lo / 10, hi: hi / 10 })}
           </button>
         ))}
       </div>
