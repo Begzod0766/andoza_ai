@@ -63,6 +63,11 @@ jobs:
       - name: Run pytest
         run: cd backend && pytest -v
 
+      - name: Deploy script checks
+        run: |
+          bash -n deploy/remote-deploy.sh
+          bash deploy/tests/test_prune_old_images.sh
+
   frontend:
     runs-on: ubuntu-latest
 
