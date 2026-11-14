@@ -2003,6 +2003,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             formula=f"{frames} dona × {price:,} so'm".replace(",", " "),
             qty=frames, unit="dona", price_uzs=price, category="santexnika",
         ))
+        lines.extend(_frame_box_lines(frames, catalog, norms))
     showers = part_kinds.get("shower", 0) + part_kinds.get("shower_own_mixer", 0)
     if floor_drain and showers:
         price = int(norms["work_floor_drain_uzs"])
@@ -2115,6 +2116,33 @@ def _water_heater_lines(catalog: dict, norms: dict) -> list[ComputedLine]:
                    price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
         _make_line(label="Ish: boyler o'rnatish", formula=f"1 dona × {fmt(work)} so'm", qty=1, unit="dona",
                    price_uzs=work, category="santexnika"),
+    ]
+
+
+def _frame_box_lines(frames: int, catalog: dict, norms: dict) -> list[ComputedLine]:
+    """The drywall box closing in each wall-hung toilet's frame (2026-11-14): one moisture-resistant
+    sheet (a shop's under "gipsokarton_nam", else the norm), its profile (the shop's "profil" by the
+    metre, else the ceiling's profile price) and the work. A frame is never left open: no switch."""
+    n = norms["frame_box"]
+    why = f"{frames} unitaz"
+    metres = frames * int(n["profile_m"])
+    profile = catalog.get("profil")
+    per_m = _price_per(profile, "m")
+    work = int(n["work_uzs"])
+    return [
+        _piece_line("Namga chidamli gipsokarton (quti)", catalog.get("gipsokarton_nam"), int(norms["part_uzs"]["gipsokarton_nam"]),
+                    "santexnika", frames, why),
+        _make_line(
+            label=f"Quti profili (karkas): {profile.name_uz}" if per_m else "Quti profili (karkas)",
+            formula=f"{why} × {int(n['profile_m'])} m = {metres} m", qty=metres, unit="m",
+            price_uzs=per_m or PROFILE_PRICE_PER_M_UZS, category="santexnika",
+            is_approximate=not per_m, warning=None if per_m else EXTRAS_NORM_NOTE, **(_shop(profile) if per_m else {}),
+        ),
+        _make_line(
+            label="Ish: gipsokarton quti yig'ish",
+            formula=f"{why} = {frames} dona × {work:,} so'm".replace(",", " "),
+            qty=frames, unit="dona", price_uzs=work, category="santexnika",
+        ),
     ]
 
 

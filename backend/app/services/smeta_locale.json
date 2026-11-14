@@ -98,7 +98,10 @@
         "water_filter": "Dag'al filtr",
         "pressure_reducer": "Bosim reduktori",
         "check_valve": "Teskari klapan",
-        "work_water_inlet": "Ish: suv kirish uzelini yig'ish"
+        "work_water_inlet": "Ish: suv kirish uzelini yig'ish",
+        "frame_box_board": "Namga chidamli gipsokarton (quti)",
+        "frame_box_profile": "Quti profili (karkas)",
+        "work_frame_box": "Ish: gipsokarton quti yig'ish"
       },
       "unit": {
         "qop_one": "qop",
@@ -338,7 +341,10 @@
         "water_filter": "Фильтр грубой очистки",
         "pressure_reducer": "Редуктор давления",
         "check_valve": "Обратный клапан",
-        "work_water_inlet": "Работа: сборка узла ввода воды"
+        "work_water_inlet": "Работа: сборка узла ввода воды",
+        "frame_box_board": "Влагостойкий гипсокартон (короб)",
+        "frame_box_profile": "Профиль короба (каркас)",
+        "work_frame_box": "Работа: сборка короба из гипсокартона"
       },
       "unit": {
         "qop_one": "мешок",
@@ -632,7 +638,10 @@
         "water_filter": "Coarse water filter",
         "pressure_reducer": "Pressure reducer",
         "check_valve": "Check valve",
-        "work_water_inlet": "Work: assembling the water inlet"
+        "work_water_inlet": "Work: assembling the water inlet",
+        "frame_box_board": "Moisture-resistant drywall (box)",
+        "frame_box_profile": "Box profile (frame)",
+        "work_frame_box": "Work: building the drywall box"
       },
       "unit": {
         "qop_one": "bag",

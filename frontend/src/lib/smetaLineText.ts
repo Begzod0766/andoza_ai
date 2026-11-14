@@ -63,6 +63,8 @@ const LABEL_HEADS = {
   "Dag'al filtr": "water_filter",
   "Bosim reduktori": "pressure_reducer",
   "Teskari klapan": "check_valve",
+  "Namga chidamli gipsokarton (quti)": "frame_box_board",
+  "Quti profili (karkas)": "frame_box_profile",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -138,6 +140,9 @@ const WHOLE_LABELS = {
   "Bosim reduktori": "pressure_reducer",
   "Teskari klapan": "check_valve",
   "Ish: suv kirish uzelini yig'ish": "work_water_inlet",
+  "Namga chidamli gipsokarton (quti)": "frame_box_board",
+  "Quti profili (karkas)": "frame_box_profile",
+  "Ish: gipsokarton quti yig'ish": "work_frame_box",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */

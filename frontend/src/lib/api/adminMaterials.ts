@@ -189,6 +189,8 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "filtr_suv", labelKey: "dokon.admin.smeta_key.filtr_suv", packUnit: null, unit: "dona" },
   { id: "reduktor", labelKey: "dokon.admin.smeta_key.reduktor", packUnit: null, unit: "dona" },
   { id: "klapan_teskari", labelKey: "dokon.admin.smeta_key.klapan_teskari", packUnit: null, unit: "dona" },
+  // The drywall box around a wall-hung toilet frame (2026-11-14): a moisture-resistant sheet, by the piece
+  { id: "gipsokarton_nam", labelKey: "dokon.admin.smeta_key.gipsokarton_nam", packUnit: null, unit: "dona" },
   ...LIGHT_TYPES.map((t) => ({
     id: `light:${t.id}`,
     labelKey: t.nameKey,
