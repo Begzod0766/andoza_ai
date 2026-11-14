@@ -1039,6 +1039,12 @@
       "rail_add": "Add a towel rail",
       "rail_water": "Water",
       "rail_electric": "Electric",
+      "clash": "Touches furniture: {{names}}",
+      "rail_size": "Size",
+      "rail_size_option": "{{w}}×{{h}} cm",
+      "rail_size_no_room": "This size does not fit on the wall",
+      "rail_shop": "From a shop: water towel rail",
+      "rail_shop_el": "From a shop: electric towel rail",
       "rail_own": "the rail's",
       "rail_no_room": "No wall has room for a towel rail.",
       "riser": "Riser",
@@ -2381,7 +2387,8 @@
         "orders": "Orders",
         "products": "Products",
         "stores": "Shops",
-        "moderation": "Moderation"
+        "moderation": "Moderation",
+        "norms": "Prices"
       },
       "orders": {
         "period": "Period",
@@ -2429,7 +2436,17 @@
         "next_page": "Next page",
         "load_failed": "Could not open"
       },
-      "stores_search": "Shop or district"
+      "stores_search": "Shop or district",
+      "norms": {
+        "intro": "The estimate's approximate prices and rates. A changed value reaches every estimate within a minute; lines priced from a shop product keep its price.",
+        "search": "Search prices",
+        "default": "default: {{value}}",
+        "default_word": "default",
+        "reset": "Back to default",
+        "log": "Recent changes",
+        "save_failed": "Could not save",
+        "load_failed": "Could not load the prices"
+      }
     },
     "order": {
       "status": {

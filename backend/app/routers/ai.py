@@ -111,6 +111,10 @@ async def _load_all_furniture(db: DbSession) -> list[dict]:
 
 
 async def _load_norms(db: DbSession) -> dict[str, Any]:
+    # The prices an admin set over the norm files (spec 2026-11-15), re-read at most every 30 s.
+    from app.services.norm_overrides import refresh
+
+    await refresh(db)
     result = await db.execute(select(Norm))
     return {n.material_key: n for n in result.scalars().all()}
 

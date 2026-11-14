@@ -435,4 +435,8 @@ export interface TowelRail {
   heightMm: number
   /** Heated by water (absent too, as every rail saved before 2026-11-14) or electric: no water points. */
   kind?: 'water' | 'electric'
+  /** Width × height, mm (2026-11-15); absent = 500x800, as every rail saved before. */
+  size?: TowelRailSize
 }
+
+export type TowelRailSize = '500x500' | '500x600' | '500x800' | '600x800' | '600x1000'

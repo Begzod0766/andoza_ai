@@ -211,6 +211,9 @@ export function localizeLabel(label: string, t: TFunction): string {
   // "Oboy devor A" or "Oboy devor A: <product>": the wall's letter is a value, not a word.
   m = /^Oboy devor (\S+?)(?:: (.+))?$/.exec(label);
   if (m) return t("smeta.line.oboy_devor", { wall: m[1] }) + (m[2] !== undefined ? `: ${m[2]}` : "");
+  // A towel rail by its size (2026-11-15): "Sochiq quritgich (50×80)"; the size is a value.
+  m = /^(Sochiq quritgich|Elektr sochiq quritgich) \((\d+×\d+)\)$/.exec(label);
+  if (m && has(WHOLE_LABELS, m[1])) return `${localizeName(m[1], t)} (${m[2]})`;
   if (has(WHOLE_LABELS, label)) return localizeName(label, t);
   // The head is everything before the first ": ", so "Shift profili: X" reads as "Shift profili".
   const colon = label.indexOf(": ");

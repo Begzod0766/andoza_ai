@@ -92,6 +92,12 @@ MESSAGES: dict[str, dict[str, str]] = _table(
     ("Could not validate credentials", "Не удалось проверить учётные данные", "Could not validate credentials", "Kirish ma'lumotlarini tekshirib bo'lmadi"),
     ("Inactive user account", "Аккаунт отключён", "Inactive user account", "Hisob faol emas"),
     ("Faqat administrator uchun", "Только для администратора", "Administrators only"),
+    # Admin prices (spec 2026-11-15).
+    ("bunday narx yo'q", "такой цены нет", "no such price"),
+    ("son bo'lishi kerak", "должно быть числом", "must be a number"),
+    ("0 dan katta bo'lishi kerak", "должно быть больше 0", "must be greater than 0"),
+    ("juda katta", "слишком большое", "too large"),
+    ("butun son bo'lishi kerak", "должно быть целым числом", "must be a whole number"),
     ("OTP service temporarily unavailable. Try again later.", "Сервис кодов подтверждения временно недоступен. Повторите попытку позже.", "OTP service temporarily unavailable. Try again later.", "Tasdiqlash kodi xizmati vaqtincha ishlamayapti. Keyinroq qayta urinib ko'ring."),
     ("Too many OTP requests from this IP. Please wait before trying again.", "Слишком много запросов кода с этого IP-адреса. Подождите перед повторной попыткой.", "Too many OTP requests from this IP. Please wait before trying again.", "Bu IP manzildan tasdiqlash kodi juda ko'p so'raldi. Qayta urinishdan oldin biroz kuting."),
     ("Too many OTP requests. Please wait before trying again.", "Слишком много запросов кода. Подождите перед повторной попыткой.", "Too many OTP requests. Please wait before trying again.", "Tasdiqlash kodi juda ko'p so'raldi. Qayta urinishdan oldin biroz kuting."),

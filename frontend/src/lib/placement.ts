@@ -109,6 +109,8 @@ export function furniturePlacementMm(
 /** A piece already in the room: its store position (mm from the room's centre), turn and size (metres). */
 export interface PlacedBox {
   x: number; y: number; rotation: number; w: number; d: number
+  /** Drawn height, metres, the placed piece's id and its name, when known (2026-11-15: wall item clashes). */
+  h?: number; id?: string; name?: string
   /** What the piece is. A rug lies under the rest, so it never takes floor from a new piece. */
   role?: FurnitureRole
 }

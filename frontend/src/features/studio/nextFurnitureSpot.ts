@@ -9,7 +9,7 @@ import { roomRiser } from '@/lib/plumbingRuns'
 import { showToast } from '@/components/ui/Toast'
 
 /** A model of unknown size is taken as this, metres. */
-const UNKNOWN = { w: 0.6, d: 0.6 }
+const UNKNOWN = { w: 0.6, d: 0.6, h: 0.8 }
 
 /**
  * The pieces standing in the open room, as boxes (mm centres, metre sizes, as drawn: a model taller
@@ -21,8 +21,16 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
     const size = s.userFurniture.find((e) => e.id === id)?.sizeM
       ?? resolveCatalogEntry(row)?.sizeM
       ?? FURNITURE_CATALOG.find((e) => e.id === id)?.sizeM
-    return size && ceilingFitSize(size, row?.height_cm ? row.height_cm / 100 : undefined, s.ceilingHeight)
+    if (!size) return undefined
+    const fit = ceilingFitSize(size, row?.height_cm ? row.height_cm / 100 : undefined, s.ceilingHeight)
+    // Drawn smaller to fit under the ceiling: its height by the same factor.
+    const h = (row?.height_cm ? row.height_cm / 100 : (size as { h?: number }).h) ?? UNKNOWN.h
+    return { ...fit, h: h * (size.w > 0 ? fit.w / size.w : 1) }
   }
+  const nameOf = (f: { furniture_id: string; name?: string }) =>
+    s.userFurniture.find((e) => e.id === f.furniture_id)?.name
+    ?? FURNITURE_CATALOG.find((e) => e.id === f.furniture_id)?.name
+    ?? f.name ?? s.catalogFurniture.find((c) => c.id === f.furniture_id)?.name_uz
   const roleOf = (id: string) => {
     const row = s.catalogFurniture.find((c) => c.id === id)
     if (row) return inferRole(row.category, row.name_uz)
@@ -32,7 +40,7 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
   return s.furniture.map((f) => {
     const size = sizeOf(f.furniture_id) ?? UNKNOWN
     const k = f.scaleOverride ?? 1
-    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k, role: roleOf(f.furniture_id) }
+    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k, h: size.h * k, id: f.id, name: nameOf(f), role: roleOf(f.furniture_id) }
   })
 }
 

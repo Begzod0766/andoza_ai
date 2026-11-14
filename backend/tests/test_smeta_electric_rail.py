@@ -20,7 +20,8 @@ WATER = {"id": "r1", "wallId": "A", "positionMm": 600, "heightMm": 1000}
 ELECTRIC = {"id": "r2", "wallId": "C", "positionMm": 1200, "heightMm": 1000, "kind": "electric"}
 RAIL, SOCKET, CABLE = "Elektr sochiq quritgich", "Namga chidamli rozetka (IP44)", "Elektr kabel (sochiq quritgich)"
 WORK = "Ish: elektr sochiq quritgichni o'rnatish"
-NEW = (RAIL, SOCKET, CABLE, WORK)
+RAIL_N = f"{RAIL} (50×80)"  # with no shop product, named by its size (2026-11-15)
+NEW = (RAIL_N, SOCKET, CABLE, WORK)
 
 
 def room(rails):
@@ -34,31 +35,31 @@ def by_label(rails, catalog=None):
 
 def test_a_water_rail_is_as_before():
     got = by_label([WATER])
-    assert "Sochiq quritgich" in got and "Suv quvuri PPR Ø20" in got
+    assert "Sochiq quritgich (50×80)" in got and "Suv quvuri PPR Ø20" in got
     assert not set(NEW) & set(got)
 
 
 def test_an_electric_rail_has_its_four_lines_and_no_pipe():
     got = by_label([ELECTRIC])
-    assert (got[RAIL].qty, got[RAIL].unit_price_uzs, got[RAIL].is_approximate, got[RAIL].warning) == (1, 900_000, True, EXTRAS_NORM_NOTE)
+    assert (got[RAIL_N].qty, got[RAIL_N].unit_price_uzs, got[RAIL_N].is_approximate, got[RAIL_N].warning) == (1, 900_000, True, EXTRAS_NORM_NOTE)
     assert (got[SOCKET].qty, got[SOCKET].unit_price_uzs) == (1, 70_000)
     assert (got[CABLE].qty, got[CABLE].unit, got[CABLE].unit_price_uzs, got[CABLE].is_approximate) == (3, "m", ELEC_CABLE_PRICE_UZS, True)
     assert (got[WORK].qty, got[WORK].unit_price_uzs, got[WORK].formula) == (1, 150_000, "1 dona × 150 000 so'm")
     assert {got[k].category for k in NEW} == {"santexnika"}
-    assert "Sochiq quritgich" not in got and "Ish: sochiq quritgichni o'rnatish" not in got
+    assert "Sochiq quritgich (50×80)" not in got and "Ish: sochiq quritgichni o'rnatish" not in got
     assert "Suv quvuri PPR Ø20" not in got and "Ish: nuqtani ulash" not in got
 
 
 def test_one_of_each():
     got = by_label([WATER, ELECTRIC, {**ELECTRIC, "id": "r3", "positionMm": 400}])
-    assert got["Sochiq quritgich"].qty == 1 and got["Ish: sochiq quritgichni o'rnatish"].qty == 1
-    assert (got[RAIL].qty, got[SOCKET].qty, got[CABLE].qty, got[WORK].qty) == (2, 2, 6, 2)
+    assert got["Sochiq quritgich (50×80)"].qty == 1 and got["Ish: sochiq quritgichni o'rnatish"].qty == 1
+    assert (got[RAIL_N].qty, got[SOCKET].qty, got[CABLE].qty, got[WORK].qty) == (2, 2, 6, 2)
     assert got["Suv rozetkasi Ø20"].qty == 2
 
 
 def test_an_unknown_kind_is_a_water_rail():
     got = by_label([{**WATER, "kind": "gas"}])
-    assert "Sochiq quritgich" in got and RAIL not in got
+    assert "Sochiq quritgich (50×80)" in got and RAIL_N not in got
 
 
 def shop(key, unit, price, name):

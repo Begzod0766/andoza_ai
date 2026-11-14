@@ -25,7 +25,7 @@ describe('railPoints', () => {
 
 import { roomModel } from '@/lib/aiDesignLayout'
 import { pipeRunM, wallWalk } from '@/lib/plumbingRuns'
-import { freeSpans, keepRails, nearestFree, placeTowelRail } from '@/lib/towelRail'
+import { freeSpans, keepRails, nearestFree, placeTowelRail, railSize, RAIL_SIZES } from '@/lib/towelRail'
 
 type El = { type: string; position: number; width: number }
 const rect = (a: number, b: number, els: Partial<Record<string, El[]>> = {}): RoomGeometry => ({
@@ -174,5 +174,33 @@ describe('a saved rail\'s kind (2026-11-14)', () => {
     const r = { id: 'r', wallId: 'A', positionMm: 1, heightMm: 1000 }
     expect(saneRails([{ ...r, kind: 'electric' }, { ...r, id: 's', kind: 'water' }, { ...r, id: 't', kind: 'gas' }]))
       .toEqual([{ ...r, kind: 'electric' }, { ...r, id: 's', kind: 'water' }, { ...r, id: 't' }])
+  })
+})
+
+describe('rail size (2026-11-15)', () => {
+  it('absent or unknown is 500 × 800, as every rail saved before', () => {
+    expect(railSize({ id: 'r', wallId: 'A', positionMm: 0, heightMm: 1000 })).toEqual({ w: 500, h: 800 })
+    expect(railSize({ id: 'r', wallId: 'A', positionMm: 0, heightMm: 1000, size: 'x' as never })).toEqual({ w: 500, h: 800 })
+  })
+  it('each size reads width × height', () => {
+    expect(RAIL_SIZES.map((s) => railSize({ id: 'r', wallId: 'A', positionMm: 0, heightMm: 1000, size: s }))).toEqual([
+      { w: 500, h: 500 }, { w: 500, h: 600 }, { w: 500, h: 800 }, { w: 600, h: 800 }, { w: 600, h: 1000 },
+    ])
+  })
+  it('a saved rail with an unknown size loses it; a known one keeps it', () => {
+    const got = saneRails([
+      { id: 'a', wallId: 'A', positionMm: 1, heightMm: 1, size: '600x800' },
+      { id: 'b', wallId: 'A', positionMm: 1, heightMm: 1, size: '700x700' },
+    ])
+    expect(got[0].size).toBe('600x800')
+    expect('size' in got[1]).toBe(false)
+  })
+  it('a 600-wide rail keeps 300 mm clear of the wall end', () => {
+    expect(nearestFree(rect(2500, 2000), 'A', 0, undefined, [], 300)).toBe(300)
+    expect(nearestFree(rect(2500, 2000), 'A', 0)).toBe(250)
+  })
+  it('keepRails keeps each rail clear by its own width', () => {
+    const rails = keepRails([{ id: 'w', wallId: 'A', positionMm: 260, heightMm: 1000, size: '600x1000' }], rect(2500, 2000))
+    expect(rails[0].positionMm).toBe(300)
   })
 })

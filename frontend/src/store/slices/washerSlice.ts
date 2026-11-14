@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid'
 import type { Washer } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { roomRiser } from '@/lib/plumbingRuns'
-import { TOWEL_RAIL_W_MM } from '@/lib/towelRail'
+import { railHalf } from '@/lib/towelRail'
 import { nearestFreeWasher, placeWasher, riserTaken, WASHER_W_MM, type WallTaken } from '@/lib/washer'
 import { placedFurnitureBoxes } from '@/features/studio/nextFurnitureSpot'
 import { useRoomStore } from '../roomStore'
@@ -29,7 +29,7 @@ let dragStart: Washer[] | null = null
 function wallTaken(state: RoomStore, except?: string): WallTaken[] {
   return [
     ...riserTaken(state.geometry, roomRiser(state.geometry, state.plumbingRiser)),
-    ...state.towelRails.map((r) => ({ wallId: r.wallId, positionMm: r.positionMm, halfMm: TOWEL_RAIL_W_MM / 2 })),
+    ...state.towelRails.map((r) => ({ wallId: r.wallId, positionMm: r.positionMm, halfMm: railHalf(r) })),
     ...state.washers.filter((m) => m.id !== except).map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: WASHER_W_MM / 2 })),
   ]
 }

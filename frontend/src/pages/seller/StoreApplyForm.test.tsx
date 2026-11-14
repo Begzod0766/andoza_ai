@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StoreApplyForm } from "./StoreApplyForm";
@@ -9,6 +9,8 @@ import uz from "@/i18n/locales/uz.json";
 const applyForStore = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (orig) => ({ ...(await orig<object>()), applyForStore }));
 
+// The mock is shared: a call another test made must not count against this one.
+beforeEach(() => { applyForStore.mockReset(); });
 afterEach(() => applyLanguage("uz"));
 
 function mount() {

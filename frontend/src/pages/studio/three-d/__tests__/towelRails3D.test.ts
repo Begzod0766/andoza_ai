@@ -135,3 +135,22 @@ describe('railJunction (2026-11-14)', () => {
     expect(railJunction({ id: 'r', wallId: 'A', positionMm: 1000, heightMm: 1000, kind: 'water' })).toBeNull()
   })
 })
+
+describe('a rail size in 3D (2026-11-15)', () => {
+  it('a 60 × 100 ladder: uprights 0.3 either side, 1 m long, eight rungs 0.6 wide', () => {
+    const bars = ladderBars({ ...rail('A', 700), size: '600x1000' })
+    const up = bars.filter((b) => b.vertical), rungs = bars.filter((b) => !b.vertical)
+    expect(up.map((b) => b.x).sort((a, b) => a - b)).toEqual([-0.3, 0.3])
+    expect(up.every((b) => b.length === 1)).toBe(true)
+    expect([rungs.length, rungs[0].length]).toEqual([8, 0.6])
+  })
+  it('a 50 × 50 ladder has four rungs', () => {
+    expect(ladderBars({ ...rail('A', 700), size: '500x500' }).filter((b) => !b.vertical)).toHaveLength(4)
+  })
+  it('it hangs centred half its own height above its bottom edge', () => {
+    expect(towelRailPose({ ...rail('A', 700), size: '600x1000' }, rect)!.y).toBeCloseTo(1.5)
+  })
+  it('an electric box sits beside the right upright of a wide rail', () => {
+    expect(railJunction({ ...rail('A', 700), kind: 'electric', size: '600x800' })!.x).toBeCloseTo(0.345)
+  })
+})

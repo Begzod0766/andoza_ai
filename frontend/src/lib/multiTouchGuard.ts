@@ -13,7 +13,11 @@ export interface MultiTouchGuard {
   multiTouchSince(pressAt: number): boolean
 }
 
-export function createMultiTouchGuard(target: EventTarget, now: () => number = Date.now): MultiTouchGuard {
+// `now` defaults to a fresh read of Date.now on each call, not the function as it was when the
+// guard was made: the guard is shared for the page's lifetime, and a captured Date.now goes stale
+// the moment the clock behind it is swapped (fake timers in tests), so a pinch timed on one clock
+// was compared against presses timed on another.
+export function createMultiTouchGuard(target: EventTarget, now: () => number = () => Date.now()): MultiTouchGuard {
   const down = new Set<number>()
   let lastMultiAt = -Infinity
   const press = (e: Event) => {

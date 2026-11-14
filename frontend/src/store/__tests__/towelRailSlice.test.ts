@@ -249,3 +249,41 @@ describe('a rail\'s kind (2026-11-14)', () => {
     expect(st().towelRails[0].kind).toBeUndefined()
   })
 })
+
+describe('a rail size (2026-11-15)', () => {
+  const rail = (positionMm: number, wallId = 'A') => ({ id: 'r', wallId, positionMm, heightMm: 1000 })
+
+  it('setting a size keeps the rail where it is when it fits, and is one undo step', () => {
+    useRoomStore.setState({ towelRails: [rail(1200)] })
+    settle()
+    expect(st().setTowelRailSize('r', '600x1000')).toBe(true)
+    expect(st().towelRails[0]).toMatchObject({ size: '600x1000', positionMm: 1200 })
+    expect(st().isDirty).toBe(true)
+    settle()
+    undo()
+    expect(st().towelRails[0].size).toBeUndefined()
+  })
+
+  it('a wider rail by the wall end moves in to keep half its width clear', () => {
+    useRoomStore.setState({ towelRails: [rail(250)] })
+    expect(st().setTowelRailSize('r', '600x800')).toBe(true)
+    expect(st().towelRails[0]).toMatchObject({ size: '600x800', positionMm: 300 })
+  })
+
+  it('no room on its wall for the new width: unchanged, false', () => {
+    const tight = { walls: [
+      { id: 'A', length: 550, elements: [] }, { id: 'B', length: 2000, elements: [] },
+      { id: 'C', length: 550, elements: [] }, { id: 'D', length: 2000, elements: [] },
+    ] } as unknown as RoomGeometry
+    useRoomStore.setState({ geometry: tight, towelRails: [rail(275)] })
+    expect(st().setTowelRailSize('r', '600x800')).toBe(false)
+    expect(st().towelRails[0].size).toBeUndefined()
+  })
+
+  it('a slid wide rail keeps its own half clear of the wall end', () => {
+    useRoomStore.setState({ towelRails: [{ ...rail(1200), size: '600x800' as const }] })
+    st().moveTowelRail('r', 0)
+    expect(st().towelRails[0].positionMm).toBe(300)
+    expect(nearestFree(geometry, 'A', 0)).toBe(250)
+  })
+})

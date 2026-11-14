@@ -5,14 +5,18 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, TowelRail } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
-import { isElectricRail, TOWEL_RAIL_H_MM, TOWEL_RAIL_W_MM } from "@/lib/towelRail";
+import { isElectricRail, railSize } from "@/lib/towelRail";
 import { noRaycast } from "./constants";
+import { clashColor } from "@/lib/wallItemClash";
+import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 
-const W = TOWEL_RAIL_W_MM / 1000;
-const H = TOWEL_RAIL_H_MM / 1000;
+/** A rail's width and height, metres (its size, 2026-11-15). */
+const dims = (rail?: TowelRail) => {
+  const s = rail ? railSize(rail) : { w: 500, h: 800 };
+  return { W: s.w / 1000, H: s.h / 1000 };
+};
 /** The rail stands this far off the wall, metres. */
 const OFF_WALL = 0.03;
-const RUNGS = 6;
 /** The rungs stop this far short of the uprights' ends. */
 const RUNG_INSET = 0.05;
 const UPRIGHT_R = 0.012;
@@ -28,14 +32,17 @@ export function towelRailPose(rail: TowelRail, geometry: RoomGeometry): { x: num
   const t = Math.min(w.lengthM, Math.max(0, rail.positionMm / 1000));
   return {
     x: w.startX + w.dirX * t + w.nx * OFF_WALL,
-    y: (rail.heightMm + TOWEL_RAIL_H_MM / 2) / 1000,
+    y: (rail.heightMm + railSize(rail).h / 2) / 1000,
     z: w.startZ + w.dirZ * t + w.nz * OFF_WALL,
     rotY: Math.atan2(w.nx, w.nz),
   };
 }
 
-/** The ladder's bars in the rail's own frame (x along the wall, y up, metres): two uprights, six rungs. */
-export function ladderBars(): Array<{ x: number; y: number; length: number; vertical: boolean }> {
+/** The ladder's bars in the rail's own frame (x along the wall, y up, metres): two uprights and a rung
+ * about every 13 cm (six on a 50 × 80 rail, at least four). */
+export function ladderBars(rail?: TowelRail): Array<{ x: number; y: number; length: number; vertical: boolean }> {
+  const { W, H } = dims(rail);
+  const RUNGS = Math.max(4, Math.round((H * 1000) / 130));
   const top = H / 2 - RUNG_INSET;
   return [
     { x: -W / 2, y: 0, length: H, vertical: true },
@@ -48,6 +55,7 @@ export function ladderBars(): Array<{ x: number; y: number; length: number; vert
  * wall): small and white, low beside the right upright. Null for a rail heated by water. */
 export function railJunction(rail: TowelRail): { x: number; y: number; z: number; w: number; h: number; d: number } | null {
   if (!isElectricRail(rail)) return null;
+  const { W, H } = dims(rail);
   return { x: W / 2 + 0.045, y: -H / 2 + 0.06, z: -OFF_WALL + 0.0175, w: 0.06, h: 0.06, d: 0.035 };
 }
 
@@ -97,10 +105,11 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
   // Caught and dragged in the Santexnika stage only; in any other it is scenery, and a touch goes
   // through it to the camera or to whatever is there.
   const active = useRoomStore((s) => s.plumbingStage);
+  // Touching furniture (2026-11-15): drawn in warning red in the Santexnika stage.
+  const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const [dragging, setDragging] = useState<string | null>(null);
-  const bars = useMemo(ladderBars, []);
 
   useEffect(() => {
     if (!dragging) return;
@@ -159,6 +168,8 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
       {towelRails.filter((r) => !hiddenWalls?.has(r.wallId)).map((rail) => {
         const pose = towelRailPose(rail, geometry);
         if (!pose) return null;
+        const { W, H } = dims(rail);
+        const bars = ladderBars(rail);
         return (
           <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(rail, e))}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
@@ -178,7 +189,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
             {bars.map((b, i) => (
               <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />
-                <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
+                <meshStandardMaterial color={clashColor(CHROME, active, !!clashes[rail.id])} metalness={0.9} roughness={0.25} />
               </mesh>
             ))}
           </group>
