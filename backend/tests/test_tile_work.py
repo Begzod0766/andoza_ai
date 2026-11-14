@@ -7,6 +7,7 @@ KEYS = {
     "adhesive_kg_m2", "adhesive_bag_kg", "adhesive_bag_uzs", "grout_kg_m2", "grout_pack_kg", "grout_pack_uzs",
     "wall_tile_m2_uzs", "work_floor_m2_uzs", "work_wall_m2_uzs",
     "mastic_kg_m2", "mastic_kg_uzs", "tape_m_uzs", "work_waterproof_m2_uzs",
+    "work_backsplash_m2_uzs", "skinali_m2_uzs", "work_skinali_m2_uzs",
 }
 
 

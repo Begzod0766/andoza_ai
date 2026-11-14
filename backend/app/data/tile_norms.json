@@ -1,5 +1,5 @@
 {
-  "_doc": "Tile work and waterproofing: consumption rates and the prices used when the shop has no product tagged for a line (spec 2026-11-10). Prices in UZS; lines priced from here are marked approximate.",
+  "_doc": "Tile work and waterproofing: consumption rates and the prices used when the shop has no product tagged for a line (spec 2026-11-10), and a kitchen backsplash in tile or skinali (spec 2026-11-14). Prices in UZS; lines priced from here are marked approximate.",
   "adhesive_kg_m2": 5,
   "adhesive_bag_kg": 25,
   "adhesive_bag_uzs": 45000,
@@ -12,5 +12,8 @@
   "mastic_kg_m2": 1.5,
   "mastic_kg_uzs": 28000,
   "tape_m_uzs": 7000,
-  "work_waterproof_m2_uzs": 25000
+  "work_waterproof_m2_uzs": 25000,
+  "work_backsplash_m2_uzs": 130000,
+  "skinali_m2_uzs": 450000,
+  "work_skinali_m2_uzs": 80000
 }

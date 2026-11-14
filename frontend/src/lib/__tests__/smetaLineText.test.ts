@@ -331,3 +331,13 @@ describe('frame box lines', () => {
     expect(localizeFormula('2 unitaz × 6 m = 12 m', ru)).toBe('2 унитаза × 6 м = 12 м')
   })
 })
+
+// A kitchen backsplash (spec 2026-11-14).
+describe('backsplash lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Fartuk plitkasi: Kerama 10x10', ru)).toBe('Плитка фартука: Kerama 10x10')
+    expect(localizeLabel('Skinali (shisha fartuk)', en)).toBe('Skinali (glass backsplash)')
+    expect(localizeLabel('Ish: fartuk plitkasini terish', ru)).toBe('Работа: укладка плитки фартука')
+    expect(localizeLabel("Ish: skinali o'rnatish", en)).toBe('Work: fitting the skinali')
+  })
+})

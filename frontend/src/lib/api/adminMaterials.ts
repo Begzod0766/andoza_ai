@@ -152,6 +152,8 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "shpatlyovka", labelKey: "dokon.admin.smeta_key.shpatlyovka", packUnit: "kg" },
   { id: "plintus", labelKey: "dokon.admin.smeta_key.plintus", packUnit: "m" },
   { id: "gipsokarton", labelKey: "dokon.admin.smeta_key.gipsokarton", packUnit: "m2" },
+  // A kitchen backsplash in glass (spec 2026-11-14), priced by the square metre
+  { id: "skinali", labelKey: "dokon.admin.smeta_key.skinali", packUnit: "m2" },
   { id: "profil", labelKey: "dokon.admin.smeta_key.profil", packUnit: "m" },
   { id: "led_lenta", labelKey: "dokon.admin.smeta_key.led_lenta", packUnit: "m" },
   { id: "kabel", labelKey: "dokon.admin.smeta_key.kabel", packUnit: null, unit: "m" },

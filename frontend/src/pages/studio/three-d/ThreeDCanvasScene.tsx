@@ -51,6 +51,7 @@ import { DraggableLightModels } from "./LightingComponents";
 import { DraggableElectricalModels } from "./ElectricalComponents";
 import { PlumbingPoints3D } from "./PlumbingPoints3D";
 import { TowelRails3D } from "./TowelRails3D";
+import { Backsplashes3D } from "./Backsplashes3D";
 import { Riser3D } from "./Riser3D";
 import { Washers3D } from "./Washers3D";
 import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } from "./SiblingRoomLayout";
@@ -1009,6 +1010,7 @@ export function ThreeDCanvasScene({
         <DraggableElectricalModels controlsRef={controlsRef} W={W} D={D} hiddenWalls={behind} />
         <PlumbingPoints3D controlsRef={controlsRef} hiddenWalls={behind} />
         <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} />
+        <Backsplashes3D hiddenWalls={behind} />
         <Riser3D controlsRef={controlsRef} hiddenWalls={behind} />
         <Washers3D controlsRef={controlsRef} hiddenWalls={behind} />
         <OpeningLayer

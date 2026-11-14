@@ -1055,6 +1055,20 @@
       "floor_drain": "Dush poddonsiz (pol trapi)",
       "water_inlet": "Suv kirish uzeli (hisoblagich, filtr, reduktor)"
     },
+    "backsplash": {
+      "title": "Oshxona fartugi",
+      "add": "Fartuk qo'shish",
+      "wall": "Devor",
+      "wall_n": "Devor {{n}}",
+      "tile": "Plitka",
+      "skinali": "Skinali",
+      "start": "Boshlanishi, sm",
+      "length": "Uzunligi, sm",
+      "bottom": "Pastdan, sm",
+      "top": "Yuqorigacha, sm",
+      "remove": "Olib tashlash",
+      "chip": "{{lo}}–{{hi}} sm"
+    },
     "tile_height": {
       "title": "Plitka balandligi",
       "full": "Shiftgacha",
@@ -1227,7 +1241,11 @@
       "work_water_inlet": "Ish: suv kirish uzelini yig'ish",
       "frame_box_board": "Namga chidamli gipsokarton (quti)",
       "frame_box_profile": "Quti profili (karkas)",
-      "work_frame_box": "Ish: gipsokarton quti yig'ish"
+      "work_frame_box": "Ish: gipsokarton quti yig'ish",
+      "backsplash_tile": "Fartuk plitkasi",
+      "skinali": "Skinali (shisha fartuk)",
+      "work_backsplash_tile": "Ish: fartuk plitkasini terish",
+      "work_skinali": "Ish: skinali o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2283,7 +2301,8 @@
         "filtr_suv": "Dag'al filtr",
         "reduktor": "Bosim reduktori",
         "klapan_teskari": "Teskari klapan",
-        "gipsokarton_nam": "Namga chidamli gipsokarton"
+        "gipsokarton_nam": "Namga chidamli gipsokarton",
+        "skinali": "Skinali (shisha fartuk)"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

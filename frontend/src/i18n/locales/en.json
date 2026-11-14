@@ -1055,6 +1055,20 @@
       "floor_drain": "Shower with no tray (floor drain)",
       "water_inlet": "Water inlet (meter, filter, pressure reducer)"
     },
+    "backsplash": {
+      "title": "Kitchen backsplash",
+      "add": "Add a backsplash",
+      "wall": "Wall",
+      "wall_n": "Wall {{n}}",
+      "tile": "Tile",
+      "skinali": "Skinali",
+      "start": "Starts at, cm",
+      "length": "Length, cm",
+      "bottom": "From, cm",
+      "top": "Up to, cm",
+      "remove": "Remove",
+      "chip": "{{lo}}–{{hi}} cm"
+    },
     "tile_height": {
       "title": "Tile height",
       "full": "To the ceiling",
@@ -1227,7 +1241,11 @@
       "work_water_inlet": "Work: assembling the water inlet",
       "frame_box_board": "Moisture-resistant drywall (box)",
       "frame_box_profile": "Box profile (frame)",
-      "work_frame_box": "Work: building the drywall box"
+      "work_frame_box": "Work: building the drywall box",
+      "backsplash_tile": "Backsplash tile",
+      "skinali": "Skinali (glass backsplash)",
+      "work_backsplash_tile": "Work: laying the backsplash tile",
+      "work_skinali": "Work: fitting the skinali"
     },
     "unit": {
       "qop_one": "bag",
@@ -2283,7 +2301,8 @@
         "filtr_suv": "Coarse water filter",
         "reduktor": "Pressure reducer",
         "klapan_teskari": "Check valve",
-        "gipsokarton_nam": "Moisture-resistant drywall"
+        "gipsokarton_nam": "Moisture-resistant drywall",
+        "skinali": "Skinali (glass backsplash)"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

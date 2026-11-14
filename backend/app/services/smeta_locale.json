@@ -101,7 +101,11 @@
         "work_water_inlet": "Ish: suv kirish uzelini yig'ish",
         "frame_box_board": "Namga chidamli gipsokarton (quti)",
         "frame_box_profile": "Quti profili (karkas)",
-        "work_frame_box": "Ish: gipsokarton quti yig'ish"
+        "work_frame_box": "Ish: gipsokarton quti yig'ish",
+        "backsplash_tile": "Fartuk plitkasi",
+        "skinali": "Skinali (shisha fartuk)",
+        "work_backsplash_tile": "Ish: fartuk plitkasini terish",
+        "work_skinali": "Ish: skinali o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -344,7 +348,11 @@
         "work_water_inlet": "Работа: сборка узла ввода воды",
         "frame_box_board": "Влагостойкий гипсокартон (короб)",
         "frame_box_profile": "Профиль короба (каркас)",
-        "work_frame_box": "Работа: сборка короба из гипсокартона"
+        "work_frame_box": "Работа: сборка короба из гипсокартона",
+        "backsplash_tile": "Плитка фартука",
+        "skinali": "Скинали (стеклянный фартук)",
+        "work_backsplash_tile": "Работа: укладка плитки фартука",
+        "work_skinali": "Работа: монтаж скинали"
       },
       "unit": {
         "qop_one": "мешок",
@@ -641,7 +649,11 @@
         "work_water_inlet": "Work: assembling the water inlet",
         "frame_box_board": "Moisture-resistant drywall (box)",
         "frame_box_profile": "Box profile (frame)",
-        "work_frame_box": "Work: building the drywall box"
+        "work_frame_box": "Work: building the drywall box",
+        "backsplash_tile": "Backsplash tile",
+        "skinali": "Skinali (glass backsplash)",
+        "work_backsplash_tile": "Work: laying the backsplash tile",
+        "work_skinali": "Work: fitting the skinali"
       },
       "unit": {
         "qop_one": "bag",

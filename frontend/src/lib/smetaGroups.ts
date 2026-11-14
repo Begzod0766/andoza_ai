@@ -23,6 +23,7 @@ const CATEGORY_TO_GROUP: Record<string, GroupKey> = {
   oboy: "pardoz",
   texture: "pardoz",
   plitka_devor: "pardoz",
+  fartuk: "pardoz",
   plitka_ish: "plitka_ish",
   laminat: "pol",
   plitka: "pol",

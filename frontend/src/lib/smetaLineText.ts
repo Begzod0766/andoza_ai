@@ -64,6 +64,8 @@ const LABEL_HEADS = {
   "Bosim reduktori": "pressure_reducer",
   "Teskari klapan": "check_valve",
   "Namga chidamli gipsokarton (quti)": "frame_box_board",
+  "Fartuk plitkasi": "backsplash_tile",
+  "Skinali (shisha fartuk)": "skinali",
   "Quti profili (karkas)": "frame_box_profile",
 } as const;
 
@@ -143,6 +145,10 @@ const WHOLE_LABELS = {
   "Namga chidamli gipsokarton (quti)": "frame_box_board",
   "Quti profili (karkas)": "frame_box_profile",
   "Ish: gipsokarton quti yig'ish": "work_frame_box",
+  "Fartuk plitkasi": "backsplash_tile",
+  "Skinali (shisha fartuk)": "skinali",
+  "Ish: fartuk plitkasini terish": "work_backsplash_tile",
+  "Ish: skinali o'rnatish": "work_skinali",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */

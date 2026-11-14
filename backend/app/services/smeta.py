@@ -888,12 +888,13 @@ def _packed_line(*, label: str, area_m2: float, kg_m2: float, norm_pack_kg: floa
     )
 
 
-def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict) -> list[ComputedLine]:
-    """What laying tile takes besides the tile: adhesive and grout for the whole tiled area, and the
-    tiler's work, the floor and the walls at their own rates (spec 2026-11-10)."""
+def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict, backsplash_m2: float = 0.0) -> list[ComputedLine]:
+    """What laying tile takes besides the tile: adhesive and grout for the whole tiled area (a tile
+    backsplash's too, spec 2026-11-14), and the tiler's work, the floor and the walls at their own
+    rates (spec 2026-11-10); a backsplash's laying is its own line (``_backsplash_lines``)."""
     from app.services.tile_work import load_tile_norms
 
-    area = floor_m2 + wall_m2
+    area = floor_m2 + wall_m2 + backsplash_m2
     if area <= 0:
         return []
     n = load_tile_norms()
@@ -914,6 +915,81 @@ def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict) -> list[Com
                 qty=qty, unit="m²", price_uzs=int(price), category="plitka_ish",
             ))
     return lines
+
+
+def _backsplash_lines(room: "Room", catalog: dict) -> tuple[list[ComputedLine], float, dict[str, float]]:
+    """A kitchen backsplash (spec 2026-11-14), in any room that has one: the tile ones' tile (plus
+    waste) and laying, the skinali ones' glass and fitting, by the square metre of what is left of
+    each once the doors and windows are cut out. Also the tile backsplashes' area (for the adhesive
+    and grout) and, per wall, the part of each backsplash inside that wall's tile band (not tiled twice)."""
+    from app.services.backsplash import backsplash_area_m2, backsplash_pieces, studio_walls, valid_backsplashes
+    from app.services.tile_work import load_tile_norms
+
+    saved = valid_backsplashes(_design_state(room).get("backsplashes"))
+    if not saved:
+        return [], 0.0, {}
+    walls = studio_walls(room)
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    ceiling_mm = ceiling_h_m * 1000
+    bands = {key: _tile_band_m(covering, ceiling_h_m) * 1000 for key, _, covering, _ in _tiled_walls(room)}
+    by_material: dict[str, list[tuple[float, list]]] = {"tile": [], "skinali": []}
+    cover: dict[str, float] = {}
+    for b in saved:
+        pieces = backsplash_pieces(b, walls, ceiling_mm)
+        area = backsplash_area_m2(pieces)
+        if area <= 0:
+            continue
+        by_material[b["material"]].append((area, pieces))
+        band = bands.get(b["wallId"])
+        if band:
+            cover[b["wallId"]] = cover.get(b["wallId"], 0.0) + sum(
+                (x1 - x0) * max(0.0, min(y1, band) - y0) for x0, x1, y0, y1 in pieces) / 1e6
+
+    def expr(items: list[tuple[float, list]]) -> tuple[float, str]:
+        total = sum(a for a, _ in items)
+        if len(items) == 1 and len(items[0][1]) == 1:
+            x0, x1, y0, y1 = items[0][1][0]
+            return total, f"{(x1 - x0) / 1000:.2f} m × {(y1 - y0) / 1000:.2f} m = {total:.2f} m²"
+        if len(items) == 1:
+            return total, f"{total:.2f} m²"
+        return total, " + ".join(f"{a:.2f}" for a, _ in items) + f" = {total:.2f} m²"
+
+    n = load_tile_norms()
+    fmt = lambda v: f"{int(v):,}".replace(",", " ")  # noqa: E731
+    lines: list[ComputedLine] = []
+    tile_m2 = 0.0
+    if by_material["tile"]:
+        tile_m2, text = expr(by_material["tile"])
+        shop = catalog.get("finish:plitka")
+        shop_price = _price_per(shop, "m2")
+        qty = _round2(tile_m2 * TILE_WASTE)
+        lines.append(_make_line(
+            label=f"Fartuk plitkasi: {shop.name_uz}" if shop_price else "Fartuk plitkasi",
+            formula=f"{text} × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²", qty=qty, unit="m²",
+            price_uzs=shop_price or int(n["wall_tile_m2_uzs"]), category="fartuk", is_approximate=True,
+            warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE, **(_shop(shop) if shop_price else {}),
+        ))
+        work = int(n["work_backsplash_m2_uzs"])
+        lines.append(_make_line(
+            label="Ish: fartuk plitkasini terish", formula=f"{_round2(tile_m2):.2f} m² × {fmt(work)} so'm",
+            qty=_round2(tile_m2), unit="m²", price_uzs=work, category="fartuk",
+        ))
+    if by_material["skinali"]:
+        glass_m2, text = expr(by_material["skinali"])
+        shop = catalog.get("skinali")
+        shop_price = _price_per(shop, "m2")
+        qty = _round2(glass_m2)
+        lines.append(_make_line(
+            label=f"Skinali (shisha fartuk): {shop.name_uz}" if shop_price else "Skinali (shisha fartuk)",
+            formula=text, qty=qty, unit="m²", price_uzs=shop_price or int(n["skinali_m2_uzs"]), category="fartuk",
+            is_approximate=not shop_price, warning=None if shop_price else EXTRAS_NORM_NOTE, **(_shop(shop) if shop_price else {}),
+        ))
+        work = int(n["work_skinali_m2_uzs"])
+        lines.append(_make_line(
+            label="Ish: skinali o'rnatish", formula=f"{qty:.2f} m² × {fmt(work)} so'm",
+            qty=qty, unit="m²", price_uzs=work, category="fartuk",
+        ))
+    return lines, tile_m2, cover
 
 
 def _is_kitchen(room: "Room") -> bool:
@@ -2728,7 +2804,9 @@ def compute_estimate(
     #     always emitted needing an AI price (see recompute_totals /      #
     #     app.services.smeta_ai for how the router backfills it).         #
     # ------------------------------------------------------------------ #
-    tiled = _tile_wall_areas(room)
+    # A kitchen backsplash (spec 2026-11-14): its own lines; a tiled wall it covers is not tiled twice.
+    splash_lines, splash_tile_m2, splash_cover = _backsplash_lines(room, catalog or {})
+    tiled = [(wall, max(0.0, area - splash_cover.get(wall, 0.0))) for wall, area in _tile_wall_areas(room)]
     wall_tile_m2 = sum(area for _, area in tiled)
     if has_any_texture:
         # A shop's wallpaper from the library is priced by the roll; a user's own photo
@@ -2760,7 +2838,8 @@ def compute_estimate(
                 lines.extend(_tile_lines(room, floor_mat, norms_map, catalog.get("plintus")))
 
     # 3a. Tile work: adhesive, grout and laying, for the floor and wall tile together.
-    lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog))
+    lines.extend(splash_lines)
+    lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog, splash_tile_m2))
     # 3a'. A bathroom is waterproofed whatever it is finished in.
     lines.extend(_waterproofing_lines(room, catalog, floor_already_done))
 

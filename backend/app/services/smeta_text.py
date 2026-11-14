@@ -156,6 +156,8 @@ _LABEL_HEADS = {
     "Kir yuvish mashinasi krani": "washer_tap",
     "Kir yuvish mashinasi sifoni": "washer_trap",
     "Pol trapi": "floor_drain",
+    "Fartuk plitkasi": "backsplash_tile",
+    "Skinali (shisha fartuk)": "skinali",
     "Suv hisoblagichi": "water_meter",
     "Dag'al filtr": "water_filter",
     "Bosim reduktori": "pressure_reducer",
@@ -240,6 +242,10 @@ _WHOLE_LABELS = {
     "Namga chidamli gipsokarton (quti)": "frame_box_board",
     "Quti profili (karkas)": "frame_box_profile",
     "Ish: gipsokarton quti yig'ish": "work_frame_box",
+    "Fartuk plitkasi": "backsplash_tile",
+    "Skinali (shisha fartuk)": "skinali",
+    "Ish: fartuk plitkasini terish": "work_backsplash_tile",
+    "Ish: skinali o'rnatish": "work_skinali",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.

@@ -234,6 +234,19 @@ export interface FloorTextureSettings {
   rotation: number
 }
 
+/** A kitchen backsplash (spec 2026-11-14): a tile or glass (skinali) panel on a wall, between the
+ * worktop and the wall cabinets. All in mm; `startMm` from the wall's own start, as a door's `position`. */
+export interface Backsplash {
+  id: string
+  wallId: string
+  material: 'tile' | 'skinali'
+  startMm: number
+  lengthMm: number
+  bottomMm: number
+  topMm: number
+  color: string
+}
+
 export interface DesignState {
   /** A bathroom's extractor fan in the estimate: on unless exactly false (spec 2026-11-10). */
   ventFan?: boolean
@@ -247,6 +260,8 @@ export interface DesignState {
   floorDrain?: boolean
   /** The water inlet unit (meter, filter, reducer, check valve) in the estimate: off unless exactly true (2026-11-14). */
   waterInlet?: boolean
+  /** Kitchen backsplashes (spec 2026-11-14); absent = none. */
+  backsplashes?: Backsplash[]
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).
