@@ -270,7 +270,8 @@ class TestSeedData:
                        "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
                        "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
                        "installyatsiya", "boyler", "kran_kir", "sifon_kir", "trap_pol",
-                       "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam", "skinali"}
+                       "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam", "skinali",
+                       "sochiq_quritgich_el", "rozetka_ip44"}
         assert set(seed.KEY_PACK_UNIT) - admin_added <= keys
         assert {f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS} <= keys
 

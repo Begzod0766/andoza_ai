@@ -1929,7 +1929,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     from app.services.bathroom_extras import load_bathroom_extras_norms
     from app.services.pipe_scheme import pipe_scheme, sound_point
     from app.services.plumbing import load_plumbing_norms, riser_spot
-    from app.services.towel_rail import rail_points, valid_rails
+    from app.services.towel_rail import is_electric, rail_points, valid_rails
     from app.services.washer import valid_washers, washer_points
 
     catalog = catalog or {}
@@ -1939,6 +1939,9 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     # Heated towel rails hung on the walls (spec 2026-11-10): not furniture, a list of their own.
     geometry = _plumbing_geometry(room)
     rails = valid_rails(state.get("towelRails"), geometry)
+    # Heated by water or electric (2026-11-14): an electric one has no water points, and lines of its own.
+    electric_rails = [r for r in rails if is_electric(r)]
+    rails = [r for r in rails if not is_electric(r)]
     # Washing machines (spec 2026-11-13): a list of their own too; the machine itself is not priced.
     washers = valid_washers(state.get("washers"), geometry)
 
@@ -2108,7 +2111,32 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             formula=f"{len(rails)} dona × {price:,} so'm".replace(",", " "),
             qty=len(rails), unit="dona", price_uzs=price, category="santexnika",
         ))
+    if electric_rails:
+        lines.extend(_electric_rail_lines(len(electric_rails), catalog))
     return lines
+
+
+def _electric_rail_lines(n: int, catalog: dict) -> list[ComputedLine]:
+    """``n`` electric towel rails (2026-11-14): each rail (a shop's under "sochiq_quritgich_el", else
+    the norm), a moisture-proof IP44 socket for it ("rozetka_ip44"), a short cable to the nearest
+    socket circuit (the shop's "kabel" per metre, else the default price) and the work."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    e = load_bathroom_extras_norms()
+    cable = catalog.get("kabel")
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or ELEC_CABLE_PRICE_UZS
+    metres = n * int(e["el_rail_cable_m"])
+    work = int(e["work_el_towel_rail_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        _piece_line("Elektr sochiq quritgich", catalog.get("sochiq_quritgich_el"), int(e["el_towel_rail_uzs"]), "santexnika", qty=n),
+        _piece_line("Namga chidamli rozetka (IP44)", catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]), "santexnika", qty=n),
+        _make_line(label="Elektr kabel (sochiq quritgich)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
+        _make_line(label="Ish: elektr sochiq quritgichni o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n, unit="dona",
+                   price_uzs=work, category="santexnika"),
+    ]
 
 
 def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: str, qty: int = 1, why: str | None = None) -> ComputedLine:

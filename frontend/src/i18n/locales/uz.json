@@ -1037,6 +1037,8 @@
       "fan": "Tortuvchi ventilyator",
       "rail": "Sochiq quritgich",
       "rail_add": "Sochiq quritgich qo'shish",
+      "rail_water": "Suvli",
+      "rail_electric": "Elektr",
       "rail_own": "quritgichniki",
       "rail_no_room": "Devorda sochiq quritgich uchun joy yo'q.",
       "riser": "Stoyak",
@@ -1245,7 +1247,11 @@
       "backsplash_tile": "Fartuk plitkasi",
       "skinali": "Skinali (shisha fartuk)",
       "work_backsplash_tile": "Ish: fartuk plitkasini terish",
-      "work_skinali": "Ish: skinali o'rnatish"
+      "work_skinali": "Ish: skinali o'rnatish",
+      "el_towel_rail": "Elektr sochiq quritgich",
+      "socket_ip44": "Namga chidamli rozetka (IP44)",
+      "el_rail_cable": "Elektr kabel (sochiq quritgich)",
+      "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2302,7 +2308,9 @@
         "reduktor": "Bosim reduktori",
         "klapan_teskari": "Teskari klapan",
         "gipsokarton_nam": "Namga chidamli gipsokarton",
-        "skinali": "Skinali (shisha fartuk)"
+        "skinali": "Skinali (shisha fartuk)",
+        "sochiq_quritgich_el": "Elektr sochiq quritgich",
+        "rozetka_ip44": "Namga chidamli rozetka (IP44)"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

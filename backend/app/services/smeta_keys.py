@@ -20,6 +20,8 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "kabel": None,  # sold per metre: no pack
     # A bathroom's extras (spec 2026-11-10): sold by the piece, no pack
     "ventilyator": None, "sochiq_quritgich": None,
+    # An electric towel rail and its moisture-proof socket (2026-11-14), sold by the piece
+    "sochiq_quritgich_el": None, "rozetka_ip44": None,
     # A fixture's own parts (2026-11-13): its mixer, trap and hoses, sold by the piece
     "smesitel_rakovina": None, "smesitel_oshxona": None, "smesitel_vanna": None, "smesitel_dush": None,
     "smesitel_bide": None, "sifon_rakovina": None, "sifon_oshxona": None, "sifon_vanna": None,
