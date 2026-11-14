@@ -233,3 +233,19 @@ describe('swapping two openings keeps rails and machines clear (2026-11-14)', ()
     expect(nearestFree(g, 'A', st().towelRails[0].positionMm)).toBe(st().towelRails[0].positionMm)
   })
 })
+
+describe('a rail\'s kind (2026-11-14)', () => {
+  it('setTowelRailKind sets it as one undo step; an unknown id changes nothing', () => {
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 1200, heightMm: TOWEL_RAIL_HEIGHT_MM }] })
+    settle()
+    st().setTowelRailKind('r', 'electric')
+    expect(st().towelRails[0].kind).toBe('electric')
+    expect(st().isDirty).toBe(true)
+    const before = st().towelRails
+    st().setTowelRailKind('x', 'water')
+    expect(st().towelRails).toBe(before)
+    settle()
+    undo()
+    expect(st().towelRails[0].kind).toBeUndefined()
+  })
+})

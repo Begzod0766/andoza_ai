@@ -1,7 +1,7 @@
 /** A heated towel rail on a wall (spec 2026-11-10): its points, and where it may hang. */
 import { describe, it, expect } from 'vitest'
 import type { RoomGeometry, TowelRail } from '@/store/types'
-import { railPoints, towelRailPoints, TOWEL_RAIL_W_MM, TOWEL_RAIL_H_MM } from '@/lib/towelRail'
+import { railPoints, towelRailPoints, TOWEL_RAIL_W_MM, TOWEL_RAIL_H_MM, saneRails } from '@/lib/towelRail'
 import shared from './fixtures/towelRailPoints.json'
 
 describe('railPoints', () => {
@@ -166,5 +166,13 @@ describe('a rail keeps clear of a washing machine (2026-11-14)', () => {
   it('a new rail is not hung over a machine by the riser', () => {
     const at = placeTowelRail(g, { wallId: 'A', positionMm: 0 }, [{ wallId: 'A', positionMm: 600, halfMm: 300 }])!
     expect(at.wallId !== 'A' || Math.abs(at.positionMm - 600) >= 550).toBe(true)
+  })
+})
+
+describe('a saved rail\'s kind (2026-11-14)', () => {
+  it('electric and water are kept; anything else is left off, so it reads as water', () => {
+    const r = { id: 'r', wallId: 'A', positionMm: 1, heightMm: 1000 }
+    expect(saneRails([{ ...r, kind: 'electric' }, { ...r, id: 's', kind: 'water' }, { ...r, id: 't', kind: 'gas' }]))
+      .toEqual([{ ...r, kind: 'electric' }, { ...r, id: 's', kind: 'water' }, { ...r, id: 't' }])
   })
 })

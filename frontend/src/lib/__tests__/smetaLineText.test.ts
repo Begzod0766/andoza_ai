@@ -341,3 +341,13 @@ describe('backsplash lines', () => {
     expect(localizeLabel("Ish: skinali o'rnatish", en)).toBe('Work: fitting the skinali')
   })
 })
+
+// An electric towel rail (2026-11-14).
+describe('electric towel rail lines', () => {
+  it('read in Russian and English', () => {
+    expect(localizeLabel('Elektr sochiq quritgich: Terminus', ru)).toBe('Электрический полотенцесушитель: Terminus')
+    expect(localizeLabel('Namga chidamli rozetka (IP44)', en)).toBe('Moisture-proof socket (IP44)')
+    expect(localizeLabel('Elektr kabel (sochiq quritgich)', ru)).toBe('Электрокабель (полотенцесушитель)')
+    expect(localizeLabel("Ish: elektr sochiq quritgichni o'rnatish", en)).toBe('Work: fitting the electric towel rail')
+  })
+})

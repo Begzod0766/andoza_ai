@@ -26,11 +26,18 @@ export function towelRailPoints(rail: TowelRail, wallLengthMm: number): Plumbing
   return [point('feed', -TOWEL_RAIL_W_MM / 2), point('return', TOWEL_RAIL_W_MM / 2)]
 }
 
-/** The points of every rail on a wall the room has; a rail on a wall that is gone brings none. */
+/** An electric rail (2026-11-14): `kind` exactly 'electric'; anything else is heated by water. */
+export function isElectricRail(rail: TowelRail): boolean {
+  return rail.kind === 'electric'
+}
+
+/** The points of every water-heated rail on a wall the room has; a rail on a wall that is gone, or an
+ * electric one, brings none. */
 export function railPoints(rails: readonly TowelRail[], geometry: RoomGeometry): PlumbingPoint[] {
   if (rails.length === 0) return []
   const lengthMm = new Map(wallWalk(geometry).map((w) => [w.id, w.lengthM * 1000]))
   return rails.flatMap((rail) => {
+    if (isElectricRail(rail)) return []
     const length = lengthMm.get(rail.wallId)
     return length == null ? [] : towelRailPoints(rail, length)
   })
@@ -154,10 +161,17 @@ export function withRailPoints(points: PlumbingPoint[], rails: readonly TowelRai
   return extra.length ? [...points, ...extra] : points
 }
 
-/** Rails read from a saved room: anything that is not a sound rail is left out. */
+/** Rails read from a saved room: anything that is not a sound rail is left out; a kind that is
+ * neither water nor electric is dropped, so the rail reads as heated by water. */
 export function saneRails(saved: unknown): TowelRail[] {
   if (!Array.isArray(saved)) return []
-  return saved.filter((r): r is TowelRail =>
-    !!r && typeof r === 'object' && typeof r.id === 'string' && r.id !== '' && typeof r.wallId === 'string'
-    && Number.isFinite(r.positionMm) && Number.isFinite(r.heightMm))
+  return saved
+    .filter((r): r is TowelRail =>
+      !!r && typeof r === 'object' && typeof r.id === 'string' && r.id !== '' && typeof r.wallId === 'string'
+      && Number.isFinite(r.positionMm) && Number.isFinite(r.heightMm))
+    .map((r) => {
+      if (r.kind === undefined || r.kind === 'water' || r.kind === 'electric') return r
+      const { kind: _bad, ...rest } = r
+      return rest
+    })
 }

@@ -5,7 +5,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, TowelRail } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
-import { TOWEL_RAIL_H_MM, TOWEL_RAIL_W_MM } from "@/lib/towelRail";
+import { isElectricRail, TOWEL_RAIL_H_MM, TOWEL_RAIL_W_MM } from "@/lib/towelRail";
 import { noRaycast } from "./constants";
 
 const W = TOWEL_RAIL_W_MM / 1000;
@@ -42,6 +42,13 @@ export function ladderBars(): Array<{ x: number; y: number; length: number; vert
     { x: W / 2, y: 0, length: H, vertical: true },
     ...Array.from({ length: RUNGS }, (_, i) => ({ x: 0, y: -top + (2 * top * i) / (RUNGS - 1), length: W, vertical: false })),
   ];
+}
+
+/** An electric rail's connection box (2026-11-14), in the rail's own frame (metres; z back to the
+ * wall): small and white, low beside the right upright. Null for a rail heated by water. */
+export function railJunction(rail: TowelRail): { x: number; y: number; z: number; w: number; h: number; d: number } | null {
+  if (!isElectricRail(rail)) return null;
+  return { x: W / 2 + 0.045, y: -H / 2 + 0.06, z: -OFF_WALL + 0.0175, w: 0.06, h: 0.06, d: 0.035 };
 }
 
 /** A world point (the pointer on the wall's plane) as a position along the wall walk, mm. */
@@ -159,6 +166,15 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
               <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
+            {(() => {
+              const j = railJunction(rail);
+              return j && (
+                <mesh position={[j.x, j.y, j.z]} castShadow raycast={noRaycast}>
+                  <boxGeometry args={[j.w, j.h, j.d]} />
+                  <meshStandardMaterial color="#F5F5F4" roughness={0.6} />
+                </mesh>
+              );
+            })()}
             {bars.map((b, i) => (
               <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />

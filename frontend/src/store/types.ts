@@ -433,4 +433,6 @@ export interface TowelRail {
   wallId: string
   positionMm: number
   heightMm: number
+  /** Heated by water (absent too, as every rail saved before 2026-11-14) or electric: no water points. */
+  kind?: 'water' | 'electric'
 }
