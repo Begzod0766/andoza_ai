@@ -2,7 +2,8 @@ import type { StateCreator } from 'zustand'
 import type { PlumbingPoint } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { withFixturePoints } from '@/lib/plumbingPoints'
-import type { RiserAt } from '@/lib/plumbingRuns'
+import { roomRiser, type RiserAt } from '@/lib/plumbingRuns'
+import { keepWashers } from '@/lib/washer'
 import { useRoomStore } from '../roomStore'
 
 /** Drain and water points on the walls (spec 2026-11-08); mirrors electricalSlice. */
@@ -41,7 +42,13 @@ let dragStart: PlumbingPoint[] | null = null
 /** The riser as it was when its drag began (see beginRiserDrag); undefined when none is under way. */
 let riserDragStart: RiserAt | null | undefined
 
-export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice> = (set) => ({
+/** The washing machines kept clear of the riser at `at` (2026-11-14): one it now stands on moves to the
+ * nearest free place, as it does for a door. The same list when none is in the way. */
+function washersClearOf(state: RoomStore, at: RiserAt | null) {
+  return keepWashers(state.washers, state.geometry, state.towelRails, roomRiser(state.geometry, at))
+}
+
+export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice> = (set, get) => ({
   plumbing: [],
   plumbingRiser: null,
   showPipeRuns: false,
@@ -52,7 +59,10 @@ export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice>
   },
 
   setPlumbingRiser(at) {
-    set({ plumbingRiser: at, isDirty: true })
+    // Mid-drag the machines stay put (the riser passing over one does not shove it along); they are
+    // kept clear when the drag ends.
+    if (riserDragStart !== undefined) { set({ plumbingRiser: at, isDirty: true }); return }
+    set((state) => ({ plumbingRiser: at, washers: washersClearOf(state, at), isDirty: true }))
   },
 
   beginRiserDrag() {
@@ -69,7 +79,7 @@ export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice>
     // Back to where the drag began unrecorded, then to where it ended recorded: one step.
     set({ plumbingRiser: start })
     temporal.resume()
-    if (final !== start) set({ plumbingRiser: final, isDirty: true })
+    if (final !== start) set({ plumbingRiser: final, washers: washersClearOf(get(), final), isDirty: true })
   },
 
   setShowPipeRuns(on) {
