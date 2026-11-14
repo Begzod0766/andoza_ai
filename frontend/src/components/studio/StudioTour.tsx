@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StudioTourTarget } from "@/lib/studioTour";
 
@@ -12,6 +12,8 @@ function measure(id: StudioTourTarget): Box | null {
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width <= 0 || r.height <= 0) return null;
+  // Entirely off-screen counts as absent: a spotlight over nothing would just hang the tour.
+  if (r.right <= 0 || r.bottom <= 0 || r.left >= window.innerWidth || r.top >= window.innerHeight) return null;
   return { left: r.left, top: r.top, width: r.width, height: r.height };
 }
 
@@ -27,10 +29,29 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   const [index, setIndex] = useState(0);
   const id = ids[index];
   const [box, setBox] = useState<Box | null>(() => (id ? measure(id) : null));
+  const [cardH, setCardH] = useState(0);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // onFinish fires exactly once, whatever strict-mode effects or a double tap do.
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
+  const finishedRef = useRef(false);
+  const finish = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onFinishRef.current();
+  };
+  const last = index === ids.length - 1;
+  const next = () => (last ? finish() : setIndex((i) => i + 1));
 
   useLayoutEffect(() => {
     if (!id) return;
-    const update = () => setBox(measure(id));
+    const update = () => {
+      const b = measure(id);
+      if (b) setBox(b);
+      else if (last) finish(); // the target vanished: move on, or end on the last step
+      else setIndex((i) => i + 1);
+    };
     update();
     window.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
@@ -38,10 +59,15 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const empty = ids.length === 0;
-  useEffect(() => { if (empty) onFinish(); }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (empty) finish(); }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useLayoutEffect(() => {
+    const h = cardRef.current?.getBoundingClientRect().height ?? 0;
+    if (h !== cardH) setCardH(h);
+  });
 
   if (empty || !id || !box) return null;
 
@@ -51,12 +77,13 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   const top = Math.max(0, box.top - PAD);
   const right = Math.min(vw, box.left + box.width + PAD);
   const bottom = Math.min(vh, box.top + box.height + PAD);
-  const last = index === ids.length - 1;
-  const cardBelow = vh - bottom >= top;
-  const cardStyle = cardBelow ? { top: bottom + GAP } : { bottom: vh - top + GAP };
+  // Below the target if there is more room there, else above; then kept fully inside the view
+  // (a big target can leave no room either side, and the card then sits over its edge).
+  const wanted = vh - bottom >= top ? bottom + GAP : top - GAP - cardH;
+  const cardTop = Math.max(PAD, Math.min(wanted, vh - cardH - PAD));
+  const cardStyle = { top: cardTop, maxHeight: vh - 2 * PAD };
 
   const shade = "fixed bg-black/55 backdrop-blur-sm";
-  const next = () => (last ? onFinish() : setIndex((i) => i + 1));
 
   return (
     <div className="fixed inset-0 z-[300]">
@@ -73,9 +100,10 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
         style={{ left, top, width: right - left, height: bottom - top }}
       />
       <div
+        ref={cardRef}
         role="dialog"
         aria-label={t(`studio.tour.${id}.title`)}
-        className="fixed inset-x-4 mx-auto max-w-sm rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
+        className="fixed inset-x-4 mx-auto max-w-sm overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         style={cardStyle}
       >
         <h2 className="text-base font-semibold">{t(`studio.tour.${id}.title`)}</h2>
@@ -84,7 +112,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
           <span className="text-xs tabular-nums text-ink-muted">
             {t("studio.tour.step_of", { current: index + 1, total: ids.length })}
           </span>
-          <button type="button" onClick={onFinish} className="ml-auto rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10">
+          <button type="button" onClick={finish} className="ml-auto rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10">
             {t("studio.tour.skip")}
           </button>
           <button type="button" onClick={next} className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white">

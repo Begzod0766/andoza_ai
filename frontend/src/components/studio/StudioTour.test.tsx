@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import i18n from '@/i18n'
@@ -25,6 +26,7 @@ beforeEach(() => {
   }
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     const id = this.getAttribute('data-tour')
+    if (this.getAttribute('role') === 'dialog') return rectOf({ left: 0, top: 0, width: 300, height: 200 })
     const r = id ? rects[id] : undefined
     return rectOf(r ?? { left: 0, top: 0, width: 0, height: 0 })
   })
@@ -89,5 +91,50 @@ describe('StudioTour', () => {
     const { container } = render(<StudioTour steps={['scene', 'menu']} onFinish={onFinish} />)
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(container.firstChild).toBeNull()
+  })
+
+  it('keeps the card inside the viewport for a target that fills the view', () => {
+    rects.scene = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+    mount(['scene', 'menu'])
+    render(<StudioTour steps={['scene', 'menu']} onFinish={() => {}} />)
+    const top = parseFloat(screen.getByRole('dialog').style.top)
+    expect(top).toBeGreaterThanOrEqual(0)
+    expect(top + 200).toBeLessThanOrEqual(window.innerHeight)
+  })
+
+  it('advances past a target that vanishes, and finishes when the last one does', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    render(<StudioTour steps={['scene', 'menu']} onFinish={onFinish} />)
+    rects.scene = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(screen.getByText(i18n.t('studio.tour.menu.title'))).toBeInTheDocument()
+    expect(onFinish).not.toHaveBeenCalled()
+    rects.menu = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats an off-screen target as absent', () => {
+    rects.scene = { left: 5000, top: 5000, width: 50, height: 50 }
+    mount(['scene', 'menu'])
+    render(<StudioTour steps={['scene', 'menu']} onFinish={() => {}} />)
+    expect(screen.getByText('1/1')).toBeInTheDocument()
+  })
+
+  it('calls onFinish once under StrictMode with no targets', () => {
+    const onFinish = vi.fn()
+    render(<StrictMode><StudioTour steps={['scene']} onFinish={onFinish} /></StrictMode>)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onFinish once on a double tap of Skip', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    render(<StudioTour steps={['scene', 'menu']} onFinish={onFinish} />)
+    const skip = screen.getByRole('button', { name: i18n.t('studio.tour.skip') })
+    fireEvent.click(skip)
+    fireEvent.click(skip)
+    expect(onFinish).toHaveBeenCalledTimes(1)
   })
 })
