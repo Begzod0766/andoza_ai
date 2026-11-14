@@ -5,7 +5,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
-import { withRailPoints } from "@/lib/towelRail";
+import { isElectricRail, withRailPoints } from "@/lib/towelRail";
 import { withWasherPoints } from "@/lib/washer";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
@@ -33,6 +33,7 @@ export function SantexnikaSection({ bathroom = false }: {
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
   const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
+  const setTowelRailKind = useRoomStore((s) => s.setTowelRailKind);
   const washers = useRoomStore((s) => s.washers);
   const addWasher = useRoomStore((s) => s.addWasher);
   const removeWasher = useRoomStore((s) => s.removeWasher);
@@ -170,6 +171,18 @@ export function SantexnikaSection({ bathroom = false }: {
                 <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}`}
                   className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
                   <span className="text-[12px] text-ink">{t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}</span>
+                  {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
+                  <span className="flex gap-1">
+                    {(["water", "electric"] as const).map((k) => {
+                      const on = (isElectricRail(r) ? "electric" : "water") === k;
+                      return (
+                        <button key={k} type="button" aria-pressed={on} onClick={() => !on && setTowelRailKind(r.id, k)}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${on ? "border-brand bg-brand text-white" : "border-line text-ink hover:border-brand/50"}`}>
+                          {t(k === "water" ? "studio.santexnika.rail_water" : "studio.santexnika.rail_electric")}
+                        </button>
+                      );
+                    })}
+                  </span>
                   <button type="button" onClick={() => removeTowelRail(r.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                     {t("studio.santexnika.remove")}
                   </button>

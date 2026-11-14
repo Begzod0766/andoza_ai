@@ -3,8 +3,8 @@ import { describe, it, expect } from 'vitest'
 import type { RoomGeometry, TowelRail } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { wallWalk } from '@/lib/plumbingRuns'
-import { withRailPoints } from '@/lib/towelRail'
-import { dragToPositionMm, ladderBars, towelRailPose } from '../TowelRails3D'
+import { withRailPoints, TOWEL_RAIL_W_MM } from '@/lib/towelRail'
+import { dragToPositionMm, ladderBars, railJunction, towelRailPose } from '../TowelRails3D'
 
 const rect = { walls: [
   { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
@@ -119,5 +119,19 @@ describe('railPointerHandlers', () => {
 
   it('in any other stage the rail has no handlers at all: a touch goes through it', () => {
     expect(railPointerHandlers(false, vi.fn())).toEqual({})
+  })
+})
+
+describe('railJunction (2026-11-14)', () => {
+  it('an electric rail has a small connection box low at its side, against the wall', () => {
+    const box = railJunction({ id: 'r', wallId: 'A', positionMm: 1000, heightMm: 1000, kind: 'electric' })!
+    expect(box.x).toBeGreaterThan(TOWEL_RAIL_W_MM / 2000)
+    expect(box.y).toBeLessThan(0)
+    expect(box.z).toBeLessThan(0)
+    expect(Math.max(box.w, box.h, box.d)).toBeLessThan(0.1)
+  })
+  it('a water rail has none', () => {
+    expect(railJunction({ id: 'r', wallId: 'A', positionMm: 1000, heightMm: 1000 })).toBeNull()
+    expect(railJunction({ id: 'r', wallId: 'A', positionMm: 1000, heightMm: 1000, kind: 'water' })).toBeNull()
   })
 })

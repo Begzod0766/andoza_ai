@@ -67,6 +67,8 @@ const LABEL_HEADS = {
   "Fartuk plitkasi": "backsplash_tile",
   "Skinali (shisha fartuk)": "skinali",
   "Quti profili (karkas)": "frame_box_profile",
+  "Elektr sochiq quritgich": "el_towel_rail",
+  "Namga chidamli rozetka (IP44)": "socket_ip44",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -149,6 +151,10 @@ const WHOLE_LABELS = {
   "Skinali (shisha fartuk)": "skinali",
   "Ish: fartuk plitkasini terish": "work_backsplash_tile",
   "Ish: skinali o'rnatish": "work_skinali",
+  "Elektr sochiq quritgich": "el_towel_rail",
+  "Namga chidamli rozetka (IP44)": "socket_ip44",
+  "Elektr kabel (sochiq quritgich)": "el_rail_cable",
+  "Ish: elektr sochiq quritgichni o'rnatish": "work_el_towel_rail",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */

@@ -45,7 +45,12 @@ def towel_rail_points(rail: dict, wall_length_mm: float) -> list[dict]:
     return [point("feed", -RAIL_W_MM / 2), point("return", RAIL_W_MM / 2)]
 
 
+def is_electric(rail: dict) -> bool:
+    """An electric rail (2026-11-14): ``kind`` exactly "electric"; anything else is heated by water."""
+    return rail.get("kind") == "electric"
+
+
 def rail_points(rails: object, geometry: dict | None) -> list[dict]:
-    """The points of every valid rail."""
+    """The points of every valid rail heated by water; an electric one has none."""
     length_mm = {w["id"]: w["length"] * 1000 for w in _room_walls(geometry)}
-    return [p for r in valid_rails(rails, geometry) for p in towel_rail_points(r, length_mm[str(r["wallId"])])]
+    return [p for r in valid_rails(rails, geometry) if not is_electric(r) for p in towel_rail_points(r, length_mm[str(r["wallId"])])]

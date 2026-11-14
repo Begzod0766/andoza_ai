@@ -16,6 +16,8 @@ export interface TowelRailSlice {
   /** Slides a rail along its wall, to the free place nearest `positionMm`. */
   moveTowelRail(id: string, positionMm: number): void
   removeTowelRail(id: string): void
+  /** Heated by water or electric (2026-11-14). */
+  setTowelRailKind(id: string, kind: 'water' | 'electric'): void
   /** A rail is being dragged: its moves until `endTowelRailDrag` make one undo step. */
   beginTowelRailDrag(): void
   endTowelRailDrag(): void
@@ -48,6 +50,12 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
       if (!rail || at == null || at === rail.positionMm) return state
       return { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }
     })
+  },
+
+  setTowelRailKind(id, kind) {
+    set((state) => (state.towelRails.some((r) => r.id === id)
+      ? { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, kind } : r)), isDirty: true }
+      : state))
   },
 
   removeTowelRail(id) {

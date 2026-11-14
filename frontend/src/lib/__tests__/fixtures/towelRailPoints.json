@@ -1,5 +1,5 @@
 {
- "_doc": "A towel rail's two hot water points (spec 2026-11-10): frontend lib/towelRail railPoints and backend app/services/towel_rail rail_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres.",
+ "_doc": "A towel rail's two hot water points (spec 2026-11-10): frontend lib/towelRail railPoints and backend app/services/towel_rail rail_points must both give `expected`; an electric rail (`kind: \"electric\"`, 2026-11-14) has none. Geometry in mm (studio units); the backend test converts to metres.",
  "cases": [
   {
    "name": "rect, mid wall A",
@@ -510,6 +510,162 @@
      "diameterMm": 20,
      "wallId": "A",
      "positionMm": 1251,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "an electric rail has no water points",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "A",
+     "positionMm": 1200,
+     "heightMm": 1000,
+     "kind": "electric"
+    }
+   ],
+   "expected": []
+  },
+  {
+   "name": "a water and an electric rail: only the water one's points",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "A",
+     "positionMm": 1200,
+     "heightMm": 1000,
+     "kind": "water"
+    },
+    {
+     "id": "r2",
+     "wallId": "B",
+     "positionMm": 800,
+     "heightMm": 1000,
+     "kind": "electric"
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 950,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1450,
+     "heightMm": 1000,
+     "railId": "r1"
+    }
+   ]
+  },
+  {
+   "name": "an unknown kind reads as water",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "rails": [
+    {
+     "id": "r1",
+     "wallId": "A",
+     "positionMm": 1200,
+     "heightMm": 1000,
+     "kind": "gas"
+    }
+   ],
+   "expected": [
+    {
+     "id": "r1:feed",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 950,
+     "heightMm": 1000,
+     "railId": "r1"
+    },
+    {
+     "id": "r1:return",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1450,
      "heightMm": 1000,
      "railId": "r1"
     }

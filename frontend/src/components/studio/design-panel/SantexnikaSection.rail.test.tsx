@@ -77,3 +77,18 @@ describe('SantexnikaSection: a rail in a room that is no longer a bathroom (fina
     expect(rails()).toEqual([])
   })
 })
+
+describe('SantexnikaSection: an electric towel rail (2026-11-14)', () => {
+  it('a new rail is heated by water; switching it to electric takes its points away, and back brings them', () => {
+    render(<SantexnikaSection bathroom />)
+    fireEvent.click(addButton()!)
+    const row = screen.getByRole('listitem', { name: /sochiq quritgich/i })
+    expect(within(row).getByRole('button', { name: 'Suvli' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(row).getByRole('button', { name: 'Elektr' }))
+    expect(rails()[0].kind).toBe('electric')
+    expect(screen.queryAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(0)
+    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Suvli' }))
+    expect(rails()[0].kind).toBe('water')
+    expect(screen.getAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(2)
+  })
+})

@@ -105,7 +105,11 @@
         "backsplash_tile": "Fartuk plitkasi",
         "skinali": "Skinali (shisha fartuk)",
         "work_backsplash_tile": "Ish: fartuk plitkasini terish",
-        "work_skinali": "Ish: skinali o'rnatish"
+        "work_skinali": "Ish: skinali o'rnatish",
+        "el_towel_rail": "Elektr sochiq quritgich",
+        "socket_ip44": "Namga chidamli rozetka (IP44)",
+        "el_rail_cable": "Elektr kabel (sochiq quritgich)",
+        "work_el_towel_rail": "Ish: elektr sochiq quritgichni o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -352,7 +356,11 @@
         "backsplash_tile": "Плитка фартука",
         "skinali": "Скинали (стеклянный фартук)",
         "work_backsplash_tile": "Работа: укладка плитки фартука",
-        "work_skinali": "Работа: монтаж скинали"
+        "work_skinali": "Работа: монтаж скинали",
+        "el_towel_rail": "Электрический полотенцесушитель",
+        "socket_ip44": "Влагозащищённая розетка (IP44)",
+        "el_rail_cable": "Электрокабель (полотенцесушитель)",
+        "work_el_towel_rail": "Работа: установка электрического полотенцесушителя"
       },
       "unit": {
         "qop_one": "мешок",
@@ -653,7 +661,11 @@
         "backsplash_tile": "Backsplash tile",
         "skinali": "Skinali (glass backsplash)",
         "work_backsplash_tile": "Work: laying the backsplash tile",
-        "work_skinali": "Work: fitting the skinali"
+        "work_skinali": "Work: fitting the skinali",
+        "el_towel_rail": "Electric towel rail",
+        "socket_ip44": "Moisture-proof socket (IP44)",
+        "el_rail_cable": "Electric cable (towel rail)",
+        "work_el_towel_rail": "Work: fitting the electric towel rail"
       },
       "unit": {
         "qop_one": "bag",
