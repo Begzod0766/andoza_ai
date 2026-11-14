@@ -190,6 +190,14 @@ describe('SantexnikaSection', () => {
     expect(useRoomStore.getState().designState.floorDrain).toBe(true)
   })
 
+  it('"water inlet" is off until ticked; ticking sets waterInlet (2026-11-14)', () => {
+    render(<SantexnikaSection />)
+    const box = screen.getByLabelText('Suv kirish uzeli (hisoblagich, filtr, reduktor)') as HTMLInputElement
+    expect(box.checked).toBe(false)
+    fireEvent.click(box)
+    expect(useRoomStore.getState().designState.waterInlet).toBe(true)
+  })
+
   it('in a kitchen, a sink brings its three points', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     placeOn('sink', 'rak', 'B', 0.62)

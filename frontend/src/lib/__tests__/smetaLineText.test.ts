@@ -309,3 +309,15 @@ describe('floor drain lines', () => {
     expect(localizeLabel("Ish: trap o'rnatish", ru)).toBe('Работа: установка трапа')
   })
 })
+
+// The water inlet unit (2026-11-14).
+describe('water inlet lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Suv hisoblagichi: Valtec', ru)).toBe('Счётчик воды: Valtec')
+    expect(localizeLabel("Dag'al filtr", en)).toBe('Coarse water filter')
+    expect(localizeLabel('Bosim reduktori', ru)).toBe('Редуктор давления')
+    expect(localizeLabel('Teskari klapan', en)).toBe('Check valve')
+    expect(localizeLabel("Ish: suv kirish uzelini yig'ish", ru)).toBe('Работа: сборка узла ввода воды')
+    expect(localizeFormula("2 liniya = 2 dona × 180 000 so'm", ru)).toBe('2 линии = 2 шт. × 180 000 сум')
+  })
+})

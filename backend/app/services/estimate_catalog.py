@@ -33,6 +33,7 @@ _PIECE_KEYS = frozenset({
     "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
     "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
     "installyatsiya", "boyler", "kran_kir", "sifon_kir", "trap_pol",
+    "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari",
 })
 
 

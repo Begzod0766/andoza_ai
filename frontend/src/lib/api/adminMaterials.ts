@@ -184,6 +184,11 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "sifon_kir", labelKey: "dokon.admin.smeta_key.sifon_kir", packUnit: null, unit: "dona" },
   // A floor drain (2026-11-13): sold by the piece
   { id: "trap_pol", labelKey: "dokon.admin.smeta_key.trap_pol", packUnit: null, unit: "dona" },
+  // The water inlet unit (2026-11-14): sold by the piece
+  { id: "hisoblagich_suv", labelKey: "dokon.admin.smeta_key.hisoblagich_suv", packUnit: null, unit: "dona" },
+  { id: "filtr_suv", labelKey: "dokon.admin.smeta_key.filtr_suv", packUnit: null, unit: "dona" },
+  { id: "reduktor", labelKey: "dokon.admin.smeta_key.reduktor", packUnit: null, unit: "dona" },
+  { id: "klapan_teskari", labelKey: "dokon.admin.smeta_key.klapan_teskari", packUnit: null, unit: "dona" },
   ...LIGHT_TYPES.map((t) => ({
     id: `light:${t.id}`,
     labelKey: t.nameKey,

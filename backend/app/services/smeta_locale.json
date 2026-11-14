@@ -93,7 +93,12 @@
         "washer_trap": "Kir yuvish mashinasi sifoni",
         "work_washer": "Ish: kir yuvish mashinasini ulash",
         "floor_drain": "Pol trapi",
-        "work_floor_drain": "Ish: trap o'rnatish"
+        "work_floor_drain": "Ish: trap o'rnatish",
+        "water_meter": "Suv hisoblagichi",
+        "water_filter": "Dag'al filtr",
+        "pressure_reducer": "Bosim reduktori",
+        "check_valve": "Teskari klapan",
+        "work_water_inlet": "Ish: suv kirish uzelini yig'ish"
       },
       "unit": {
         "qop_one": "qop",
@@ -328,7 +333,12 @@
         "washer_trap": "Сифон для стиральной машины",
         "work_washer": "Работа: подключение стиральной машины",
         "floor_drain": "Трап",
-        "work_floor_drain": "Работа: установка трапа"
+        "work_floor_drain": "Работа: установка трапа",
+        "water_meter": "Счётчик воды",
+        "water_filter": "Фильтр грубой очистки",
+        "pressure_reducer": "Редуктор давления",
+        "check_valve": "Обратный клапан",
+        "work_water_inlet": "Работа: сборка узла ввода воды"
       },
       "unit": {
         "qop_one": "мешок",
@@ -617,7 +627,12 @@
         "washer_trap": "Washing machine trap",
         "work_washer": "Work: connecting the washing machine",
         "floor_drain": "Floor drain",
-        "work_floor_drain": "Work: fitting the floor drain"
+        "work_floor_drain": "Work: fitting the floor drain",
+        "water_meter": "Water meter",
+        "water_filter": "Coarse water filter",
+        "pressure_reducer": "Pressure reducer",
+        "check_valve": "Check valve",
+        "work_water_inlet": "Work: assembling the water inlet"
       },
       "unit": {
         "qop_one": "bag",

@@ -245,6 +245,8 @@ export interface DesignState {
   waterHeater?: boolean
   /** A shower with no tray, draining through a floor drain: off unless exactly true (spec 2026-11-13). */
   floorDrain?: boolean
+  /** The water inlet unit (meter, filter, reducer, check valve) in the estimate: off unless exactly true (2026-11-14). */
+  waterInlet?: boolean
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).
