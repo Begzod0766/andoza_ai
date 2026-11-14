@@ -22,7 +22,7 @@ const usta = {
 
 function renderQueue() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  render(
+  return render(
     <QueryClientProvider client={qc}>
       <ModerationQueue onError={() => {}} />
     </QueryClientProvider>,
@@ -61,6 +61,39 @@ describe('admin moderation queue — craftsman applications', () => {
     renderQueue()
     await waitFor(() => expect(api.getPendingQueue).toHaveBeenCalled())
     expect(screen.queryByText(/Ko'rib chiqishni kutmoqda/)).toBeNull()
+  })
+})
+
+const wp = {
+  id: 'w1', name: 'Klassik gul', kind: 'oboy', store_id: 's1', store_name: 'MAFF', price_uzs: 120000,
+  width_cm: 106, total_length_m: 10, height_cm: null, url: 'https://x/w1.jpg', status: 'pending', moderation_note: null,
+}
+
+describe('admin moderation queue — shop wallpapers', () => {
+  it('shows a wallpaper card and approves it', async () => {
+    api.getPendingQueue.mockResolvedValue({ stores: [], furniture: [], ustalar: [], wallpapers: [wp] })
+    api.approvePending.mockResolvedValue(undefined)
+    const { container } = renderQueue()
+
+    expect(await screen.findByText('Klassik gul')).toBeInTheDocument()
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('https://x/w1.jpg')
+    expect(screen.getByText(/MAFF/)).toBeInTheDocument()
+    expect(screen.getByText(/120/)).toBeInTheDocument()
+    expect(screen.getByText(/106 sm × 10 m/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tasdiqlash' }))
+    await waitFor(() => expect(api.approvePending).toHaveBeenCalledWith('wallpapers', 'w1'))
+  })
+
+  it('rejects a wallpaper with a reason', async () => {
+    api.getPendingQueue.mockResolvedValue({ stores: [], furniture: [], ustalar: [], wallpapers: [wp] })
+    api.rejectPending.mockResolvedValue(undefined)
+    renderQueue()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Rad etish' }))
+    fireEvent.change(screen.getByPlaceholderText(/Model sifati past/), { target: { value: 'Xira' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Rad etish' }).at(-1)!)
+    await waitFor(() => expect(api.rejectPending).toHaveBeenCalledWith('wallpapers', 'w1', 'Xira'))
   })
 })
 
