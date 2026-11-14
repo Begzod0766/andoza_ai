@@ -7,7 +7,7 @@ import { intlLocale } from "@/i18n";
 /** The estimate lines the studio lets the user price with a shop product of their own
  *  choosing: the pick is kept in surfaces["smeta:<key>"], which the smeta engine reads
  *  (app.services.smeta.PICKED_PRODUCT_PREFIX) in place of the shop's cheapest product. */
-export type PickableSmetaKey = "gipsokarton" | "profil" | "led_lenta" | "galtel";
+export type PickableSmetaKey = "gipsokarton" | "profil" | "led_lenta" | "galtel" | "sochiq_quritgich" | "sochiq_quritgich_el";
 
 export const pickedSurfaceKey = (key: PickableSmetaKey) => `smeta:${key}`;
 

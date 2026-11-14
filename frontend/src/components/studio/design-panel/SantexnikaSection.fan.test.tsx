@@ -1,8 +1,14 @@
 /** The switch for a bathroom's extractor fan (spec 2026-11-10): on unless the user turns it off. */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach , vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import { SantexnikaSection } from './SantexnikaSection'
+
+// The shop lists ask the server (react-query); here they are stand-ins that say which line they pick for.
+vi.mock('./ShopPickList', () => ({
+  ShopPickList: ({ smetaKey, title }: { smetaKey: string; title: string }) => <div data-testid={`pick-${smetaKey}`}>{title}</div>,
+}))
+
 
 const box = () => screen.queryByRole('checkbox', { name: 'Tortuvchi ventilyator' }) as HTMLInputElement | null
 

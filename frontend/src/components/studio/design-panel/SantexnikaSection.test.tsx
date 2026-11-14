@@ -8,6 +8,12 @@ import { plumbingSummary, riserSpot, roomRiser } from '@/lib/plumbingRuns'
 import { pipeScheme } from '@/lib/pipeScheme'
 import { formatDecimal } from '@/lib/utils'
 
+// The shop lists ask the server (react-query); here they are stand-ins that say which line they pick for.
+vi.mock('./ShopPickList', () => ({
+  ShopPickList: ({ smetaKey, title }: { smetaKey: string; title: string }) => <div data-testid={`pick-${smetaKey}`}>{title}</div>,
+}))
+
+
 const row = (id: string, name: string, w: number, d: number) =>
   ({ id, name_uz: name, category: 'boshqa', room_type: 'hammom', store_id: 's', store_name: 'H', placement: 'pol', price_uzs: 1, glb_url: 'x', thumbnail_url: null, footprint_w: w, footprint_d: d }) as CatalogFurniture
 

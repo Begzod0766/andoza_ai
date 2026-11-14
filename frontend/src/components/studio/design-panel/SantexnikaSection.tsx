@@ -5,7 +5,9 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
-import { isElectricRail, withRailPoints } from "@/lib/towelRail";
+import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
+import { ShopPickList } from "./ShopPickList";
+import type { TowelRailSize } from "@/store/types";
 import { withWasherPoints } from "@/lib/washer";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
@@ -34,6 +36,9 @@ export function SantexnikaSection({ bathroom = false }: {
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
   const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
   const setTowelRailKind = useRoomStore((s) => s.setTowelRailKind);
+  const setTowelRailSize = useRoomStore((s) => s.setTowelRailSize);
+  /** The last size picked did not fit on its rail's wall. */
+  const [noSizeRoom, setNoSizeRoom] = useState(false);
   const washers = useRoomStore((s) => s.washers);
   const addWasher = useRoomStore((s) => s.addWasher);
   const removeWasher = useRoomStore((s) => s.removeWasher);
@@ -169,7 +174,7 @@ export function SantexnikaSection({ bathroom = false }: {
             <ul className="space-y-1">
               {towelRails.map((r) => (
                 <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}`}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
                   <span className="text-[12px] text-ink">{t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}</span>
                   {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
                   <span className="flex gap-1">
@@ -183,6 +188,15 @@ export function SantexnikaSection({ bathroom = false }: {
                       );
                     })}
                   </span>
+                  {/* Its size (2026-11-15): the 3D ladder, its points' spacing and its norm price. */}
+                  <select aria-label={t("studio.santexnika.rail_size")} value={r.size ?? "500x800"}
+                    onChange={(e) => setNoSizeRoom(!setTowelRailSize(r.id, e.target.value as TowelRailSize))}
+                    className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">
+                    {RAIL_SIZES.map((s) => {
+                      const { w, h } = railSize({ ...r, size: s });
+                      return <option key={s} value={s}>{t("studio.santexnika.rail_size_option", { w: w / 10, h: h / 10 })}</option>;
+                    })}
+                  </select>
                   <button type="button" onClick={() => removeTowelRail(r.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                     {t("studio.santexnika.remove")}
                   </button>
@@ -197,6 +211,10 @@ export function SantexnikaSection({ bathroom = false }: {
             </button>
           )}
           {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
+          {noSizeRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_size_no_room")}</p>}
+          {/* A shop product of the user's own for each kind of rail in the room (2026-11-15). */}
+          {towelRails.some((r) => !isElectricRail(r)) && <ShopPickList smetaKey="sochiq_quritgich" title={t("studio.santexnika.rail_shop")} />}
+          {towelRails.some(isElectricRail) && <ShopPickList smetaKey="sochiq_quritgich_el" title={t("studio.santexnika.rail_shop_el")} />}
         </div>
       )}
 
