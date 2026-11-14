@@ -1,4 +1,19 @@
 import { useEffect, useRef } from "react";
+import { showsEditingCorners } from "./cameraViewChrome";
+
+/**
+ * Whether the 3D view is one the tour can run over: a phone's live editing view — no 360 camera,
+ * no fixed camera, no 2D plan in the scene's place. The view lock does not matter: the tour
+ * explains it.
+ */
+export function studioTourReady({ compact, panorama, cameraStation, planShown }: {
+  compact: boolean;
+  panorama: boolean;
+  cameraStation: number | null;
+  planShown: boolean;
+}): boolean {
+  return compact && showsEditingCorners({ panorama, cameraStation }) && !planShown;
+}
 
 /**
  * The 3D view's side of the Studio tour (StudioPage owns the tour itself): tells the page

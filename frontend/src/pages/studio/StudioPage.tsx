@@ -109,19 +109,35 @@ export default function StudioPage() {
   // remembered as seen.
   const [tourReady, setStudioTourReady] = useState(false);
   const [tourSteps, setTourSteps] = useState<StudioTourTarget[] | null>(null);
+  // Once the tour has been on screen it never starts on its own again here: with a storage that
+  // will not keep "done", it would reopen the moment Skip closed it.
+  const tourShownRef = useRef(false);
+  // "?" pressed away from the live 3D view (a camera, the 2D plan, the smeta): the tour opens as
+  // soon as that view is back. For this visit only.
+  const [tourReplayPending, setTourReplayPending] = useState(false);
   const openTour = () => {
     const steps = presentSteps(STUDIO_TOUR_STEPS, isTourTargetShown);
     if (steps.length === 0) return;
+    tourShownRef.current = true;
     setMenuOpen(false);
     setSharePopoverOpen(false);
     setTourSteps(steps);
   };
   const tourOpen = tourSteps !== null;
   useEffect(() => {
-    if (tourOpen) return;
-    if (shouldStartStudioTour({ done: isStudioTourDone(), compact, editingView: tourReady })) openTour();
+    if (tourOpen || !tourReady) return;
+    if (tourReplayPending) {
+      setTourReplayPending(false);
+      openTour();
+      return;
+    }
+    if (!tourShownRef.current && shouldStartStudioTour({ done: isStudioTourDone(), compact, editingView: tourReady })) openTour();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- openTour reads only setters and the DOM
-  }, [compact, tourReady, tourOpen]);
+  }, [compact, tourReady, tourOpen, tourReplayPending]);
+  const onTourHelp = () => {
+    if (tourReady) openTour();
+    else setTourReplayPending(true);
+  };
   const finishTour = () => {
     markStudioTourDone();
     setTourSteps(null);
@@ -665,12 +681,13 @@ export default function StudioPage() {
                 </>
               )}
             </div>
-            {/* The tour again, on a phone's live 3D view — the only place it runs. */}
-            {compact && tourReady && (
+            {/* The tour again. On every phone view, so the row never shifts; away from the
+                live 3D view the tour waits for it (onTourHelp). */}
+            {compact && (
               <button
                 type="button"
                 data-tour="help"
-                onClick={openTour}
+                onClick={onTourHelp}
                 aria-label={t('studio.tour.help_btn')}
                 title={t('studio.tour.help_btn')}
                 className="w-10 h-10 rounded-full bg-card-soft text-ink-muted flex items-center justify-center text-[17px] font-bold hover:bg-line transition-colors"

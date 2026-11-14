@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import i18n from '@/i18n'
 import type { StudioContext } from '../ThreeDPage'
 import { STUDIO_TOUR_KEY } from '@/lib/studioTour'
-import { useStudioTourWiring } from '../three-d/useStudioTourWiring'
+import { studioTourReady, useStudioTourWiring } from '../three-d/useStudioTourWiring'
 
 let compact = true
 vi.mock('@/lib/compactStudio', async (orig) => ({
@@ -146,11 +146,45 @@ describe('the studio tour in StudioPage', () => {
     expect(screen.queryByRole('button', { name: i18n.t('studio.tour.help_btn') })).toBeNull()
   })
 
+  it('a storage that throws: skip still closes the tour, and it does not reopen', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
+    render(ui(true))
+    await screen.findByRole('dialog', { name: sceneTitle() })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.skip') }))
+    await act(async () => {})
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows "?" on every phone view, and a press while not ready opens the tour once ready', async () => {
+    localStorage.setItem(STUDIO_TOUR_KEY, '1')
+    const { rerender } = render(ui(false))
+    await screen.findByText('scene')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.help_btn') }))
+    await act(async () => {})
+    expect(tourCard()).toBeNull()
+    rerender(ui(true))
+    expect(await screen.findByRole('dialog', { name: sceneTitle() })).toBeInTheDocument()
+  })
+
   it('puts the header targets in place', async () => {
     render(ui(false))
     await screen.findByText('scene')
     expect(document.querySelector('[data-tour="undo"]')).not.toBeNull()
     expect(document.querySelector('[data-tour="menu"]')).toHaveAttribute('aria-label', i18n.t('studio.menu.more'))
+  })
+})
+
+describe('studioTourReady (ThreeDPage)', () => {
+  const clear = { compact: true, panorama: false, cameraStation: null, planShown: false }
+  it('is ready on a phone\'s live editing view, and not in panorama, a camera, a 2D plan or on a desktop', () => {
+    expect(studioTourReady(clear)).toBe(true)
+    expect(studioTourReady({ ...clear, panorama: true })).toBe(false)
+    expect(studioTourReady({ ...clear, cameraStation: 2 })).toBe(false)
+    expect(studioTourReady({ ...clear, planShown: true })).toBe(false)
+    expect(studioTourReady({ ...clear, compact: false })).toBe(false)
+  })
+  it('ignores the view lock', () => {
+    expect(studioTourReady({ ...clear, locked: true } as Parameters<typeof studioTourReady>[0])).toBe(true)
   })
 })
 

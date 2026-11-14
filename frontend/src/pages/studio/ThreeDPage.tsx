@@ -74,7 +74,7 @@ import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
 import { isStudioTourDone } from "@/lib/studioTour";
-import { useStudioTourWiring } from "./three-d/useStudioTourWiring";
+import { studioTourReady, useStudioTourWiring } from "./three-d/useStudioTourWiring";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -436,7 +436,7 @@ export default function ThreeDPage() {
   // step says, so it is folded in: hidden until the tour is done, and seen when it ends.
   useStudioTourWiring({
     active: studioTourActive,
-    ready: compact && showsEditingCorners({ panorama, cameraStation }) && !planShown,
+    ready: studioTourReady({ compact, panorama, cameraStation, planShown }),
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
     onEnd: markTapHintSeen,
