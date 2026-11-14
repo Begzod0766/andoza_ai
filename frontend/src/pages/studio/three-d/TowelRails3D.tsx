@@ -7,6 +7,8 @@ import type { RoomGeometry, TowelRail } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
 import { isElectricRail, railSize } from "@/lib/towelRail";
 import { noRaycast } from "./constants";
+import { clashColor } from "@/lib/wallItemClash";
+import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 
 /** A rail's width and height, metres (its size, 2026-11-15). */
 const dims = (rail?: TowelRail) => {
@@ -103,6 +105,8 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
   // Caught and dragged in the Santexnika stage only; in any other it is scenery, and a touch goes
   // through it to the camera or to whatever is there.
   const active = useRoomStore((s) => s.plumbingStage);
+  // Touching furniture (2026-11-15): drawn in warning red in the Santexnika stage.
+  const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -185,7 +189,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
             {bars.map((b, i) => (
               <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />
-                <meshStandardMaterial color={CHROME} metalness={0.9} roughness={0.25} />
+                <meshStandardMaterial color={clashColor(CHROME, active, !!clashes[rail.id])} metalness={0.9} roughness={0.25} />
               </mesh>
             ))}
           </group>

@@ -8,6 +8,8 @@ import { wallWalk } from "@/lib/plumbingRuns";
 import { WASHER_D_MM, WASHER_H_MM, WASHER_W_MM, WASHER_WALL_GAP_MM } from "@/lib/washer";
 import { dragToPositionMm, raycastInFront, railPointerHandlers } from "./TowelRails3D";
 import { noRaycast } from "./constants";
+import { clashColor } from "@/lib/wallItemClash";
+import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 
 const W = WASHER_W_MM / 1000;
 const D = WASHER_D_MM / 1000;
@@ -39,6 +41,8 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
   const geometry = useRoomStore((s) => s.geometry);
   const moveWasher = useRoomStore((s) => s.moveWasher);
   const active = useRoomStore((s) => s.plumbingStage);
+  // Touching furniture (2026-11-15): drawn in warning red in the Santexnika stage.
+  const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -103,7 +107,7 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
           <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(m, e))}>
             <mesh castShadow receiveShadow raycast={active ? raycastInFront : noRaycast}>
               <boxGeometry args={[W, H, D]} />
-              <meshStandardMaterial color={BODY} roughness={0.45} metalness={0.05} />
+              <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>
             <mesh position={[0, DOOR_Y - H / 2, D / 2 + 0.002]} raycast={noRaycast}>
               <circleGeometry args={[DOOR_R, 40]} />
