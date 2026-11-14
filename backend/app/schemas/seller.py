@@ -14,6 +14,7 @@ from app.schemas.admin_catalog import (  # noqa: F401  (re-exported for the rout
 )
 from app.schemas.auth import normalize_contact_phone
 from app.schemas.usta_profile import PendingUstaOut
+from app.schemas.wallpaper import WallpaperOut
 
 _HEX_COLOR = r"^#[0-9A-Fa-f]{6}$"
 
@@ -143,8 +144,13 @@ class PendingFurnitureOut(SellerFurnitureOut):
     store_name: str | None
 
 
+class PendingWallpaperOut(WallpaperOut):
+    """A shop's wallpaper in the review queue (``store_name`` is already on the base)."""
+
+
 class PendingOut(BaseModel):
     stores: list[PendingStoreOut]
     furniture: list[PendingFurnitureOut]
     # Craftsman applications. Defaulted so a client that predates them still parses.
     ustalar: list[PendingUstaOut] = []
+    wallpapers: list[PendingWallpaperOut] = []
