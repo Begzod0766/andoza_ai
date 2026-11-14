@@ -104,14 +104,6 @@ describe('SellerWallpapers', () => {
     await waitFor(() => expect(api.updateMyWallpaper).toHaveBeenCalledWith('r1', { name: 'Olingan' }))
   })
 
-  it('never offers the image field on a shop-removed row', async () => {
-    api.listMyWallpapers.mockResolvedValue([removed()])
-    renderIt()
-    fireEvent.click(await screen.findByRole('button', { name: 'Tahrirlash' }))
-    expect(await screen.findByLabelText('Nomi')).toHaveValue('Olingan')
-    expect(screen.queryByLabelText('Rasm')).toBeNull()
-  })
-
   it('keeps Save disabled for a width or length outside the allowed range', async () => {
     api.listMyWallpapers.mockResolvedValue([])
     renderIt({ openNew: true })
@@ -126,5 +118,49 @@ describe('SellerWallpapers', () => {
     expect(save).toBeEnabled()
     fireEvent.change(screen.getByLabelText('Rulon uzunligi (m)'), { target: { value: '51' } })
     expect(save).toBeDisabled()
+  })
+
+  it('offers no edit button on a shop-removed row, only Qaytarish', async () => {
+    api.listMyWallpapers.mockResolvedValue([removed(), wp({ id: 'a', name: 'Appr' })])
+    renderIt()
+    await screen.findByText('Olingan')
+    expect(screen.getAllByRole('button', { name: 'Tahrirlash' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Qaytarish' })).toBeInTheDocument()
+  })
+
+  it('keeps Save disabled for a fractional price', async () => {
+    api.listMyWallpapers.mockResolvedValue([])
+    renderIt({ openNew: true })
+    fireEvent.change(await screen.findByLabelText('Rasm'), { target: { files: [new File(['x'], 'a.png', { type: 'image/png' })] } })
+    fireEvent.change(screen.getByLabelText('Nomi'), { target: { value: 'Gul' } })
+    fireEvent.change(screen.getByLabelText('Eni (sm)'), { target: { value: '106' } })
+    fireEvent.change(screen.getByLabelText('Rulon uzunligi (m)'), { target: { value: '10' } })
+    const save = screen.getByRole('button', { name: 'Saqlash' })
+    fireEvent.change(screen.getByLabelText("1 rulon narxi (so'm)"), { target: { value: '120000.5' } })
+    expect(save).toBeDisabled()
+    fireEvent.change(screen.getByLabelText("1 rulon narxi (so'm)"), { target: { value: '120000' } })
+    expect(save).toBeEnabled()
+  })
+
+  it('tells the owner a rejected wallpaper is back in review after editing it', async () => {
+    api.listMyWallpapers.mockResolvedValue([wp({ id: 'x', name: 'Rad', status: 'rejected', moderation_note: 'Xira' })])
+    api.updateMyWallpaper.mockResolvedValue(wp({ status: 'pending' }))
+    renderIt()
+    fireEvent.click(await screen.findByRole('button', { name: 'Tahrirlash' }))
+    fireEvent.change(await screen.findByLabelText('Nomi'), { target: { value: 'Yangi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Saqlash' }))
+    await waitFor(() => expect(api.updateMyWallpaper).toHaveBeenCalled())
+    expect(await screen.findByText("Admin tasdiqlagach Studio'da ko'rinadi.")).toBeInTheDocument()
+  })
+
+  it('closes silently after editing an approved wallpaper', async () => {
+    api.listMyWallpapers.mockResolvedValue([wp()])
+    api.updateMyWallpaper.mockResolvedValue(wp())
+    renderIt()
+    fireEvent.click(await screen.findByRole('button', { name: 'Tahrirlash' }))
+    fireEvent.change(await screen.findByLabelText('Nomi'), { target: { value: 'Yangi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Saqlash' }))
+    await waitFor(() => expect(screen.queryByLabelText('Nomi')).not.toBeInTheDocument())
+    expect(screen.queryByText("Admin tasdiqlagach Studio'da ko'rinadi.")).toBeNull()
   })
 })

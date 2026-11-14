@@ -112,3 +112,27 @@ describe('admin moderation queue — after a decision', () => {
     expect(api.getPendingQueue).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('admin moderation queue — wallpaper library refresh', () => {
+  it('invalidates the admin wallpaper library after approving a wallpaper', async () => {
+    api.getPendingQueue.mockResolvedValue({ stores: [], furniture: [], ustalar: [], wallpapers: [wp] })
+    api.approvePending.mockResolvedValue(undefined)
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    render(<QueryClientProvider client={qc}><ModerationQueue onError={() => {}} /></QueryClientProvider>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Tasdiqlash' }))
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['wallpapers'] }))
+  })
+
+  it('invalidates the admin wallpaper library after rejecting a wallpaper', async () => {
+    api.getPendingQueue.mockResolvedValue({ stores: [], furniture: [], ustalar: [], wallpapers: [wp] })
+    api.rejectPending.mockResolvedValue(undefined)
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    render(<QueryClientProvider client={qc}><ModerationQueue onError={() => {}} /></QueryClientProvider>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Rad etish' }))
+    fireEvent.change(screen.getByPlaceholderText(/Model sifati past/), { target: { value: 'Xira' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Rad etish' }).at(-1)!)
+    await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ['wallpapers'] }))
+  })
+})

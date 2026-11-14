@@ -43,6 +43,8 @@ export function ModerationQueue({ onError }: { onError: (msg: FormError) => void
     // whose active flags the decision just changed. Once is enough; listing
     // KEY separately as well fetched the queue twice.
     queryClient.invalidateQueries({ queryKey: ["admin"] });
+    // The admin wallpaper library (WallpaperSection) lists every status.
+    queryClient.invalidateQueries({ queryKey: ["wallpapers"] });
   };
 
   const approve = useMutation({

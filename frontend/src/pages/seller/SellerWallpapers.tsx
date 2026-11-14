@@ -87,10 +87,12 @@ export function SellerWallpapers({
                 )}
               </div>
               <div className="flex items-center gap-1 pt-1">
+                {!isRemovedByShop(w) && (
                 <button onClick={() => setEditing(w)} disabled={busy} title={t("dokon.admin.tahrirlash")} aria-label={t("dokon.admin.tahrirlash")}
                   className="h-8 w-8 rounded-full border border-line bg-card-soft flex items-center justify-center text-ink-muted hover:text-accent disabled:opacity-50">
                   <Pencil size={14} />
                 </button>
+                )}
                 {isRemovedByShop(w) ? (
                   <Button size="sm" variant="soft" className="ml-auto" disabled={busy} onClick={() => { setError(null); restore.mutate(w); }}>
                     {t("seller.wallpapers.restore")}

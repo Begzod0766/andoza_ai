@@ -39,7 +39,7 @@ export function SellerWallpaperFormDialog({
   }
 
   const complete =
-    !!name.trim() && Number(price) > 0 &&
+    !!name.trim() && Number.isInteger(Number(price)) && Number(price) > 0 &&
     Number(width) >= 30 && Number(width) <= 150 && Number(length) >= 1 && Number(length) <= 50 && (editing || !!file);
 
   const save = useMutation({
@@ -50,7 +50,8 @@ export function SellerWallpaperFormDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WALLPAPERS_KEY });
-      if (editing) {
+      // A rejected wallpaper goes back to review when edited; say so. Approved ones just close.
+      if (editing && wallpaper!.status !== "rejected") {
         onOpenChange(false);
       } else {
         setDone(true);
