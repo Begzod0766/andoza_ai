@@ -1,5 +1,5 @@
 {
- "_doc": "Fixture points from the studio (lib/plumbingPoints fixturePoints), shared with backend tests/test_plumbing.py so the estimate derives the same points for a room that never saved any. Geometry in mm (studio units); the backend converts to metres. Regenerate only with the studio code it checks.",
+ "_doc": "Fixture points from the studio (lib/plumbingPoints fixturePoints), shared with backend tests/test_plumbing.py so the estimate derives the same points for a room that never saved any. Geometry in mm (studio units); the backend converts to metres. Regenerate only with the studio code it checks. Bath and shower water points per SNiP 3.05.01-85 (2026-11-16): 800 and 1200 mm high, cold and hot 150 mm apart.",
  "cases": [
   {
    "name": "rect bathtub on A",
@@ -51,8 +51,8 @@
      "kind": "cold",
      "diameterMm": 20,
      "wallId": "A",
-     "positionMm": 1450,
-     "heightMm": 700,
+     "positionMm": 1475,
+     "heightMm": 800,
      "fixtureId": "bathtub1"
     },
     {
@@ -60,8 +60,8 @@
      "kind": "hot",
      "diameterMm": 20,
      "wallId": "A",
-     "positionMm": 1650,
-     "heightMm": 700,
+     "positionMm": 1625,
+     "heightMm": 800,
      "fixtureId": "bathtub1"
     }
    ]
@@ -237,8 +237,8 @@
      "kind": "cold",
      "diameterMm": 20,
      "wallId": "D",
-     "positionMm": 700,
-     "heightMm": 1050,
+     "positionMm": 725,
+     "heightMm": 1200,
      "fixtureId": "shower1"
     },
     {
@@ -246,8 +246,8 @@
      "kind": "hot",
      "diameterMm": 20,
      "wallId": "D",
-     "positionMm": 900,
-     "heightMm": 1050,
+     "positionMm": 875,
+     "heightMm": 1200,
      "fixtureId": "shower1"
     }
    ]
@@ -439,8 +439,8 @@
      "kind": "cold",
      "diameterMm": 20,
      "wallId": "0",
-     "positionMm": 1100,
-     "heightMm": 700,
+     "positionMm": 1125,
+     "heightMm": 800,
      "fixtureId": "bathtub1"
     },
     {
@@ -448,8 +448,8 @@
      "kind": "hot",
      "diameterMm": 20,
      "wallId": "0",
-     "positionMm": 1300,
-     "heightMm": 700,
+     "positionMm": 1275,
+     "heightMm": 800,
      "fixtureId": "bathtub1"
     }
    ]
