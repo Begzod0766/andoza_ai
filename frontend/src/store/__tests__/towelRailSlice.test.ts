@@ -61,7 +61,7 @@ describe('towel rails in the store', () => {
   it('moving slides it along its wall but never onto a door or past the end', () => {
     useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'D', positionMm: 300, heightMm: 1000 }] })
     st().moveTowelRail('r', 1000)   // inside the door
-    expect(st().towelRails[0].positionMm).toBe(400)
+    expect(st().towelRails[0].positionMm).toBe(330)   // short of its architrave (2026-11-16)
     st().moveTowelRail('r', 5000)
     expect(st().towelRails[0].positionMm).toBe(1750)
     expect(st().towelRails[0]).toMatchObject({ wallId: 'D', heightMm: 1000 })
@@ -136,7 +136,7 @@ describe('dragging a rail towards a door (mobile QA 2026-11-11 #3)', () => {
     useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'D', positionMm: 300, heightMm: 1000 }] })
     st().beginTowelRailDrag()
     for (const mm of [600, 1000, 1300, 1700]) st().moveTowelRail('r', mm)
-    expect(st().towelRails[0].positionMm).toBe(400)
+    expect(st().towelRails[0].positionMm).toBe(330)
     st().endTowelRailDrag()
     st().moveTowelRail('r', 1700)
     expect(st().towelRails[0].positionMm).toBe(1700)
@@ -170,8 +170,8 @@ describe('a door or window that comes onto a rail moves the rail off (review min
     useRoomStore.setState({ geometry: withDoor, towelRails: [{ id: 'r', wallId: 'A', positionMm: 1500, heightMm: 1000 }] })
     useRoomStore.temporal.getState().clear()
     settle()
-    st().updateElement('A', 'a', { position: 1100 })   // door now 1100–1800: the rail must leave 850–2050, and 2050 is nearer
-    expect(st().towelRails[0].positionMm).toBe(2050)
+    st().updateElement('A', 'a', { position: 1100 })   // door now 1100–1800, architrave 1030–1870: the rail must leave 780–2120, and 2120 is nearer
+    expect(st().towelRails[0].positionMm).toBe(2120)
     undo()
     expect(st().towelRails[0].positionMm).toBe(1500)
     expect(st().geometry.walls[0].elements[0].position).toBe(0)

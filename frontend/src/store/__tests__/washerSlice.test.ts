@@ -71,15 +71,19 @@ describe('washing machines in the store', () => {
   })
 
   it('a drag stops at a door\'s edge and is one undo step', () => {
-    useRoomStore.setState({ washers: [{ id: 'm', wallId: 'D', positionMm: 1700 }] })
+    // A 2500 square: D's walk runs against its own start, so its door (650–1350 from its own start) is at
+    // 1150–1850 along the walk, its architrave (2026-11-16) at 1080–1920; a machine on its near side stops
+    // at 1080 - 300 = 780.
+    useRoomStore.setState({ geometry: { walls: geometry.walls.map((w) => (w.id === 'B' || w.id === 'D' ? { ...w, length: 2500 } : w)) } as unknown as RoomGeometry })
+    useRoomStore.setState({ washers: [{ id: 'm', wallId: 'D', positionMm: 400 }] })
     settle()
     st().beginWasherDrag()
-    for (const p of [1500, 1300, 1000, 700, 400]) { st().moveWasher('m', p); settle() }
+    for (const p of [600, 900, 1300, 1700, 2100]) { st().moveWasher('m', p); settle() }
     st().endWasherDrag()
-    expect(st().washers[0].positionMm).toBe(650 + 700 + 300)
+    expect(st().washers[0].positionMm).toBe(2500 - 650 - 700 - 70 - 300)
     settle()
     undo()
-    expect(st().washers[0].positionMm).toBe(1700)
+    expect(st().washers[0].positionMm).toBe(400)
   })
 
   it('a shorter wall, a door on it, a shape without it', () => {
@@ -87,7 +91,7 @@ describe('washing machines in the store', () => {
     st().setWallLength('A', 1500)
     expect(st().washers[0].positionMm).toBe(1200)
     st().addElement('A', { type: 'eshik', position: 900, width: 500, height: 2050 } as never)
-    expect(st().washers[0].positionMm).toBe(600) // moved off the door, to just before it
+    expect(st().washers[0].positionMm).toBe(530) // moved off the door and its architrave, to just before it
     const tri = { walls: ['0', '1', '2'].map((id) => ({ id, length: 3000, elements: [] })), vertices: [[0, 0], [3000, 0], [1500, 2598]] } as unknown as RoomGeometry
     st().applyRoomShape(tri)
     expect(st().washers).toEqual([])
