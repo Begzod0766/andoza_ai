@@ -1278,7 +1278,14 @@
       "dish_socket": "Idish yuvish mashinasi rozetkasi (IP44)",
       "dish_cable": "Elektr kabel (idish yuvish mashinasi)",
       "work_dish": "Ish: idish yuvish mashinasini ulash",
-      "work_dish_socket": "Ish: idish yuvish mashinasi rozetkasini o'rnatish"
+      "work_dish_socket": "Ish: idish yuvish mashinasi rozetkasini o'rnatish",
+      "uzo": "UZO (difavtomat 30 mA)",
+      "bonding_kit": "Potensiallarni tenglash qutisi (KUP) va kabel",
+      "work_bonding": "Ish: potensiallarni tenglash",
+      "work_pressure_test": "Ish: quvurlarni bosim bilan sinash (opressovka)",
+      "hatch": "Revizion lyuk (plitka ostiga)",
+      "work_hatch": "Ish: revizion lyuk o'rnatish",
+      "silicone": "Sanitariya silikoni"
     },
     "unit": {
       "qop_one": "qop",
@@ -2342,7 +2349,10 @@
         "rozetka_ip44": "Namga chidamli rozetka (IP44)",
         "styajka": "Styajka aralashmasi (qop)",
         "kran_idish": "Idish yuvish mashinasi krani (uchlik bilan)",
-        "sifon_idish": "Idish yuvish mashinasi sifoni (chiqishli)"
+        "sifon_idish": "Idish yuvish mashinasi sifoni (chiqishli)",
+        "uzo": "UZO (difavtomat 30 mA)",
+        "lyuk": "Revizion lyuk",
+        "silikon": "Sanitariya silikoni"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

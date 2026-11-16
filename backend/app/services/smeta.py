@@ -2129,6 +2129,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         lines.extend(_washer_socket_lines(len(machines), catalog))
     if dishwashers:
         lines.extend(_washer_socket_lines(len(dishwashers), catalog, "idish"))
+    if points:
+        lines.extend(_safety_lines(_is_bathroom(room), roles, catalog, norms))
     return lines
 
 
@@ -2170,6 +2172,44 @@ def _electric_rail_lines(rails: list[dict], catalog: dict) -> list[ComputedLine]
         _make_line(label="Ish: elektr sochiq quritgichni o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n, unit="dona",
                    price_uzs=work, category="santexnika"),
     ]
+
+
+def _safety_lines(bathroom: bool, roles: dict[str, int], catalog: dict, norms: dict) -> list[ComputedLine]:
+    """What every plumbing renovation has but the estimate lacked (2026-11-16), in a room with plumbing
+    points: an RCD for the wet zone, the pressure test of the pipes before they are closed up, and
+    sanitary silicone (a tube per two fixtures, at least one); in a bathroom also the equipotential
+    bonding (box, cable, work) and a tile-in revision hatch for the riser shaft."""
+    n = norms["safety"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    out = [_piece_line("UZO (difavtomat 30 mA)", catalog.get("uzo"), int(n["uzo_uzs"]), "santexnika")]
+    if bathroom:
+        kit, bond = int(n["bonding_kit_uzs"]), int(n["work_bonding_uzs"])
+        out += [
+            _make_line(label="Potensiallarni tenglash qutisi (KUP) va kabel", formula=f"1 komplekt × {fmt(kit)} so'm", qty=1, unit="komplekt",
+                       price_uzs=kit, category="santexnika", is_approximate=True, warning=EXTRAS_NORM_NOTE),
+            _make_line(label="Ish: potensiallarni tenglash", formula=f"1 komplekt × {fmt(bond)} so'm", qty=1, unit="komplekt",
+                       price_uzs=bond, category="santexnika"),
+        ]
+    test = int(n["work_pressure_test_uzs"])
+    out.append(_make_line(label="Ish: quvurlarni bosim bilan sinash (opressovka)", formula=f"1 komplekt × {fmt(test)} so'm", qty=1,
+                          unit="komplekt", price_uzs=test, category="santexnika"))
+    if bathroom:
+        hatch_work = int(n["work_hatch_uzs"])
+        out += [
+            _piece_line("Revizion lyuk (plitka ostiga)", catalog.get("lyuk"), int(n["hatch_uzs"]), "santexnika"),
+            _make_line(label="Ish: revizion lyuk o'rnatish", formula=f"1 dona × {fmt(hatch_work)} so'm", qty=1, unit="dona",
+                       price_uzs=hatch_work, category="santexnika"),
+        ]
+    parts = [(role, roles[role]) for role in ("bathtub", "shower", "sink", "toilet", "bidet") if roles.get(role)]
+    fixtures = sum(c for _, c in parts)
+    per = int(n["fixtures_per_silicone"])
+    tubes = max(1, math.ceil(fixtures / per))
+    why = (" + ".join(f"{c} {FIXTURE_WORK_NAMES[r]}" for r, c in parts) + f" = {fixtures} ÷ {per} →") if parts else None
+    line = _piece_line("Sanitariya silikoni", catalog.get("silikon"), int(n["silicone_uzs"]), "santexnika", qty=tubes, why=why)
+    if why:
+        line.formula = line.formula.replace(f"{why} = ", f"{why} ", 1)
+    out.append(line)
+    return out
 
 
 _SOCKET_LABELS = {

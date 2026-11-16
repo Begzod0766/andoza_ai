@@ -1278,7 +1278,14 @@
       "dish_socket": "Dishwasher socket (IP44)",
       "dish_cable": "Electric cable (dishwasher)",
       "work_dish": "Work: connecting the dishwasher",
-      "work_dish_socket": "Work: fitting the dishwasher socket"
+      "work_dish_socket": "Work: fitting the dishwasher socket",
+      "uzo": "RCD (RCBO 30 mA)",
+      "bonding_kit": "Equipotential bonding box and cable",
+      "work_bonding": "Work: equipotential bonding",
+      "work_pressure_test": "Work: pressure-testing the pipes",
+      "hatch": "Revision hatch (tile-in)",
+      "work_hatch": "Work: fitting the revision hatch",
+      "silicone": "Sanitary silicone"
     },
     "unit": {
       "qop_one": "bag",
@@ -2342,7 +2349,10 @@
         "rozetka_ip44": "Moisture-proof socket (IP44)",
         "styajka": "Screed mix (bag)",
         "kran_idish": "Dishwasher tap (with a tee)",
-        "sifon_idish": "Dishwasher trap (with an outlet)"
+        "sifon_idish": "Dishwasher trap (with an outlet)",
+        "uzo": "RCD (RCBO 30 mA)",
+        "lyuk": "Revision hatch",
+        "silikon": "Sanitary silicone"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",
