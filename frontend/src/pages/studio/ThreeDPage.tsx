@@ -11,6 +11,7 @@ import { RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
 import { wallAnchorOf, type WallAnchor } from "@/lib/newRoomFromWall";
 import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
+import { plumbingStageOn, DOCKED_PANEL_QUERY } from '@/lib/plumbingStageOn';
 import { useRoomStore } from "@/store/roomStore";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { useCompactStudio } from "@/lib/compactStudio";
@@ -326,7 +327,6 @@ export default function ThreeDPage() {
   })
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
   // The 3D scene does not see the stage: towel rails are caught and dragged only in Santexnika.
-  useEffect(() => { useRoomStore.getState().setPlumbingStage(activePhase === 'santexnika') }, [activePhase])
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
@@ -394,6 +394,18 @@ export default function ThreeDPage() {
   // untouched (the toggle buttons themselves are hidden below lg).
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  // The design panel is docked from lg up; below it is a sheet that can be closed (lib/plumbingStageOn).
+  const [panelDocked, setPanelDocked] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(DOCKED_PANEL_QUERY).matches);
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' ? window.matchMedia?.(DOCKED_PANEL_QUERY) : undefined;
+    if (!mq) return;
+    const on = () => setPanelDocked(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  useEffect(() => {
+    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked));
+  }, [activePhase, showPanel, panelDocked]);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
