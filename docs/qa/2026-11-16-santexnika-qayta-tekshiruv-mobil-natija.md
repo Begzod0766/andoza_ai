@@ -112,3 +112,21 @@ Keyingi tekshiruvda, iloji bo'lsa, haqiqiy telefonda:
 - suv nuqtalari oralig'i;
 - uch tildagi PDF;
 - admin bo'lmagan akkaunt.
+
+## Qo'shimcha: deploydan keyin Studio yangi versiyaga o'tadimi (#63 2-band, #300)
+
+Haqiqiy frontend deploy kutildi: #302 (idish yuvish mashinasi), `7f1a347a`. Prod'dagi asosiy JS fayli `index-MIhg6QM9.js` dan `index-2Gtnxr2M.js` ga almashdi.
+
+Oldinroq hujjatning o'zi (#301) deploy qilinganda fayl nomi o'zgarmagan edi. Build'ga commit belgisi kiritilmaydi, shuning uchun bunday deploy versiyani almashtirmaydi.
+
+| Band | Natija |
+|---|---|
+| Deploydan oldin Studio ochilib, ilova fonga yuborildi; deploydan keyin ilova qaytarildi | ✅ ilova qayta ishga tushmadi (PID o'sha), sahifa o'zi qayta yuklandi. Logda: `StudioWebView: new web build deployed, reloading the page` |
+| Versiya o'zgarmagan deploydan keyin (#301) qaytish | ✅ qayta yuklanmadi |
+| Qayta yuklangandan keyin yana fonga yuborib qaytish | ✅ ikkinchi marta qayta yuklanmadi |
+| Deploydan keyin yangi ochilgan Studio darhol yangi versiyada (#300) | ✅ yangi oshxona xonasida Santexnika panelida "Посудомоечная машина" bo'limi bor (#302 yangiligi) |
+| Prod `sw.js` | ✅ `index.html` keshga olinmaydi, navigatsiya `NetworkFirst` (4 s), `sw.js` o'zi `no-cache` |
+
+Yangi sinov xonasi: oshxona, "Кухня" turi, 3.0 × 3.0 m (usta turga mos o'lchamni berdi).
+
+![Oshxona: idish yuvish mashinasi bo'limi](img/2026-11-16b/07-kitchen-dishwasher.jpg)
