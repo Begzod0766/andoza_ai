@@ -67,7 +67,11 @@ export const DOOR_ARCHITRAVE_MM = 70
  * Where on a wall a rail's centre may sit, as [from, to] spans in mm along the wall walk: the wall
  * less half a rail at each end, less every door and window widened by half a rail each side.
  */
-export function freeSpans(geometry: RoomGeometry, wallId: string, halfMm: number = HALF): Array<[number, number]> {
+/**
+ * The doors and windows on a wall as [from, to] along the wall walk, mm, as the room draws them: a door
+ * with its architrave (DOOR_ARCHITRAVE_MM a side), a window with its frame inside the opening.
+ */
+export function openingSpans(geometry: RoomGeometry, wallId: string, doorsOnly = false): Array<[number, number]> {
   const walk = wallWalk(geometry).find((w) => w.id === wallId)
   const own = roomModel(geometry).walls.find((w) => w.id === wallId)
   const wall = geometry.walls.find((w) => w.id === wallId)
@@ -76,12 +80,23 @@ export function freeSpans(geometry: RoomGeometry, wallId: string, halfMm: number
   // An opening is measured from the wall's own start; the walk may run the other way.
   const forward = walk.dirX * own.dirX + walk.dirZ * own.dirZ > 0
   // Where the room draws each opening: one just added has no place of its own yet (lib/wallPositions).
-  const blocked = resolveElementPositions(wall.elements, wall.length)
-    .filter((e) => Number.isFinite(e.position) && e.width > 0)
+  return resolveElementPositions(wall.elements, wall.length)
+    .filter((e) => Number.isFinite(e.position) && e.width > 0 && (!doorsOnly || e.type === 'eshik'))
     // A door's architrave stands this far past its opening on each side (mobile QA 2026-11-16: a rail hung
     // over it); a window's frame stays inside its opening.
     .map((e) => ({ from: e.position - (e.type === 'eshik' ? DOOR_ARCHITRAVE_MM : 0), to: e.position + e.width + (e.type === 'eshik' ? DOOR_ARCHITRAVE_MM : 0) }))
     .map(({ from, to }): [number, number] => (forward ? [from, to] : [length - to, length - from]))
+}
+
+/**
+ * Where on a wall a rail's centre may sit, as [from, to] spans in mm along the wall walk: the wall
+ * less half a rail at each end, less every door and window widened by half a rail each side.
+ */
+export function freeSpans(geometry: RoomGeometry, wallId: string, halfMm: number = HALF): Array<[number, number]> {
+  const walk = wallWalk(geometry).find((w) => w.id === wallId)
+  if (!walk || !geometry.walls.some((w) => w.id === wallId)) return []
+  const length = walk.lengthM * 1000
+  const blocked = openingSpans(geometry, wallId)
     .map(([a, b]): [number, number] => [a - halfMm, b + halfMm])
     .sort((p, q) => p[0] - q[0])
   const spans: Array<[number, number]> = []

@@ -4,6 +4,7 @@ import type { RoomStore } from '../roomStoreTypes'
 import { withFixturePoints } from '@/lib/plumbingPoints'
 import { roomRiser, type RiserAt } from '@/lib/plumbingRuns'
 import { keepWashers } from '@/lib/washer'
+import { riserClearOfDoors } from '@/lib/riserDoors'
 import { useRoomStore } from '../roomStore'
 
 /** Drain and water points on the walls (spec 2026-11-08); mirrors electricalSlice. */
@@ -59,6 +60,8 @@ export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice>
   },
 
   setPlumbingRiser(at) {
+    // Never in front of a door (mobile QA 2026-11-16): it stands beside the door instead.
+    if (at) at = riserClearOfDoors(get().geometry, at)
     // Mid-drag the machines stay put (the riser passing over one does not shove it along); they are
     // kept clear when the drag ends.
     if (riserDragStart !== undefined) { set({ plumbingRiser: at, isDirty: true }); return }
