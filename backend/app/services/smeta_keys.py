@@ -34,6 +34,8 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "kran_kir": None, "sifon_kir": None,
     # A dishwasher's tap with a tee and its outlet trap (2026-11-16), sold by the piece
     "kran_idish": None, "sifon_idish": None,
+    # An RCD, a tile-in revision hatch, sanitary silicone (2026-11-16), sold by the piece
+    "uzo": None, "lyuk": None, "silikon": None,
     # A floor drain for a shower with no tray (2026-11-13), sold by the piece
     "trap_pol": None,
     # The water inlet unit (2026-11-14), sold by the piece

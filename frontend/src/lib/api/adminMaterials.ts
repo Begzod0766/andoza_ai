@@ -190,6 +190,9 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "sifon_kir", labelKey: "dokon.admin.smeta_key.sifon_kir", packUnit: null, unit: "dona" },
   { id: "kran_idish", labelKey: "dokon.admin.smeta_key.kran_idish", packUnit: null, unit: "dona" },
   { id: "sifon_idish", labelKey: "dokon.admin.smeta_key.sifon_idish", packUnit: null, unit: "dona" },
+  { id: "uzo", labelKey: "dokon.admin.smeta_key.uzo", packUnit: null, unit: "dona" },
+  { id: "lyuk", labelKey: "dokon.admin.smeta_key.lyuk", packUnit: null, unit: "dona" },
+  { id: "silikon", labelKey: "dokon.admin.smeta_key.silikon", packUnit: null, unit: "dona" },
   // A floor drain (2026-11-13): sold by the piece
   { id: "trap_pol", labelKey: "dokon.admin.smeta_key.trap_pol", packUnit: null, unit: "dona" },
   // The water inlet unit (2026-11-14): sold by the piece

@@ -16,6 +16,7 @@ APRON = "Oshxona fartugi"
 RAIL = "Sochiq quritgich"
 FAN = "Ventilyator"
 ELEC = "Rozetka va kabel"
+SAFETY = "Santexnika: xavfsizlik va sinov"
 
 CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
     "plumbing": {
@@ -59,6 +60,14 @@ CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
         "frame_box.work_uzs": ("Ish: gipsokarton quti yig'ish", SD, WORK),
         "work_washer_uzs": ("Ish: kir yuvish mashinasini ulash", SD, WORK),
         "work_dishwasher_uzs": ("Ish: idish yuvish mashinasini ulash", SD, WORK),
+        "safety.uzo_uzs": ("UZO (difavtomat 30 mA)", SD, SAFETY),
+        "safety.bonding_kit_uzs": ("Potensiallarni tenglash qutisi (KUP) va kabel", "so'm/komplekt", SAFETY),
+        "safety.work_bonding_uzs": ("Ish: potensiallarni tenglash", "so'm/komplekt", SAFETY),
+        "safety.work_pressure_test_uzs": ("Ish: quvurlarni bosim bilan sinash (opressovka)", "so'm/xona", SAFETY),
+        "safety.hatch_uzs": ("Revizion lyuk (plitka ostiga)", SD, SAFETY),
+        "safety.work_hatch_uzs": ("Ish: revizion lyuk o'rnatish", SD, SAFETY),
+        "safety.silicone_uzs": ("Sanitariya silikoni", "so'm/tuba", SAFETY),
+        "safety.fixtures_per_silicone": ("Bir tuba silikon necha buyumga", "buyum", SAFETY),
         "work_water_inlet_uzs": ("Ish: suv kirish uzelini yig'ish", "so'm/liniya", WORK),
         "work_fixture_uzs.bathtub": ("Ish: vanna o'rnatish", SD, WORK),
         "work_fixture_uzs.sink": ("Ish: rakovina o'rnatish", SD, WORK),
