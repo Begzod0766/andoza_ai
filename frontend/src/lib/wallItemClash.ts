@@ -2,7 +2,7 @@ import type { RoomGeometry, TowelRail, Washer } from '@/store/types'
 import { overlaps, type Rect } from '@/lib/aiDesignLayout'
 import { wallWalk } from '@/lib/plumbingRuns'
 import { railSize } from '@/lib/towelRail'
-import { washerBox, WASHER_H_MM } from '@/lib/washer'
+import { machineSize, washerBox } from '@/lib/washer'
 
 /**
  * Does a washing machine or a towel rail touch a piece of furniture? (spec 2026-11-15) Each is a
@@ -16,7 +16,7 @@ const RAIL_DEPTH_M = 0.06
 
 export function washerSolid(geometry: RoomGeometry, m: Washer): Solid | null {
   const rect = washerBox(geometry, m)
-  return rect && { rect, y0: 0, y1: WASHER_H_MM / 1000 }
+  return rect && { rect, y0: 0, y1: machineSize(m).h / 1000 }
 }
 
 export function railSolid(geometry: RoomGeometry, rail: TowelRail): Solid | null {

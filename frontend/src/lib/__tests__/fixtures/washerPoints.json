@@ -1,5 +1,5 @@
 {
- "_doc": "A washing machine's two points (spec 2026-11-13): frontend lib/washer washerPoints and backend app/services/washer washer_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres.",
+ "_doc": "A washing machine's two points (spec 2026-11-13): frontend lib/washer washerPoints and backend app/services/washer washer_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres. A dishwasher (kind \"dishwasher\", widthMm 600|450, 2026-11-16): both points 500 mm high, ±150 (600) or ±100 (450).",
  "cases": [
   {
    "name": "rect, mid wall A",
@@ -231,6 +231,173 @@
      "positionMm": 850,
      "heightMm": 600,
      "washerId": "m4"
+    }
+   ]
+  },
+  {
+   "name": "dishwasher 600 (2026-11-16): cold/drain ±150 at 500",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "d1",
+     "wallId": "A",
+     "positionMm": 1200,
+     "kind": "dishwasher",
+     "widthMm": 600
+    }
+   ],
+   "expected": [
+    {
+     "id": "d1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1350,
+     "heightMm": 500,
+     "washerId": "d1"
+    },
+    {
+     "id": "d1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1050,
+     "heightMm": 500,
+     "washerId": "d1"
+    }
+   ]
+  },
+  {
+   "name": "dishwasher 450: ±100",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "d2",
+     "wallId": "A",
+     "positionMm": 1200,
+     "kind": "dishwasher",
+     "widthMm": 450
+    }
+   ],
+   "expected": [
+    {
+     "id": "d2:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1300,
+     "heightMm": 500,
+     "washerId": "d2"
+    },
+    {
+     "id": "d2:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1100,
+     "heightMm": 500,
+     "washerId": "d2"
+    }
+   ]
+  },
+  {
+   "name": "an unknown kind is a washing machine",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "w9",
+     "wallId": "A",
+     "positionMm": 1200,
+     "kind": "oven"
+    }
+   ],
+   "expected": [
+    {
+     "id": "w9:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1350,
+     "heightMm": 900,
+     "washerId": "w9"
+    },
+    {
+     "id": "w9:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1050,
+     "heightMm": 600,
+     "washerId": "w9"
     }
    ]
   }

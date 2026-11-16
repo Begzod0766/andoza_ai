@@ -9,7 +9,8 @@ import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towe
 import { ShopPickList } from "./ShopPickList";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import type { TowelRailSize } from "@/store/types";
-import { withWasherPoints } from "@/lib/washer";
+import { DISHWASHER_WIDTHS, isDishwasher, machineSize, withWasherPoints } from "@/lib/washer";
+import { effectiveRoomType } from "@/lib/roomType";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
@@ -50,6 +51,14 @@ export function SantexnikaSection({ bathroom = false }: {
   const removeWasher = useRoomStore((s) => s.removeWasher);
   /** The last "add a washing machine" found no place for one. */
   const [noWasherRoom, setNoWasherRoom] = useState(false);
+  // A dishwasher (2026-11-16): offered in a kitchen, listed and removable in any room.
+  const kitchen = useRoomStore((s) => effectiveRoomType(s.roomType, s.name) === "oshxona");
+  const addDishwasher = useRoomStore((s) => s.addDishwasher);
+  const setWasherWidth = useRoomStore((s) => s.setWasherWidth);
+  const [noDishRoom, setNoDishRoom] = useState(false);
+  const [noDishWidth, setNoDishWidth] = useState(false);
+  const dishwashers = washers.filter(isDishwasher);
+  const washingMachines = washers.filter((m) => !isDishwasher(m));
   /** The last "add a rail" found no wall with room for one. */
   const [noRailRoom, setNoRailRoom] = useState(false);
   const furniture = useRoomStore((s) => s.furniture);
@@ -138,7 +147,7 @@ export function SantexnikaSection({ bathroom = false }: {
                 {t(`studio.santexnika.${p.kind}`)} · {where(p)}
                 {p.fixtureId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.own")})</span>}
                 {p.railId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.rail_own")})</span>}
-                {p.washerId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.washer_own")})</span>}
+                {p.washerId && <span className="text-[10px] text-ink-muted">({t(dishwashers.some((d) => d.id === p.washerId) ? "studio.santexnika.dish_own" : "studio.santexnika.washer_own")})</span>}
               </span>
               {!p.fixtureId && !p.railId && !p.washerId && (
                 <button type="button" onClick={() => removePlumbing(p.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
@@ -228,9 +237,9 @@ export function SantexnikaSection({ bathroom = false }: {
       {/* A washing machine (spec 2026-11-13), in a bathroom or a kitchen: the panel shows only there. */}
       <div className="space-y-1.5">
         <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.washer")}</span>
-        {washers.length > 0 && (
+        {washingMachines.length > 0 && (
           <ul className="space-y-1">
-            {washers.map((m) => (
+            {washingMachines.map((m) => (
               <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
                 <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
@@ -248,6 +257,40 @@ export function SantexnikaSection({ bathroom = false }: {
         </button>
         {noWasherRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.washer_no_room")}</p>}
       </div>
+
+      {/* A dishwasher (2026-11-16): added in a kitchen; one already standing is listed in any room. */}
+      {(kitchen || dishwashers.length > 0) && (
+        <div className="space-y-1.5">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.dish")}</span>
+          {dishwashers.length > 0 && (
+            <ul className="space-y-1">
+              {dishwashers.map((m) => (
+                <li key={m.id} aria-label={`${t("studio.santexnika.dish")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+                  <select aria-label={t("studio.santexnika.dish_width")} value={machineSize(m).w}
+                    onChange={(e) => setNoDishWidth(!setWasherWidth(m.id, Number(e.target.value) as 600 | 450))}
+                    className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">
+                    {DISHWASHER_WIDTHS.map((w) => <option key={w} value={w}>{t("studio.santexnika.dish_width_option", { cm: w / 10 })}</option>)}
+                  </select>
+                  <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                    {t("studio.santexnika.remove")}
+                  </button>
+                  {clashNote(m.id)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {kitchen && (
+            <button type="button" onClick={() => setNoDishRoom(!addDishwasher())}
+              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+              {t("studio.santexnika.dish_add")}
+            </button>
+          )}
+          {noDishRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.dish_no_room")}</p>}
+          {noDishWidth && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.dish_width_no_room")}</p>}
+        </div>
+      )}
 
       {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
       <div className="space-y-1.5">

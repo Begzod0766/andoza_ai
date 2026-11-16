@@ -32,7 +32,7 @@ _PIECE_KEYS = frozenset({
     # A fixture's own parts (2026-11-13); listed here, not imported: smeta_keys imports smeta.
     "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
     "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
-    "installyatsiya", "boyler", "kran_kir", "sifon_kir", "trap_pol",
+    "installyatsiya", "boyler", "kran_kir", "sifon_kir", "kran_idish", "sifon_idish", "trap_pol",
     "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam",
 })
 

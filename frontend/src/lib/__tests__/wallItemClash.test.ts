@@ -59,3 +59,10 @@ describe('clashColor', () => {
     expect(CLASH_COLOR).toBe('#F87171')
   })
 })
+
+describe('a dishwasher as a solid (2026-11-16)', () => {
+  it('its own width, depth and 820 mm height', () => {
+    const s = washerSolid(g, { id: 'd', wallId: 'A', positionMm: 800, kind: 'dishwasher', widthMm: 450 })!
+    expect([s.rect.w, s.rect.d, s.y0, s.y1]).toEqual([0.45, 0.57, 0, 0.82])
+  })
+})

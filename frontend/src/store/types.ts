@@ -424,6 +424,10 @@ export interface Washer {
   id: string
   wallId: string
   positionMm: number
+  /** A dishwasher (2026-11-16); absent = a washing machine, as every machine saved before. */
+  kind?: 'dishwasher'
+  /** A dishwasher's width, mm; absent = 600. */
+  widthMm?: 600 | 450
 }
 
 /** A heated towel rail on a wall (spec 2026-11-10): 500 × 800 mm; `positionMm` is its centre along the

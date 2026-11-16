@@ -5,7 +5,7 @@ import { roomModel, overlaps, type Rect } from '@/lib/aiDesignLayout'
 import { riserPose, wallWalk } from '@/lib/plumbingRuns'
 import {
   washerPoints, withWasherPoints, washerSpans, nearestFreeWasher, placeWasher, keepWashers, saneWashers, washerBox, riserTaken,
-  WASHER_W_MM, WASHER_D_MM, WASHER_H_MM,
+  WASHER_W_MM, WASHER_D_MM, WASHER_H_MM, machineSize, isDishwasher,
 } from '@/lib/washer'
 import shared from './fixtures/washerPoints.json'
 
@@ -144,5 +144,50 @@ describe('a wide rail (2026-11-15)', () => {
     const m = [{ id: 'm', wallId: 'A', positionMm: 1500 }]
     expect(keepWashers(m, g, [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000 }])[0].positionMm).toBe(1800)
     expect(keepWashers(m, g, [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000, size: '600x800' }])[0].positionMm).toBe(1850)
+  })
+})
+
+describe('a dishwasher (2026-11-16)', () => {
+  const g = { walls: [
+    { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
+    { id: 'C', length: 2500, elements: [] }, { id: 'D', length: 2000, elements: [] },
+  ] } as unknown as RoomGeometry
+  const dw = (over: Partial<Washer> = {}): Washer => ({ id: 'd', wallId: 'A', positionMm: 1200, kind: 'dishwasher', ...over })
+
+  it('its size: 600 or 450 wide, 570 deep, 820 high; a washing machine 600 × 600 × 850', () => {
+    expect(machineSize(dw())).toEqual({ w: 600, d: 570, h: 820 })
+    expect(machineSize(dw({ widthMm: 450 }))).toEqual({ w: 450, d: 570, h: 820 })
+    expect(machineSize(dw({ widthMm: 999 as never }))).toEqual({ w: 600, d: 570, h: 820 })
+    expect(machineSize({ id: 'w', wallId: 'A', positionMm: 0 })).toEqual({ w: 600, d: 600, h: 850 })
+    expect(isDishwasher(dw())).toBe(true)
+    expect(isDishwasher({ id: 'w', wallId: 'A', positionMm: 0, kind: 'oven' as never })).toBe(false)
+  })
+
+  it('its floor box is its own size', () => {
+    const box = washerBox(g, dw({ widthMm: 450 }))!
+    expect([box.w, box.d]).toEqual([0.45, 0.57])
+  })
+
+  it('a 450 one keeps 225 mm clear of the wall end', () => {
+    expect(nearestFreeWasher(g, 'A', 0, [], undefined, 225)).toBe(225)
+    expect(nearestFreeWasher(g, 'A', 0, [])).toBe(300)
+  })
+
+  it('kept after a shape change by its own width', () => {
+    const kept = keepWashers([dw({ widthMm: 450, positionMm: 100 })], g, [])
+    expect(kept[0].positionMm).toBe(225)
+  })
+
+  it('a saved one keeps its kind and width; an unknown width is dropped, an unknown kind too', () => {
+    const got = saneWashers([
+      { id: 'a', wallId: 'A', positionMm: 1, kind: 'dishwasher', widthMm: 450 },
+      { id: 'b', wallId: 'A', positionMm: 1, kind: 'dishwasher', widthMm: 500 },
+      { id: 'c', wallId: 'A', positionMm: 1, kind: 'oven' },
+    ])
+    expect(got).toEqual([
+      { id: 'a', wallId: 'A', positionMm: 1, kind: 'dishwasher', widthMm: 450 },
+      { id: 'b', wallId: 'A', positionMm: 1, kind: 'dishwasher' },
+      { id: 'c', wallId: 'A', positionMm: 1 },
+    ])
   })
 })

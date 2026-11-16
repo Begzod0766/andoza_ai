@@ -1930,7 +1930,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     from app.services.pipe_scheme import pipe_scheme, sound_point
     from app.services.plumbing import load_plumbing_norms, riser_spot
     from app.services.towel_rail import is_electric, rail_points, valid_rails
-    from app.services.washer import valid_washers, washer_points
+    from app.services.washer import is_dishwasher, valid_washers, washer_points
 
     catalog = catalog or {}
     state: dict = room.state or {}
@@ -1944,6 +1944,9 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     rails = [r for r in rails if not is_electric(r)]
     # Washing machines (spec 2026-11-13): a list of their own too; the machine itself is not priced.
     washers = valid_washers(state.get("washers"), geometry)
+    # A dishwasher (2026-11-16) is one of them, priced by lines of its own; its points are the same kind.
+    dishwashers = [m for m in washers if is_dishwasher(m)]
+    machines = [m for m in washers if not is_dishwasher(m)]
 
     # Fixtures, one line per distinct piece; and how many of each role for the work lines.
     counts: dict[str, int] = {}
@@ -1989,9 +1992,13 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
 
     floor_drain = _design_state(room).get("floorDrain") is True
     lines.extend(_fixture_part_lines(part_kinds, catalog, norms, floor_drain))
-    if washers:
-        n = len(washers)
+    if machines:
+        n = len(machines)
         for key, label in (("kran_kir", "Kir yuvish mashinasi krani"), ("sifon_kir", "Kir yuvish mashinasi sifoni")):
+            lines.append(_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", qty=n, why=f"{n} mashina"))
+    if dishwashers:
+        n = len(dishwashers)
+        for key, label in (("kran_idish", "Idish yuvish mashinasi krani (uchlik bilan)"), ("sifon_idish", "Idish yuvish mashinasi sifoni (chiqishli)")):
             lines.append(_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", qty=n, why=f"{n} mashina"))
 
     if rails:
@@ -2089,12 +2096,19 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             qty=showers, unit="dona", price_uzs=price, category="santexnika",
         ))
         lines.extend(_shower_slope_lines(_shower_zones(state, catalog, names), catalog, norms))
-    if washers:
+    if machines:
         price = int(norms["work_washer_uzs"])
         lines.append(_make_line(
             label="Ish: kir yuvish mashinasini ulash",
-            formula=f"{len(washers)} dona × {price:,} so'm".replace(",", " "),
-            qty=len(washers), unit="dona", price_uzs=price, category="santexnika",
+            formula=f"{len(machines)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(machines), unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if dishwashers:
+        price = int(norms["work_dishwasher_uzs"])
+        lines.append(_make_line(
+            label="Ish: idish yuvish mashinasini ulash",
+            formula=f"{len(dishwashers)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(dishwashers), unit="dona", price_uzs=price, category="santexnika",
         ))
     if _design_state(room).get("waterHeater") is True:
         lines.extend(_water_heater_lines(catalog, norms))
@@ -2111,8 +2125,10 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         ))
     if electric_rails:
         lines.extend(_electric_rail_lines(electric_rails, catalog))
-    if washers:
-        lines.extend(_washer_socket_lines(len(washers), catalog))
+    if machines:
+        lines.extend(_washer_socket_lines(len(machines), catalog))
+    if dishwashers:
+        lines.extend(_washer_socket_lines(len(dishwashers), catalog, "idish"))
     return lines
 
 
@@ -2156,7 +2172,13 @@ def _electric_rail_lines(rails: list[dict], catalog: dict) -> list[ComputedLine]
     ]
 
 
-def _washer_socket_lines(n: int, catalog: dict) -> list[ComputedLine]:
+_SOCKET_LABELS = {
+    "kir": ("Kir yuvish mashinasi rozetkasi (IP44)", "Elektr kabel (kir yuvish mashinasi)", "Ish: kir yuvish mashinasi rozetkasini o'rnatish"),
+    "idish": ("Idish yuvish mashinasi rozetkasi (IP44)", "Elektr kabel (idish yuvish mashinasi)", "Ish: idish yuvish mashinasi rozetkasini o'rnatish"),
+}
+
+
+def _washer_socket_lines(n: int, catalog: dict, machine: str = "kir") -> list[ComputedLine]:
     """``n`` washing machines' sockets (2026-11-14): a moisture-proof IP44 socket each (a shop's under
     "rozetka_ip44", else the norm), a short cable to the nearest socket circuit (the shop's "kabel" per
     metre, else the default price) and the work. Always with the machine: no switch."""
@@ -2169,12 +2191,13 @@ def _washer_socket_lines(n: int, catalog: dict) -> list[ComputedLine]:
     metres = n * int(e["washer_cable_m"])
     work = int(e["work_washer_socket_uzs"])
     fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    socket, cable_label, work_label = _SOCKET_LABELS[machine]  # a dishwasher's (2026-11-16) by the same norms
     return [
-        _piece_line("Kir yuvish mashinasi rozetkasi (IP44)", catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]),
+        _piece_line(socket, catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]),
                     "santexnika", qty=n, why=f"{n} mashina"),
-        _make_line(label="Elektr kabel (kir yuvish mashinasi)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+        _make_line(label=cable_label, formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
                    price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
-        _make_line(label="Ish: kir yuvish mashinasi rozetkasini o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n,
+        _make_line(label=work_label, formula=f"{n} dona × {fmt(work)} so'm", qty=n,
                    unit="dona", price_uzs=work, category="santexnika"),
     ]
 
