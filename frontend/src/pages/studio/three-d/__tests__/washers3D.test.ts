@@ -22,3 +22,12 @@ describe('washerPose', () => {
     expect(washerPose({ id: 'm', wallId: 'Q', positionMm: 800 }, geometry)).toBeNull()
   })
 })
+
+describe('a dishwasher in 3D (2026-11-16)', () => {
+  it('its centre: 305 mm into the room (20 + 570/2), 410 mm up', () => {
+    const w = wallWalk(geometry).find((x) => x.id === 'B')!
+    const p = washerPose({ id: 'd', wallId: 'B', positionMm: 800, kind: 'dishwasher', widthMm: 450 }, geometry)!
+    expect(p.x).toBeCloseTo(w.startX + w.dirX * 0.8 + w.nx * 0.305, 6)
+    expect(p.y).toBeCloseTo(0.41, 6)
+  })
+})

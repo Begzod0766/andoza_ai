@@ -109,3 +109,35 @@ describe('washing machines in the store', () => {
     expect(st().washers).toEqual([])
   })
 })
+
+describe('a dishwasher in the store (2026-11-16)', () => {
+  it('added like a washing machine, as a 600 dishwasher, one undo step', () => {
+    settle()
+    expect(st().addDishwasher()).toBe(true)
+    const [d] = st().washers
+    expect(d).toMatchObject({ kind: 'dishwasher', widthMm: 600 })
+    expect(st().isDirty).toBe(true)
+    settle()
+    undo()
+    expect(st().washers).toEqual([])
+  })
+
+  it('a width change keeps it where it fits; one that does not fit is refused', () => {
+    useRoomStore.setState({ washers: [{ id: 'd', wallId: 'A', positionMm: 1200, kind: 'dishwasher', widthMm: 600 }] })
+    expect(st().setWasherWidth('d', 450)).toBe(true)
+    expect(st().washers[0]).toMatchObject({ widthMm: 450, positionMm: 1200 })
+    const tight = { walls: [
+      { id: 'A', length: 500, elements: [] }, { id: 'B', length: 2000, elements: [] },
+      { id: 'C', length: 500, elements: [] }, { id: 'D', length: 2000, elements: [] },
+    ] } as unknown as RoomGeometry
+    useRoomStore.setState({ geometry: tight, washers: [{ id: 'd', wallId: 'A', positionMm: 250, kind: 'dishwasher', widthMm: 450 }] })
+    expect(st().setWasherWidth('d', 600)).toBe(false)
+    expect(st().washers[0].widthMm).toBe(450)
+  })
+
+  it('a 450 one slides to 225 mm from the wall end, a washing machine stops at 300', () => {
+    useRoomStore.setState({ washers: [{ id: 'd', wallId: 'A', positionMm: 1200, kind: 'dishwasher', widthMm: 450 }] })
+    st().moveWasher('d', 0)
+    expect(st().washers[0].positionMm).toBe(225)
+  })
+})

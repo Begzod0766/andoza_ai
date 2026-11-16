@@ -1060,6 +1060,13 @@
       "washer_own": "the machine's",
       "washer_where": "wall {{wall}}",
       "washer_no_room": "No room on the walls for a washing machine.",
+      "dish": "Dishwasher",
+      "dish_add": "Add a dishwasher",
+      "dish_own": "dishwasher's",
+      "dish_width": "Width",
+      "dish_width_option": "{{cm}} cm",
+      "dish_no_room": "There is no room on the walls for a dishwasher.",
+      "dish_width_no_room": "This width does not fit on the wall",
       "floor_drain": "Shower with no tray (floor drain)",
       "water_inlet": "Water inlet (meter, filter, pressure reducer)"
     },
@@ -1265,7 +1272,13 @@
       "work_shower_slope": "Work: sloping the shower zone to the drain",
       "washer_socket": "Washing machine socket (IP44)",
       "washer_cable": "Electric cable (washing machine)",
-      "work_washer_socket": "Work: fitting the washing machine socket"
+      "work_washer_socket": "Work: fitting the washing machine socket",
+      "dish_tap": "Dishwasher tap (with a tee)",
+      "dish_trap": "Dishwasher trap (with an outlet)",
+      "dish_socket": "Dishwasher socket (IP44)",
+      "dish_cable": "Electric cable (dishwasher)",
+      "work_dish": "Work: connecting the dishwasher",
+      "work_dish_socket": "Work: fitting the dishwasher socket"
     },
     "unit": {
       "qop_one": "bag",
@@ -2327,7 +2340,9 @@
         "skinali": "Skinali (glass backsplash)",
         "sochiq_quritgich_el": "Electric towel rail",
         "rozetka_ip44": "Moisture-proof socket (IP44)",
-        "styajka": "Screed mix (bag)"
+        "styajka": "Screed mix (bag)",
+        "kran_idish": "Dishwasher tap (with a tee)",
+        "sifon_idish": "Dishwasher trap (with an outlet)"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",
@@ -2776,9 +2791,9 @@
       "remove_failed": "Could not remove the wallpaper",
       "edit": "Edit",
       "removed": "Removed",
-    "restore": "Restore",
-    "restore_failed": "Could not restore",
-    "model_hint": "Want to add a wallpaper?",
+      "restore": "Restore",
+      "restore_failed": "Could not restore",
+      "model_hint": "Want to add a wallpaper?",
       "model_add": "Add wallpaper"
     }
   },

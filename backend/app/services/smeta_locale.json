@@ -117,7 +117,13 @@
         "work_shower_slope": "Ish: dush zonasini trapga qiyalatish",
         "washer_socket": "Kir yuvish mashinasi rozetkasi (IP44)",
         "washer_cable": "Elektr kabel (kir yuvish mashinasi)",
-        "work_washer_socket": "Ish: kir yuvish mashinasi rozetkasini o'rnatish"
+        "work_washer_socket": "Ish: kir yuvish mashinasi rozetkasini o'rnatish",
+        "dish_tap": "Idish yuvish mashinasi krani (uchlik bilan)",
+        "dish_trap": "Idish yuvish mashinasi sifoni (chiqishli)",
+        "dish_socket": "Idish yuvish mashinasi rozetkasi (IP44)",
+        "dish_cable": "Elektr kabel (idish yuvish mashinasi)",
+        "work_dish": "Ish: idish yuvish mashinasini ulash",
+        "work_dish_socket": "Ish: idish yuvish mashinasi rozetkasini o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -378,7 +384,13 @@
         "work_shower_slope": "Работа: уклон душевой зоны к трапу",
         "washer_socket": "Розетка для стиральной машины (IP44)",
         "washer_cable": "Электрокабель (стиральная машина)",
-        "work_washer_socket": "Работа: установка розетки для стиральной машины"
+        "work_washer_socket": "Работа: установка розетки для стиральной машины",
+        "dish_tap": "Кран для посудомоечной машины (с тройником)",
+        "dish_trap": "Сифон для посудомоечной машины (с отводом)",
+        "dish_socket": "Розетка для посудомоечной машины (IP44)",
+        "dish_cable": "Электрокабель (посудомоечная машина)",
+        "work_dish": "Работа: подключение посудомоечной машины",
+        "work_dish_socket": "Работа: установка розетки для посудомоечной машины"
       },
       "unit": {
         "qop_one": "мешок",
@@ -693,7 +705,13 @@
         "work_shower_slope": "Work: sloping the shower zone to the drain",
         "washer_socket": "Washing machine socket (IP44)",
         "washer_cable": "Electric cable (washing machine)",
-        "work_washer_socket": "Work: fitting the washing machine socket"
+        "work_washer_socket": "Work: fitting the washing machine socket",
+        "dish_tap": "Dishwasher tap (with a tee)",
+        "dish_trap": "Dishwasher trap (with an outlet)",
+        "dish_socket": "Dishwasher socket (IP44)",
+        "dish_cable": "Electric cable (dishwasher)",
+        "work_dish": "Work: connecting the dishwasher",
+        "work_dish_socket": "Work: fitting the dishwasher socket"
       },
       "unit": {
         "qop_one": "bag",

@@ -4,7 +4,7 @@ import type { TowelRail, TowelRailSize } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { roomRiser } from '@/lib/plumbingRuns'
 import { nearestFree, placeTowelRail, railHalf, TOWEL_RAIL_HEIGHT_MM, type WallTaken } from '@/lib/towelRail'
-import { WASHER_W_MM } from '@/lib/washer'
+import { machineHalf } from '@/lib/washer'
 import { useRoomStore } from '../roomStore'
 
 /** Heated towel rails hung on the walls (spec 2026-11-10); mirrors plumbingSlice. */
@@ -30,7 +30,7 @@ let dragStart: TowelRail[] | null = null
 
 /** What a rail keeps clear of on the walls: the washing machines (2026-11-14). */
 function machines(state: RoomStore): WallTaken[] {
-  return state.washers.map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: WASHER_W_MM / 2 }))
+  return state.washers.map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: machineHalf(m) }))
 }
 
 export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlice> = (set, get) => ({

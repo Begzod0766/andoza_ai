@@ -5,15 +5,20 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, Washer } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
-import { WASHER_D_MM, WASHER_H_MM, WASHER_W_MM, WASHER_WALL_GAP_MM } from "@/lib/washer";
+import { isDishwasher, machineSize, WASHER_WALL_GAP_MM } from "@/lib/washer";
 import { dragToPositionMm, raycastInFront, railPointerHandlers } from "./TowelRails3D";
 import { noRaycast } from "./constants";
 import { clashColor } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 
-const W = WASHER_W_MM / 1000;
-const D = WASHER_D_MM / 1000;
-const H = WASHER_H_MM / 1000;
+/** A machine's width, depth and height, metres (a dishwasher's own size, 2026-11-16). */
+const dims = (m: Washer) => {
+  const s = machineSize(m);
+  return { W: s.w / 1000, D: s.d / 1000, H: s.h / 1000 };
+};
+/** A dishwasher's control strip along the top of its front, metres. */
+const STRIP_H = 0.07;
+const STRIP = "#9CA3AF";
 const BODY = "#F5F5F4";
 const DOOR = "#374151";
 const DOOR_R = 0.2;
@@ -24,7 +29,8 @@ export function washerPose(m: Washer, geometry: RoomGeometry): { x: number; y: n
   const w = wallWalk(geometry).find((x) => x.id === m.wallId);
   if (!w) return null;
   const t = Math.min(w.lengthM, Math.max(0, m.positionMm / 1000));
-  const out = (WASHER_WALL_GAP_MM + WASHER_D_MM / 2) / 1000;
+  const { D, H } = dims(m);
+  const out = (WASHER_WALL_GAP_MM + D * 1000 / 2) / 1000;
   return { x: w.startX + w.dirX * t + w.nx * out, y: H / 2, z: w.startZ + w.dirZ * t + w.nz * out, rotY: Math.atan2(w.nx, w.nz) };
 }
 
@@ -103,16 +109,25 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
       {washers.filter((m) => !hiddenWalls?.has(m.wallId)).map((m) => {
         const pose = washerPose(m, geometry);
         if (!pose) return null;
+        const { W, D, H } = dims(m);
         return (
           <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(m, e))}>
             <mesh castShadow receiveShadow raycast={active ? raycastInFront : noRaycast}>
               <boxGeometry args={[W, H, D]} />
               <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>
-            <mesh position={[0, DOOR_Y - H / 2, D / 2 + 0.002]} raycast={noRaycast}>
-              <circleGeometry args={[DOOR_R, 40]} />
-              <meshStandardMaterial color={DOOR} roughness={0.3} metalness={0.2} />
-            </mesh>
+            {isDishwasher(m) ? (
+              // A dishwasher: a grey control strip along the top of its front.
+              <mesh position={[0, H / 2 - STRIP_H / 2, D / 2 + 0.002]} raycast={noRaycast}>
+                <planeGeometry args={[W - 0.02, STRIP_H]} />
+                <meshStandardMaterial color={STRIP} roughness={0.4} metalness={0.3} />
+              </mesh>
+            ) : (
+              <mesh position={[0, DOOR_Y - H / 2, D / 2 + 0.002]} raycast={noRaycast}>
+                <circleGeometry args={[DOOR_R, 40]} />
+                <meshStandardMaterial color={DOOR} roughness={0.3} metalness={0.2} />
+              </mesh>
+            )}
           </group>
         );
       })}

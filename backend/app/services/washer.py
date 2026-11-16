@@ -12,6 +12,19 @@ from app.services.towel_rail import _number
 TAP_OFFSET_MM = 150
 COLD_HEIGHT_MM = 900
 DRAIN_HEIGHT_MM = 600
+# A dishwasher (2026-11-16): both points 500 mm high, 150 mm either side (100 for a 450 one).
+DISHWASHER_WIDTHS = (600, 450)
+DISHWASHER_POINT_HEIGHT_MM = 500
+
+
+def is_dishwasher(m: dict) -> bool:
+    """``kind`` exactly "dishwasher"; anything else is a washing machine (lib/washer isDishwasher)."""
+    return m.get("kind") == "dishwasher"
+
+
+def dishwasher_width(m: dict) -> int:
+    w = m.get("widthMm")
+    return w if isinstance(w, int) and not isinstance(w, bool) and w in DISHWASHER_WIDTHS else 600
 
 
 def valid_washers(washers: object, geometry: dict | None) -> list[dict]:
@@ -35,11 +48,15 @@ def _points(m: dict, wall_length_mm: float) -> list[dict]:
         return _js_round(min(wall_length_mm, max(0.0, pos + offset)))
 
     wall = str(m["wallId"])
+    dish = is_dishwasher(m)
+    offset = (100 if dishwasher_width(m) == 450 else 150) if dish else TAP_OFFSET_MM
+    cold = DISHWASHER_POINT_HEIGHT_MM if dish else COLD_HEIGHT_MM
+    drain = DISHWASHER_POINT_HEIGHT_MM if dish else DRAIN_HEIGHT_MM
     return [
         {"id": f"{m['id']}:cold", "kind": "cold", "diameterMm": 20, "wallId": wall,
-         "positionMm": at(TAP_OFFSET_MM), "heightMm": COLD_HEIGHT_MM, "washerId": m["id"]},
+         "positionMm": at(offset), "heightMm": cold, "washerId": m["id"]},
         {"id": f"{m['id']}:drain", "kind": "drain", "diameterMm": 50, "wallId": wall,
-         "positionMm": at(-TAP_OFFSET_MM), "heightMm": DRAIN_HEIGHT_MM, "washerId": m["id"]},
+         "positionMm": at(-offset), "heightMm": drain, "washerId": m["id"]},
     ]
 
 
