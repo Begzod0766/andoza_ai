@@ -61,7 +61,7 @@ export function NormsTab({ onError }: { onError: (message: FormError) => void })
             <tbody>
               {entries.map((e) => (
                 <NormRow key={`${e.file}:${e.path}`} e={e} busy={save.isPending || reset.isPending}
-                  onSave={(value) => save.mutate({ e, value })} onReset={() => reset.mutate(e)} />
+                  onSave={(value) => save.mutateAsync({ e, value })} onReset={() => reset.mutate(e)} />
               ))}
             </tbody>
           </table>
@@ -87,7 +87,7 @@ export function NormsTab({ onError }: { onError: (message: FormError) => void })
   );
 }
 
-function NormRow({ e, busy, onSave, onReset }: { e: AdminNorm; busy: boolean; onSave: (v: number) => void; onReset: () => void }) {
+function NormRow({ e, busy, onSave, onReset }: { e: AdminNorm; busy: boolean; onSave: (v: number) => Promise<unknown>; onReset: () => void }) {
   const { t } = useTranslation();
   const [text, setText] = useState(String(e.value));
   const [shown, setShown] = useState(e.value);
@@ -99,7 +99,9 @@ function NormRow({ e, busy, onSave, onReset }: { e: AdminNorm; busy: boolean; on
   const commit = () => {
     const v = Number(text.replace(",", "."));
     if (text.trim() === "" || !Number.isFinite(v) || v === e.value) return;
-    onSave(v);
+    // A value the server refuses does not stay in the field (mobile QA 2026-11-16): the saved one comes
+    // back, and the reason is shown above (the mutation's onError).
+    onSave(v).catch(() => setText(String(e.value)));
   };
   return (
     <tr aria-label={e.label} className="border-b border-line last:border-0">

@@ -69,6 +69,8 @@ describe("NormsTab", () => {
     fireEvent.blur(input);
     await waitFor(() => expect(onError).toHaveBeenLastCalledWith(expect.anything()));
     expect(onError.mock.calls.at(-1)![0]).not.toBeNull();
+    // The refused value does not stay in the field (mobile QA 2026-11-16): the saved one is back.
+    await waitFor(() => expect((input as HTMLInputElement).value).toBe("60000"));
   });
 
   it("Asl holiga puts the file's value back", async () => {
