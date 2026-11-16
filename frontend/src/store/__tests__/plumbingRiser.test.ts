@@ -132,3 +132,19 @@ describe('the riser and a washing machine (2026-11-14)', () => {
     expect(st().washers[0].positionMm).toBe(1000)
   })
 })
+
+describe('the riser is never in front of a door (mobile QA 2026-11-16)', () => {
+  it('set by hand or dragged onto the door, it stands beside it instead', () => {
+    st().setPlumbingRiser({ wallId: 'D', positionMm: 900 })
+    expect(st().plumbingRiser).toEqual({ wallId: 'D', positionMm: 520 })
+    st().beginRiserDrag()
+    st().setPlumbingRiser({ wallId: 'D', positionMm: 1200 })
+    expect(st().plumbingRiser).toEqual({ wallId: 'D', positionMm: 1480 })
+    st().endRiserDrag()
+    expect(st().plumbingRiser).toEqual({ wallId: 'D', positionMm: 1480 })
+  })
+  it('null still means the door corner', () => {
+    st().setPlumbingRiser(null)
+    expect(st().plumbingRiser).toBeNull()
+  })
+})
