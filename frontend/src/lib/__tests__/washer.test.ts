@@ -46,7 +46,7 @@ describe('where a machine may stand', () => {
   it('nearestFreeWasher keeps to the stretch it is on when dragged', () => {
     const g = rect(2500, 2000, { A: [DOOR] })
     const at = nearestFreeWasher(g, 'A', 900, [], 1900)
-    expect(at).toBe(650 + 700 + 300)
+    expect(at).toBe(650 + 700 + 70 + 300)   // past the door's architrave (2026-11-16)
   })
 })
 
@@ -89,7 +89,7 @@ describe('keepWashers', () => {
   it('a door put on its place moves it to the nearest free place', () => {
     const g = rect(2500, 2000, { A: [{ ...DOOR, position: 1800 }] })
     const at = keepWashers([m], g, [])[0].positionMm
-    expect(at).toBe(1800 - 300)
+    expect(at).toBe(1800 - 70 - 300)   // short of the door's architrave (2026-11-16)
   })
   it('a shape without its wall drops it; nothing changed gives the same list', () => {
     const tri = { walls: ['0', '1', '2'].map((id) => ({ id, length: 3000, elements: [] })), vertices: [[0, 0], [3000, 0], [1500, 2598]] } as unknown as RoomGeometry

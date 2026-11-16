@@ -60,6 +60,8 @@ export function railPoints(rails: readonly TowelRail[], geometry: RoomGeometry):
 // ─── Where a rail may hang ───────────────────────────────────────────────────
 
 const HALF = TOWEL_RAIL_W_MM / 2
+/** A door's architrave beside its opening, mm (the 3D's WallComponents ARCH_W, 0.07 m). */
+export const DOOR_ARCHITRAVE_MM = 70
 
 /**
  * Where on a wall a rail's centre may sit, as [from, to] spans in mm along the wall walk: the wall
@@ -76,7 +78,10 @@ export function freeSpans(geometry: RoomGeometry, wallId: string, halfMm: number
   // Where the room draws each opening: one just added has no place of its own yet (lib/wallPositions).
   const blocked = resolveElementPositions(wall.elements, wall.length)
     .filter((e) => Number.isFinite(e.position) && e.width > 0)
-    .map((e): [number, number] => (forward ? [e.position, e.position + e.width] : [length - e.position - e.width, length - e.position]))
+    // A door's architrave stands this far past its opening on each side (mobile QA 2026-11-16: a rail hung
+    // over it); a window's frame stays inside its opening.
+    .map((e) => ({ from: e.position - (e.type === 'eshik' ? DOOR_ARCHITRAVE_MM : 0), to: e.position + e.width + (e.type === 'eshik' ? DOOR_ARCHITRAVE_MM : 0) }))
+    .map(({ from, to }): [number, number] => (forward ? [from, to] : [length - to, length - from]))
     .map(([a, b]): [number, number] => [a - halfMm, b + halfMm])
     .sort((p, q) => p[0] - q[0])
   const spans: Array<[number, number]> = []

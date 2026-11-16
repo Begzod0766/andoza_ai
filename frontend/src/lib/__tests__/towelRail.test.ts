@@ -50,8 +50,12 @@ describe('freeSpans', () => {
     expect(freeSpans(rect(2500, 2000), 'A')).toEqual([[250, 2250]])
   })
 
-  it('a door takes its width and half a rail either side', () => {
-    expect(freeSpans(rect(2500, 2000, { D: [DOOR] }), 'D')).toEqual([[250, 400], [1600, 1750]])
+  it('a door takes its width, its architrave (70 mm a side) and half a rail either side', () => {
+    expect(freeSpans(rect(2500, 2000, { D: [DOOR] }), 'D')).toEqual([[250, 330], [1670, 1750]])
+  })
+
+  it('a window has no architrave: only its width and half a rail (mobile QA 2026-11-16)', () => {
+    expect(freeSpans(rect(2500, 2000, { D: [{ ...DOOR, type: 'deraza' }] }), 'D')).toEqual([[250, 400], [1600, 1750]])
   })
 
   it.each(['A', 'B', 'C', 'D'])('on wall %s the free places are clear of an off-centre window in the world, whichever way the walk runs', (id) => {
@@ -82,8 +86,8 @@ describe('nearestFree', () => {
     expect(nearestFree(rect(2500, 2000), 'A', 1200)).toBe(1200)
     expect(nearestFree(rect(2500, 2000), 'A', 9000)).toBe(2250)
     expect(nearestFree(rect(2500, 2000), 'A', -50)).toBe(250)
-    expect(nearestFree(g, 'D', 900)).toBe(400)
-    expect(nearestFree(g, 'D', 1200)).toBe(1600)
+    expect(nearestFree(g, 'D', 900)).toBe(330)   // the door and its architrave (2026-11-16)
+    expect(nearestFree(g, 'D', 1200)).toBe(1670)
   })
   it('null where there is no place', () => {
     expect(nearestFree(rect(400, 2000), 'A', 200)).toBeNull()
@@ -96,7 +100,7 @@ describe('placeTowelRail', () => {
     expect(placeTowelRail(rect(2500, 2000), { wallId: 'A', positionMm: 2500 })).toEqual({ wallId: 'A', positionMm: 1900 })
   })
   it('a door in the way: the nearest free place on the same wall', () => {
-    expect(placeTowelRail(rect(2500, 2000, { D: [DOOR] }), { wallId: 'D', positionMm: 0 })).toEqual({ wallId: 'D', positionMm: 400 })
+    expect(placeTowelRail(rect(2500, 2000, { D: [DOOR] }), { wallId: 'D', positionMm: 0 })).toEqual({ wallId: 'D', positionMm: 330 })
   })
   it('no place on the riser wall: the wall whose free place is the shortest pipe run from the riser', () => {
     // Riser at the corner where C ends and D begins; D is all door. C's end is at the riser, A's start is 2 m away.
@@ -136,22 +140,22 @@ describe('keepRails', () => {
 describe('freeSpans sees a door where the room draws it (final review)', () => {
   it('a door just added from the room settings has no place of its own yet and is drawn centred', () => {
     const auto = { type: 'eshik', position: 0, positionAuto: true, width: 900 } as unknown as El
-    const g = rect(3000, 2000, { A: [auto] })   // drawn at 1050–1950
-    expect(freeSpans(g, 'A')).toEqual([[250, 800], [2200, 2750]])
+    const g = rect(3000, 2000, { A: [auto] })   // drawn at 1050–1950, its architrave to 980–2020
+    expect(freeSpans(g, 'A')).toEqual([[250, 730], [2270, 2750]])
     expect(placeTowelRail(g, { wallId: 'A', positionMm: 0 })).toEqual({ wallId: 'A', positionMm: 600 })
   })
 })
 
 describe('a rail being dragged stays on its side of a door (mobile QA 2026-11-11 #3)', () => {
-  const g = rect(2500, 2000, { D: [DOOR] })   // free: 250–400 and 1600–1750
+  const g = rect(2500, 2000, { D: [DOOR] })   // free: 250–330 and 1670–1750
   it('with a place to stay near, the nearest free place is in that same stretch of wall', () => {
-    expect(nearestFree(g, 'D', 1200, 300)).toBe(400)     // past the door's middle: still its near edge
-    expect(nearestFree(g, 'D', 1900, 300)).toBe(400)
-    expect(nearestFree(g, 'D', 100, 1700)).toBe(1600)
+    expect(nearestFree(g, 'D', 1200, 300)).toBe(330)     // past the door's middle: still its near edge
+    expect(nearestFree(g, 'D', 1900, 300)).toBe(330)
+    expect(nearestFree(g, 'D', 100, 1700)).toBe(1670)
     expect(nearestFree(g, 'D', 320, 300)).toBe(320)
   })
   it('a place to stay near that is in no free stretch falls back to the whole wall', () => {
-    expect(nearestFree(g, 'D', 1200, 1000)).toBe(1600)
+    expect(nearestFree(g, 'D', 1200, 1000)).toBe(1670)
   })
 })
 
