@@ -257,6 +257,8 @@ describe('fixture parts', () => {
     ["3 smesitel × 100 000 so'm", '3 смесителя × 100 000 сум', '3 mixers × 100 000 UZS'],
     // A kitchen sink's parts (mobile QA #338 3): counted by the sink, not a basin.
     ["1 moyka = 1 dona × 450 000 so'm", '1 мойка = 1 шт. × 450 000 сум', '1 sink = 1 pc × 450 000 UZS'],
+    // A kitchen set priced per running metre (kitchen re-check 2026-11-19 R4).
+    ["10 000 000 so'm ÷ 4.00 m = 2 500 000 so'm/m × 3.42 m", '10 000 000 сум ÷ 4.00 м = 2 500 000 сум/м × 3.42 м', '10 000 000 UZS ÷ 4.00 m = 2 500 000 UZS/m × 3.42 m'],
   ])('%s', (formula, ruText, enText) => {
     expect(localizeFormula(formula, ru)).toBe(ruText)
     expect(localizeFormula(formula, en)).toBe(enText)

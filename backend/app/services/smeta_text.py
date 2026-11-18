@@ -240,6 +240,7 @@ _WHOLE_LABELS = {
     "Ish: nuqtani ulash": "work_point",
     "Ish: vanna o'rnatish": "work_bathtub",
     "Ish: rakovina o'rnatish": "work_sink",
+    "Ish: moyka o'rnatish": "work_kitchen_sink",
     "Ish: unitaz o'rnatish": "work_toilet",
     "Ish: dush o'rnatish": "work_shower",
     "Ish: bide o'rnatish": "work_bidet",
@@ -488,6 +489,9 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
     (re.compile(r"(?<=\d) m³(?=\s|\Z)"), lambda lang: f" {t('formula.m3', lang)}"),
     (re.compile(r" so'm\Z"),
      lambda lang: f" {t('formula.som', lang)}"),
+    # A price per running metre (kitchen re-check 2026-11-19 R4): "10 000 000 so'm ÷ 4.00 m = 2 500 000 so'm/m × …".
+    (re.compile(r" so'm/m(?= )"), lambda lang: f" {t('formula.som', lang)}/{t('unit.m', lang)}"),
+    (re.compile(r" so'm(?= ÷ )"), lambda lang: f" {t('formula.som', lang)}"),
 ]
 
 # Things counted in whole units: the word takes the plural of the number before it.

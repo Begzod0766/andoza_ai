@@ -852,6 +852,8 @@ export default function WizardPage() {
       const room_type = picked ?? guessRoomType(roomName) ?? undefined
       const room = await createRoom(aptId, { name: roomName, room_type, ...roomDimensions() })
       setRoomId(room.id)
+      // The studio opens on this store: its autosave wrote the store's default name over the room's (R2).
+      useRoomStore.setState({ name: roomName })
       // Draft fulfilled — clean up
       if (draftId) {
         try { await deleteDraftRoom(draftId) } catch { /* ignore */ }

@@ -289,6 +289,9 @@ describe('WizardPage – Step 5 (Results)', () => {
     }
     await waitFor(() => expect(createRoom).toHaveBeenCalled())
     expect(vi.mocked(createRoom).mock.calls[0][1]).toMatchObject({ room_type: 'oshxona', name: UZ_ROOM_TYPES.oshxona })
+    // The store keeps it too (kitchen re-check 2026-11-19 R2): the studio opens on this store and its
+    // autosave wrote the store's default name over the room's.
+    expect(useRoomStore.getState().name).toBe(UZ_ROOM_TYPES.oshxona)
   })
 
   it('calls createApartment and createRoom on step 5', async () => {

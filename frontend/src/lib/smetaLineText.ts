@@ -143,6 +143,7 @@ const WHOLE_LABELS = {
   "Ish: nuqtani ulash": "work_point",
   "Ish: vanna o'rnatish": "work_bathtub",
   "Ish: rakovina o'rnatish": "work_sink",
+  "Ish: moyka o'rnatish": "work_kitchen_sink",
   "Ish: unitaz o'rnatish": "work_toilet",
   "Ish: dush o'rnatish": "work_shower",
   "Ish: bide o'rnatish": "work_bidet",
@@ -351,6 +352,9 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
   [/(?<=\d) m³\/soat/g, (t) => ` ${t("smeta.formula.m3h")}`],
   [/(?<=\d) m³(?=\s|$)/g, (t) => ` ${t("smeta.formula.m3")}`],
   [/ so'm$/g, (t) => ` ${t("smeta.formula.som")}`],
+  // A price per running metre (kitchen re-check 2026-11-19 R4): "10 000 000 so'm ÷ 4.00 m = 2 500 000 so'm/m × …".
+  [/ so'm\/m(?= )/g, (t) => ` ${t("smeta.formula.som")}/${t("smeta.unit.m")}`],
+  [/ so'm(?= ÷ )/g, (t) => ` ${t("smeta.formula.som")}`],
 ];
 
 /** Things counted in whole units: the word takes the plural of the number before it. */
