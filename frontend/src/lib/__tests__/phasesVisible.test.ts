@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { RENO_STAGES, visibleStages, initialPhaseFor, isPlumbingPhase } from '../phases'
+import { RENO_STAGES, visibleStages, initialPhaseFor, initialViewStage, isPlumbingPhase } from '../phases'
 
 describe('Quvurlar and Jihozlar (spec 2026-11-18): Santexnika split in two', () => {
   it('a bathroom goes pipes → plaster … installation → fixtures → lights → furniture', () => {
@@ -26,19 +26,29 @@ describe('Quvurlar and Jihozlar (spec 2026-11-18): Santexnika split in two', () 
 })
 
 describe('the stage a link opens at', () => {
+  it('initialViewStage: a valid ?phase= draws that stage; anything else the finished room', () => {
+    expect(initialViewStage({ phaseParam: 'suvoq', roomKind: 'hammom' })).toBe('suvoq')
+    expect(initialViewStage({ phaseParam: 'santexnika', roomKind: 'hammom' })).toBe('jihozlar')
+    expect(initialViewStage({ phaseParam: 'quvurlar', roomKind: 'yotoqxona' })).toBe('full')
+    expect(initialViewStage({ phaseParam: null, roomKind: 'hammom' })).toBe('full')
+    expect(initialViewStage({ phaseParam: 'suvoq', roomKind: 'hammom', tab: 'mebel' })).toBe('full')
+  })
   it('an old ?phase=santexnika opens Jihozlar in a bathroom, the default in a bedroom', () => {
     expect(initialPhaseFor({ phaseParam: 'santexnika', roomKind: 'hammom' })).toBe('jihozlar')
     expect(initialPhaseFor({ phaseParam: 'santexnika', roomKind: 'oshxona' })).toBe('jihozlar')
-    expect(initialPhaseFor({ phaseParam: 'santexnika', roomKind: 'yotoqxona' })).toBe('boyoq')
+    expect(initialPhaseFor({ phaseParam: 'santexnika', roomKind: 'yotoqxona' })).toBe('mebel')
   })
   it('?phase=quvurlar and ?phase=jihozlar open their stage where the room has it', () => {
     expect(initialPhaseFor({ phaseParam: 'quvurlar', roomKind: 'hammom' })).toBe('quvurlar')
     expect(initialPhaseFor({ phaseParam: 'jihozlar', roomKind: 'hammom' })).toBe('jihozlar')
-    expect(initialPhaseFor({ phaseParam: 'quvurlar', roomKind: 'yotoqxona' })).toBe('boyoq')
+    expect(initialPhaseFor({ phaseParam: 'quvurlar', roomKind: 'yotoqxona' })).toBe('mebel')
+  })
+  it('no link: the last stage, Mebel, so the studio opens on the finished room (spec 2026-11-18)', () => {
+    expect(initialPhaseFor({ phaseParam: null, roomKind: undefined })).toBe('mebel')
+    expect(initialPhaseFor({ phaseParam: null, roomKind: 'hammom' })).toBe('mebel')
   })
   it('other links and tabs as before', () => {
     expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: 'yotoqxona' })).toBe('suvoq')
-    expect(initialPhaseFor({ phaseParam: null, roomKind: undefined })).toBe('boyoq')
     expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: undefined, tab: 'mebel' })).toBe('mebel')
     expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: undefined, tab: 'chiroq' })).toBe('chiroq')
   })
