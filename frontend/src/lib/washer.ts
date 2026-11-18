@@ -28,6 +28,15 @@ const DISHWASHER_H_MM = 820
 const DISHWASHER_POINT_HEIGHT_MM = 500
 
 export const isDishwasher = (m: Washer) => m.kind === 'dishwasher'
+/**
+ * A kitchen sink (kitchen QA 2026-11-18 K1): a 600 base cabinet whose sink the kitchen set carries.
+ * The catalog sells no kitchen sink, so it stands on a wall like the machines: its drain 500 mm high
+ * at its centre, cold and hot 550 mm high, 100 mm either side (the sink's hoses, as lib/plumbingPoints).
+ */
+export const isKitchenSink = (m: Washer) => m.kind === 'kitchen_sink'
+const SINK_DRAIN_HEIGHT_MM = 500
+const SINK_WATER_HEIGHT_MM = 550
+const SINK_WATER_OFFSET_MM = 100
 
 /** A machine's width, depth and height, mm. */
 export function machineSize(m: Washer): { w: number; d: number; h: number } {
@@ -46,6 +55,14 @@ const STEP_MM = 50
 /** The cold tap (centre + 150 mm, 900 mm high) and the drain (centre − 150 mm, 600 mm), inside the wall. */
 function onePoints(m: Washer, wallLengthMm: number): PlumbingPoint[] {
   const at = (offset: number) => Math.round(Math.min(wallLengthMm, Math.max(0, m.positionMm + offset)))
+  if (isKitchenSink(m)) {
+    const water = (kind: 'cold' | 'hot', offset: number): PlumbingPoint =>
+      ({ id: `${m.id}:${kind}`, kind, diameterMm: 20, wallId: m.wallId, positionMm: at(offset), heightMm: SINK_WATER_HEIGHT_MM, washerId: m.id })
+    return [
+      water('cold', -SINK_WATER_OFFSET_MM), water('hot', SINK_WATER_OFFSET_MM),
+      { id: `${m.id}:drain`, kind: 'drain', diameterMm: 50, wallId: m.wallId, positionMm: at(0), heightMm: SINK_DRAIN_HEIGHT_MM, washerId: m.id },
+    ]
+  }
   // A dishwasher: both 500 mm high, 150 mm either side (100 for a 450 one).
   const dish = isDishwasher(m)
   const offset = dish ? (machineSize(m).w === 450 ? 100 : 150) : TAP_OFFSET_MM
@@ -129,9 +146,10 @@ export function washerBox(geometry: RoomGeometry, at: { wallId: string; position
 /**
  * Where a new machine goes: the free place with the shortest pipe run to the riser (the riser's own
  * wall first on a tie), off the riser pipe itself, whose floor box is inside the room and clear of
- * `taken` (the furniture). Null when no place is left.
+ * `taken` (the furniture). Null when no place is left. With `beside` (a kitchen's sink or dishwasher,
+ * kitchen QA 2026-11-18 K4), the place on its wall nearest to it comes first: the two share a drain.
  */
-export function placeWasher(geometry: RoomGeometry, riser: RiserAt, others: readonly WallTaken[], taken: readonly Rect[], machine: Partial<Washer> = {}): { wallId: string; positionMm: number } | null {
+export function placeWasher(geometry: RoomGeometry, riser: RiserAt, others: readonly WallTaken[], taken: readonly Rect[], machine: Partial<Washer> = {}, beside?: { wallId: string; positionMm: number }): { wallId: string; positionMm: number } | null {
   const half = machineHalf({ id: '', wallId: '', positionMm: 0, ...machine })
   const model = roomModel(geometry)
   others = [...others, ...riserTaken(geometry, riser)]
@@ -144,7 +162,10 @@ export function placeWasher(geometry: RoomGeometry, riser: RiserAt, others: read
       }
     }
   }
-  candidates.sort((a, b) => a.run - b.run || a.home - b.home)
+  // Measured along the walls, as a pipe runs: round a corner counts as beside it too.
+  const gap = (c: { wallId: string; positionMm: number }) =>
+    beside ? pipeRunM(geometry, { ...c, heightMm: 0 }, beside) : 0
+  candidates.sort((a, b) => gap(a) - gap(b) || a.run - b.run || a.home - b.home)
   for (const c of candidates) {
     const box = washerBox(geometry, { ...machine, ...c })
     if (box && model.inside(box) && !taken.some((t) => overlaps(box, t, 0))) return { wallId: c.wallId, positionMm: c.positionMm }
@@ -184,6 +205,7 @@ export function saneWashers(saved: unknown): Washer[] {
       && typeof m.positionMm === 'number' && Number.isFinite(m.positionMm))
     .map((m) => {
       const out: Washer = { id: m.id, wallId: m.wallId, positionMm: m.positionMm }
+      if (m.kind === 'kitchen_sink') out.kind = 'kitchen_sink'
       if (m.kind === 'dishwasher') {
         out.kind = 'dishwasher'
         if (m.widthMm !== undefined && DISHWASHER_WIDTHS.includes(m.widthMm)) out.widthMm = m.widthMm

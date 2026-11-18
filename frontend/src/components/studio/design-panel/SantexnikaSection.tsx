@@ -11,7 +11,7 @@ import { PlumbingFixtures } from "./PlumbingFixtures";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import { useBoilerHomeless, useFixtureClearances, useHatchBlockers } from "@/features/studio/fixtureClearance";
 import type { TowelRailSize } from "@/store/types";
-import { DISHWASHER_WIDTHS, isDishwasher, machineSize, withWasherPoints } from "@/lib/washer";
+import { DISHWASHER_WIDTHS, isDishwasher, isKitchenSink, machineSize, withWasherPoints } from "@/lib/washer";
 import { effectiveRoomType } from "@/lib/roomType";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
@@ -73,7 +73,11 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const [noDishRoom, setNoDishRoom] = useState(false);
   const [noDishWidth, setNoDishWidth] = useState(false);
   const dishwashers = washers.filter(isDishwasher);
-  const washingMachines = washers.filter((m) => !isDishwasher(m));
+  // A kitchen sink (kitchen QA 2026-11-18 K1): the catalog sells none, so a kitchen adds one here.
+  const sinks = washers.filter(isKitchenSink);
+  const addKitchenSink = useRoomStore((s) => s.addKitchenSink);
+  const [noSinkRoom, setNoSinkRoom] = useState(false);
+  const washingMachines = washers.filter((m) => !isDishwasher(m) && !isKitchenSink(m));
   /** The last "add a rail" found no wall with room for one. */
   const [noRailRoom, setNoRailRoom] = useState(false);
   const furniture = useRoomStore((s) => s.furniture);
@@ -93,6 +97,8 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const [kind, setKind] = useState<PlumbingKind>("drain");
   const [wallId, setWallId] = useState(geometry.walls[0]?.id ?? "A");
   const [heightCm, setHeightCm] = useState("50");
+  /** Where along the wall a hand point goes (kitchen QA 2026-11-18 K5); empty = the wall's middle. */
+  const [posCm, setPosCm] = useState("");
 
   const byId = new Map(catalog.map((c) => [c.id, c]));
   // A floor drain is offered only with a shower in the room (spec 2026-11-13).
@@ -125,13 +131,43 @@ export function SantexnikaSection({ part, bathroom = false }: {
     const target = walls.some((w) => w.id === wallId) ? wallId : (walls[0]?.id ?? "A");
     const wall = walls.find((w) => w.id === target);
     const cm = Number(heightCm.replace(",", "."));
+    const lengthMm = wall?.length ?? 0;
+    const along = posCm.trim() === "" ? NaN : Number(posCm.replace(",", "."));
     addPlumbing({
       id: nanoid(), kind, wallId: target, heightMm: Number.isFinite(cm) ? Math.max(0, Math.round(cm * 10)) : 0,
-      positionMm: Math.round((wall?.length ?? 0) / 2), diameterMm: kind === "drain" ? 50 : 20,
+      positionMm: Number.isFinite(along) ? Math.min(lengthMm, Math.max(0, Math.round(along * 10))) : Math.round(lengthMm / 2),
+      diameterMm: kind === "drain" ? 50 : 20,
     });
   }
 
   const field = "w-full rounded-lg border border-line bg-card px-2 py-1.5 text-[12px] text-ink";
+  // A kitchen's sink (K1), in both stages: its points come with it in Quvurlar, it is fitted in Jihozlar.
+  const sinkBlock = (kitchen || sinks.length > 0) && (
+    <div className="space-y-1.5">
+      <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.sink")}</span>
+      {sinks.length > 0 && (
+        <ul className="space-y-1">
+          {sinks.map((m) => (
+            <li key={m.id} aria-label={`${t("studio.santexnika.sink")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+              <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+              <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                {t("studio.santexnika.remove")}
+              </button>
+              {clashNote(m.id)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {kitchen && (
+        <button type="button" onClick={() => setNoSinkRoom(!addKitchenSink())}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+          {t("studio.santexnika.sink_add")}
+        </button>
+      )}
+      {noSinkRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.sink_no_room")}</p>}
+    </div>
+  );
   return (
     <section className="space-y-4">
       <div>
@@ -140,8 +176,10 @@ export function SantexnikaSection({ part, bathroom = false }: {
       </div>
 
       {pipes ? (<>
-      {/* The fixtures first (QA 2026-11-18 #5): the points below are theirs. */}
-      <PlumbingFixtures />
+      {/* The fixtures first (QA 2026-11-18 #5): the points below are theirs. A kitchen's catalog has
+          none (kitchen QA 2026-11-18 K1): its sink is added below instead, so the picker is left out. */}
+      <PlumbingFixtures optional={kitchen} />
+      {sinkBlock}
       <div>
         <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.points")}</span>
         <ul className="space-y-1">
@@ -153,7 +191,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
                 {t(`studio.santexnika.${p.kind}`)} · {where(p)}
                 {p.fixtureId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.own")})</span>}
                 {p.railId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.rail_own")})</span>}
-                {p.washerId && <span className="text-[10px] text-ink-muted">({t(dishwashers.some((d) => d.id === p.washerId) ? "studio.santexnika.dish_own" : "studio.santexnika.washer_own")})</span>}
+                {p.washerId && <span className="text-[10px] text-ink-muted">({t(sinks.some((d) => d.id === p.washerId) ? "studio.santexnika.sink_own" : dishwashers.some((d) => d.id === p.washerId) ? "studio.santexnika.dish_own" : "studio.santexnika.washer_own")})</span>}
               </span>
               {!p.fixtureId && !p.railId && !p.washerId && (
                 <button type="button" onClick={() => removePlumbing(p.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
@@ -180,6 +218,11 @@ export function SantexnikaSection({ part, bathroom = false }: {
         <label className="text-[10px] text-ink-muted">{t("studio.santexnika.height")}
           <input aria-label={t("studio.santexnika.height")} inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={field}
             // On a phone the keyboard came up over the field (mobile QA 2026-11-09 #4).
+            onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
+        </label>
+        <label className="col-span-2 text-[10px] text-ink-muted">{t("studio.santexnika.point_pos")}
+          <input aria-label={t("studio.santexnika.point_pos")} inputMode="decimal" value={posCm} onChange={(e) => setPosCm(e.target.value)} className={field}
+            placeholder={String(Math.round((geometry.walls.find((w) => w.id === pickedWall)?.length ?? 0) / 20))}
             onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
         </label>
       </div>
@@ -254,7 +297,8 @@ export function SantexnikaSection({ part, bathroom = false }: {
         {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
       </p>
       </>) : (<>
-      <PlumbingFixtures>
+      {sinkBlock}
+      <PlumbingFixtures optional={kitchen}>
         {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
         {clearances.map((c) => (
           <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">

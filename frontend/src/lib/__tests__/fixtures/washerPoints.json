@@ -1,5 +1,5 @@
 {
- "_doc": "A washing machine's two points (spec 2026-11-13): frontend lib/washer washerPoints and backend app/services/washer washer_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres. A dishwasher (kind \"dishwasher\", widthMm 600|450, 2026-11-16): both points 500 mm high, ±150 (600) or ±100 (450).",
+ "_doc": "A washing machine's two points (spec 2026-11-13): frontend lib/washer washerPoints and backend app/services/washer washer_points must both give `expected`. Geometry in mm (studio units); the backend test converts to metres. A dishwasher (kind \"dishwasher\", widthMm 600|450, 2026-11-16): both points 500 mm high, ±150 (600) or ±100 (450). A kitchen sink (kind \"kitchen_sink\", 2026-11-18): the drain 500 mm high at its centre, cold and hot 550 mm high, 100 mm to the left and right.",
  "cases": [
   {
    "name": "rect, mid wall A",
@@ -398,6 +398,70 @@
      "positionMm": 1050,
      "heightMm": 600,
      "washerId": "w9"
+    }
+   ]
+  },
+  {
+   "name": "kitchen sink, mid wall A",
+   "geometry": {
+    "walls": [
+     {
+      "id": "A",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "B",
+      "length": 2000,
+      "elements": []
+     },
+     {
+      "id": "C",
+      "length": 2500,
+      "elements": []
+     },
+     {
+      "id": "D",
+      "length": 2000,
+      "elements": []
+     }
+    ]
+   },
+   "washers": [
+    {
+     "id": "s1",
+     "wallId": "A",
+     "positionMm": 1250,
+     "kind": "kitchen_sink"
+    }
+   ],
+   "expected": [
+    {
+     "id": "s1:cold",
+     "kind": "cold",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1150,
+     "heightMm": 550,
+     "washerId": "s1"
+    },
+    {
+     "id": "s1:hot",
+     "kind": "hot",
+     "diameterMm": 20,
+     "wallId": "A",
+     "positionMm": 1350,
+     "heightMm": 550,
+     "washerId": "s1"
+    },
+    {
+     "id": "s1:drain",
+     "kind": "drain",
+     "diameterMm": 50,
+     "wallId": "A",
+     "positionMm": 1250,
+     "heightMm": 500,
+     "washerId": "s1"
     }
    ]
   }

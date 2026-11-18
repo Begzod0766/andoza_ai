@@ -2025,7 +2025,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     from app.services.pipe_scheme import pipe_scheme, sound_point
     from app.services.plumbing import load_plumbing_norms, riser_spot
     from app.services.towel_rail import is_electric, rail_points, valid_rails
-    from app.services.washer import is_dishwasher, valid_washers, washer_points
+    from app.services.washer import is_dishwasher, is_kitchen_sink, valid_washers, washer_points
 
     catalog = catalog or {}
     state: dict = room.state or {}
@@ -2041,7 +2041,9 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     washers = valid_washers(state.get("washers"), geometry)
     # A dishwasher (2026-11-16) is one of them, priced by lines of its own; its points are the same kind.
     dishwashers = [m for m in washers if is_dishwasher(m)]
-    machines = [m for m in washers if not is_dishwasher(m)]
+    # A kitchen sink (kitchen QA 2026-11-18): on a wall like them, priced as a kitchen's sink fixture.
+    kitchen_sinks = [m for m in washers if is_kitchen_sink(m)]
+    machines = [m for m in washers if not is_dishwasher(m) and not is_kitchen_sink(m)]
 
     # Fixtures, one line per distinct piece; and how many of each role for the work lines.
     counts: dict[str, int] = {}
@@ -2091,6 +2093,11 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             is_approximate=approx,
             warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
         ))
+
+    if kitchen_sinks:
+        # Its mixer, trap and hoses, and the work to fit it; the sink itself is the kitchen set's.
+        roles["sink"] = roles.get("sink", 0) + len(kitchen_sinks)
+        part_kinds["kitchen_sink"] = part_kinds.get("kitchen_sink", 0) + len(kitchen_sinks)
 
     floor_drain = _design_state(room).get("floorDrain") is True
     lines.extend(_fixture_part_lines(part_kinds, catalog, norms, floor_drain))

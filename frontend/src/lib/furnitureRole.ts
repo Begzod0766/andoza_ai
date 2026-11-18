@@ -25,6 +25,13 @@ export const ROLE_GROUP: Record<FurnitureRole, GroupId> = {
   bathtub: 'plumbing', sink: 'plumbing', toilet: 'plumbing', shower: 'plumbing', bidet: 'plumbing',
 }
 
+/**
+ * A kitchen set (kitchen QA 2026-11-18): its cabinets hold the kitchen sink, so the sink stands on its
+ * wall and inside it rather than clear of it.
+ */
+export const isKitchenSet = (name: string | null | undefined): boolean =>
+  !!name && /oshxona\s+(?:to.?plami|garnituri)|кухонн\S*\s+гарнитур|(?<![а-яё])гарнитур|kitchen\s+(?:set|unit)/i.test(name)
+
 export function isRole(v: unknown): v is FurnitureRole {
   return typeof v === 'string' && Object.prototype.hasOwnProperty.call(ROLE_GROUP, v)
 }

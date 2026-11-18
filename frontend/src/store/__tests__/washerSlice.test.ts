@@ -4,6 +4,7 @@ import { useRoomStore, UNDO_COALESCE_MS } from '../roomStore'
 import { roomContentChanged } from '@/lib/autosave'
 import { riserSpot } from '@/lib/plumbingRuns'
 import { placeWasher } from '@/lib/washer'
+import { roomModel } from '@/lib/aiDesignLayout'
 import type { RoomGeometry } from '../types'
 
 const DOOR = { id: 'd', type: 'eshik', position: 650, width: 700, height: 2050 }
@@ -139,5 +140,48 @@ describe('a dishwasher in the store (2026-11-16)', () => {
     useRoomStore.setState({ washers: [{ id: 'd', wallId: 'A', positionMm: 1200, kind: 'dishwasher', widthMm: 450 }] })
     st().moveWasher('d', 0)
     expect(st().washers[0].positionMm).toBe(225)
+  })
+})
+
+describe('a kitchen sink in the store (2026-11-18)', () => {
+  it('added like a machine; a dishwasher added after it stands beside it', () => {
+    expect(st().addKitchenSink()).toBe(true)
+    const [s] = st().washers
+    expect(s).toMatchObject({ kind: 'kitchen_sink' })
+    expect(st().addDishwasher()).toBe(true)
+    const d = st().washers[1]
+    expect(d.wallId).toBe(s.wallId)
+    expect(Math.abs(d.positionMm - s.positionMm)).toBe(600)
+  })
+})
+
+describe('a kitchen sink by the kitchen set (kitchen QA 2026-11-18)', () => {
+  const SET = {
+    id: 'set', name_uz: "Oshxona to'plami 2", category: 'boshqa', room_type: 'oshxona', store_id: 's', store_name: 'H',
+    placement: 'pol', price_uzs: 10_000_000, glb_url: 'x.glb', thumbnail_url: null, footprint_w: 200, footprint_d: 63,
+  }
+  it('stands on the set\'s wall, inside its cabinets, not by the riser', () => {
+    // The riser is at the start of wall D (the C/D corner); the set's back on wall A, facing into the room.
+    const a = roomModel(geometry).walls.find((w) => w.id === 'A')!
+    const out = 0.315 + 0.04
+    useRoomStore.setState({
+      catalogFurniture: [SET as never],
+      furniture: [{ id: 'f', furniture_id: 'set', x: (a.midX + a.nx * out) * 1000, y: (a.midZ + a.nz * out) * 1000, rotation: Math.atan2(a.nx, a.nz) }],
+    })
+    expect(st().addKitchenSink()).toBe(true)
+    expect(st().washers[0]).toMatchObject({ kind: 'kitchen_sink', wallId: 'A' })
+  })
+  it('a dishwasher round the corner from the sink counts as beside it: measured along the walls', () => {
+    // The sink at the start of wall C, a door just past it on C: beside it is round the corner, on B.
+    const DOOR_C = { id: 'dc', type: 'eshik', position: 600, width: 700, height: 2050 }
+    useRoomStore.setState({
+      geometry: { walls: [
+        { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
+        { id: 'C', length: 2500, elements: [DOOR_C] }, { id: 'D', length: 2000, elements: [] },
+      ] } as unknown as RoomGeometry,
+      washers: [{ id: 's', wallId: 'C', positionMm: 300, kind: 'kitchen_sink' }],
+    })
+    expect(st().addDishwasher()).toBe(true)
+    expect(st().washers[1]).toMatchObject({ wallId: 'B', positionMm: 1700 })
   })
 })

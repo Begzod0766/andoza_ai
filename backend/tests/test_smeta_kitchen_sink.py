@@ -1,0 +1,37 @@
+"""A kitchen sink on a wall (kitchen QA 2026-11-18 K1): the catalog sells none, so it stands on a wall
+like the machines. Its mixer, trap and hoses, the work to connect it, and its three points are priced;
+the sink itself is the kitchen set's, as a machine is not priced."""
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from app.services.smeta import _plumbing_lines
+
+GEOMETRY = {"walls": [
+    {"id": "A", "length": 3.5, "elements": []}, {"id": "B", "length": 3.0, "elements": []},
+    {"id": "C", "length": 3.5, "elements": []}, {"id": "D", "length": 3.0, "elements": []},
+]}
+SINK = {"id": "s1", "wallId": "A", "positionMm": 1750, "kind": "kitchen_sink"}
+
+
+def by_label(washers):
+    room = SimpleNamespace(state={"furniture": [], "plumbing": [], "washers": washers}, geometry=GEOMETRY,
+                           room_type="oshxona", name="Oshxona")
+    return {ln.label: ln for ln in _plumbing_lines(room, {})}
+
+
+def test_a_kitchen_sink_brings_its_mixer_trap_hoses_and_work():
+    got = by_label([SINK])
+    assert got["Oshxona smesiteli"].qty == 1
+    assert got["Oshxona sifoni"].qty == 1
+    assert got["Ulash shlangi (podvodka)"].qty == 2
+    assert got["Ish: rakovina o'rnatish"].qty == 1
+
+
+def test_its_three_points_are_in_the_pipes():
+    assert by_label([SINK])["Ish: nuqtani ulash"].qty == 3
+
+
+def test_it_is_not_a_washing_machine():
+    got = by_label([SINK])
+    assert not any(k.startswith("Kir yuvish mashinasi") or "kir yuvish" in k for k in got)

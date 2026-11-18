@@ -437,8 +437,8 @@ export interface Washer {
   id: string
   wallId: string
   positionMm: number
-  /** A dishwasher (2026-11-16); absent = a washing machine, as every machine saved before. */
-  kind?: 'dishwasher'
+  /** A dishwasher (2026-11-16) or a kitchen sink (2026-11-18); absent = a washing machine, as every machine saved before. */
+  kind?: 'dishwasher' | 'kitchen_sink'
   /** A dishwasher's width, mm; absent = 600. */
   widthMm?: 600 | 450
 }

@@ -5,7 +5,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, Washer } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
-import { isDishwasher, machineSize, WASHER_WALL_GAP_MM } from "@/lib/washer";
+import { isDishwasher, isKitchenSink, machineSize, WASHER_WALL_GAP_MM } from "@/lib/washer";
 import { dragToPositionMm, raycastInFront, railPointerHandlers } from "./TowelRails3D";
 import { noRaycast } from "./constants";
 import { clashColor } from "@/lib/wallItemClash";
@@ -23,6 +23,12 @@ const BODY = "#F5F5F4";
 const DOOR = "#374151";
 const DOOR_R = 0.2;
 const DOOR_Y = 0.5;
+/** A kitchen sink's worktop and its bowl, metres (2026-11-18). */
+const SINK_TOP_H = 0.03;
+const SINK_TOP = "#6B7280";
+const SINK_STEEL = "#C0C4C8";
+const SINK_BOWL_W = 0.45;
+const SINK_BOWL_D = 0.38;
 
 /** Where a machine's box stands: its centre, off its wall into the room, facing the room (group local +Z = inward). */
 export function washerPose(m: Washer, geometry: RoomGeometry): { x: number; y: number; z: number; rotY: number } | null {
@@ -116,7 +122,20 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
               <boxGeometry args={[W, H, D]} />
               <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>
-            {isDishwasher(m) ? (
+            {isKitchenSink(m) ? (
+              // A kitchen sink (2026-11-18): a worktop on the cabinet and a steel bowl in it. Beside a
+              // kitchen set it stands inside the set's own cabinets.
+              <>
+                <mesh position={[0, H / 2 + SINK_TOP_H / 2, 0]} castShadow receiveShadow raycast={noRaycast}>
+                  <boxGeometry args={[W, SINK_TOP_H, D]} />
+                  <meshStandardMaterial color={SINK_TOP} roughness={0.5} />
+                </mesh>
+                <mesh position={[0, H / 2 + SINK_TOP_H + 0.001, 0.02]} rotation={[-Math.PI / 2, 0, 0]} raycast={noRaycast}>
+                  <planeGeometry args={[SINK_BOWL_W, SINK_BOWL_D]} />
+                  <meshStandardMaterial color={SINK_STEEL} roughness={0.25} metalness={0.8} />
+                </mesh>
+              </>
+            ) : isDishwasher(m) ? (
               // A dishwasher: a grey control strip along the top of its front.
               <mesh position={[0, H / 2 - STRIP_H / 2, D / 2 + 0.002]} raycast={noRaycast}>
                 <planeGeometry args={[W - 0.02, STRIP_H]} />

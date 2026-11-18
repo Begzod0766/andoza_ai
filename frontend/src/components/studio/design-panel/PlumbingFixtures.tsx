@@ -18,9 +18,11 @@ const isPlumbing = (category: string | null | undefined, name: string) =>
  * plans the fixtures there and then lays the pipes. Was: added only in Mebel, with its filter.
  * The pick goes where every "add" puts a piece (nextFurnitureSpot): against a wall, clear of the rest.
  */
-export function PlumbingFixtures({ children }: {
+export function PlumbingFixtures({ children, optional = false }: {
   /** Warnings under the list (the Jihozlar stage's clearances and hatch). */
   children?: React.ReactNode;
+  /** Left out when the catalog has nothing to offer and nothing stands (a kitchen, QA 2026-11-18 K1). */
+  optional?: boolean;
 }) {
   const { t } = useTranslation();
   const furniture = useRoomStore((s) => s.furniture);
@@ -51,6 +53,8 @@ export function PlumbingFixtures({ children }: {
       sizeM: e.sizeM, heightM: undefined as number | undefined,
     })),
   ];
+
+  if (optional && entries.length === 0 && fixtures.length === 0) return <>{children}</>;
 
   function add(e: (typeof entries)[number]) {
     placeFurniture({
