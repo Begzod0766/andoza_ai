@@ -69,6 +69,7 @@ import { DesignPanelDock } from "./three-d/DesignPanelDock";
 import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
+import { StageBanner } from "@/components/studio/StageBanner";
 import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
@@ -950,6 +951,11 @@ export default function ThreeDPage() {
           {/* Below lg: once, how to reach the tools — tap a surface. The
               room/stage pill that sat at the top was removed at the user's
               request (2026-11-07). */}
+          {/* The 3D at a stage (spec 2026-11-18): what is not in yet, and the way back to the finished room. */}
+          <div className="pointer-events-none absolute inset-x-3 top-16 z-20 flex justify-center lg:top-3">
+            <StageBanner />
+          </div>
+
           {tapHintShown && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
               <TapHint onDismiss={markTapHintSeen} />

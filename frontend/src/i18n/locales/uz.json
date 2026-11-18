@@ -3,6 +3,14 @@
     "profil": "Profil"
   },
   "studio": {
+    "stage_view": {
+      "hidden": "Bu bosqichda {{things}} hali yo'q",
+      "show_full": "Tayyor xonani ko'rish",
+      "electricals": "rozetkalar",
+      "fixtures": "santexnika jihozlari",
+      "lights": "chiroqlar",
+      "furniture": "mebel"
+    },
     "devor_rangi": "Devor rangi",
     "pol_turi": "Pol turi",
     "qibla": {

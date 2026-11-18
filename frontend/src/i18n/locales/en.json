@@ -3,6 +3,14 @@
     "profil": "Profile"
   },
   "studio": {
+    "stage_view": {
+      "hidden": "Not in yet at this stage: {{things}}",
+      "show_full": "See the finished room",
+      "electricals": "sockets",
+      "fixtures": "fixtures",
+      "lights": "lights",
+      "furniture": "furniture"
+    },
     "devor_rangi": "Wall color",
     "pol_turi": "Floor type",
     "qibla": {
