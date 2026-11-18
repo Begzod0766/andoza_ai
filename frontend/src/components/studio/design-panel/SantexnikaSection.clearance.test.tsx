@@ -28,12 +28,12 @@ beforeEach(() => {
 describe('SantexnikaSection: free floor in front of a fixture', () => {
   it('a shelf 25 cm in front of the toilet: says how much there is and how much it needs', () => {
     useRoomStore.setState({ furniture: [placed('t', 'wc', 'Unitaz', -675), placed('s', 'sh', 'Javon', 100)] })
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(screen.getByRole('alert')).toHaveTextContent("Unitaz oldida 25 sm bo'sh joy bor, kamida 80 sm kerak")
   })
   it('nothing in front: no warning', () => {
     useRoomStore.setState({ furniture: [placed('t', 'wc', 'Unitaz', -675)] })
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(screen.queryByText(/bo'sh joy bor/)).toBeNull()
   })
 })

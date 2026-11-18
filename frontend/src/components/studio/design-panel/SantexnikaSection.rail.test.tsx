@@ -4,6 +4,11 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/types'
 import { SantexnikaSection } from './SantexnikaSection'
+
+/** Both plumbing panels at once (split 2026-11-18): Jihozlar adds the item, Quvurlar lists its points. */
+const Both = ({ bathroom }: { bathroom?: boolean }) => (
+  <><SantexnikaSection part="jihozlar" bathroom={bathroom} /><SantexnikaSection part="quvurlar" bathroom={bathroom} /></>
+)
 import { wallWalk } from '@/lib/plumbingRuns'
 
 // The shop lists ask the server (react-query); here they are stand-ins that say which line they pick for.
@@ -26,7 +31,7 @@ beforeEach(() => {
 
 describe('SantexnikaSection: towel rail', () => {
   it('the button hangs a rail and the panel lists it with its wall', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     expect(screen.queryByRole('listitem', { name: /sochiq quritgich/i })).toBeNull()
     fireEvent.click(addButton()!)
     expect(rails()).toHaveLength(1)
@@ -35,7 +40,7 @@ describe('SantexnikaSection: towel rail', () => {
   })
 
   it('its row has a delete button that takes it and its points away', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     fireEvent.click(addButton()!)
     expect(screen.getAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(2)
     fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Olib tashlash' }))
@@ -44,7 +49,7 @@ describe('SantexnikaSection: towel rail', () => {
   })
 
   it("its two points are shown as the rail's own and cannot be removed on their own; they are not saved", () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     fireEvent.click(addButton()!)
     for (const row of screen.getAllByRole('listitem', { name: /issiq suv/i })) {
       expect(row).toHaveTextContent('quritgichniki')
@@ -54,7 +59,7 @@ describe('SantexnikaSection: towel rail', () => {
   })
 
   it('the summary counts its two water points and their pipe', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     expect(screen.getByText(/Suv: 0 nuqta/)).toBeInTheDocument()
     fireEvent.click(addButton()!)
     expect(screen.getByText(/Suv: 2 nuqta/)).toBeInTheDocument()
@@ -63,14 +68,14 @@ describe('SantexnikaSection: towel rail', () => {
 
   it('a room with no wall to hang it on says so and adds nothing', () => {
     useRoomStore.setState({ geometry: { walls: [] } as unknown as RoomGeometry })
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     fireEvent.click(addButton()!)
     expect(rails()).toEqual([])
     expect(screen.getByRole('alert')).toHaveTextContent(/joy yo'q/i)
   })
 
   it('is not offered outside a bathroom', () => {
-    render(<SantexnikaSection />)
+    render(<Both />)
     expect(addButton()).toBeNull()
   })
 })
@@ -78,7 +83,7 @@ describe('SantexnikaSection: towel rail', () => {
 describe('SantexnikaSection: a rail in a room that is no longer a bathroom (final review)', () => {
   it('is still listed and can be removed; only adding is for bathrooms', () => {
     useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 600, heightMm: 1000 }] })
-    render(<SantexnikaSection />)
+    render(<Both />)
     expect(addButton()).toBeNull()
     fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Olib tashlash' }))
     expect(rails()).toEqual([])
@@ -87,7 +92,7 @@ describe('SantexnikaSection: a rail in a room that is no longer a bathroom (fina
 
 describe('SantexnikaSection: an electric towel rail (2026-11-14)', () => {
   it('a new rail is heated by water; switching it to electric takes its points away, and back brings them', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     fireEvent.click(addButton()!)
     const row = screen.getByRole('listitem', { name: /sochiq quritgich/i })
     expect(within(row).getByRole('button', { name: 'Suvli' })).toHaveAttribute('aria-pressed', 'true')
@@ -104,7 +109,7 @@ describe('SantexnikaSection: a rail size and a shop product (2026-11-15)', () =>
   const row = () => screen.getByRole('listitem', { name: /sochiq quritgich/i })
 
   it('each row picks a size; a rail with none shows 50 × 80', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     fireEvent.click(addButton()!)
     const select = within(row()).getByRole('combobox', { name: "O'lchami" }) as HTMLSelectElement
     expect(select.value).toBe('500x800')
@@ -118,7 +123,7 @@ describe('SantexnikaSection: a rail size and a shop product (2026-11-15)', () =>
     const real = useRoomStore.getState().setTowelRailSize
     useRoomStore.setState({ setTowelRailSize: vi.fn(() => false) })
     try {
-      render(<SantexnikaSection bathroom />)
+      render(<Both bathroom />)
       fireEvent.change(within(row()).getByRole('combobox', { name: "O'lchami" }), { target: { value: '600x800' } })
       expect(screen.getByRole('alert')).toHaveTextContent("Bu o'lcham devorga sig'maydi")
     } finally {
@@ -127,7 +132,7 @@ describe('SantexnikaSection: a rail size and a shop product (2026-11-15)', () =>
   })
 
   it('the shop list for each kind of rail in the room', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     expect(screen.queryByTestId('pick-sochiq_quritgich')).toBeNull()
     fireEvent.click(addButton()!)
     expect(screen.getByTestId('pick-sochiq_quritgich')).toBeTruthy()
@@ -144,17 +149,17 @@ describe('SantexnikaSection: touching furniture (2026-11-15)', () => {
 
   it('a rail low over the couch says what it touches; hung higher it says nothing', () => {
     useRoomStore.setState({ furniture: [couch()], towelRails: [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 500 }] })
-    const { unmount } = render(<SantexnikaSection bathroom />)
+    const { unmount } = render(<Both bathroom />)
     expect(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('alert')).toHaveTextContent("Mebelga tegib turibdi: Uch o'rinli divan")
     unmount()
     useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000 }] })
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     expect(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).queryByRole('alert')).toBeNull()
   })
 
   it('a machine in the couch says so', () => {
     useRoomStore.setState({ furniture: [couch()], washers: [{ id: 'm', wallId: 'A', positionMm: 800 }] })
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     expect(within(screen.getByRole('listitem', { name: /kir yuvish/i })).getByRole('alert')).toHaveTextContent("Mebelga tegib turibdi: Uch o'rinli divan")
   })
 })

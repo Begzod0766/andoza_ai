@@ -70,7 +70,7 @@ function SlopeSign({ zone }: { zone: ShowerZone }) {
 
 /**
  * A tray-less shower's floor drain (spec 2026-11-14): while "Poddonsiz dush (trap)" is on, a steel
- * grate at each shower's centre; in the Santexnika stage also the zone sloped to it.
+ * grate at each shower's centre; in a plumbing stage also the zone sloped to it.
  */
 export function FloorDrains3D() {
   const on = useRoomStore((s) => s.designState.floorDrain === true);

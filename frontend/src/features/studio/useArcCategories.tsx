@@ -45,7 +45,7 @@ export interface ArcCategoriesDeps {
    *  same as the design panel uses, falling back to every wall. */
   selectedWall: string | null
   /** Opens the full panel for a category the arc can only show a slice of. */
-  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'santexnika') => void
+  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar') => void
 }
 
 /** The catalog room each furniture ring stands for. */
@@ -244,10 +244,11 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         // there rather than showing an arc with nothing on it.
         emptyItem: { key: 'mebel:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('mebel') },
       },
-      // Bathrooms and kitchens: the fixtures and "add a point" (spec 2026-11-08).
-      ...(visibleStages(roomKind).some((st) => st.key === 'santexnika') ? [{
-        key: 'santexnika',
-        label: t('studio.lib.stage.santexnika'),
+      // Bathrooms and kitchens: the fixtures (Jihozlar) and "add a point", which is Quvurlar's
+      // (spec 2026-11-08, split 2026-11-18).
+      ...(visibleStages(roomKind).some((st) => st.key === 'jihozlar') ? [{
+        key: 'jihozlar',
+        label: t('studio.lib.stage.jihozlar'),
         icon: <Droplets size={19} strokeWidth={1.8} />,
         items: [
           ...catalogFurniture
@@ -267,7 +268,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
                 }),
               }),
             })),
-          { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('santexnika') },
+          { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('quvurlar') },
         ],
       }] : []),
       {

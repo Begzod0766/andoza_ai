@@ -326,7 +326,7 @@ export default function ThreeDPage() {
     tab: isMebelTab ? 'mebel' : isChiroqTab ? 'chiroq' : undefined,
   })
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
-  // The 3D scene does not see the stage: towel rails are caught and dragged only in Santexnika.
+  // The 3D scene does not see the stage: towel rails are caught and dragged only in a plumbing stage.
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
@@ -690,7 +690,7 @@ export default function ThreeDPage() {
   /** The corner arc's categories, read from the same sources the design panel
    *  uses. `openPanelAt` is its escape hatch: a category with more items than
    *  the arc holds ends in a button that opens the full panel instead. */
-  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'santexnika') => {
+  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar') => {
     setActivePhase(phase);
     setShowPanel(true);
   }, [setActivePhase]);
@@ -794,7 +794,7 @@ export default function ThreeDPage() {
   }, [toolMode, setSelectedPart]);
   useEffect(() => { setSelectedPart(null); }, [room.id, setSelectedPart]);
 
-  // The room's stages: "Santexnika" only in a bathroom or kitchen (spec 2026-11-08).
+  // The room's stages: Quvurlar and Jihozlar only in a bathroom or kitchen (spec 2026-11-08, 2026-11-18).
   const stageRoomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)));
   const stages = visibleStages(stageRoomKind);
   const activeIdx = stages.findIndex(s => s.key === activePhase);

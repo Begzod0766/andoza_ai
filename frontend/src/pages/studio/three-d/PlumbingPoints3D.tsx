@@ -29,7 +29,7 @@ export function plumbingPointPose(point: PlumbingPoint, geometry: RoomGeometry):
 /**
  * The drain and water points on the walls, as small coloured discs; a point added by hand can be
  * dragged along its wall and up or down (a fixture's own points move with the fixture). While the
- * Santexnika stage's toggle is on the room's pipe scheme is drawn: a trunk per pipe kind along the
+ * Quvurlar stage's toggle is on the room's pipe scheme is drawn: a trunk per pipe kind along the
  * walls and a vertical branch to each point (spec 2026-11-11), the Ø110 way thicker.
  */
 export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {

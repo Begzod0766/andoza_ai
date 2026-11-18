@@ -36,7 +36,7 @@ export function washerPose(m: Washer, geometry: RoomGeometry): { x: number; y: n
 
 /**
  * The washing machines (spec 2026-11-13): a plain white box each with a dark round door, drawn in code.
- * In the Santexnika stage a machine slides along its wall by drag; the store keeps it off doors,
+ * In a plumbing stage a machine slides along its wall by drag; the store keeps it off doors,
  * windows, towel rails, other machines and the wall's ends.
  */
 export function Washers3D({ controlsRef, hiddenWalls }: {
@@ -47,7 +47,7 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
   const geometry = useRoomStore((s) => s.geometry);
   const moveWasher = useRoomStore((s) => s.moveWasher);
   const active = useRoomStore((s) => s.plumbingStage);
-  // Touching furniture (2026-11-15): drawn in warning red in the Santexnika stage.
+  // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);

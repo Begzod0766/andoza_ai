@@ -109,7 +109,7 @@ export function DesignPanelDock({
         {/* Mobile close button — replaces the old drag-to-dismiss handle,
             which doesn't make sense for a side panel. Tapping the now-
             transparent backdrop on the left half also closes it. */}
-        {/* In the Santexnika bottom sheet this bar stays put and only the body below it scrolls, so
+        {/* In a plumbing stage's bottom sheet this bar stays put and only the body below it scrolls, so
             the form never slides up under the rounded top (on iOS a sticky bar still let a row show
             above it: mobile QA re-check 2026-11-12, #244). */}
         <div className="lg:hidden shrink-0 flex justify-end p-2">
