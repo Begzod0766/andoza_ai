@@ -231,7 +231,9 @@
       "yoq": "None",
       "shift_turi": "Ceiling type",
       "parket": "Parquet",
-      "plintus": "Skirting board"
+      "plintus": "Skirting board",
+      "panel_jihozlar": "Fixtures panel",
+      "panel_pol": "Floor panel"
     },
     "page": {
       "havola_yaratilmadi": "Could not create the link",
