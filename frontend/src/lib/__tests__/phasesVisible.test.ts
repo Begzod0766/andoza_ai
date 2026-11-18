@@ -53,3 +53,18 @@ describe('the stage a link opens at', () => {
     expect(initialPhaseFor({ phaseParam: 'suvoq', roomKind: undefined, tab: 'chiroq' })).toBe('chiroq')
   })
 })
+
+describe('a new room opens at its first stage (QA 2026-11-18 #4)', () => {
+  it('a bathroom or kitchen opens at Quvurlar, any other room at Suvoq', async () => {
+    const { newRoomStudioPath } = await import('../phases')
+    expect(newRoomStudioPath('r1', 'hammom')).toBe('/studio/r1/ichkarida?phase=quvurlar')
+    expect(newRoomStudioPath('r1', 'oshxona')).toBe('/studio/r1/ichkarida?phase=quvurlar')
+    expect(newRoomStudioPath('r1', 'yotoqxona')).toBe('/studio/r1/ichkarida?phase=suvoq')
+    expect(newRoomStudioPath('r1', 'bolalar')).toBe('/studio/r1/ichkarida?phase=suvoq')
+    expect(newRoomStudioPath('r1', null)).toBe('/studio/r1/ichkarida?phase=suvoq')
+  })
+  it('the studio honours that link: a bathroom opens its panel and its 3D at Quvurlar', () => {
+    expect(initialPhaseFor({ phaseParam: 'quvurlar', roomKind: 'hammom' })).toBe('quvurlar')
+    expect(initialViewStage({ phaseParam: 'quvurlar', roomKind: 'hammom' })).toBe('quvurlar')
+  })
+})
