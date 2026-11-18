@@ -294,10 +294,21 @@ describe('tapping the ceiling', () => {
 })
 
 describe('tapping the floor', () => {
-  it('offers the two materials a floor is, and nothing else', () => {
+  it('offers the two materials a floor is, then the Pol panel (mobile QA 2026-11-18 #5)', () => {
+    // "Narsa" and "Rang" stay out (the user's call); the panel is where the heated floor and the
+    // shop's floor are, and a phone had no other way to it from the floor.
     const { deps } = harness()
     expect(buildRadialItems(FLOOR!, deps as never).map((i) => i.key))
-      .toEqual(['parket', 'kafel'])
+      .toEqual(['parket', 'kafel', 'floor:panel'])
+  })
+
+  it('the panel button opens the Pol panel and closes the ring', () => {
+    const { calls, deps } = harness()
+    const panel = buildRadialItems(FLOOR!, deps as never).find((i) => i.key === 'floor:panel')!
+    expect(panel.closesMenu).toBe(true)
+    expect(panel.label).toBe(i18n.t('studio.radial.panel_pol'))
+    panel.onSelect()
+    expect(calls).toEqual([['phase', 'pol'], ['panel', true]])
   })
 
   it('lays the picked parquet pattern with the pattern\'s own numbers', () => {

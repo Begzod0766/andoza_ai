@@ -1097,6 +1097,7 @@
       "water_scheme_tee": "Uchlik (ketma-ket)",
       "water_scheme_collector": "Kollektor (har nuqtaga alohida)",
       "hatch_blocked": "{{names}} revizion lyukni to'sib turibdi — lyukka yo'l qoldiring",
+      "overlap": "{{a}} va {{b}} bir-birining ichida turibdi: xonada ikkalasiga joy yetmaydi, birini suring yoki kichigini tanlang.",
       "boiler_homeless": "Boyler uchun xavfsiz joy topilmadi: eshik, deraza, vanna va dushdan uzoqroq bo'sh devor kerak. Stoyakni suring yoki jihozlarni joylashtiring.",
       "add_fixture": "Jihoz qo'shish",
       "catalog": "Santexnika katalogi",

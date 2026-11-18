@@ -26,7 +26,10 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
     if (!size) return undefined
     const fit = ceilingFitSize(size, row?.height_cm ? row.height_cm / 100 : undefined, s.ceilingHeight)
     // Drawn smaller to fit under the ceiling: its height by the same factor.
-    const h = (row?.height_cm ? row.height_cm / 100 : (size as { h?: number }).h) ?? UNKNOWN.h
+    // A shop row with no height reads as 0 m tall (mobile QA 2026-11-18, #298: a toilet then touched no
+    // machine at any height): an unknown height is the usual one, not none.
+    const raw = row?.height_cm ? row.height_cm / 100 : (size as { h?: number }).h
+    const h = raw && raw > 0 ? raw : UNKNOWN.h
     return { ...fit, h: h * (size.w > 0 ? fit.w / size.w : 1) }
   }
   const nameOf = (f: { furniture_id: string; name?: string }) =>

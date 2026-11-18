@@ -1,6 +1,6 @@
 import type { RoomGeometry } from '@/store/types'
-import type { FurnitureRole } from '@/lib/furnitureRole'
-import { rectCorners, roomModel, type Rect } from '@/lib/aiDesignLayout'
+import { ROLE_GROUP, type FurnitureRole } from '@/lib/furnitureRole'
+import { overlaps, rectCorners, roomModel, type Rect } from '@/lib/aiDesignLayout'
 import { resolveElementPositions } from '@/lib/wallPositions'
 import { wallHungShiftM } from '@/lib/bathroomBoxes'
 
@@ -102,6 +102,24 @@ export function fixtureClearances(pieces: ClearancePiece[], geometry: RoomGeomet
     }
     const freeCm = Math.round(free * 100)
     if (freeCm < CLEARANCE_CM[role]) out.push({ id: p.id, name: p.name, role, freeCm, needCm: CLEARANCE_CM[role] })
+  }
+  return out
+}
+
+/**
+ * The pairs of pieces standing in each other, a fixture among them (mobile QA 2026-11-18: in a 1.6 × 1.5
+ * bathroom the sink and the toilet were put inside the bath with no word). By name, each pair once, in
+ * the order placed. A rug lies under the rest and is left out. A warning only: nothing is moved.
+ */
+export function fixtureOverlaps(pieces: ReadonlyArray<Pick<ClearancePiece, 'name' | 'role' | 'rect'>>): Array<[string, string]> {
+  const solid = pieces.filter((p) => p.role !== 'rug')
+  const out: Array<[string, string]> = []
+  for (let i = 0; i < solid.length; i++) {
+    for (let j = i + 1; j < solid.length; j++) {
+      const a = solid[i], b = solid[j]
+      const fixture = (p: typeof a) => !!p.role && ROLE_GROUP[p.role] === 'plumbing'
+      if ((fixture(a) || fixture(b)) && overlaps(a.rect, b.rect, 0)) out.push([a.name, b.name])
+    }
   }
   return out
 }

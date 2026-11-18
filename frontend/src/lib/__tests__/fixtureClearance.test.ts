@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RoomGeometry } from '@/store/types'
-import { CLEARANCE_CM, fixtureClearances, type ClearancePiece } from '@/lib/fixtureClearance'
+import { CLEARANCE_CM, fixtureClearances, fixtureOverlaps, type ClearancePiece } from '@/lib/fixtureClearance'
 
 // Centred: A at z = −1 (x −1.25 → 1.25), B at x = 1.25, C at z = 1, D at x = −1.25.
 const geometry = { walls: [
@@ -80,5 +80,25 @@ describe('fixtureClearances (2026-11-18): the free floor in front of a toilet, b
     // The leaf's arc over the toilet's width comes to about 0.32 (the toilet's front at −0.35).
     expect(got!.freeCm).toBeGreaterThanOrEqual(64)
     expect(got!.freeCm).toBeLessThanOrEqual(69)
+  })
+})
+
+describe('fixtureOverlaps (mobile QA 2026-11-18)', () => {
+  const r = (x: number, z: number, w: number, d: number) => ({ x, z, w, d, rotation: 0 })
+  it('names each pair of pieces standing in each other, a fixture among them', () => {
+    expect(fixtureOverlaps([
+      { name: 'Vanna 5', role: 'bathtub', rect: r(0, 0, 1.7, 0.75) },
+      { name: 'Unitaz', role: 'toilet', rect: r(0.5, 0.5, 0.56, 0.7) },
+      { name: 'Rakovina 3', role: 'sink', rect: r(-0.5, 1.2, 0.41, 0.62) },
+    ])).toEqual([['Vanna 5', 'Unitaz']])
+  })
+  it('two pieces only touching, a rug, or furniture with no fixture are not named', () => {
+    expect(fixtureOverlaps([
+      { name: 'Vanna', role: 'bathtub', rect: r(0, 0, 1, 1) },
+      { name: 'Unitaz', role: 'toilet', rect: r(1, 0, 1, 1) },
+      { name: 'Gilam', role: 'rug', rect: r(0, 0, 3, 3) },
+      { name: 'Stol', role: 'dining_table', rect: r(5, 5, 1, 1) },
+      { name: 'Stul', role: 'dining_chair', rect: r(5.2, 5, 0.5, 0.5) },
+    ])).toEqual([])
   })
 })

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useRoomStore } from '@/store/roomStore'
-import { fixtureClearances, type ClearanceWarning } from '@/lib/fixtureClearance'
+import { fixtureClearances, fixtureOverlaps, type ClearanceWarning } from '@/lib/fixtureClearance'
 import { placedFurnitureBoxes } from '@/features/studio/nextFurnitureSpot'
 import { boilerSpot, hatchBlockers, railSpans, wetSpans } from '@/lib/bathroomBoxes'
 import { roomRiser } from '@/lib/plumbingRuns'
@@ -24,6 +24,21 @@ export function roomClearances(s: State): ClearanceWarning[] {
 /** The pieces in front of the riser box's revision hatch (2026-11-18), by name. */
 export function roomHatchBlockers(s: State): string[] {
   return hatchBlockers(s.geometry, roomRiser(s.geometry, s.plumbingRiser), pieces(s))
+}
+
+/** The pairs of pieces standing in each other, a fixture among them (mobile QA 2026-11-18), by name. */
+export function roomFixtureOverlaps(s: State): Array<[string, string]> {
+  return fixtureOverlaps(pieces(s))
+}
+
+/** The same, kept up to date with the room. */
+export function useFixtureOverlaps(): Array<[string, string]> {
+  const furniture = useRoomStore((s) => s.furniture)
+  const catalog = useRoomStore((s) => s.catalogFurniture)
+  const user = useRoomStore((s) => s.userFurniture)
+  const ceiling = useRoomStore((s) => s.ceilingHeight)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => roomFixtureOverlaps(useRoomStore.getState()), [furniture, catalog, user, ceiling])
 }
 
 /** The same, kept up to date with the room. */

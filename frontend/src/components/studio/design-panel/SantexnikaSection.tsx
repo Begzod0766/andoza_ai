@@ -9,7 +9,7 @@ import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towe
 import { ShopPickList } from "./ShopPickList";
 import { PlumbingFixtures } from "./PlumbingFixtures";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
-import { useBoilerHomeless, useFixtureClearances, useHatchBlockers } from "@/features/studio/fixtureClearance";
+import { useBoilerHomeless, useFixtureClearances, useFixtureOverlaps, useHatchBlockers } from "@/features/studio/fixtureClearance";
 import type { TowelRailSize } from "@/store/types";
 import { DISHWASHER_WIDTHS, isDishwasher, machineSize, withWasherPoints } from "@/lib/washer";
 import { effectiveRoomType } from "@/lib/roomType";
@@ -55,6 +55,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const clashes = useWallItemClashes();
   const clearances = useFixtureClearances();
   const hatchBlocked = useHatchBlockers();
+  const overlapping = useFixtureOverlaps();
   const boilerHomeless = useBoilerHomeless();
   const clashNote = (id: string) => clashes[id] && (
     <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
@@ -259,6 +260,12 @@ export function SantexnikaSection({ part, bathroom = false }: {
         {clearances.map((c) => (
           <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">
             {t("studio.santexnika.clearance", { name: fixtureDisplayName(c.name, t), free: c.freeCm, need: c.needCm })}
+          </p>
+        ))}
+        {/* Pieces standing in each other (mobile QA 2026-11-18): the room has no floor for both. A warning only. */}
+        {overlapping.map(([a, b]) => (
+          <p key={`${a}|${b}`} role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.overlap", { a: fixtureDisplayName(a, t), b: fixtureDisplayName(b, t) })}
           </p>
         ))}
         {/* The riser box's hatch must stay reachable (2026-11-18): a warning only. */}

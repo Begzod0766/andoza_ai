@@ -57,3 +57,16 @@ describe('SantexnikaSection: free floor in front of a fixture', () => {
     expect(screen.queryByText(/Boyler uchun xavfsiz joy topilmadi/)).toBeNull()
   })
 })
+
+describe('SantexnikaSection: pieces standing in each other (mobile QA 2026-11-18)', () => {
+  it('a sink inside the toilet\'s footprint: names both', () => {
+    useRoomStore.setState({ furniture: [placed('t', 'wc', 'Unitaz', -675), placed('r', 'rk', 'Rakovina', -650)] })
+    render(<SantexnikaSection part="jihozlar" bathroom />)
+    expect(screen.getAllByRole('alert').map((a) => a.textContent).join(' ')).toContain("Unitaz va Rakovina bir-birining ichida turibdi")
+  })
+  it('apart: no such warning', () => {
+    useRoomStore.setState({ furniture: [placed('t', 'wc', 'Unitaz', -675), placed('r', 'rk', 'Rakovina', 600)] })
+    render(<SantexnikaSection part="jihozlar" bathroom />)
+    expect(screen.queryByText(/bir-birining ichida/)).toBeNull()
+  })
+})
