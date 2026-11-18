@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import type { RoomGeometry } from "@/store/roomStore";
+import { useRoomStore, type RoomGeometry } from "@/store/roomStore";
+import { placedFurnitureBoxes } from "@/features/studio/nextFurnitureSpot";
 import { captureViewCanvas } from "@/lib/panorama360";
 import {
   roomCameraPoses, renderSizeFor, verticalFovFor, RENDER_ASPECTS,
@@ -33,12 +34,23 @@ export function RoomCameras({ station, aspect, geometry, onCaptured }: {
   // Keyed on the outline's own numbers rather than the geometry object: the
   // store hands out a fresh one on every unrelated design change, and
   // recomputing four camera walks on each would be wasted work.
+  // The furniture's footprints: a camera never stands inside a piece (kitchen re-check 2026-11-19:
+  // camera 1 was inside a kitchen set). A rug lies under the feet.
+  const furniture = useRoomStore((s) => s.furniture);
+  const catalog = useRoomStore((s) => s.catalogFurniture);
+  const obstacles = useMemo(
+    () => placedFurnitureBoxes(useRoomStore.getState()).filter((p) => p.role !== "rug")
+      .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [furniture, catalog],
+  );
   const poseKey = JSON.stringify([
     geometry.vertices ?? null,
     geometry.walls.map((w) => [w.id, w.length]),
+    obstacles,
   ]);
   const poses = useMemo(
-    () => roomCameraPoses(geometry),
+    () => roomCameraPoses(geometry, undefined, obstacles),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [poseKey],
   );
