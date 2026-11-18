@@ -478,6 +478,7 @@
         }
       },
       "stage": {
+        "quvurlar": "Pipes",
         "suvoq": "Plaster",
         "shpaklovka": "Putty",
         "boyoq": "Paint/Wallpaper",
@@ -485,7 +486,7 @@
         "montaj": "Installation",
         "chiroq": "Light fixtures",
         "mebel": "Furniture",
-        "santexnika": "Plumbing"
+        "jihozlar": "Fixtures"
       },
       "tile_face": {
         "plain": "Plain",
