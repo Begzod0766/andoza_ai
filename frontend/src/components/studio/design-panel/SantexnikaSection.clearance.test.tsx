@@ -22,7 +22,7 @@ const placed = (id: string, furniture_id: string, name: string, y: number) =>
 
 beforeEach(() => {
   useRoomStore.getState().resetRoom()
-  useRoomStore.setState({ geometry, roomType: 'hammom', catalogFurniture: [row('wc', 'Unitaz', 'boshqa', 40, 65), row('sh', 'Javon', 'shkaf', 100, 40)] })
+  useRoomStore.setState({ geometry, roomType: 'hammom', catalogFurniture: [row('wc', 'Unitaz', 'boshqa', 40, 65), row('sh', 'Javon', 'shkaf', 100, 40), row('rk', 'Rakovina', 'boshqa', 50, 40)] })
 })
 
 describe('SantexnikaSection: free floor in front of a fixture', () => {
@@ -35,5 +35,12 @@ describe('SantexnikaSection: free floor in front of a fixture', () => {
     useRoomStore.setState({ furniture: [placed('t', 'wc', 'Unitaz', -675)] })
     render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(screen.queryByText(/bo'sh joy bor/)).toBeNull()
+  })
+
+  it('a sink in front of the riser hatch: says it must stay reachable (2026-11-18)', () => {
+    // The riser in A's far corner: the box at A 2300 (x = 1.05), its front at z = −0.75; the sink 40 cm off it.
+    useRoomStore.setState({ plumbingRiser: { wallId: 'A', positionMm: 2500 }, furniture: [{ id: 'r', furniture_id: 'rk', name: 'Rakovina', x: 1050, y: -350, rotation: Math.PI } as unknown as PlacedFurniture] })
+    render(<SantexnikaSection part="jihozlar" bathroom />)
+    expect(screen.getByRole('alert')).toHaveTextContent("Rakovina revizion lyukni to'sib turibdi — lyukka yo'l qoldiring")
   })
 })

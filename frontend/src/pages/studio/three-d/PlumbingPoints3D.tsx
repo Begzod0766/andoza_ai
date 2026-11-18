@@ -5,7 +5,7 @@ import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
-import { roomRiser, wallWalk } from "@/lib/plumbingRuns";
+import { riserPose, roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 import { withWasherPoints } from "@/lib/washer";
@@ -13,6 +13,14 @@ import type { RiserAt } from "@/lib/plumbingRuns";
 
 /** The collector's box, metres (2026-11-18): 40 wide, 25 tall, 8 deep, its middle 30 cm up, 6 cm off the wall. */
 const COLLECTOR = { w: 0.4, h: 0.25, d: 0.08, y: 0.3, out: 0.06 };
+
+/** The short pipe from the riser into the collector box (2026-11-18), at the water lines' height: the lines
+ * meet at the riser, the box stands beside it. */
+export function collectorFeed(geometry: RoomGeometry, riser: RiserAt): [[number, number, number], [number, number, number]] | null {
+  const r = riserPose(riser, geometry);
+  const b = collectorPose(geometry, riser);
+  return r && b ? [[r.x, 0.2, r.z], [b.x, 0.2, b.z]] : null;
+}
 
 /** Where the collector stands: on the riser's wall at the riser, its whole width on the wall; facing the room (local +Z). */
 export function collectorPose(geometry: RoomGeometry, riser: RiserAt): { x: number; y: number; z: number; rotY: number } | null {
@@ -107,6 +115,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   );
   const riserAt = roomRiser(geometry, manualRiser);
   const box = showPipeRuns && collector && !hiddenWalls?.has(riserAt.wallId) ? collectorPose(geometry, riserAt) : null;
+  const feed = box ? collectorFeed(geometry, riserAt) : null;
   if (plumbing.length === 0) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
@@ -134,7 +143,8 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
       {pipes.map((l) => (
         <Line key={l.key} points={drawnPoints(l)} color={COLOUR[l.kind]} lineWidth={l.diameterMm === 110 ? 4 : 2} />
       ))}
-      {/* The collector the lines start from (2026-11-18). */}
+      {/* The collector the lines start from, and the pipe from the riser into it (2026-11-18). */}
+      {feed && <Line points={feed} color={COLOUR.cold} lineWidth={3} />}
       {box && (
         <mesh position={[box.x, box.y, box.z]} rotation={[0, box.rotY, 0]}>
           <boxGeometry args={[COLLECTOR.w, COLLECTOR.h, COLLECTOR.d]} />

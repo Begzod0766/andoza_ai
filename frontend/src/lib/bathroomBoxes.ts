@@ -4,6 +4,7 @@ import { inferRole } from '@/lib/furnitureRole'
 import { wallWalk, type RiserAt } from '@/lib/plumbingRuns'
 import { fixturePoints } from '@/lib/plumbingPoints'
 import { openingSpans } from '@/lib/towelRail'
+import { rectCorners, type Rect } from '@/lib/aiDesignLayout'
 
 /**
  * What a finished bathroom has that the estimate prices but the 3D view (and so the render) lacked
@@ -121,4 +122,37 @@ export function frameBoxSpots(furniture: PlacedFurniture[], catalog: CatalogFurn
     const drain = fixturePoints(f, 'toilet', sizeM, geometry).find((p) => p.kind === 'drain')
     return drain ? [{ wallId: drain.wallId, positionMm: drain.positionMm, fixtureId: f.id }] : []
   })
+}
+
+/** How far a toilet stands off the wall, metres (2026-11-18): a wall-hung one hangs on its box's front. */
+export const wallHungShiftM = (name: string, role: string | undefined): number =>
+  role === 'toilet' && isWallHung(name) ? FRAME_BOX_D_MM / 1000 : 0
+
+/** The floor kept free in front of the riser box's hatch, metres: the hatch and 5 cm each side, 50 cm out. */
+const HATCH_ZONE_W = HATCH_W_MM / 1000 + 0.1
+const HATCH_ZONE_D = 0.5
+
+/** Whether two turned rectangles overlap (separating axis test). */
+function overlaps(a: Rect, b: Rect): boolean {
+  const pa = rectCorners(a), pb = rectCorners(b)
+  for (const poly of [pa, pb]) {
+    for (let i = 0; i < 4; i++) {
+      const [x1, z1] = poly[i], [x2, z2] = poly[(i + 1) % 4]
+      const nx = z1 - z2, nz = x2 - x1
+      const proj = (p: number[][]) => p.map(([x, z]) => x * nx + z * nz)
+      const ra = proj(pa), rb = proj(pb)
+      if (Math.max(...ra) <= Math.min(...rb) + 1e-9 || Math.max(...rb) <= Math.min(...ra) + 1e-9) return false
+    }
+  }
+  return true
+}
+
+/** The pieces standing in front of the riser box's revision hatch (2026-11-18), by name: it must stay reachable. A rug does not count. */
+export function hatchBlockers(geometry: RoomGeometry, riser: RiserAt, pieces: Array<{ name: string; role?: string; rect: Rect }>): string[] {
+  const box = riserBoxSpot(geometry, riser)
+  const w = box && wallWalk(geometry).find((x) => x.id === box.wallId)
+  if (!box || !w) return []
+  const t = box.positionMm / 1000, out = RISER_BOX_D_MM / 1000 + HATCH_ZONE_D / 2
+  const zone: Rect = { x: w.startX + w.dirX * t + w.nx * out, z: w.startZ + w.dirZ * t + w.nz * out, w: HATCH_ZONE_W, d: HATCH_ZONE_D, rotation: Math.atan2(w.nx, w.nz) }
+  return pieces.filter((p) => p.role !== 'rug' && overlaps(zone, p.rect)).map((p) => p.name)
 }

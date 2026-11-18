@@ -1,6 +1,8 @@
 import type { RoomGeometry } from '@/store/types'
 import type { FurnitureRole } from '@/lib/furnitureRole'
 import { rectCorners, roomModel, type Rect } from '@/lib/aiDesignLayout'
+import { resolveElementPositions } from '@/lib/wallPositions'
+import { wallHungShiftM } from '@/lib/bathroomBoxes'
 
 /**
  * The free floor a fixture needs in front of it (2026-11-18), cm: before a toilet or bidet 80 (its
@@ -38,18 +40,51 @@ const rectSegs = (r: Rect): Seg[] => {
   return c.map((p, i) => [p[0], p[1], c[(i + 1) % 4][0], c[(i + 1) % 4][1]] as Seg)
 }
 
-/** The fixtures short of free floor in front, each with how much it has; the room's walls and every
- * other piece (not a rug) stand in the way. */
+/** Steps the quarter circle a door leaf sweeps is drawn with. */
+const SWING_STEPS = 12
+
+/** The floor each door sweeps opening into the room (2026-11-18): its leaf's arc and its open leaf, as segments. */
+function doorSwings(geometry: RoomGeometry): Seg[] {
+  const out: Seg[] = []
+  for (const w of roomModel(geometry).walls) {
+    const wall = geometry.walls.find((g) => g.id === w.id)
+    if (!wall) continue
+    const sx = w.midX - (w.dirX * w.length) / 2, sz = w.midZ - (w.dirZ * w.length) / 2
+    for (const e of resolveElementPositions(wall.elements, wall.length)) {
+      if (e.type !== 'eshik' || !Number.isFinite(e.position) || !(e.width > 0)) continue
+      // Hung on its left jamb (the wall's low-position side) unless said otherwise, swinging into the room.
+      const right = e.hinge === 'right'
+      const along = (right ? e.position + e.width : e.position) / 1000, s = right ? -1 : 1, r = e.width / 1000
+      const hx = sx + w.dirX * along, hz = sz + w.dirZ * along
+      const pts = Array.from({ length: SWING_STEPS + 1 }, (_, i) => {
+        const a = (Math.PI / 2) * (i / SWING_STEPS)
+        return [hx + r * (Math.cos(a) * s * w.dirX + Math.sin(a) * w.nx), hz + r * (Math.cos(a) * s * w.dirZ + Math.sin(a) * w.nz)]
+      })
+      for (let i = 0; i < SWING_STEPS; i++) out.push([pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]])
+      out.push([hx, hz, pts[SWING_STEPS][0], pts[SWING_STEPS][1]])
+    }
+  }
+  return out
+}
+
+/** The fixtures short of free floor in front, each with how much it has; the room's walls, the floor a door
+ * sweeps and every other piece (not a rug) stand in the way. A wall-hung toilet is measured from where it
+ * hangs, on its box (2026-11-18). */
 export function fixtureClearances(pieces: ClearancePiece[], geometry: RoomGeometry): ClearanceWarning[] {
-  const walls: Seg[] = roomModel(geometry).walls.map((w) => {
+  const walls: Seg[] = [...roomModel(geometry).walls.map((w): Seg => {
     const hx = (w.dirX * w.length) / 2, hz = (w.dirZ * w.length) / 2
     return [w.midX - hx, w.midZ - hz, w.midX + hx, w.midZ + hz]
+  }), ...doorSwings(geometry)]
+  // Where each piece stands as drawn: a wall-hung toilet off the wall on its box.
+  const placed = pieces.map((p) => {
+    const shift = wallHungShiftM(p.name, p.role)
+    return shift ? { ...p, rect: { ...p.rect, x: p.rect.x + Math.sin(p.rect.rotation) * shift, z: p.rect.z + Math.cos(p.rect.rotation) * shift } } : p
   })
   const out: ClearanceWarning[] = []
-  for (const p of pieces) {
+  for (const p of placed) {
     if (!p.role || !(p.role in CLEARANCE_CM)) continue
     const role = p.role as NeedRole
-    const segs = [...walls, ...pieces.filter((o) => o !== p && o.role !== 'rug').flatMap((o) => rectSegs(o.rect))]
+    const segs = [...walls, ...placed.filter((o) => o !== p && o.role !== 'rug').flatMap((o) => rectSegs(o.rect))]
     const { x, z, w, d, rotation } = p.rect
     const fx = Math.sin(rotation), fz = Math.cos(rotation), sx = Math.cos(rotation), sz = -Math.sin(rotation)
     const n = Math.max(1, Math.round(w / STEP_M))

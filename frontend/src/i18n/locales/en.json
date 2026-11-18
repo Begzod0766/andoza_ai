@@ -1090,7 +1090,8 @@
       "clearance": "{{free}} cm free in front of {{name}}, at least {{need}} cm needed",
       "water_scheme": "Water supply layout",
       "water_scheme_tee": "Tees (in series)",
-      "water_scheme_collector": "Manifold (a line to each point)"
+      "water_scheme_collector": "Manifold (a line to each point)",
+      "hatch_blocked": "{{names}} blocks the riser hatch — keep it reachable"
     },
     "backsplash": {
       "title": "Kitchen backsplash",
