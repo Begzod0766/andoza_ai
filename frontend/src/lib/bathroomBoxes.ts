@@ -37,6 +37,31 @@ export function riserBoxSpot(geometry: RoomGeometry, riser: RiserAt): WallSpot |
   return { wallId: w.id, positionMm: Math.round(Math.min(len - half, Math.max(half, riser.positionMm))) }
 }
 
+/**
+ * The riser box as wall space (mobile QA 2026-11-18: a towel rail dragged to the riser corner sat inside
+ * the drywall box): its width on its own wall and, in a corner, its depth along the wall it stands out
+ * along. In lib/towelRail's WallTaken form, which a rail and a machine keep clear of.
+ */
+export function riserBoxTaken(geometry: RoomGeometry, riser: RiserAt): Array<{ wallId: string; positionMm: number; halfMm: number }> {
+  const spot = riserBoxSpot(geometry, riser)
+  if (!spot) return []
+  const walk = wallWalk(geometry)
+  const i = walk.findIndex((w) => w.id === spot.wallId)
+  const len = walk[i].lengthM * 1000
+  const half = Math.min(RISER_BOX_W_MM / 2, len / 2)
+  const out = [{ wallId: spot.wallId, positionMm: spot.positionMm, halfMm: half }]
+  const depth = RISER_BOX_D_MM / 2
+  if (spot.positionMm <= half) {
+    // In the corner at its wall's start: the wall before ends there.
+    const prev = walk[(i - 1 + walk.length) % walk.length]
+    if (prev.id !== spot.wallId) out.push({ wallId: prev.id, positionMm: Math.round(prev.lengthM * 1000 - depth), halfMm: depth })
+  } else if (spot.positionMm >= len - half) {
+    const next = walk[(i + 1) % walk.length]
+    if (next.id !== spot.wallId) out.push({ wallId: next.id, positionMm: depth, halfMm: depth })
+  }
+  return out
+}
+
 /** A stretch of a wall taken by something standing against it, mm along the walk. */
 export interface WallSpan { wallId: string; from: number; to: number }
 

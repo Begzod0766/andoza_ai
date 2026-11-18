@@ -287,3 +287,14 @@ describe('a rail size (2026-11-15)', () => {
     expect(nearestFree(geometry, 'A', 0)).toBe(250)
   })
 })
+
+describe('a rail keeps off the riser box (mobile QA 2026-11-18)', () => {
+  it('dragged onto the box in the corner, it stops past it', () => {
+    // The QA room: riser at the start of A, a rail dragged to A 250 sat inside the drywall box (A 0…400).
+    useRoomStore.setState({ roomType: 'hammom', plumbingRiser: { wallId: 'A', positionMm: 0 }, towelRails: [{ id: 'r', wallId: 'A', positionMm: 900, heightMm: 1000 }] })
+    st().beginTowelRailDrag()
+    st().moveTowelRail('r', 250)
+    st().endTowelRailDrag()
+    expect(st().towelRails[0].positionMm).toBe(400 + 250)
+  })
+})

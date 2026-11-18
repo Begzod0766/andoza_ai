@@ -6,6 +6,13 @@ import { roomRiser } from '@/lib/plumbingRuns'
 import { railHalf } from '@/lib/towelRail'
 import { isDishwasher, isKitchenSink, machineHalf, nearestFreeWasher, placeWasher, riserTaken, type WallTaken } from '@/lib/washer'
 import { placedFurnitureBoxes } from '@/features/studio/nextFurnitureSpot'
+import { riserBoxTaken } from '@/lib/bathroomBoxes'
+import { effectiveRoomType } from '@/lib/roomType'
+
+const wetRoom = (s: { roomType: string | null; name: string }) => {
+  const t = effectiveRoomType(s.roomType, s.name)
+  return t === 'hammom' || t === 'oshxona'
+}
 import { isKitchenSet } from '@/lib/furnitureRole'
 import { wallWalk } from '@/lib/plumbingRuns'
 import type { RoomGeometry } from '../types'
@@ -38,6 +45,9 @@ let dragStart: Washer[] | null = null
 function wallTaken(state: RoomStore, except?: string): WallTaken[] {
   return [
     ...riserTaken(state.geometry, roomRiser(state.geometry, state.plumbingRiser)),
+    // The drywall box round it (2026-11-18), wider than the pipe.
+    // Only where the box is built: a bathroom or a kitchen (as BathroomBoxes3D draws it).
+    ...(wetRoom(state) ? riserBoxTaken(state.geometry, roomRiser(state.geometry, state.plumbingRiser)) : []),
     ...state.towelRails.map((r) => ({ wallId: r.wallId, positionMm: r.positionMm, halfMm: railHalf(r) })),
     ...state.washers.filter((m) => m.id !== except).map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: machineHalf(m) })),
   ]
