@@ -68,6 +68,9 @@ describe('which pieces get one', () => {
   it('each bath, as a usual 1700 × 700 one without a catalog size', () => {
     expect(screenedBaths([placed('Vanna 170', 'v'), placed('Rakovina', 'r')], none)).toEqual([{ id: 'v', x: 0.4, z: -0.65, w: 1.7, d: 0.7, rotation: 0 }])
   })
+  it('not a bath sold with its own glass screen ("(shishali)", 2026-11-18)', () => {
+    expect(screenedBaths([placed('Vanna 3 (shishali)', 's'), placed('Vanna paneli', 'p')], none).map((r) => r.id)).toEqual(['p'])
+  })
   it('a shower tray or zone, not a cabin or a shower panel (those have their own glass)', () => {
     const got = screenedShowers([placed('Dush poddoni', 'd'), placed('Dush kabinasi', 'k'), placed('Dush paneli', 'p'), placed('Dush 1 (shishali)', 's')], none)
     expect(got.map((r) => r.id)).toEqual(['d'])

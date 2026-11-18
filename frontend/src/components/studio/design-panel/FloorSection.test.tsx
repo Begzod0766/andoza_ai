@@ -47,4 +47,16 @@ describe('FloorSection', () => {
     renderFloor()
     expect(screen.queryByLabelText('Issiq pol (elektr mat)')).toBeNull()
   })
+
+  // A tiled bathroom draws and prices no skirting until one is added (#324): the panel must say so too (2026-11-18).
+  it('a tiled bathroom with no skirting chosen: no profile marked, and the add button', () => {
+    useRoomStore.setState((s) => ({ roomType: 'hammom', designState: { ...s.designState, floorType: 'tile', floorConfigured: true, skirting: undefined } }))
+    renderFloor(true)
+    expect(screen.getByRole('button', { name: "Plintusni qo'shish" })).toBeInTheDocument()
+  })
+  it('a living room with no skirting chosen still has the default board marked', () => {
+    useRoomStore.setState((s) => ({ roomType: 'mehmonxona', designState: { ...s.designState, floorType: 'tile', floorConfigured: true, skirting: undefined } }))
+    renderFloor()
+    expect(screen.queryByRole('button', { name: "Plintusni qo'shish" })).toBeNull()
+  })
 })

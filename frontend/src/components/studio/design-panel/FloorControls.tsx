@@ -6,11 +6,12 @@ import {
   floorPatternDef, type FloorPatternDef, type FloorPatternId, type FloorPatternSettings,
 } from "@/lib/floorGeometry";
 import {
-  trimProfilesOf, trimProfileSvgPath, resolveTrim,
+  trimProfilesOf, trimProfileSvgPath, resolveTrim, roomSkirting,
   TRIM_HEIGHT_RANGE_MM, TRIM_WIDTH_RANGE_MM, trimLabel, type TrimProfileDef,
 } from "@/lib/trimProfiles";
 import { FLOOR_COLORS } from "@/pages/studio/three-d/constants";
 import { useRoomStore } from "@/store/roomStore";
+import { effectiveRoomType } from "@/lib/roomType";
 
 /**
  * The floor controls that belong to the floor itself rather than to the
@@ -129,10 +130,13 @@ export function FloorPatternGroup() {
 export function SkirtingGroup() {
   const { t } = useTranslation();
   const skirting = useRoomStore((s) => s.designState.skirting);
+  const floorType = useRoomStore((s) => s.designState.floorType);
+  const bathroom = useRoomStore((s) => effectiveRoomType(s.roomType, s.name) === "hammom");
   const setDesignState = useRoomStore((s) => s.setDesignState);
 
   const profiles = trimProfilesOf("skirting");
-  const off = skirting === null;
+  // Off as the 3D and the estimate read it (roomSkirting): taken off, or a tiled bathroom never given one (2026-11-18).
+  const off = roomSkirting({ skirting, floorType }, bathroom) === null;
   const active = resolveTrim(skirting, "skirting");
   const hRange = TRIM_HEIGHT_RANGE_MM.skirting;
   const wRange = TRIM_WIDTH_RANGE_MM.skirting;
