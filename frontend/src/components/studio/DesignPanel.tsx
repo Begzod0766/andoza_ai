@@ -1,4 +1,5 @@
 import * as React from "react";
+import { withStageTag } from "@/lib/stageView";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -78,7 +79,9 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
     }, 600);
   }
 
-  function applyWallCovering(covering: WallCovering) {
+  // A covering put on in Suvoq or Shpaklovka says so: the 3D shows it from that stage on (lib/stageView).
+  function applyWallCovering(given: WallCovering) {
+    const covering = withStageTag(given, phase);
     setWallCovering(targetWall, covering);
     const updated = {
       wallCoverings: { ...designState.wallCoverings, [targetWall]: covering },
@@ -91,7 +94,8 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
    * `ALL` target (the store clears per-wall overrides for ALL, so nothing
    * left over can mask it via resolveWallCovering's per-wall-first fallback)
    * and syncs the same cleared shape to the API. */
-  function applyAllWallsCovering(covering: WallCovering) {
+  function applyAllWallsCovering(given: WallCovering) {
+    const covering = withStageTag(given, phase);
     setWallCovering("ALL", covering);
     syncToApi({ ...designState, wallCoverings: { ALL: covering } });
   }

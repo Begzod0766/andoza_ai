@@ -91,3 +91,10 @@ const KIND_STAGE: Array<[HiddenKind, PhaseKey]> = [
 export function hiddenAt(view: ViewStage, stages: readonly PhaseKey[], counts: Record<HiddenKind, number>): HiddenKind[] {
   return KIND_STAGE.filter(([k, s]) => counts[k] > 0 && !drawnAt(s, view, stages)).map(([k]) => k)
 }
+
+/** `c` as put on at panel stage `phase`: tagged in Suvoq or Shpaklovka (coveringStage reads it), untagged elsewhere. */
+export function withStageTag(c: WallCovering, phase: PhaseKey): WallCovering {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { stage: _old, ...rest } = c
+  return phase === 'suvoq' || phase === 'shpaklovka' ? { ...rest, stage: phase } as WallCovering : rest as WallCovering
+}

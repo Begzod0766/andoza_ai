@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useRoomStore } from '@/store/roomStore'
 import { visibleStages, type PhaseKey } from '@/lib/phases'
 import { catalogRoomType, effectiveRoomType } from '@/lib/roomType'
@@ -8,10 +9,10 @@ export function useRoomKind(): string | undefined {
   return useRoomStore((s) => catalogRoomType(effectiveRoomType(s.roomType ?? undefined, s.name)))
 }
 
-/** The open room's stages, in order. */
+/** The open room's stages, in order (the same array while the room's kind stays). */
 export function useRoomStages(): PhaseKey[] {
   const kind = useRoomKind()
-  return visibleStages(kind).map((s) => s.key)
+  return useMemo(() => visibleStages(kind).map((s) => s.key), [kind])
 }
 
 /** Whether the 3D draws a thing of stage `item` at the stage picked (spec 2026-11-18). */

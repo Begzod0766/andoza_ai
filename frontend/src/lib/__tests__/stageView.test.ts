@@ -108,3 +108,16 @@ describe('hiddenAt: what the banner names', () => {
     expect(hiddenAt('pol', bath, { electricals: 0, fixtures: 0, lights: 0, furniture: 1 })).toEqual(['furniture'])
   })
 })
+
+describe('withStageTag: a covering put on in Suvoq or Shpaklovka remembers it', () => {
+  it('tags it in those two stages only', async () => {
+    const { withStageTag } = await import('../stageView')
+    expect(withStageTag({ kind: 'plaster' }, 'suvoq')).toEqual({ kind: 'plaster', stage: 'suvoq' })
+    expect(withStageTag({ kind: 'paint', color: '#abc' }, 'shpaklovka')).toEqual({ kind: 'paint', color: '#abc', stage: 'shpaklovka' })
+    expect(withStageTag({ kind: 'paint', color: '#abc' }, 'boyoq')).toEqual({ kind: 'paint', color: '#abc' })
+  })
+  it('a covering carried into Bo\'yoq loses an old tag', async () => {
+    const { withStageTag } = await import('../stageView')
+    expect(withStageTag({ kind: 'paint', color: '#abc', stage: 'suvoq' }, 'boyoq')).toEqual({ kind: 'paint', color: '#abc' })
+  })
+})
