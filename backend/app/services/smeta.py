@@ -1681,6 +1681,8 @@ FIXTURE_PART_LABELS = {
 _WALL_HUNG = re.compile(r"osma|подвес|wall[- ]?hung|installyats|инсталляц", re.I)
 # A shower sold with its own mixer: a cabin or a shower panel.
 _OWN_MIXER = re.compile(r"kabin|кабин|cabin|panel|панел", re.I)
+# A shower sold with its own glass, so it takes no screen (2026-11-18): a cabin, a panel, or a set named so.
+_OWN_GLASS = re.compile(r"kabin|кабин|cabin|panel|панел|shishali|стекл|glass", re.I)
 PIPE_LABELS = {
     "drain_50": "Kanalizatsiya quvuri Ø50",
     "drain_110": "Kanalizatsiya quvuri Ø110",
@@ -1965,6 +1967,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     roles: dict[str, int] = {}
     # The same fixtures by the parts they need (FIXTURE_PARTS).
     part_kinds: dict[str, int] = {}
+    # The showers a screen can be put on: not those sold with their own glass.
+    screen_showers = 0
     kitchen = _is_kitchen(room)
     for fid, qty in sorted(counts.items()):
         row = catalog.get(furniture_catalog_key(fid))
@@ -1976,6 +1980,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         roles[role] = roles.get(role, 0) + qty
         kind = _part_kind(role, (getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid, kitchen)
         part_kinds[kind] = part_kinds.get(kind, 0) + qty
+        if role == "shower" and not _OWN_GLASS.search((getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid):
+            screen_showers += qty
         row_price = getattr(row, "price_uzs", None) if row is not None else None
         price = (int(row_price) if row_price and row_price > 0 else None) or snapshots.get(fid) or FURNITURE_CATALOG_PRICES_UZS.get(fid)
         approx = price is None
@@ -2131,7 +2137,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         lines.extend(_washer_socket_lines(len(machines), catalog))
     if dishwashers:
         lines.extend(_washer_socket_lines(len(dishwashers), catalog, "idish"))
-    lines.extend(_screen_lines(_design_state(room), roles.get("bathtub", 0), part_kinds.get("shower", 0), catalog))
+    lines.extend(_screen_lines(_design_state(room), roles.get("bathtub", 0), screen_showers, catalog))
     if points:
         lines.extend(_safety_lines(_is_bathroom(room), roles, catalog, norms))
     return lines
