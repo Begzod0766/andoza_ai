@@ -193,7 +193,7 @@ export type FloorState = 'xom_beton' | 'styajka' | 'qoplama_bor' | null
 
 export type CeilingState = 'xom' | 'suvoq' | 'tayyor' | null
 
-export type WallCovering =
+export type WallCovering = (
   /** Raw plastered/concrete wall — how a room looks before any finishing. */
   | { kind: 'plaster' }
   | { kind: 'paint'; color: string }
@@ -214,6 +214,11 @@ export type WallCovering =
       /** The paint above a tile that stops below the ceiling. Default white. */
       aboveColor?: string
     }
+) & {
+  /** The stage it was put on in, when that was Suvoq or Shpaklovka (spec 2026-11-18): the 3D shows
+   *  it from that stage on. Absent: plaster belongs to Suvoq, anything else to Bo'yoq (stageView). */
+  stage?: 'suvoq' | 'shpaklovka'
+}
 
 export interface WallPanelSettings {
   enabled: boolean
