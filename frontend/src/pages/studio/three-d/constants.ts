@@ -89,6 +89,8 @@ export const ELECTRICAL_DIMS: Record<string, { w: number; h: number }> = {
   socket1:      { w: 0.081, h: 0.081 },
   socket2:      { w: 0.152, h: 0.081 },
   socket_media: { w: 0.152, h: 0.081 },
+  // a cooker's 32 A outlet: one socket on the square plate
+  socket_power: { w: 0.081, h: 0.081 },
   // panel is a cabinet, not a thin faceplate
   panel:        { w: 0.40, h: 0.50 },
   // a split unit's indoor half — a long shallow box, not a faceplate

@@ -111,7 +111,9 @@
         "socket1": "Bitta rozetka",
         "socket2": "Ikkita rozetka",
         "socket_media": "TV + Ethernet + Ant.",
-        "ac": "Konditsioner"
+        "ac": "Konditsioner",
+        "socket_power": "Plita rozetkasi (32 A)",
+        "socket_hood": "Vityajka rozetkasi"
       },
       "dev_short": {
         "socket_media": "TV+ETH+ANT"
@@ -900,7 +902,8 @@
       "shop_board": "Gipsokarton",
       "shop_profile": "Karkas profili",
       "shop_strip": "LED lenta",
-      "shop_pick_note": "Do'kondan tanlangan mahsulot smetaga aniq narx bilan kiradi."
+      "shop_pick_note": "Do'kondan tanlangan mahsulot smetaga aniq narx bilan kiradi.",
+      "el_socket_power": "Plita rozetkasi (32 A, alohida liniya)"
     },
     "mebel": {
       "drop_here": "Rasmni qo'yib yuboring",
@@ -1344,7 +1347,18 @@
       "shift_paint_wet": "Namga chidamli shift bo'yog'i",
       "shift_paint_none": "Shift bo'yog'i (material tanlanmagan)",
       "shift_paint_wet_none": "Namga chidamli shift bo'yog'i (material tanlanmagan)",
-      "work_ceiling_paint": "Ish: shiftni bo'yash"
+      "work_ceiling_paint": "Ish: shiftni bo'yash",
+      "el_socket1": "Rozetka (bitta)",
+      "el_socket2": "Rozetka (ikkitalik)",
+      "el_socket_media": "Media rozetka (TV, internet)",
+      "el_socket_power": "Kuch rozetkasi (plita, 32 A)",
+      "el_switch1": "Kalit (bitta)",
+      "el_switch2": "Kalit (ikkitalik)",
+      "el_panel": "Elektr qutisi (shchit)",
+      "el_breaker_32": "Avtomat 32 A (plita liniyasi)",
+      "el_power_cable": "Elektr kabel 3×6 mm² (plita liniyasi)",
+      "work_el_points": "Ish: elektr nuqtalarini o'rnatish",
+      "work_el_panel": "Ish: elektr qutisini o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2420,7 +2434,16 @@
         "shtorka_vanna": "Vanna shtorkasi (shisha)",
         "dush_shisha": "Dush to'sig'i (shisha)",
         "parda_hammom": "Vanna/dush pardasi va tayoqcha",
-        "kollektor": "Suv kollektori"
+        "kollektor": "Suv kollektori",
+        "rozetka": "Rozetka (bitta)",
+        "rozetka_2": "Rozetka (ikkitalik)",
+        "rozetka_media": "Media rozetka (TV, internet)",
+        "rozetka_kuch": "Kuch rozetkasi (plita, 32 A)",
+        "vyklyuchatel": "Kalit (bitta)",
+        "vyklyuchatel_2": "Kalit (ikkitalik)",
+        "shchit": "Elektr qutisi (shchit)",
+        "avtomat_32": "Avtomat 32 A",
+        "kabel_kuch": "Kabel 3×6 mm² (plita liniyasi)"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

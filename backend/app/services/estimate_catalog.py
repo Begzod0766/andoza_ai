@@ -34,6 +34,8 @@ _PIECE_KEYS = frozenset({
     "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
     "installyatsiya", "boyler", "kran_kir", "sifon_kir", "kran_idish", "sifon_idish", "uzo", "lyuk", "silikon", "trap_pol", "termoregulyator", "shtorka_vanna", "dush_shisha", "parda_hammom", "kollektor",
     "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam",
+    # The wall devices and the cooker line's breaker (2026-11-18).
+    "rozetka", "rozetka_2", "rozetka_media", "rozetka_kuch", "vyklyuchatel", "vyklyuchatel_2", "shchit", "avtomat_32",
 })
 
 

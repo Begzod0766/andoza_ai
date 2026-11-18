@@ -271,7 +271,10 @@ class TestSeedData:
                        "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
                        "installyatsiya", "boyler", "kran_kir", "sifon_kir", "kran_idish", "sifon_idish", "uzo", "lyuk", "silikon", "trap_pol",
                        "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam", "skinali",
-                       "sochiq_quritgich_el", "rozetka_ip44", "styajka", "issiq_pol", "termoregulyator", "shtorka_vanna", "dush_shisha", "parda_hammom", "kollektor"}
+                       "sochiq_quritgich_el", "rozetka_ip44", "styajka", "issiq_pol", "termoregulyator", "shtorka_vanna", "dush_shisha", "parda_hammom", "kollektor",
+                       # The wall devices (2026-11-18): bathroom_extras_norms.json "electrics" until tagged.
+                       "rozetka", "rozetka_2", "rozetka_media", "rozetka_kuch", "vyklyuchatel", "vyklyuchatel_2", "shchit",
+                       "avtomat_32", "kabel_kuch"}
         assert set(seed.KEY_PACK_UNIT) - admin_added <= keys
         assert {f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS} <= keys
 

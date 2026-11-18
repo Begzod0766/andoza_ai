@@ -9,6 +9,7 @@ const ELECTRICAL_LABELS = {
   socket1: "studio.dp.el_socket1",
   socket2: "studio.dp.el_socket2",
   socket_media: "studio.dp.el_socket_media",
+  socket_power: "studio.dp.el_socket_power",
   switch1: "studio.dp.el_switch1",
   switch2: "studio.dp.el_switch2",
   ac: "studio.dp.el_ac",

@@ -178,6 +178,28 @@ describe('tapping a wall', () => {
     expect(calls).toContainEqual(['electrical', 'A', 'socket1', 300])
   })
 
+  it('in a kitchen, puts a socket over the worktop and offers the cooker and hood outlets', () => {
+    const { calls, deps } = harness()
+    const elektr = buildRadialItems(WALL!, { ...deps, roomType: 'oshxona' } as never).find((i) => i.key === 'elektr')!
+    const pick = (key: string) => elektr.children!.find((c) => c.key === key)!.onSelect()
+    pick('el:socket1')
+    pick('el:socket2')
+    pick('el:socket1:hood')
+    pick('el:socket_power')
+    expect(calls).toEqual([
+      ['electrical', 'A', 'socket1', 1100],
+      ['electrical', 'A', 'socket2', 1100],
+      ['electrical', 'A', 'socket1', 2000],
+      ['electrical', 'A', 'socket_power', 150],
+    ])
+  })
+
+  it('offers no cooker outlet outside a kitchen', () => {
+    const { deps } = harness()
+    const elektr = buildRadialItems(WALL!, { ...deps, roomType: 'mehmonxona' } as never).find((i) => i.key === 'elektr')!
+    expect(elektr.children!.map((c) => c.key)).not.toContain('el:socket_power')
+  })
+
   it('draws each fitting, rather than one socket icon seven times', () => {
     const { deps } = harness()
     const elektr = buildRadialItems(WALL!, deps as never).find((i) => i.key === 'elektr')!
