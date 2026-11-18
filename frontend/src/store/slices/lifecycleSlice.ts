@@ -144,6 +144,7 @@ export const createLifecycleSlice: StateCreator<
       wizardStep: 0,
       designState: DEFAULT_DESIGN_STATE,
       layoutPos: null,
+      viewStage: 'full',
     })
   },
 })

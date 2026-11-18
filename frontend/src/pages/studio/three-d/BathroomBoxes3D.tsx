@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useDrawnAt } from "@/features/studio/useStageView";
 import { useRoomStore } from "@/store/roomStore";
 import { resolveWallCovering, type RoomGeometry, type WallCovering } from "@/store/types";
 import { roomRiser, wallWalk } from "@/lib/plumbingRuns";
@@ -66,14 +67,21 @@ export function BathroomBoxes3D({ hiddenWalls }: { hiddenWalls?: ReadonlySet<str
   const coverings = useRoomStore((s) => s.designState.wallCoverings);
   const furniture = useRoomStore((s) => s.furniture);
   const catalog = useRoomStore((s) => s.catalogFurniture);
+  // At a stage (spec 2026-11-18): the boxes are built before the plaster, the water heater hung with
+  // the fixtures. (At Quvurlar the riser box is off already: the bare pipe shows, riserVisible.)
+  const boxesBuilt = useDrawnAt("suvoq");
+  const heaterHung = useDrawnAt("jihozlar");
 
   const riser = useMemo(() => roomRiser(geometry, manual), [geometry, manual]);
   const box = useMemo(() => (wet && !pipeShown ? riserBoxSpot(geometry, riser) : null), [wet, pipeShown, geometry, riser]);
   const boiler = useMemo(
-    () => (wet && heater ? boilerSpot(geometry, riser, ceilingMm, wetSpans(furniture, catalog, geometry)) : null),
-    [wet, heater, geometry, riser, ceilingMm, furniture, catalog],
+    () => (wet && heater && heaterHung ? boilerSpot(geometry, riser, ceilingMm, wetSpans(furniture, catalog, geometry)) : null),
+    [wet, heater, heaterHung, geometry, riser, ceilingMm, furniture, catalog],
   );
-  const frames = useMemo(() => (wet ? frameBoxSpots(furniture, catalog, geometry) : []), [wet, furniture, catalog, geometry]);
+  const frames = useMemo(
+    () => (wet && boxesBuilt ? frameBoxSpots(furniture, catalog, geometry) : []),
+    [wet, boxesBuilt, furniture, catalog, geometry],
+  );
   if (!wet) return null;
   const shown = (s: WallSpot | null): s is WallSpot => !!s && !hiddenWalls?.has(s.wallId);
   const H = ceilingMm / 1000;

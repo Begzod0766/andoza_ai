@@ -3,6 +3,16 @@
     "profil": "Профиль"
   },
   "studio": {
+    "stage_view": {
+      "stage": "Этап",
+      "full": "Готовая комната",
+      "hidden": "На этом этапе ещё нет: {{things}}",
+      "show_full": "Показать готовую комнату",
+      "electricals": "розетки",
+      "fixtures": "сантехприборы",
+      "lights": "светильники",
+      "furniture": "мебель"
+    },
     "devor_rangi": "Цвет стены",
     "pol_turi": "Тип пола",
     "qibla": {

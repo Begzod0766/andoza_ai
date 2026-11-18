@@ -45,7 +45,7 @@ import { roomExtents } from "@/lib/roomDims";
 import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
-import { initialPhaseFor, visibleStages, type PhaseKey } from "@/lib/phases";
+import { initialPhaseFor, initialViewStage, visibleStages, type PhaseKey } from "@/lib/phases";
 import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
 import { computeAbsolutePositions } from "./three-d/helpers";
@@ -69,6 +69,8 @@ import { DesignPanelDock } from "./three-d/DesignPanelDock";
 import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
+import { StageBanner } from "@/components/studio/StageBanner";
+import { MobileStagePicker } from "@/components/studio/MobileStagePicker";
 import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
@@ -317,16 +319,39 @@ export default function ThreeDPage() {
   // positional check-mark logic. The wizard's post-creation hand-off passes
   // ?phase=suvoq so a brand-new room opens at the START of the phase flow
   // (its walls are still bare plaster — nothing has been done to them yet).
-  // Falls back to the historical 'boyoq' default, which now only applies to
-  // REOPENING a room (projects list, tab switches, direct links).
+  // With no link it opens at the last stage, Mebel, on the finished room (spec 2026-11-18; it was
+  // Bo'yoq) — REOPENING a room (projects list, tab switches, direct links).
   const phaseParam = new URLSearchParams(location.search).get('phase')
-  const initialPhase: PhaseKey = initialPhaseFor({
+  const openArgs = {
     phaseParam,
     roomKind: catalogRoomType(effectiveRoomType(room.room_type, room.name)),
-    tab: isMebelTab ? 'mebel' : isChiroqTab ? 'chiroq' : undefined,
-  })
+    tab: isMebelTab ? 'mebel' as const : isChiroqTab ? 'chiroq' as const : undefined,
+  }
+  const initialPhase: PhaseKey = initialPhaseFor(openArgs)
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
-  // The 3D scene does not see the stage: towel rails are caught and dragged only in a plumbing stage.
+  // The stage the 3D draws (lib/stageView, spec 2026-11-18) is separate from the panel's: only the
+  // stage list (and a ?phase= link) changes it. Every quick path — the radial ring, placing from it,
+  // the render cameras — goes back to the finished room, so a user repainting the wall beside the
+  // sofa never sees the sofa vanish. Set again whenever another room opens in this page.
+  const setViewStage = useRoomStore((s) => s.setViewStage);
+  const viewStage = useRoomStore((s) => s.viewStage);
+  /** The phone's stage list is open (MobileStagePicker). */
+  const [stageListOpen, setStageListOpen] = useState(false);
+  useEffect(() => {
+    setViewStage(initialViewStage(openArgs));
+    return () => setViewStage('full');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room.id]);
+  /** A stage picked in the stage list: the panel and the 3D both go to it. */
+  const pickStage = useCallback((phase: PhaseKey) => {
+    setActivePhase(phase);
+    setViewStage(phase);
+  }, [setViewStage]);
+  /** A quick path to a panel: the panel goes there, the 3D shows the finished room. */
+  const openPhasePanel = useCallback((phase: PhaseKey) => {
+    setActivePhase(phase);
+    setViewStage('full');
+  }, [setViewStage]);
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
@@ -357,6 +382,10 @@ export default function ThreeDPage() {
     setCameraStation(leaving || station == null ? null : station);
     setCameraListOpen(false);
   }, [panorama, cameraStation]);
+  // The 360 panorama and the camera stations are what a render is made from: always the finished room.
+  useEffect(() => {
+    if (panorama || cameraStation != null) setViewStage('full');
+  }, [panorama, cameraStation, setViewStage]);
   // Wall tap → "Oyna" (radial menu) opens the same type/size/color chooser
   // RoomSettingsSheet's "+ Deraza" already uses, instead of dropping a
   // default-sized window immediately — holds where the wall was tapped so
@@ -519,7 +548,7 @@ export default function ThreeDPage() {
       // ceiling and would push through anything lower.
       heightMm,
     });
-    setActivePhase('montaj');
+    openPhasePanel('montaj');
   }
 
   /** The window the ring last made, so picking another style changes that one
@@ -681,7 +710,7 @@ export default function ThreeDPage() {
       zMm: Math.round((clamp(point.z, halfD, D) + D / 2) * 1000),
       ...(t?.mount === 'wall' ? { wallId: 'A' as const } : {}),
     });
-    setActivePhase('chiroq');
+    openPhasePanel('chiroq');
   }
 
   const addSheetSection: 'wallpaper' | 'lyustra' | 'furniture' =
@@ -691,9 +720,9 @@ export default function ThreeDPage() {
    *  uses. `openPanelAt` is its escape hatch: a category with more items than
    *  the arc holds ends in a button that opens the full panel instead. */
   const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar') => {
-    setActivePhase(phase);
+    openPhasePanel(phase);
     setShowPanel(true);
-  }, [setActivePhase]);
+  }, [openPhasePanel]);
   const arcCategories = useArcCategories({ selectedWall, openPanelAt });
 
   // The same query key and scope the design panel's Oboy tab uses, so the ring
@@ -814,7 +843,7 @@ export default function ThreeDPage() {
           leftOpen={leftOpen}
           setLeftOpen={setLeftOpen}
           activeIdx={activeIdx}
-          setActivePhase={setActivePhase}
+          setActivePhase={pickStage}
           stages={stages}
         />
       )}
@@ -926,6 +955,15 @@ export default function ThreeDPage() {
           {/* Below lg: once, how to reach the tools — tap a surface. The
               room/stage pill that sat at the top was removed at the user's
               request (2026-11-07). */}
+          {/* The 3D at a stage (spec 2026-11-18): on a phone the stage pill (the desktop has the left
+              list), then what is not in yet and the way back to the finished room. */}
+          {/* z-30 like the tap hint, under every sheet; while the stage list is open it goes over the
+              3D's own floating buttons (drei <Html>, z 83) too. */}
+          <div className={`pointer-events-none absolute inset-x-3 top-16 flex flex-col items-start gap-2 lg:top-3 lg:items-center ${stageListOpen ? 'z-[90]' : 'z-30'}`}>
+            <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
+            <StageBanner />
+          </div>
+
           {tapHintShown && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
               <TapHint onDismiss={markTapHintSeen} />
@@ -1199,7 +1237,7 @@ export default function ThreeDPage() {
         aiPin={aiPin}
         radial={radial}
         radialItems={(r) => buildRadialItems(r, {
-          setSelectedWall, setActivePhase, setShowPanel, createOpening,
+          setSelectedWall, setActivePhase: openPhasePanel, setShowPanel, createOpening,
           placeElectrical: placeElectricalAt,
           placeLight: placeLightAt,
           setCornice: (trim) => useRoomStore.getState().setDesignState({ cornice: trim }),

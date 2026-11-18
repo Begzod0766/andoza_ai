@@ -6,6 +6,8 @@
  * ThreeDPage.tsx, which was a 5300-line single file — this is a pure
  * code-motion extraction, not a rewrite.
  */
+import { useRoomKind, useRoomStages } from '@/features/studio/useStageView'
+import { drawnAt, furnitureStage } from '@/lib/stageView'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { formatDecimal } from '@/lib/utils'
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -726,6 +728,9 @@ export function DraggableFurnitureModels({
   const furniture = useRoomStore((s) => s.furniture)
   const userFurniture = useRoomStore((s) => s.userFurniture)
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture)
+  const viewStage = useRoomStore((s) => s.viewStage)
+  const roomKind = useRoomKind()
+  const roomStages = useRoomStages()
   const moveFurniture = useRoomStore((s) => s.moveFurniture)
   const resizeFurniture = useRoomStore((s) => s.resizeFurniture)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -788,6 +793,14 @@ export function DraggableFurnitureModels({
   const handleFootprint = useCallback((id: string, hw: number, hd: number) => {
     footprintsRef.current.set(id, { hw, hd })
   }, [])
+
+  /** At a stage (spec 2026-11-18): a bathroom's fixtures from Jihozlar, everything else from Mebel. */
+  function drawnHere(item: { furniture_id: string; name?: string }): boolean {
+    if (viewStage === 'full') return true
+    const row = catalogFurniture.find((f) => f.id === item.furniture_id)
+    const stage = furnitureStage(row?.name_uz ?? item.name ?? item.furniture_id, row?.category, roomKind)
+    return drawnAt(stage, viewStage, roomStages)
+  }
 
   function resolveEntry(furnitureId: string): AnyFurnitureEntry | undefined {
     return (
@@ -1103,7 +1116,7 @@ export function DraggableFurnitureModels({
           deleted from the library — must render NOTHING. Drawing it anyway
           made it fall through to the catalog fallback model below, leaving a
           phantom table set standing where the deleted furniture had been. */}
-      {furniture.filter((item) => !!resolveEntry(item.furniture_id)).map((item) => (
+      {furniture.filter((item) => !!resolveEntry(item.furniture_id) && drawnHere(item)).map((item) => (
         <Suspense
           key={item.id}
           fallback={

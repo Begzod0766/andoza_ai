@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ViewStage } from "@/lib/stageView";
 import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -20,9 +21,10 @@ export function riserDragTo(geometry: RoomGeometry, worldX: number, worldZ: numb
   return riserSpot(geometry, [{ x: worldX, z: worldZ }]);
 }
 
-/** The riser is drawn in the Santexnika stage, where it can be dragged, and while the pipe runs are shown. */
-export function riserVisible(s: { plumbingStage: boolean; showPipeRuns: boolean }): boolean {
-  return s.plumbingStage || s.showPipeRuns;
+/** The riser is drawn in a plumbing stage, where it can be dragged, while the pipe runs are shown, and
+ *  bare in the 3D at Quvurlar, before it is boxed in (spec 2026-11-18). */
+export function riserVisible(s: { plumbingStage: boolean; showPipeRuns: boolean; viewStage: ViewStage }): boolean {
+  return s.plumbingStage || s.showPipeRuns || s.viewStage === 'quvurlar';
 }
 
 /**

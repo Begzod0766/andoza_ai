@@ -50,13 +50,29 @@ export function visibleStages(roomKind: string | undefined): typeof RENO_STAGES 
   return roomKind && PLUMBING_ROOMS.has(roomKind) ? RENO_STAGES : RENO_STAGES.filter((s) => !isPlumbingPhase(s.key))
 }
 
+/** The link's `?phase=` as a stage this room has (an old `santexnika` is Jihozlar), else null. */
+function linkedStage(phaseParam: string | null, roomKind: string | undefined): PhaseKey | null {
+  const wanted = phaseParam === 'santexnika' ? 'jihozlar' : phaseParam
+  return visibleStages(roomKind).some((s) => s.key === wanted) ? (wanted as PhaseKey) : null
+}
+
+type OpenArgs = { phaseParam: string | null; roomKind: string | undefined; tab?: 'mebel' | 'chiroq' }
+
 /**
  * The stage the studio opens at: the Mebel or Chiroq tab's own, else the link's `?phase=` when the
- * room has that stage (the plumbing ones only in a bathroom or kitchen), else Bo'yoq. An old
- * `?phase=santexnika` link opens Jihozlar, where the Santexnika stage stood.
+ * room has that stage (the plumbing ones only in a bathroom or kitchen), else the last stage, Mebel:
+ * with no link the studio opens on the finished room (spec 2026-11-18; was Bo'yoq).
  */
-export function initialPhaseFor(args: { phaseParam: string | null; roomKind: string | undefined; tab?: 'mebel' | 'chiroq' }): PhaseKey {
+export function initialPhaseFor(args: OpenArgs): PhaseKey {
   if (args.tab) return args.tab
-  const wanted = args.phaseParam === 'santexnika' ? 'jihozlar' : args.phaseParam
-  return visibleStages(args.roomKind).some((s) => s.key === wanted) ? (wanted as PhaseKey) : 'boyoq'
+  return linkedStage(args.phaseParam, args.roomKind) ?? 'mebel'
+}
+
+/**
+ * The stage the 3D opens at (lib/stageView): the link's own stage when it names one the room has
+ * (the mobile wizard and wall-condition hand-off), else the finished room. A tab always opens finished.
+ */
+export function initialViewStage(args: OpenArgs): PhaseKey | 'full' {
+  if (args.tab) return 'full'
+  return linkedStage(args.phaseParam, args.roomKind) ?? 'full'
 }
