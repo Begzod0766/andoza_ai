@@ -58,6 +58,13 @@ def test_a_cabin_or_a_shower_panel_has_its_own_glass():
     assert not {SHOWER_G, SHOWER_GW} & set(got)
 
 
+def test_a_shower_sold_with_its_glass_gets_none_but_keeps_its_mixer():
+    # Walk-in sets named "(shishali)" (2026-11-18): their own glass, but a mixer of the room's.
+    got = lines(room("Dush 1 (shishali)", shower="glass"))
+    assert not {SHOWER_G, SHOWER_GW} & set(got)
+    assert "Dush smesiteli" in got
+
+
 def test_a_pick_with_no_such_fixture_prices_nothing():
     assert not set(ALL) & set(lines(room("Rakovina", bath="glass", shower="curtain")))
 

@@ -12,8 +12,9 @@ import { wallWalk } from '@/lib/plumbingRuns'
 export type ScreenKind = 'glass' | 'curtain'
 export const screenChoice = (v: unknown): ScreenKind | null => (v === 'glass' || v === 'curtain' ? v : null)
 
-/** A shower sold with its own glass and mixer, as the estimate reads one (backend smeta.py _OWN_MIXER). */
-export const hasOwnGlass = (name: string): boolean => /kabin|кабин|cabin|panel|панел/i.test(name)
+/** A shower sold with its own glass, as the estimate reads one (backend smeta.py _OWN_GLASS): a cabin, a
+ * shower panel, or a walk-in set named "(shishali)" (2026-11-18). */
+export const hasOwnGlass = (name: string): boolean => /kabin|кабин|cabin|panel|панел|shishali|стекл|glass/i.test(name)
 
 /** A bath or shower on the floor, metres: centre, width along its own x, depth along its z, turned about +Y. */
 export interface WetRect { id: string; x: number; z: number; w: number; d: number; rotation: number }
