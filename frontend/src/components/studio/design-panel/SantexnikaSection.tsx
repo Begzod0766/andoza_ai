@@ -8,6 +8,7 @@ import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
+import { useFixtureClearances } from "@/features/studio/fixtureClearance";
 import type { TowelRailSize } from "@/store/types";
 import { DISHWASHER_WIDTHS, isDishwasher, machineSize, withWasherPoints } from "@/lib/washer";
 import { effectiveRoomType } from "@/lib/roomType";
@@ -44,6 +45,7 @@ export function SantexnikaSection({ bathroom = false }: {
   const setTowelRailSize = useRoomStore((s) => s.setTowelRailSize);
   /** Machines and rails touching a piece of furniture (2026-11-15): a warning on their row. */
   const clashes = useWallItemClashes();
+  const clearances = useFixtureClearances();
   const clashNote = (id: string) => clashes[id] && (
     <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
   );
@@ -137,6 +139,12 @@ export function SantexnikaSection({ bathroom = false }: {
         {fixtures.length === 0
           ? <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
           : <ul className="flex flex-wrap gap-1.5">{fixtures.map((f) => <li key={f.id} className="rounded-full border border-line px-2.5 py-1 text-[11px] text-ink">{f.name}</li>)}</ul>}
+        {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
+        {clearances.map((c) => (
+          <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.clearance", { name: fixtureDisplayName(c.name, t), free: c.freeCm, need: c.needCm })}
+          </p>
+        ))}
       </div>
 
       <div>

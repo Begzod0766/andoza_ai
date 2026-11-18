@@ -1101,7 +1101,8 @@
       "screen_shower": "Ограждение душа",
       "screen_none": "Нет",
       "screen_glass": "Стекло",
-      "screen_curtain": "Шторка"
+      "screen_curtain": "Шторка",
+      "clearance": "Перед «{{name}}» свободно {{free}} см, нужно не меньше {{need}} см"
     },
     "backsplash": {
       "title": "Кухонный фартук",

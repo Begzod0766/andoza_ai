@@ -1073,7 +1073,8 @@
       "screen_shower": "Dush to'sig'i",
       "screen_none": "Yo'q",
       "screen_glass": "Shisha",
-      "screen_curtain": "Parda"
+      "screen_curtain": "Parda",
+      "clearance": "{{name}} oldida {{free}} sm bo'sh joy bor, kamida {{need}} sm kerak"
     },
     "backsplash": {
       "title": "Oshxona fartugi",
