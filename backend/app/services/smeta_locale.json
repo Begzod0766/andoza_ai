@@ -130,7 +130,14 @@
         "work_pressure_test": "Ish: quvurlarni bosim bilan sinash (opressovka)",
         "hatch": "Revizion lyuk (plitka ostiga)",
         "work_hatch": "Ish: revizion lyuk o'rnatish",
-        "silicone": "Sanitariya silikoni"
+        "silicone": "Sanitariya silikoni",
+        "heated_mat": "Issiq pol mati (elektr)",
+        "heated_thermostat": "Issiq pol termoregulyatori",
+        "heated_kit": "Gofra quvur va datchik (issiq pol)",
+        "heated_breaker": "Avtomat 16 A (issiq pol)",
+        "heated_cable": "Elektr kabel (issiq pol)",
+        "work_heated_mat": "Ish: issiq pol matini yotqizish",
+        "work_heated_thermostat": "Ish: termoregulyatorni o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -404,7 +411,14 @@
         "work_pressure_test": "Работа: опрессовка труб",
         "hatch": "Ревизионный люк (под плитку)",
         "work_hatch": "Работа: установка ревизионного люка",
-        "silicone": "Санитарный силикон"
+        "silicone": "Санитарный силикон",
+        "heated_mat": "Нагревательный мат (тёплый пол)",
+        "heated_thermostat": "Терморегулятор тёплого пола",
+        "heated_kit": "Гофротруба и датчик (тёплый пол)",
+        "heated_breaker": "Автомат 16 А (тёплый пол)",
+        "heated_cable": "Электрокабель (тёплый пол)",
+        "work_heated_mat": "Работа: укладка нагревательного мата",
+        "work_heated_thermostat": "Работа: установка терморегулятора"
       },
       "unit": {
         "qop_one": "мешок",
@@ -732,7 +746,14 @@
         "work_pressure_test": "Work: pressure-testing the pipes",
         "hatch": "Revision hatch (tile-in)",
         "work_hatch": "Work: fitting the revision hatch",
-        "silicone": "Sanitary silicone"
+        "silicone": "Sanitary silicone",
+        "heated_mat": "Heating mat (underfloor heating)",
+        "heated_thermostat": "Underfloor heating thermostat",
+        "heated_kit": "Conduit and sensor (underfloor heating)",
+        "heated_breaker": "16 A breaker (underfloor heating)",
+        "heated_cable": "Electric cable (underfloor heating)",
+        "work_heated_mat": "Work: laying the heating mat",
+        "work_heated_thermostat": "Work: installing the thermostat"
       },
       "unit": {
         "qop_one": "bag",

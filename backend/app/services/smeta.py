@@ -2212,6 +2212,87 @@ def _safety_lines(bathroom: bool, roles: dict[str, int], catalog: dict, norms: d
     return out
 
 
+# What stands on the floor for good, so no heating mat goes under it (2026-11-18): plumbing on the
+# floor and the furniture with no legs. A sink hangs on the wall; a chair or table stands on legs.
+_FIXED_ON_FLOOR = ("bathtub", "shower", "toilet", "bidet", "wardrobe", "shelf", "tv_unit")
+
+
+def _fixed_footprint_m2(room: "Room", catalog: dict, default_cm: dict[str, tuple[float, float]]) -> float:
+    """The floor under the pieces in _FIXED_ON_FLOOR: each one's shop footprint (× its scale), a usual
+    one of its kind when it has none; a piece of furniture with no footprint takes nothing."""
+    from app.services.ai_designer import infer_role
+
+    usual = {**_WET_FOOTPRINT_CM, **default_cm}
+    total = 0.0
+    for item in (room.state or {}).get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        name = (getattr(row, "name_uz", None) if row is not None else None) or item.get("name") or fid
+        role = infer_role(getattr(row, "category", None) if row is not None else None, str(name))
+        if role not in _FIXED_ON_FLOOR:
+            continue
+        w_cm, d_cm = usual.get(role, (0, 0))
+        w = _float(getattr(row, "footprint_w", None)) or w_cm
+        d = _float(getattr(row, "footprint_d", None)) or d_cm
+        k = _float(item.get("scaleOverride")) or 1
+        total += w / 100 * k * d / 100 * k
+    return total
+
+
+def _heated_floor_lines(room: "Room", catalog: dict, floor_already_done: bool = False) -> list[ComputedLine]:
+    """An electric heated floor (2026-11-18), when the user ticked it, in a bathroom or a kitchen whose
+    floor is still to be laid: a mat on the free floor (the floor less what stands on it for good),
+    the whole mats it comes in at most that size; its thermostat, the sensor's conduit, a breaker,
+    the cable to the panel and the work. Nothing when the free floor is under the smallest mat."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    if _design_state(room).get("heatedFloor") is not True:
+        return []
+    if not (_is_bathroom(room) or _is_kitchen(room)) or floor_already_done:
+        return []
+    n = load_bathroom_extras_norms()["heated_floor"]
+    floor = _floor_covering_area_m2(room)
+    usual = {r: (float(n[f"{r}_w_cm"]), float(n[f"{r}_d_cm"])) for r in ("toilet", "bidet")}
+    taken = _fixed_footprint_m2(room, catalog, usual)
+    free = max(0.0, floor - taken)
+    step = float(n["mat_step_m2"])
+    mat_m2 = round(math.floor(free / step + 1e-9) * step, 2)
+    if mat_m2 < float(n["mat_min_m2"]):
+        return []
+    fmt = lambda v: f"{int(v):,}".replace(",", " ")  # noqa: E731
+    text = f"{floor:.2f} m² − {taken:.2f} m² (jihozlar ostida) = {free:.2f} m² → {mat_m2:g} m²" if taken > 0 \
+        else f"{floor:.2f} m² → {mat_m2:g} m²"
+    shop = catalog.get("issiq_pol")
+    shop_price = _price_per(shop, "m2")
+    cable = catalog.get("kabel")
+    cable_price = _price_per(cable, "m")
+    per_m = cable_price or ELEC_CABLE_PRICE_UZS
+    metres = int(n["cable_m"])
+    kit, breaker = int(n["kit_uzs"]), int(n["breaker_uzs"])
+    work_mat, work_thermo = int(n["work_mat_m2_uzs"]), int(n["work_thermostat_uzs"])
+    cat = "issiq_pol"
+    return [
+        _make_line(label=f"Issiq pol mati (elektr): {shop.name_uz}" if shop_price else "Issiq pol mati (elektr)",
+                   formula=text, qty=mat_m2, unit="m²", price_uzs=shop_price or int(n["mat_m2_uzs"]), category=cat,
+                   is_approximate=not shop_price, warning=None if shop_price else EXTRAS_NORM_NOTE, **(_shop(shop) if shop_price else {})),
+        _piece_line("Issiq pol termoregulyatori", catalog.get("termoregulyator"), int(n["thermostat_uzs"]), cat),
+        _make_line(label="Gofra quvur va datchik (issiq pol)", formula=f"1 komplekt × {fmt(kit)} so'm", qty=1, unit="komplekt",
+                   price_uzs=kit, category=cat, is_approximate=True, warning=EXTRAS_NORM_NOTE),
+        _make_line(label="Avtomat 16 A (issiq pol)", formula=f"1 dona × {fmt(breaker)} so'm", qty=1, unit="dona",
+                   price_uzs=breaker, category=cat, is_approximate=True, warning=EXTRAS_NORM_NOTE),
+        _make_line(label="Elektr kabel (issiq pol)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category=cat, is_approximate=True, **(_shop(cable) if cable_price else {})),
+        _make_line(label="Ish: issiq pol matini yotqizish", formula=f"{mat_m2:g} m² × {fmt(work_mat)} so'm", qty=mat_m2, unit="m²",
+                   price_uzs=work_mat, category=cat),
+        _make_line(label="Ish: termoregulyatorni o'rnatish", formula=f"1 dona × {fmt(work_thermo)} so'm", qty=1, unit="dona",
+                   price_uzs=work_thermo, category=cat),
+    ]
+
+
 _SOCKET_LABELS = {
     "kir": ("Kir yuvish mashinasi rozetkasi (IP44)", "Elektr kabel (kir yuvish mashinasi)", "Ish: kir yuvish mashinasi rozetkasini o'rnatish"),
     "idish": ("Idish yuvish mashinasi rozetkasi (IP44)", "Elektr kabel (idish yuvish mashinasi)", "Ish: idish yuvish mashinasi rozetkasini o'rnatish"),
@@ -3044,6 +3125,8 @@ def compute_estimate(
     lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog, splash_tile_m2))
     # 3a'. A bathroom is waterproofed whatever it is finished in.
     lines.extend(_waterproofing_lines(room, catalog, floor_already_done))
+    # 3a''. An electric heated floor under the tile, when ticked (2026-11-18).
+    lines.extend(_heated_floor_lines(room, catalog or {}, floor_already_done))
 
     # ------------------------------------------------------------------ #
     # 3b. Ceiling construction — skipped entirely when ceiling_state is   #

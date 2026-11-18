@@ -337,7 +337,8 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
             applyWallpaper={applyWallpaper}
           />
         )}
-        {phase === 'pol' && <FloorSection onSetFloorType={handleSetFloorType} />}
+        {phase === 'pol' && <FloorSection onSetFloorType={handleSetFloorType}
+          heatable={['hammom', 'oshxona'].includes(effectiveRoomType(room.room_type, room.name) ?? '')} />}
         {phase === 'mebel' && <MebelSection />}
         {phase === 'chiroq' && (
           <LightPanel selectedId={selectedLightId} onSelect={onLightChange}

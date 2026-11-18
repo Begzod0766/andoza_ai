@@ -1089,7 +1089,8 @@
       "full": "Shiftgacha",
       "custom": "Balandligi, sm",
       "above": "Yuqorisi"
-    }
+    },
+    "heated_floor": "Issiq pol (elektr mat)"
   },
   "smeta": {
     "sarlavha": "Smeta",
@@ -1285,7 +1286,14 @@
       "work_pressure_test": "Ish: quvurlarni bosim bilan sinash (opressovka)",
       "hatch": "Revizion lyuk (plitka ostiga)",
       "work_hatch": "Ish: revizion lyuk o'rnatish",
-      "silicone": "Sanitariya silikoni"
+      "silicone": "Sanitariya silikoni",
+      "heated_mat": "Issiq pol mati (elektr)",
+      "heated_thermostat": "Issiq pol termoregulyatori",
+      "heated_kit": "Gofra quvur va datchik (issiq pol)",
+      "heated_breaker": "Avtomat 16 A (issiq pol)",
+      "heated_cable": "Elektr kabel (issiq pol)",
+      "work_heated_mat": "Ish: issiq pol matini yotqizish",
+      "work_heated_thermostat": "Ish: termoregulyatorni o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2352,7 +2360,9 @@
         "sifon_idish": "Idish yuvish mashinasi sifoni (chiqishli)",
         "uzo": "UZO (difavtomat 30 mA)",
         "lyuk": "Revizion lyuk",
-        "silikon": "Sanitariya silikoni"
+        "silikon": "Sanitariya silikoni",
+        "issiq_pol": "Issiq pol mati (m²)",
+        "termoregulyator": "Issiq pol termoregulyatori"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

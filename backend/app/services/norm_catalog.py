@@ -17,6 +17,7 @@ RAIL = "Sochiq quritgich"
 FAN = "Ventilyator"
 ELEC = "Rozetka va kabel"
 SAFETY = "Santexnika: xavfsizlik va sinov"
+HEATED = "Issiq pol (elektr)"
 
 CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
     "plumbing": {
@@ -133,6 +134,19 @@ CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
         "el_rail_cable_m": ("Elektr sochiq quritgich kabeli uzunligi", "m", ELEC),
         "washer_cable_m": ("Kir yuvish mashinasi kabeli uzunligi", "m", ELEC),
         "work_washer_socket_uzs": ("Ish: kir yuvish mashinasi rozetkasini o'rnatish", SD, ELEC),
+        "heated_floor.mat_m2_uzs": ("Issiq pol mati (elektr)", SM2, HEATED),
+        "heated_floor.mat_step_m2": ("Mat o'lchami qadami", "m²", HEATED),
+        "heated_floor.mat_min_m2": ("Eng kichik mat", "m²", HEATED),
+        "heated_floor.thermostat_uzs": ("Issiq pol termoregulyatori", SD, HEATED),
+        "heated_floor.kit_uzs": ("Gofra quvur va datchik (issiq pol)", "so'm/komplekt", HEATED),
+        "heated_floor.breaker_uzs": ("Avtomat 16 A (issiq pol)", SD, HEATED),
+        "heated_floor.cable_m": ("Issiq pol kabeli uzunligi", "m", HEATED),
+        "heated_floor.work_mat_m2_uzs": ("Ish: issiq pol matini yotqizish", SM2, HEATED),
+        "heated_floor.work_thermostat_uzs": ("Ish: termoregulyatorni o'rnatish", SD, HEATED),
+        "heated_floor.toilet_w_cm": ("Unitaz eni (mat ostiga tushmaydi)", "sm", HEATED),
+        "heated_floor.toilet_d_cm": ("Unitaz chuqurligi (mat ostiga tushmaydi)", "sm", HEATED),
+        "heated_floor.bidet_w_cm": ("Bide eni (mat ostiga tushmaydi)", "sm", HEATED),
+        "heated_floor.bidet_d_cm": ("Bide chuqurligi (mat ostiga tushmaydi)", "sm", HEATED),
     },
 }
 

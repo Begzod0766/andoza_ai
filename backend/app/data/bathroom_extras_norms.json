@@ -30,5 +30,20 @@
     "500x800": 900000,
     "600x800": 1050000,
     "600x1000": 1250000
+  },
+  "heated_floor": {
+    "mat_m2_uzs": 180000,
+    "mat_step_m2": 0.5,
+    "mat_min_m2": 1,
+    "thermostat_uzs": 350000,
+    "kit_uzs": 60000,
+    "breaker_uzs": 80000,
+    "cable_m": 5,
+    "work_mat_m2_uzs": 50000,
+    "work_thermostat_uzs": 100000,
+    "toilet_w_cm": 40,
+    "toilet_d_cm": 65,
+    "bidet_w_cm": 40,
+    "bidet_d_cm": 55
   }
 }
