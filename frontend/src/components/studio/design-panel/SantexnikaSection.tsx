@@ -174,7 +174,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
     <section className="space-y-4">
       <div>
         <h3 className="mb-1 text-sm font-semibold text-ink">{t(pipes ? "studio.lib.stage.quvurlar" : "studio.lib.stage.jihozlar")}</h3>
-        <p className="text-[11px] leading-snug text-ink-muted">{t(pipes ? "studio.santexnika.hint_quvurlar" : "studio.santexnika.hint_jihozlar")}</p>
+        <p className="text-[11px] leading-snug text-ink-muted">{t(pipes ? "studio.santexnika.hint_quvurlar" : kitchen ? "studio.santexnika.hint_jihozlar_kitchen" : "studio.santexnika.hint_jihozlar")}</p>
       </div>
 
       {pipes ? (<>

@@ -629,6 +629,26 @@ def _putty_line(
     )
 
 
+def _backsplash_over_paint(room: "Room") -> dict[str, float]:
+    """Per wall, the m² of its backsplashes (tile or skinali) above its tile band, if it has one: wall
+    the paint is not bought for (kitchen QA 2026-11-18 K11). Inside a tile band the tile already covers it."""
+    from app.services.backsplash import backsplash_pieces, studio_walls, valid_backsplashes
+
+    saved = valid_backsplashes(_design_state(room).get("backsplashes"))
+    if not saved:
+        return {}
+    walls = studio_walls(room)
+    ceiling_mm = _to_metres(_float(room.ceiling_h, 2.7)) * 1000
+    bands = {key: _tile_band_m(covering, ceiling_mm / 1000) * 1000 for key, _, covering, _ in _tiled_walls(room)}
+    out: dict[str, float] = {}
+    for b in saved:
+        band = bands.get(b["wallId"], 0.0)
+        area = sum((x1 - x0) * max(0.0, y1 - max(y0, band)) for x0, x1, y0, y1 in backsplash_pieces(b, walls, ceiling_mm)) / 1e6
+        if area > 0:
+            out[b["wallId"]] = out.get(b["wallId"], 0.0) + area
+    return out
+
+
 def _painted_wall_areas(
     room: "Room",
     wall_surfaces_map: dict[str, str],
@@ -666,6 +686,8 @@ def _painted_wall_areas(
     # material_id -> [area_m2, wall_ids] — a plain dict preserves insertion
     # order (first-seen material first), which keeps output deterministic.
     groups: dict[str | None, list] = {}
+    # The wall a backsplash covers is not painted (K11).
+    splash = _backsplash_over_paint(room)
     for wall in walls_data:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
@@ -689,7 +711,7 @@ def _painted_wall_areas(
             * _to_metres(float(el.get("height", 0) or 0))
             for el in elements
         )
-        net_area = max(0.0, gross_area - openings_area)
+        net_area = max(0.0, gross_area - openings_area - splash.get(wall_key, 0.0))
 
         mat_id = wall_surfaces_map.get(wall_key) or wall_surfaces_map.get("ALL")
         group = groups.setdefault(mat_id, [0.0, []])
@@ -699,6 +721,7 @@ def _painted_wall_areas(
     # A wall tiled to a height is painted above it (spec 2026-11-10): that part joins the wall's
     # own paint product when it has one, else the paint nobody picked a product for.
     for wall_key, area in _tile_above_areas(room):
+        area = max(0.0, area - splash.get(wall_key, 0.0))
         mat_id = wall_surfaces_map.get(wall_key) or wall_surfaces_map.get("ALL")
         material = materials_map.get(mat_id) if mat_id else None
         key = mat_id if material is not None and material.category == "boyoq" else None

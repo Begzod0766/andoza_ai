@@ -137,3 +137,12 @@ describe('Mebel panel follows the room type (spec 2026-11-08)', () => {
     expect(screen.getByText('Стол Nord')).toBeInTheDocument()
   })
 })
+
+describe('Mebel panel — a card\'s size (kitchen QA 2026-11-18 K8)', () => {
+  it('reads in metres to the centimetre, not float noise', async () => {
+    getStores.mockResolvedValue([])
+    useRoomStore.getState().setCatalogFurniture([model({ footprint_w: 36.700000000000005, footprint_d: 400 })])
+    renderPanel()
+    expect(await screen.findByText('0.37×4 m')).toBeInTheDocument()
+  })
+})

@@ -846,8 +846,10 @@ export default function WizardPage() {
         existingApartmentId ??
         createdApartmentIdRef.current ??
         (createdApartmentIdRef.current = (await createApartment({ name: t('wizard.mening_xonadonim') })).id)
-      const roomName = t('wizard.xona')
-      const room_type = useRoomStore.getState().roomType ?? guessRoomType(roomName) ?? undefined
+      const picked = useRoomStore.getState().roomType
+      // Named by its type when one is picked (kitchen QA 2026-11-18 K10: a kitchen was saved as "Комната").
+      const roomName = picked ? t(`rooms.type.${picked}` as 'rooms.type.mehmonxona') : t('wizard.xona')
+      const room_type = picked ?? guessRoomType(roomName) ?? undefined
       const room = await createRoom(aptId, { name: roomName, room_type, ...roomDimensions() })
       setRoomId(room.id)
       // Draft fulfilled — clean up

@@ -1238,6 +1238,8 @@ export default function ThreeDPage() {
         roomType={effectiveRoomType(room.room_type, room.name)}
         aiPin={aiPin}
         radial={radial}
+        // In Montaj a wall tap is for a socket or a switch (kitchen QA 2026-11-18 K6).
+        radialOpenOn={activePhase === "montaj" && radial?.surface === "wall" ? "elektr" : undefined}
         radialItems={(r) => buildRadialItems(r, {
           roomType: effectiveRoomType(room.room_type, room.name),
           setSelectedWall, setActivePhase: openPhasePanel, setShowPanel, createOpening,

@@ -1042,6 +1042,7 @@
       "hint": "Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi. Kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
       "hint_quvurlar": "Quvurlar suvoqdan oldin yotqiziladi. Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi; kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
       "hint_jihozlar": "Jihozlar kafel va poldan keyin o'rnatiladi: vanna, rakovina, unitaz, sochiq quritgich, mashinalar va boyler.",
+      "hint_jihozlar_kitchen": "Jihozlar kafel va poldan keyin o'rnatiladi: moyka, idish va kir yuvish mashinalari, boyler.",
       "fixtures": "Jihozlar",
       "no_fixtures": "Hali jihoz yo'q: avval jihozlarni qo'shing, keyin ularning quvur nuqtalari o'zi chiqadi.",
       "points": "Nuqtalar",

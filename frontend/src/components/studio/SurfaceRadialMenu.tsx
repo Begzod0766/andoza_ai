@@ -69,6 +69,9 @@ interface Props {
    *  is done with the surface, not just the ring — the page drops the
    *  selection the ring came with as well. Falls back to `onClose`. */
   onDismiss?: () => void
+  /** The top-level item the ring opens turned to, over the remembered one: the stage says what a tap
+   *  is for (Montaj: the electrics, kitchen QA 2026-11-18 K6). */
+  openOn?: string
 }
 
 const SURFACE_LABEL = {
@@ -125,7 +128,7 @@ function shownFor(trail: RadialItem[], items: RadialItem[]): RadialItem[] {
   return trail.length ? trail[trail.length - 1].children ?? [] : items
 }
 
-export default function SurfaceRadialMenu({ x, y, surface, items, onClose, onDismiss }: Props) {
+export default function SurfaceRadialMenu({ x, y, surface, items, onClose, onDismiss, openOn }: Props) {
   const { t } = useTranslation()
   const dismiss = onDismiss ?? onClose
   /** The path drilled into, deepest last — a stack rather than a single item
@@ -135,7 +138,8 @@ export default function SurfaceRadialMenu({ x, y, surface, items, onClose, onDis
   /** How far the ring has been turned, in slots. It starts turned to whatever
    *  was last picked on this surface rather than at zero, which is the whole
    *  point: the user asked not to scroll back to the same swatch every time. */
-  const [offset, setOffset] = useState(() => openingOffsetFor(surface, [], items))
+  const [offset, setOffset] = useState(() =>
+    openOn && items.some((it) => it.key === openOn) ? ringOpeningOffset(items, openOn, WINDOW_SLOTS) : openingOffsetFor(surface, [], items))
   /** The last button tapped and when, so a second tap on the same one can mean
    *  something more than the first. Cleared on a double so a third tap starts
    *  over — see `lib/doubleTapSelect.ts`. */

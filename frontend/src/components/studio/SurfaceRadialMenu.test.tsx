@@ -362,3 +362,23 @@ describe('where the ring opens', () => {
     expect(squareOn()[1]).toBe('R3')
   })
 })
+
+/** The stage says what the ring is for (kitchen QA 2026-11-18 K6): in Montaj a wall tap opens on Elektr. */
+describe('a ring opened by the stage', () => {
+  const ROOT: RadialItem[] = ['Rang', 'Oboy', 'Plitka', 'Oyna', 'Eshik', 'Yangi xona', 'Elektr'].map((l, i) => ({
+    key: `k${i}`, label: l, icon: RadialIcons.socket, onSelect: () => {},
+  }))
+  const centre = () => [...document.querySelectorAll('button')]
+    .filter((b) => Number(b.style.opacity || 1) > 0.9).map((b) => b.textContent!.trim())[1]
+
+  it('opens turned to the stage\'s item, over what was last picked', () => {
+    useLastChoiceStore.setState({ choices: { wall: 'k2' } })
+    render(<SurfaceRadialMenu x={200} y={200} surface="wall" items={ROOT} onClose={() => {}} openOn="k6" />)
+    expect(centre()).toBe('Elektr')
+  })
+  it('without one, it opens where it always did', () => {
+    useLastChoiceStore.setState({ choices: { wall: 'k2' } })
+    render(<SurfaceRadialMenu x={200} y={200} surface="wall" items={ROOT} onClose={() => {}} />)
+    expect(centre()).toBe('Plitka')
+  })
+})

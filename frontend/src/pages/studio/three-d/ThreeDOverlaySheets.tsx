@@ -23,7 +23,7 @@ export function ThreeDOverlaySheets({
   pendingWindowSpot, setPendingWindowSpot,
   wallGeom, computeOpeningRect, addElement, setSelectedWall,
   showAiSheet, setShowAiSheet, onSave, roomId, aptId, roomType, aiPin,
-  radial, radialItems, closeRadial, dismissRadial,
+  radial, radialItems, closeRadial, dismissRadial, radialOpenOn,
 }: {
   showAddSheet: boolean;
   setShowAddSheet: Dispatch<SetStateAction<boolean>>;
@@ -61,6 +61,8 @@ export function ThreeDOverlaySheets({
   /** A tap away from the ring: closes it AND drops the selection it came
    *  with, so one tap is enough ("to other place one click should work"). */
   dismissRadial: () => void;
+  /** The top-level ring item the stage opens on (Montaj: "elektr", kitchen QA 2026-11-18 K6). */
+  radialOpenOn?: string;
 }) {
   function handleNewWindowConfirm(values: NewWindowValues) {
     if (!pendingWindowSpot) return;
@@ -111,6 +113,7 @@ export function ThreeDOverlaySheets({
           items={radialItems(radial)}
           onClose={closeRadial}
           onDismiss={dismissRadial}
+          openOn={radialOpenOn}
         />
       )}
     </>
