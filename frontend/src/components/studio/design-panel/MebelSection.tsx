@@ -15,6 +15,7 @@ import { useGLTF } from "@react-three/drei";
 import { applyMaterialToGlb, listGlbMaterials } from "@/lib/modelConverter";
 import type { GlbMaterialInfo } from "@/lib/modelConverter";
 import { nextFurnitureSpot } from "@/features/studio/nextFurnitureSpot";
+import { FurnitureFitWarnings } from "./FurnitureFitWarnings";
 import { deleteUserModel, getStores, updateUserModel } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { StoreContactLinks } from "@/components/studio/StoreContactLinks";
@@ -418,6 +419,7 @@ export function MebelSection() {
   return (
     <section className="relative rounded-xl">
       <h3 className="text-sm font-semibold text-ink mb-2">{t('studio.mebel.models')}</h3>
+      <FurnitureFitWarnings />
 
       {/* Category chips */}
       <div className="flex gap-1.5 flex-wrap mb-3">
@@ -577,7 +579,8 @@ export function MebelSection() {
             const shopSizeM = shopEntry
               ? { w: (shopEntry.footprint_w ?? 0) / 100, d: (shopEntry.footprint_d ?? 0) / 100 }
               : null;
-            const actualW = formatDecimal((entry?.sizeM.w ?? shopSizeM?.w ?? 0) * so, 2);
+            // A kitchen set cut to its wall shows the length it was cut to (2026-11-18).
+            const actualW = formatDecimal(f.lengthCm && f.lengthCm > 0 ? f.lengthCm / 100 : (entry?.sizeM.w ?? shopSizeM?.w ?? 0) * so, 2);
             const actualD = formatDecimal((entry?.sizeM.d ?? shopSizeM?.d ?? 0) * so, 2);
             return (
               <div key={f.id} className="border border-line rounded-lg overflow-hidden mb-1">

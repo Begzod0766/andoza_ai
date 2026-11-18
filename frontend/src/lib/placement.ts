@@ -154,7 +154,9 @@ export function freeFurnitureSpotMm(
   riser?: { wallId: string; positionMm: number },
   /** Floor no piece but a rug may take (store metres): a bathroom's riser box and its hatch (lib/bathroomBoxes riserKeepClear). */
   keepClear: readonly Rect[] = [],
-): { x: number; y: number; rotation: number; onWall?: boolean } {
+  /** The walls with the room's plumbing points on them (state.plumbing): a kitchen set stands on one. */
+  opts: { plumbingWalls?: readonly string[] } = {},
+): { x: number; y: number; rotation: number; onWall?: boolean; lengthM?: number } {
   const model = roomModel(geometry)
   const size = { w: sizeM.w > 0 ? sizeM.w : 0.6, d: sizeM.d > 0 ? sizeM.d : 0.6, tall: TALL_ROLES.has(role) }
   if (role === 'rug') {
@@ -167,6 +169,10 @@ export function freeFurnitureSpotMm(
     .filter((p) => p.role !== 'rug')
     .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
     .concat(keepClear)
+  if (role === 'kitchen_set') {
+    const spot = kitchenSetSpot(model, size, taken, opts.plumbingWalls ?? [])
+    if (spot) return spot
+  }
   if (SEARCHED.has(role)) {
     // Every wall spot, scored by the free floor the warning measures (prod check 2026-11-18: a toilet faced
     // the bath 31 cm away): one that leaves every fixture its clearance, else the one short the least.
@@ -251,6 +257,66 @@ function longerThanWalls(model: RoomModel, size: { w: number; d: number; tall: b
     swing ??= rect
   }
   return swing && { x: swing.x, z: swing.z, rotation: swing.rotation }
+}
+
+/** The shortest run a kitchen set is cut to on the plumbing wall before a longer wall is taken instead, metres. */
+const KITCHEN_MIN_RUN = 1.2
+
+/**
+ * The free stretches along `wall` (metres from its midpoint) a piece `depth` deep can stand on with
+ * its back to it: the wall less a gap at each end, less what stands in that strip (`taken`) and the
+ * doors' swing.
+ */
+function wallRuns(model: RoomModel, wall: RoomModel['walls'][number], depth: number, taken: readonly Rect[]): Array<[number, number]> {
+  const lo = -wall.length / 2 + WALL_GAP, hi = wall.length / 2 - WALL_GAP
+  const blocked: Array<[number, number]> = []
+  const blockers = taken.concat(model.clear.filter((z) => z.kind === 'door').map((z) => z.rect))
+  // Into the room from the wall: the strip the piece takes, normal distance 0..depth + gap.
+  const wallOff = wall.midX * wall.nx + wall.midZ * wall.nz
+  for (const r of blockers) {
+    const c = rectCorners(r)
+    const ts = c.map(([x, z]) => (x - wall.midX) * wall.dirX + (z - wall.midZ) * wall.dirZ)
+    const ns = c.map(([x, z]) => x * wall.nx + z * wall.nz - wallOff)
+    if (Math.max(...ns) <= 1e-6 || Math.min(...ns) >= depth + WALL_GAP - 1e-6) continue
+    blocked.push([Math.min(...ts), Math.max(...ts)])
+  }
+  blocked.sort((a, b) => a[0] - b[0])
+  const runs: Array<[number, number]> = []
+  let from = lo
+  for (const [a, b] of blocked) {
+    if (a > from) runs.push([from, Math.min(a, hi)])
+    from = Math.max(from, b)
+  }
+  if (from < hi) runs.push([from, hi])
+  return runs.filter(([a, b]) => b - a > 1e-6)
+}
+
+/**
+ * A kitchen set (prod e2e 2026-11-18: a 4 m set stood 1 m through a 3.5 m kitchen's wall and window). It is
+ * made to measure: it stands with its back on the longest free run of a wall without the door, the wall
+ * with the plumbing points first, and is cut to that run (`lengthM`, only when cut). Null when no wall
+ * without a door has a free run at all.
+ */
+function kitchenSetSpot(model: RoomModel, size: { w: number; d: number }, taken: readonly Rect[], plumbingWalls: readonly string[]) {
+  const doorWalls = new Set(model.clear.filter((z) => z.kind === 'door').map((z) => z.wallId))
+  let best: { wall: RoomModel['walls'][number]; run: [number, number]; key: [number, number] } | null = null
+  for (const wall of model.walls) {
+    if (doorWalls.has(wall.id)) continue
+    const runs = wallRuns(model, wall, size.d, taken)
+    if (!runs.length) continue
+    const run = runs.reduce((a, b) => (b[1] - b[0] > a[1] - a[0] ? b : a))
+    const len = run[1] - run[0]
+    const plumbing = plumbingWalls.includes(wall.id) && len >= Math.min(size.w, KITCHEN_MIN_RUN) ? 1 : 0
+    const key: [number, number] = [plumbing, Math.min(len, size.w)]
+    if (!best || key[0] > best.key[0] || (key[0] === best.key[0] && key[1] > best.key[1] + 1e-6)) best = { wall, run, key }
+  }
+  if (!best) return null
+  const { wall, run } = best
+  const length = Math.min(size.w, run[1] - run[0])
+  const t = (run[0] + run[1]) / 2
+  const out = size.d / 2 + WALL_GAP
+  const spot = toMm({ x: wall.midX + wall.dirX * t + wall.nx * out, z: wall.midZ + wall.dirZ * t + wall.nz * out, rotation: Math.atan2(wall.nx, wall.nz) })
+  return length < size.w - 1e-3 ? { ...spot, onWall: true, lengthM: Math.floor(length * 100) / 100 } : { ...spot, onWall: true }
 }
 
 /** A shower's corner: of the free ones, the farthest from the door (the first free one with no door). */

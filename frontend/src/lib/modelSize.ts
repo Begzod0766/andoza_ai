@@ -59,3 +59,11 @@ export function ceilingFitSize<T extends { w: number; d: number }>(size: T, heig
   const k = ceilingFitScale(1, heightM, ceilingMm);
   return k === 1 ? size : { ...size, w: size.w * k, d: size.d * k };
 }
+
+/**
+ * How far a kitchen set cut to its wall is drawn stretched (or shrunk) along its width: its stored
+ * length over the width it is drawn at (prod e2e 2026-11-18). 1 for every other piece.
+ */
+export function lengthStretch(lengthCm: number | undefined, drawnWidthM: number): number {
+  return lengthCm && lengthCm > 0 && drawnWidthM > 0 ? lengthCm / 100 / drawnWidthM : 1
+}

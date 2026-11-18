@@ -16,6 +16,7 @@ import { effectiveRoomType } from "@/lib/roomType";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
+import { FurnitureFitWarnings } from "./FurnitureFitWarnings";
 import { PIPE_COLOUR } from "@/lib/pipeScheme";
 import { screenChoice, screenedBaths, screenedShowers } from "@/lib/showerScreens";
 
@@ -300,6 +301,8 @@ export function SantexnikaSection({ part, bathroom = false }: {
       </>) : (<>
       {sinkBlock}
       <PlumbingFixtures optional={kitchen}>
+        {/* A fixture out of the room or in the door's swing (2026-11-18): a warning only. */}
+        <FurnitureFitWarnings />
         {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
         {clearances.map((c) => (
           <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">

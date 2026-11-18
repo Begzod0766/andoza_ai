@@ -72,8 +72,8 @@ describe('furniture roles', () => {
     expect(ROLE_GROUP.rug).toBe('extra')
   })
 
-  it('isRole accepts only the 19 roles (14 furniture, 5 plumbing)', () => {
-    expect(Object.keys(ROLE_GROUP)).toHaveLength(19)
+  it('isRole accepts only the 20 roles (15 furniture, 5 plumbing)', () => {
+    expect(Object.keys(ROLE_GROUP)).toHaveLength(20)
     expect(isRole('sofa')).toBe(true)
     expect(isRole('throne')).toBe(false)
     expect(isRole(3)).toBe(false)
@@ -124,5 +124,24 @@ describe('isKitchenSet (kitchen QA 2026-11-18)', () => {
   it('not a kitchen chair, table or a bathroom set', () => {
     for (const n of ['FITZ KIDS oshxona stuli', 'Stol va stul', "Hammom to'plami", 'Kitchen chair', null, ''])
       expect(isKitchenSet(n)).toBe(false)
+  })
+})
+
+describe('a kitchen set (prod e2e 2026-11-18)', () => {
+  it.each([
+    ["Oshxona to'plami 1"], ["Oshxona to‘plami 2"], ['Oshxona garnituri Lux'], ['Кухонный гарнитур Мила'],
+    ['Kitchen set Nordic'], ["Oshxona to'plami moyka bilan"], ["Oshxona to'plami shkaflar bilan"],
+  ])('%s is a kitchen set, not a sink or a wardrobe', (name) => {
+    expect(inferRole('boshqa', name)).toBe('kitchen_set')
+  })
+
+  it('isKitchenSet and the role agree', () => {
+    for (const n of ["Oshxona to'plami 2", 'Oshxona garnituri', 'Кухонный гарнитур Лана', 'Гарнитур', 'Kitchen set Nova', 'Stol va stul', 'Oshxona moykasi'])
+      expect(inferRole('boshqa', n) === 'kitchen_set').toBe(isKitchenSet(n))
+  })
+
+  it('a lone kitchen cabinet or sink is not one', () => {
+    expect(inferRole('boshqa', 'Oshxona moykasi')).toBe('sink')
+    expect(inferRole('boshqa', 'Oshxona shkafi')).toBe('wardrobe')
   })
 })

@@ -37,3 +37,11 @@ describe('fitsCatalogRoom: plumbing fixtures with no room of their own', () => {
     expect(fitsCatalogRoom(item('Unitaz', 'boshqa', null), 'oshxona')).toBe(false)
   })
 })
+
+describe('a kitchen set with no room of its own', () => {
+  it('is offered in a kitchen and nowhere else', () => {
+    expect(fitsCatalogRoom(item('Кухонный гарнитур Мила', 'boshqa', null), 'oshxona')).toBe(true)
+    expect(fitsCatalogRoom(item('Кухонный гарнитур Мила', 'boshqa', null), 'mehmonxona')).toBe(false)
+    expect(fitsCatalogRoom(item('Кухонный гарнитур Мила', 'boshqa', null), 'hammom')).toBe(false)
+  })
+})

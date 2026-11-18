@@ -55,15 +55,20 @@ FURNITURE_ROLES = (
     "decor", "rug",
     "bathtub", "sink", "toilet", "shower", "bidet",
 )
+# A kitchen set (infer_role "kitchen_set") is not offered to the model: it is placed and cut to its wall by the studio.
 
 # Name rules, first match wins; Latin, Uzbek and Russian names. Cyrillic "тв" is matched with
 # lookarounds, not \b: JavaScript's \b knows only ASCII letters. "tumbochka" is a bedside table, so it must not reach "tumba" (a TV stand).
 # "ish" must start a word: "ovqatlanish stuli" is a dining chair, not a desk chair.
 # A Russian name that is just "Стол <model>" is an office shop's desk: a dining table says
 # "обеденный" or "кухонный", and "Стол-книжка" / "Стол-трансформер" are folding tables.
+# A kitchen set by name (prod 2026-11-18: "Oshxona to'plami 1..3"); the same as the frontend's KITCHEN_SET_NAME / isKitchenSet.
+KITCHEN_SET_NAME = r"oshxona\s+(?:to.?plami|garnituri)|кухонн\S*\s+гарнитур|(?<![а-яё])гарнитур|kitchen\s+(?:set|unit)"
 _ROLE_BY_NAME: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.I), role) for pattern, role in (
-        # Plumbing fixtures first (the shop files them under "boshqa"); only the word "ванна" itself.
+        # A whole kitchen set first: made to measure, sold by the running metre; its name may well say "moyka".
+        (KITCHEN_SET_NAME, "kitchen_set"),
+        # Plumbing fixtures next (the shop files them under "boshqa"); only the word "ванна" itself.
         (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:(?<![а-яё])ванна(?![а-яё])|\bvanna\b(?!\s+xona)|bathtub)", "bathtub"),
         (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:rakovina|umivalnik|moyka|раковин|умывальник|мойк|\bsink\b|washbasin)", "sink"),
         (r"^(?!.*(?:shkaf|шкаф|cabinet|tumb|тумб|polka|полк|javon|oyna|зеркал|mirror|parda|штор|curtain|gilam|коврик|qopqo|крышк|[её]ршик|brush|holder|держател|boshi|лейк)).*(?:unitaz|унитаз|\btoilet\b|\bwc\b)", "toilet"),

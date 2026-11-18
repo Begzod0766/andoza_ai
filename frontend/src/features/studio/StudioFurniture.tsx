@@ -56,6 +56,7 @@ function useDrawnShift(item: PlacedFurniture): number {
   return wallHungShiftM(name, inferRole(row?.category ?? null, name))
 }
 import { turnedSize, yawRadians, type ModelYaw } from "@/lib/modelYaw";
+import { lengthStretch } from "@/lib/modelSize";
 import { furnitureRoomBounds, measuredFootprints } from "./furnitureNudge";
 
 // ─── Shared furniture entry (catalog + user-uploaded) ─────────────────────────
@@ -190,6 +191,14 @@ function applyColorOverrides(obj: THREE.Object3D, overrides: Record<string, stri
 
 // ─── Placed furniture renderer ────────────────────────────────────────────────
 
+/**
+ * The yaw group's own scale that stretches the model by `ls` along the placed piece's width: the
+ * scale is taken before the yaw turns it, so a model turned a quarter is stretched along its own z.
+ */
+function stretchAxes(ls: number, yaw: ModelYaw | undefined): [number, number, number] {
+  return yaw === 90 || yaw === 270 ? [1, 1, ls] : [ls, 1, 1]
+}
+
 export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   const entry = useFurnitureEntry(item.furniture_id)
   const shift = useDrawnShift(item)
@@ -211,11 +220,12 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
 
   // Compute bottom offset ONCE per clone, before R3F touches the object's position.
   // Storing scale-independent value so it stays correct when scaleOverride changes.
-  const { yOffUnit, rawHeight, rootAt } = useMemo(() => {
+  const { yOffUnit, rawHeight, rootAt, rawW, rawD } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
     const ok = isFinite(box.min.y)
     return {
       yOffUnit: ok ? -box.min.y : 0, rawHeight: ok ? box.max.y - box.min.y : 0,
+      rawW: ok ? box.max.x - box.min.x : 0, rawD: ok ? box.max.z - box.min.z : 0,
       rootAt: footprintCentredRoot(cloned, box),
     }
   }, [cloned]);
@@ -236,6 +246,7 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   if (!entry || !modelPath) return null;
   // Never through the ceiling: the model's own scale is brought under it (QA 2026-11-05 #3).
   const s = ceilingFitScale(autoScale ?? entry.scale, rawHeight, ceilingHeight) * (item.scaleOverride ?? 1);
+  const ls = lengthStretch(item.lengthCm, turnedSize({ w: rawW, d: rawD }, entry.modelYaw ?? 0).w * s);
   // The model's own yaw turns it to face the room first; the placement's
   // rotation turns it from there. Bottom alignment is unaffected: a turn
   // about Y leaves box.min.y where it was.
@@ -246,7 +257,7 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
       scale={s}
     >
       {/* Drawn off its place by `shift` (a wall-hung toilet on its box); the yaw turns it about its own middle. */}
-      <group position={[0, 0, shift / s]} rotation={[0, yawRadians(entry.modelYaw), 0]}>
+      <group position={[0, 0, shift / s]} rotation={[0, yawRadians(entry.modelYaw), 0]} scale={stretchAxes(ls, entry.modelYaw)}>
         <primitive object={cloned} position={rootAt} />
       </group>
     </group>
@@ -460,8 +471,8 @@ export function DraggableFurnitureItem({
   useEffect(() => {
     if (!entry) return
     const s = effScale * (item.scaleOverride ?? 1)
-    onFootprint(item.id, geomHW * s, geomHD * s)
-  }, [item.id, geomHW, geomHD, entry, effScale, item.scaleOverride, onFootprint])
+    onFootprint(item.id, geomHW * s * lengthStretch(item.lengthCm, geomHW * 2 * s), geomHD * s)
+  }, [item.id, geomHW, geomHD, entry, effScale, item.scaleOverride, item.lengthCm, onFootprint])
 
   useLayoutEffect(() => {
     if (!item.colorOverrides || Object.keys(item.colorOverrides).length === 0) return
@@ -539,7 +550,8 @@ export function DraggableFurnitureItem({
   const modelH = entry.autoScale ? geomHH * 2 * s : (entry.sizeM.h ?? 1) * so
   const buttonH = modelH + 0.18
   const btnActive = isDragging
-  const fw = geomHW * s * 2   // actual footprint width
+  const ls = lengthStretch(item.lengthCm, geomHW * 2 * s)
+  const fw = geomHW * s * 2 * ls   // actual footprint width
   const fd = geomHD * s * 2   // actual footprint depth
   // In 'select' mode, an already-selected item is directly draggable (see
   // startDragFromMesh) — 'grab' signals that, same as 'move' mode; a
@@ -553,7 +565,8 @@ export function DraggableFurnitureItem({
   return (
     <group ref={groupRef} position={[item.x / 1000, 0, item.y / 1000]}>
       <group ref={primitiveRef} position={[0, yOff, 0]} rotation={[0, item.rotation, 0]} scale={s}>
-        <group position={[0, 0, shift / s]} rotation={[0, yawRadians(modelYaw), 0]}>
+        {/* A kitchen set cut to its wall: stretched along its width only (prod e2e 2026-11-18). */}
+        <group position={[0, 0, shift / s]} rotation={[0, yawRadians(modelYaw), 0]} scale={stretchAxes(ls, modelYaw)}>
           <primitive
             object={cloned}
             position={rootAt}
@@ -620,7 +633,9 @@ export function DraggableFurnitureItem({
           same frame loop while a live scale drag is in flight. */}
       {isSelected && (
         <group ref={selRef} rotation={[0, item.rotation, 0]}>
-          <SelectionOutline object={cloned} scale={s} position={[0, yOff, shift]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
+          <group scale={[ls, 1, 1]}>
+            <SelectionOutline object={cloned} scale={s} position={[0, yOff, shift]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
+          </group>
         </group>
       )}
       {toolMode === 'move' && (
@@ -833,7 +848,7 @@ export function DraggableFurnitureModels({
     const row = catalogFurniture.find((f) => f.id === item.furniture_id)
     const so = item.scaleOverride ?? 1
     return placeholderSize(
-      (entry?.sizeM.w ?? 0) * so,
+      item.lengthCm && item.lengthCm > 0 ? item.lengthCm / 100 : (entry?.sizeM.w ?? 0) * so,
       (entry?.sizeM.d ?? 0) * so,
       (row?.height_cm ? row.height_cm / 100 : entry?.sizeM.h ?? 0) * so,
     )
