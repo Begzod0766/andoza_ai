@@ -1035,7 +1035,7 @@
       "hint_quvurlar": "Pipes are laid before the plaster. A fixture's points appear by themselves once it is placed; add an extra point, say for a washing machine, here.",
       "hint_jihozlar": "Fixtures go in after the tiles and the floor: bath, basin, toilet, towel rail, machines and the water heater.",
       "fixtures": "Fixtures",
-      "no_fixtures": "No fixtures yet: add them in the Furniture stage with the Plumbing filter.",
+      "no_fixtures": "No fixtures yet: add them here and their pipe points appear on their own.",
       "points": "Points",
       "kind": "Kind",
       "wall": "Wall",
@@ -1094,7 +1094,13 @@
       "water_scheme_tee": "Tees (in series)",
       "water_scheme_collector": "Manifold (a line to each point)",
       "hatch_blocked": "{{names}} blocks the riser hatch — keep it reachable",
-      "boiler_homeless": "No safe place for the water heater: it needs a free wall away from the door, window, bath and shower. Move the riser or the fixtures."
+      "boiler_homeless": "No safe place for the water heater: it needs a free wall away from the door, window, bath and shower. Move the riser or the fixtures.",
+      "add_fixture": "Add a fixture",
+      "catalog": "Plumbing catalog",
+      "add_named": "Add: {{name}}",
+      "remove_named": "Remove: {{name}}",
+      "catalog_empty": "No plumbing in the catalog.",
+      "placed_count": "in the room: {{count}}"
     },
     "backsplash": {
       "title": "Kitchen backsplash",
