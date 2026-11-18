@@ -31,13 +31,20 @@ def riser_spot(geometry: dict | None, service_features: list | None = None) -> t
 # roomModel walls and lib/plumbingRuns wallWalk). tests/test_plumbing.py checks both against one file.
 
 PLUMBING_NEEDS: dict[str, list[tuple[str, int, int]]] = {  # (kind, height mm, diameter mm)
-    "bathtub": [("drain", 150, 50), ("cold", 700, 20), ("hot", 700, 20)],
+    # A bath and a shower mixer on the wall at SNiP 3.05.01-85 p.3.11's heights (2026-11-16).
+    "bathtub": [("drain", 150, 50), ("cold", 800, 20), ("hot", 800, 20)],
     "sink": [("drain", 500, 50), ("cold", 550, 20), ("hot", 550, 20)],
     "toilet": [("drain", 200, 110), ("cold", 200, 20)],
-    "shower": [("drain", 0, 50), ("cold", 1050, 20), ("hot", 1050, 20)],
+    "shower": [("drain", 0, 50), ("cold", 1200, 20), ("hot", 1200, 20)],
     "bidet": [("drain", 200, 50), ("cold", 250, 20), ("hot", 250, 20)],
 }
 WATER_OFFSET_MM = 100
+# A wall mixer's two elbows are 150 mm apart (bath, shower; 2026-11-16); the rest are hoses under the fixture.
+WALL_MIXER_OFFSET_MM = 75
+
+
+def water_offset_mm(role: str) -> int:
+    return WALL_MIXER_OFFSET_MM if role in ("bathtub", "shower") else WATER_OFFSET_MM
 WALL_GAP_M = 0.04
 
 
@@ -124,7 +131,7 @@ def fixture_points(fixture: dict, role: str, depth_m: float, geometry: dict | No
     fid = fixture.get("id")
     out = []
     for kind, height, diameter in needs:
-        offset = -WATER_OFFSET_MM if kind == "cold" else WATER_OFFSET_MM if kind == "hot" else 0
+        offset = -water_offset_mm(role) if kind == "cold" else water_offset_mm(role) if kind == "hot" else 0
         out.append({"id": f"{fid}:{kind}", "kind": kind, "diameterMm": diameter, "wallId": wall["id"],
                     "positionMm": _js_round(min(length_mm, max(0.0, along + offset))), "heightMm": height, "fixtureId": fid})
     return out

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { PlacedFurniture, RoomGeometry } from '@/store/roomStore'
-import { fixturePoints, PLUMBING_NEEDS } from '../plumbingPoints'
+import { fixturePoints, PLUMBING_NEEDS, waterOffsetMm } from '../plumbingPoints'
 import { roomModel } from '../aiDesignLayout'
 import shared from './fixtures/fixturePoints.json'
 
@@ -22,7 +22,7 @@ function against(g: RoomGeometry, wallId: string, d: number, alongM = 0): Placed
 describe('what each fixture needs (spec 2026-11-08)', () => {
   it('drains and water heights as the spec tables them', () => {
     expect(PLUMBING_NEEDS.bathtub).toEqual([
-      { kind: 'drain', heightMm: 150, diameterMm: 50 }, { kind: 'cold', heightMm: 700, diameterMm: 20 }, { kind: 'hot', heightMm: 700, diameterMm: 20 },
+      { kind: 'drain', heightMm: 150, diameterMm: 50 }, { kind: 'cold', heightMm: 800, diameterMm: 20 }, { kind: 'hot', heightMm: 800, diameterMm: 20 },   // SNiP (2026-11-16)
     ])
     expect(PLUMBING_NEEDS.toilet).toEqual([{ kind: 'drain', heightMm: 200, diameterMm: 110 }, { kind: 'cold', heightMm: 200, diameterMm: 20 }])
     expect(PLUMBING_NEEDS.shower[0]).toEqual({ kind: 'drain', heightMm: 0, diameterMm: 50 })
@@ -32,14 +32,14 @@ describe('what each fixture needs (spec 2026-11-08)', () => {
 describe('fixturePoints: the points a placed fixture brings', () => {
   const g = rect(2500, 2000)
 
-  it('a bathtub against wall A gives a drain and cold and hot water on A, 200 mm apart around its centre', () => {
+  it('a bathtub against wall A gives a drain and cold and hot water on A, 150 mm apart around its centre (a wall mixer, 2026-11-16)', () => {
     const pts = fixturePoints(against(g, 'A', 0.7, 0.3), 'bathtub', { w: 1.7, d: 0.7 }, g)
     expect(pts.map((p) => p.kind)).toEqual(['drain', 'cold', 'hot'])
     expect(pts.every((p) => p.wallId === 'A' && p.fixtureId === 'f1')).toBe(true)
     expect(pts[0].heightMm).toBe(150)
     const centre = 1250 + 300 // the wall's middle (1250 mm from its start) plus 0.3 m along it
     expect(pts[0].positionMm).toBeCloseTo(centre, -1)
-    expect(pts[2].positionMm - pts[1].positionMm).toBeCloseTo(200, 0)
+    expect(pts[2].positionMm - pts[1].positionMm).toBeCloseTo(150, 0)
     expect((pts[1].positionMm + pts[2].positionMm) / 2).toBeCloseTo(centre, -1)
     expect(pts.map((p) => p.id)).toEqual(['f1:drain', 'f1:cold', 'f1:hot'])
   })
@@ -93,4 +93,14 @@ describe('the shared fixture-points cases (backend tests/test_plumbing.py reads 
       expect(fixturePoints(c.fixture as never, c.role as never, { w: 0.6, d: c.depthM }, c.geometry as never)).toEqual(c.expected)
     })
   }
+})
+
+describe('points by SNiP 3.05.01-85 (2026-11-16)', () => {
+  it('a bath mixer at 800 mm and a shower mixer at 1200 mm, their cold and hot 150 mm apart', () => {
+    const bath = PLUMBING_NEEDS.bathtub.filter((n) => n.kind !== 'drain')
+    const shower = PLUMBING_NEEDS.shower.filter((n) => n.kind !== 'drain')
+    expect(bath.map((n) => n.heightMm)).toEqual([800, 800])
+    expect(shower.map((n) => n.heightMm)).toEqual([1200, 1200])
+    expect([waterOffsetMm('bathtub'), waterOffsetMm('shower'), waterOffsetMm('sink')]).toEqual([75, 75, 100])
+  })
 })

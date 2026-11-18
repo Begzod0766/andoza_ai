@@ -11,17 +11,21 @@ const drain = (heightMm: number, diameterMm: 50 | 110 = 50): Need => ({ kind: 'd
 const water = (heightMm: number, hot = true): Need[] =>
   hot ? [{ kind: 'cold', heightMm, diameterMm: 20 }, { kind: 'hot', heightMm, diameterMm: 20 }] : [{ kind: 'cold', heightMm, diameterMm: 20 }]
 
-/** The points each fixture needs, heights from the floor to the point's centre (spec 2026-11-08). */
+/** The points each fixture needs, heights from the floor to the point's centre (spec 2026-11-08). A
+ * bath and a shower mixer stand on the wall at SNiP 3.05.01-85 p.3.11's heights, 800 and 1200 mm (2026-11-16). */
 export const PLUMBING_NEEDS: Record<FixtureRole, Need[]> = {
-  bathtub: [drain(150), ...water(700)],
+  bathtub: [drain(150), ...water(800)],
   sink: [drain(500), ...water(550)],
   toilet: [drain(200, 110), ...water(200, false)],
-  shower: [drain(0), ...water(1050)],
+  shower: [drain(0), ...water(1200)],
   bidet: [drain(200), ...water(250)],
 }
 
-/** Cold to the left of the fixture's centre and hot to the right, this far from it, mm. */
+/** Cold to the left of the fixture's centre and hot to the right, this far from it, mm: a wall mixer's
+ * two elbows are 150 mm apart (bath, shower; 2026-11-16), the rest are hoses under the fixture. */
 const WATER_OFFSET_MM = 100
+const WALL_MIXER_OFFSET_MM = 75
+export const waterOffsetMm = (role: FixtureRole) => (role === 'bathtub' || role === 'shower' ? WALL_MIXER_OFFSET_MM : WATER_OFFSET_MM)
 
 const isFixture = (role: FurnitureRole): role is FixtureRole => role in PLUMBING_NEEDS
 
@@ -55,7 +59,7 @@ export function fixturePoints(fixture: PlacedFurniture, role: FurnitureRole, siz
     kind: need.kind,
     diameterMm: need.diameterMm,
     wallId: wall.id,
-    positionMm: Math.round(clamp(along + (need.kind === 'cold' ? -WATER_OFFSET_MM : need.kind === 'hot' ? WATER_OFFSET_MM : 0))),
+    positionMm: Math.round(clamp(along + (need.kind === 'cold' ? -waterOffsetMm(role) : need.kind === 'hot' ? waterOffsetMm(role) : 0))),
     heightMm: need.heightMm,
     fixtureId: fixture.id,
   }))
