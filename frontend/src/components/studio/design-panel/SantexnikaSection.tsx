@@ -8,7 +8,7 @@ import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
-import { useFixtureClearances } from "@/features/studio/fixtureClearance";
+import { useFixtureClearances, useHatchBlockers } from "@/features/studio/fixtureClearance";
 import type { TowelRailSize } from "@/store/types";
 import { DISHWASHER_WIDTHS, isDishwasher, machineSize, withWasherPoints } from "@/lib/washer";
 import { effectiveRoomType } from "@/lib/roomType";
@@ -53,6 +53,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
   /** Machines and rails touching a piece of furniture (2026-11-15): a warning on their row. */
   const clashes = useWallItemClashes();
   const clearances = useFixtureClearances();
+  const hatchBlocked = useHatchBlockers();
   const clashNote = (id: string) => clashes[id] && (
     <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
   );
@@ -265,6 +266,12 @@ export function SantexnikaSection({ part, bathroom = false }: {
             {t("studio.santexnika.clearance", { name: fixtureDisplayName(c.name, t), free: c.freeCm, need: c.needCm })}
           </p>
         ))}
+        {/* The riser box's hatch must stay reachable (2026-11-18): a warning only. */}
+        {hatchBlocked.length > 0 && (
+          <p role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.hatch_blocked", { names: hatchBlocked.map((n) => fixtureDisplayName(n, t)).join(", ") })}
+          </p>
+        )}
       </div>
 
       {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}

@@ -1,8 +1,8 @@
 /** The collector drawn at the riser (2026-11-18): where its box stands. */
 import { describe, expect, it } from 'vitest'
 import type { RoomGeometry } from '@/store/types'
-import { wallWalk } from '@/lib/plumbingRuns'
-import { collectorPose } from '../PlumbingPoints3D'
+import { riserPose, wallWalk } from '@/lib/plumbingRuns'
+import { collectorFeed, collectorPose } from '../PlumbingPoints3D'
 
 const geometry = { walls: [
   { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
@@ -23,5 +23,14 @@ describe('collectorPose', () => {
     const p = collectorPose(geometry, { wallId: 'A', positionMm: 0 })!
     expect(p.x).toBeCloseTo(w.startX + w.dirX * 0.2 + w.nx * 0.06, 6)
     expect(p.z).toBeCloseTo(w.startZ + w.dirZ * 0.2 + w.nz * 0.06, 6)
+  })
+
+  it('a feed pipe runs from the riser into the box, at the lines\' height (2026-11-18)', () => {
+    const riser = { wallId: 'A', positionMm: 0 }
+    const [[x1, y1, z1], [x2, y2, z2]] = collectorFeed(geometry, riser)!
+    const r = riserPose(riser, geometry)!, b = collectorPose(geometry, riser)!
+    expect([x1, z1]).toEqual([r.x, r.z])
+    expect([x2, z2]).toEqual([b.x, b.z])
+    expect([y1, y2]).toEqual([0.2, 0.2])
   })
 })

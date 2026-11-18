@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PlacedFurniture, RoomGeometry } from '@/store/types'
 import type { CatalogFurniture } from '@/lib/api'
-import { BOILER_H_MM, boilerSpot, frameBoxSpots, isWallHung, riserBoxSpot, RISER_BOX_W_MM, wetSpans } from '@/lib/bathroomBoxes'
+import { BOILER_H_MM, boilerSpot, frameBoxSpots, hatchBlockers, isWallHung, riserBoxSpot, RISER_BOX_W_MM, wallHungShiftM, wetSpans } from '@/lib/bathroomBoxes'
 import { fixturePoints } from '@/lib/plumbingPoints'
 import { wallWalk } from '@/lib/plumbingRuns'
 
@@ -101,5 +101,31 @@ describe('frameBoxSpots: the box a wall-hung toilet hangs on', () => {
   it('wall-hung is read as the estimate reads it', () => {
     for (const n of ['Osma unitaz', 'Унитаз подвесной', 'Wall-hung WC', 'Installyatsiya bilan', 'Инсталляция Grohe']) expect(isWallHung(n)).toBe(true)
     expect(isWallHung('Unitaz kompakt')).toBe(false)
+  })
+})
+
+describe('wallHungShiftM (2026-11-18): a wall-hung toilet hangs on its box, so it stands that much off the wall', () => {
+  it('20 cm for a wall-hung toilet, nothing for anything else', () => {
+    expect(wallHungShiftM('Osma unitaz', 'toilet')).toBeCloseTo(0.2, 6)
+    expect(wallHungShiftM('Unitaz kompakt', 'toilet')).toBe(0)
+    expect(wallHungShiftM('Osma tumba', 'shelf')).toBe(0)
+  })
+})
+
+describe('hatchBlockers (2026-11-18): what stands in front of the riser box hatch', () => {
+  // The riser in the A–B corner end of A: the box at A 2300, its front 25 cm off A (z = −0.75), the hatch on it.
+  const riser = { wallId: 'A', positionMm: 2500 }
+  it('a sink in front of the hatch is named', () => {
+    // A 1.25 − 0.2 = 1.05 along x; the sink 40 cm off the box front.
+    const sink = { name: 'Rakovina', rect: { x: 1.05, z: -0.75 + 0.2 + 0.2, w: 0.5, d: 0.4, rotation: Math.PI } }
+    expect(hatchBlockers(geometry, riser, [sink])).toEqual(['Rakovina'])
+  })
+  it('one beside it or far enough is not', () => {
+    const far = { name: 'Shkaf', rect: { x: 1.05, z: 0.5, w: 0.5, d: 0.4, rotation: 0 } }
+    const beside = { name: 'Unitaz', rect: { x: 0.3, z: -0.6, w: 0.4, d: 0.6, rotation: 0 } }
+    expect(hatchBlockers(geometry, riser, [far, beside])).toEqual([])
+  })
+  it('a rug lies under it: not counted', () => {
+    expect(hatchBlockers(geometry, riser, [{ name: 'Gilam', role: 'rug', rect: { x: 1.05, z: -0.4, w: 1, d: 1, rotation: 0 } }])).toEqual([])
   })
 })

@@ -1090,7 +1090,8 @@
       "clearance": "{{name}} oldida {{free}} sm bo'sh joy bor, kamida {{need}} sm kerak",
       "water_scheme": "Suv tarmog'i",
       "water_scheme_tee": "Uchlik (ketma-ket)",
-      "water_scheme_collector": "Kollektor (har nuqtaga alohida)"
+      "water_scheme_collector": "Kollektor (har nuqtaga alohida)",
+      "hatch_blocked": "{{names}} revizion lyukni to'sib turibdi — lyukka yo'l qoldiring"
     },
     "backsplash": {
       "title": "Oshxona fartugi",

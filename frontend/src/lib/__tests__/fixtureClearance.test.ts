@@ -66,4 +66,19 @@ describe('fixtureClearances (2026-11-18): the free floor in front of a toilet, b
   it('a rug lies on the floor: it does not take the free floor', () => {
     expect(fixtureClearances([toilet, { id: 'g', name: 'Gilam', role: 'rug', rect: { x: 0, z: 0, w: 1, d: 1, rotation: 0 } }], geometry)).toEqual([])
   })
+
+  it('a wall-hung toilet stands 20 cm off the wall on its box: that much less floor in front (2026-11-18)', () => {
+    const hung: ClearancePiece = { ...toilet, name: 'Osma unitaz' }
+    expect(fixtureClearances([hung, box('Shkaf', 0, 0.1, 1.0, 0.4)], geometry)[0]?.freeCm).toBe(5)
+  })
+
+  it('a door swinging in takes the floor it sweeps (2026-11-18)', () => {
+    // A 70 cm door in the middle of C (z = 1), opening into the room: its leaf sweeps to z = 0.3.
+    const withDoor = { walls: geometry.walls.map((w) => (w.id === 'C' ? { ...w, elements: [{ id: 'd', type: 'eshik', position: 900, width: 700, height: 2000 }] } : w)) } as unknown as RoomGeometry
+    const got = fixtureClearances([toilet], withDoor)[0]
+    expect(got?.needCm).toBe(80)
+    // The leaf's arc over the toilet's width comes to about 0.32 (the toilet's front at −0.35).
+    expect(got!.freeCm).toBeGreaterThanOrEqual(64)
+    expect(got!.freeCm).toBeLessThanOrEqual(69)
+  })
 })

@@ -45,6 +45,16 @@ import { nanoid } from "nanoid";
 import * as THREE from "three";
 import { toDiffuseOnly } from "@/lib/modelMaterials";
 import { ceilingFitScale } from "@/lib/modelSize"
+import { inferRole } from "@/lib/furnitureRole"
+import { wallHungShiftM } from "@/lib/bathroomBoxes"
+
+/** How far forward a placed piece is drawn off its place, metres (2026-11-18): a wall-hung toilet hangs on
+ * the front of its box (BathroomBoxes3D), so it is drawn that far off the wall; its saved place is unchanged. */
+function useDrawnShift(item: PlacedFurniture): number {
+  const row = useRoomStore((s) => s.catalogFurniture.find((c) => c.id === item.furniture_id))
+  const name = row?.name_uz ?? item.name ?? item.furniture_id
+  return wallHungShiftM(name, inferRole(row?.category ?? null, name))
+}
 import { turnedSize, yawRadians, type ModelYaw } from "@/lib/modelYaw";
 import { furnitureRoomBounds, measuredFootprints } from "./furnitureNudge";
 
@@ -182,6 +192,7 @@ function applyColorOverrides(obj: THREE.Object3D, overrides: Record<string, stri
 
 export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   const entry = useFurnitureEntry(item.furniture_id)
+  const shift = useDrawnShift(item)
   const modelPath = entry?.modelPath ?? ''
   const { scene } = useGLTF(modelPath || '/models/table_boconcept_hauge.glb')
   // Only user-imported models are worth reporting on — catalog GLBs are known good
@@ -234,7 +245,8 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
       rotation={[0, item.rotation, 0]}
       scale={s}
     >
-      <group rotation={[0, yawRadians(entry.modelYaw), 0]}>
+      {/* Drawn off its place by `shift` (a wall-hung toilet on its box); the yaw turns it about its own middle. */}
+      <group position={[0, 0, shift / s]} rotation={[0, yawRadians(entry.modelYaw), 0]}>
         <primitive object={cloned} position={rootAt} />
       </group>
     </group>
@@ -307,6 +319,7 @@ export function DraggableFurnitureItem({
 }) {
   const { t } = useTranslation()
   const entry = useFurnitureEntry(item.furniture_id)
+  const shift = useDrawnShift(item)
   const modelPath = entry?.modelPath ?? ''
   const { scene } = useGLTF(modelPath || '/models/table_boconcept_hauge.glb')
   // Only user-imported models are worth reporting on — catalog GLBs are known good
@@ -540,7 +553,7 @@ export function DraggableFurnitureItem({
   return (
     <group ref={groupRef} position={[item.x / 1000, 0, item.y / 1000]}>
       <group ref={primitiveRef} position={[0, yOff, 0]} rotation={[0, item.rotation, 0]} scale={s}>
-        <group rotation={[0, yawRadians(modelYaw), 0]}>
+        <group position={[0, 0, shift / s]} rotation={[0, yawRadians(modelYaw), 0]}>
           <primitive
             object={cloned}
             position={rootAt}
@@ -607,7 +620,7 @@ export function DraggableFurnitureItem({
           same frame loop while a live scale drag is in flight. */}
       {isSelected && (
         <group ref={selRef} rotation={[0, item.rotation, 0]}>
-          <SelectionOutline object={cloned} scale={s} position={[0, yOff, 0]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
+          <SelectionOutline object={cloned} scale={s} position={[0, yOff, shift]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
         </group>
       )}
       {toolMode === 'move' && (
