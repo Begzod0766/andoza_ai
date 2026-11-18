@@ -1087,7 +1087,10 @@
       "screen_none": "Yo'q",
       "screen_glass": "Shisha",
       "screen_curtain": "Parda",
-      "clearance": "{{name}} oldida {{free}} sm bo'sh joy bor, kamida {{need}} sm kerak"
+      "clearance": "{{name}} oldida {{free}} sm bo'sh joy bor, kamida {{need}} sm kerak",
+      "water_scheme": "Suv tarmog'i",
+      "water_scheme_tee": "Uchlik (ketma-ket)",
+      "water_scheme_collector": "Kollektor (har nuqtaga alohida)"
     },
     "backsplash": {
       "title": "Oshxona fartugi",
@@ -1318,7 +1321,10 @@
       "bath_curtain": "Parda va tayoqcha (vanna, dush)",
       "work_bath_glass": "Ish: vanna shtorkasini o'rnatish",
       "work_shower_glass": "Ish: dush shishasini o'rnatish",
-      "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish"
+      "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish",
+      "collector_cold": "Kollektor (sovuq suv)",
+      "collector_hot": "Kollektor (issiq suv)",
+      "work_collector": "Ish: kollektorni yig'ish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2390,7 +2396,8 @@
         "termoregulyator": "Issiq pol termoregulyatori",
         "shtorka_vanna": "Vanna shtorkasi (shisha)",
         "dush_shisha": "Dush to'sig'i (shisha)",
-        "parda_hammom": "Vanna/dush pardasi va tayoqcha"
+        "parda_hammom": "Vanna/dush pardasi va tayoqcha",
+        "kollektor": "Suv kollektori"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

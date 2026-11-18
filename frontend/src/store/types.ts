@@ -265,6 +265,8 @@ export interface DesignState {
   floorDrain?: boolean
   /** The water inlet unit (meter, filter, reducer, check valve) in the estimate: off unless exactly true (2026-11-14). */
   waterInlet?: boolean
+  /** The water layout (2026-11-18): 'collector' = a line from a collector at the riser to each point; else tees. */
+  waterScheme?: 'collector'
   /** A bath's and a shower's screen, drawn and priced (2026-11-18): 'glass' or 'curtain'; anything else = none. */
   bathScreen?: 'glass' | 'curtain'
   showerScreen?: 'glass' | 'curtain'

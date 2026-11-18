@@ -14,6 +14,8 @@ import { resolveElementPositions } from '@/lib/wallPositions'
 export const WATER_TRUNK_MM = 200
 /** The hot trunk is drawn above the cold one so they do not lie on one another; lengths ignore it. */
 const HOT_DRAWN_MM = 250
+/** With a collector, each further line of a kind is drawn this much above the one before (2026-11-18). */
+export const COLLECTOR_STEP_MM = 30
 const EPS = 1e-6
 
 export type SchemeKind = 'drain' | 'cold' | 'hot'
@@ -28,6 +30,8 @@ export interface SchemeInput {
   doorsMm: number[]
   riserMm: number
   points: SchemePoint[]
+  /** A collector at the riser with a line to each water point, in place of a trunk with tees (2026-11-18). */
+  collector?: boolean
 }
 
 export interface PipeLength { trunkMm: number; branchMm: number }
@@ -46,6 +50,8 @@ export interface PipeScheme {
   lines: Array<{ kind: SchemeKind; diameterMm: number; fromMm: number; toMm: number; heightMm: number }>
   /** One per point, from its trunk's drawn height to the point's. */
   branches: Array<{ pointId: string; kind: SchemeKind; diameterMm: number; sMm: number; fromHeightMm: number; toHeightMm: number }>
+  /** How many outlets each collector has (0: none, the tee scheme). */
+  collectors: { cold: number; hot: number }
 }
 
 const emptyScheme = (): PipeScheme => ({
@@ -57,6 +63,7 @@ const emptyScheme = (): PipeScheme => ({
   },
   lines: [],
   branches: [],
+  collectors: { cold: 0, hot: 0 },
 })
 
 export const EMPTY_SCHEME: PipeScheme = emptyScheme()
@@ -133,24 +140,40 @@ export function buildScheme(input: SchemeInput): PipeScheme {
   if (!(perimeter > 0) || input.points.length === 0) return out
   const height = (p: SchemePoint) => Math.max(0, p.heightMm)
 
+  // The height each water point's branch rises from: its trunk's, or with a collector its own line's.
+  const fromHeight = new Map<string, number>()
   for (const kind of ['cold', 'hot'] as const) {
     const points = input.points.filter((p) => p.kind === kind)
     if (points.length === 0) continue
+    const base = kind === 'hot' ? HOT_DRAWN_MM : WATER_TRUNK_MM
+    out.pipes.water_20.branchMm += Math.round(points.reduce((sum, p) => sum + Math.abs(height(p) - WATER_TRUNK_MM), 0))
+    out.why.outlet_20.points += points.length
+    out.why.valve_20.lines += 1
+    if (input.collector) {
+      // A line of its own from the riser to each point, the door-free way: a trunk of one point.
+      out.collectors[kind] = points.length
+      points.forEach((p, i) => {
+        const line = trunkOf(input, perimeter, [p], input.doorsMm)
+        const heightMm = base + i * COLLECTOR_STEP_MM
+        fromHeight.set(p.id, heightMm)
+        out.pipes.water_20.trunkMm += Math.round(line.lengthMm)
+        out.why.elbow_20.corners += line.corners.length
+        if (line.lengthMm > EPS) {
+          out.why.elbow_20.ends += 1
+          out.lines.push({ kind, diameterMm: 20, fromMm: Math.round(line.startMm), toMm: Math.round(line.startMm + line.lengthMm), heightMm })
+        }
+      })
+      continue
+    }
     const trunk = trunkOf(input, perimeter, points, input.doorsMm)
     const ends = (trunk.left.length > 0 ? 1 : 0) + (trunk.right.length > 0 ? 1 : 0)
     out.pipes.water_20.trunkMm += Math.round(trunk.lengthMm)
-    out.pipes.water_20.branchMm += Math.round(points.reduce((sum, p) => sum + Math.abs(height(p) - WATER_TRUNK_MM), 0))
     out.why.tee_20.branches += points.length - ends
     out.why.tee_20.riser += ends === 2 ? 1 : 0
     out.why.elbow_20.corners += trunk.corners.length
     out.why.elbow_20.ends += ends
-    out.why.outlet_20.points += points.length
-    out.why.valve_20.lines += 1
     if (trunk.lengthMm > EPS) {
-      out.lines.push({
-        kind, diameterMm: 20, fromMm: Math.round(trunk.startMm), toMm: Math.round(trunk.startMm + trunk.lengthMm),
-        heightMm: kind === 'hot' ? HOT_DRAWN_MM : WATER_TRUNK_MM,
-      })
+      out.lines.push({ kind, diameterMm: 20, fromMm: Math.round(trunk.startMm), toMm: Math.round(trunk.startMm + trunk.lengthMm), heightMm: base })
     }
   }
 
@@ -203,7 +226,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
   }
   out.branches = input.points.map((p) => ({
     pointId: p.id, kind: p.kind, diameterMm: p.diameterMm, sMm: p.sMm,
-    fromHeightMm: p.kind === 'drain' ? 0 : p.kind === 'hot' ? HOT_DRAWN_MM : WATER_TRUNK_MM, toHeightMm: height(p),
+    fromHeightMm: p.kind === 'drain' ? 0 : fromHeight.get(p.id) ?? (p.kind === 'hot' ? HOT_DRAWN_MM : WATER_TRUNK_MM), toHeightMm: height(p),
   }))
   return out
 }
@@ -212,7 +235,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
  * The studio's room as the rule wants it. Everything is rounded to whole mm here, so the backend,
  * which reads the same room in metres, is handed the very same numbers.
  */
-export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[]): SchemeInput {
+export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[], collector = false): SchemeInput {
   const walk = wallWalk(geometry)
   const own = roomModel(geometry).walls
   const wallsMm = walk.map((w) => Math.round(w.lengthM * 1000))
@@ -251,12 +274,13 @@ export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; pos
       sMm, heightMm: Math.max(0, Math.round(p.heightMm)),
     })
   }
-  return { wallsMm, doorsMm, riserMm: place(riser.wallId, riser.positionMm) ?? 0, points: out }
+  const input: SchemeInput = { wallsMm, doorsMm, riserMm: place(riser.wallId, riser.positionMm) ?? 0, points: out }
+  return collector ? { ...input, collector: true } : input
 }
 
 /** The scheme of a studio room. */
-export function pipeScheme(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[]): PipeScheme {
-  return buildScheme(schemeInput(geometry, riser, points))
+export function pipeScheme(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[], collector = false): PipeScheme {
+  return buildScheme(schemeInput(geometry, riser, points, collector))
 }
 
 // ─── Drawing it ──────────────────────────────────────────────────────────────

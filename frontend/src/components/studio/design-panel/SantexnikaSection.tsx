@@ -38,6 +38,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const ventFan = useRoomStore((s) => s.designState.ventFan);
   const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
   const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
+  const collector = useRoomStore((s) => s.designState.waterScheme === "collector");
   const waterHeater = useRoomStore((s) => s.designState.waterHeater);
   const floorDrain = useRoomStore((s) => s.designState.floorDrain);
   const waterInlet = useRoomStore((s) => s.designState.waterInlet);
@@ -105,7 +106,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
   // A washing machine's two likewise (spec 2026-11-13).
   const points = withWasherPoints(withRailPoints(plumbing, towelRails, geometry), washers, geometry);
   const riser = roomRiser(geometry, plumbingRiser);
-  const sum = plumbingSummary(geometry, points, riser);
+  const sum = plumbingSummary(geometry, points, riser, collector);
   /** Sets the riser by hand, kept on its wall (roomRiser clamps it). */
   const placeRiser = (wallId: string, positionMm: number) =>
     setPlumbingRiser(roomRiser(geometry, { wallId, positionMm }));
@@ -222,6 +223,15 @@ export function SantexnikaSection({ part, bathroom = false }: {
       <label className="flex items-center gap-2 text-[12px] text-ink">
         <input type="checkbox" checked={plumbingDemolition === true} onChange={(e) => setDesignState({ plumbingDemolition: e.target.checked })} />
         {t("studio.santexnika.demolition")}
+      </label>
+      {/* Tees until a collector is picked (2026-11-18): the estimate reads only an exact "collector". */}
+      <label className="flex items-center justify-between gap-2 text-[12px] text-ink">
+        {t("studio.santexnika.water_scheme")}
+        <select aria-label={t("studio.santexnika.water_scheme")} value={collector ? "collector" : ""} className={`${field} w-auto`}
+          onChange={(e) => setDesignState({ waterScheme: e.target.value === "collector" ? "collector" : undefined })}>
+          <option value="">{t("studio.santexnika.water_scheme_tee")}</option>
+          <option value="collector">{t("studio.santexnika.water_scheme_collector")}</option>
+        </select>
       </label>
       <label className="flex items-center gap-2 text-[12px] text-ink">
         <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />

@@ -2020,7 +2020,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     if points:
         riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
         # One scheme for the room (spec 2026-11-11): a trunk per pipe kind and a branch to each point.
-        scheme = pipe_scheme(geometry, riser, points)
+        collector = _design_state(room).get("waterScheme") == "collector"
+        scheme = pipe_scheme(geometry, riser, points, collector)
         for kind in ("drain_50", "drain_110", "water_20"):
             pipe = scheme["pipes"][kind]
             mm = pipe["trunkMm"] + pipe["branchMm"]
@@ -2048,6 +2049,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
                 price_uzs=int(norms["fitting_uzs"][key]), category="santexnika",
                 is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
             ))
+        lines.extend(_collector_lines(scheme["collectors"], catalog, norms))
         if _design_state(room).get("pipesInWall") is not False:
             lines.extend(_chase_lines(scheme["pipes"], norms))
         # The plumber connects the points the scheme can read; one with no height or place is not priced.
@@ -2292,6 +2294,34 @@ def _heated_floor_lines(room: "Room", catalog: dict, floor_already_done: bool = 
         _make_line(label="Ish: termoregulyatorni o'rnatish", formula=f"1 dona × {fmt(work_thermo)} so'm", qty=1, unit="dona",
                    price_uzs=work_thermo, category=cat),
     ]
+
+
+def _collector_lines(collectors: dict, catalog: dict, norms: dict) -> list[ComputedLine]:
+    """The collector scheme's collectors (2026-11-18): one per water kind, its body and an outlet (with its
+    valve) per point it feeds, or a shop's tagged collector; and the work of fitting each."""
+    n = norms["collector"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    out: list[ComputedLine] = []
+    shop = catalog.get("kollektor")
+    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    for kind, word in (("cold", "sovuq"), ("hot", "issiq")):
+        outlets = int(collectors.get(kind) or 0)
+        if not outlets:
+            continue
+        label = f"Kollektor ({word} suv)"
+        if priced:
+            out.append(_make_line(label=f"{label}: {shop.name_uz}", formula=f"1 dona × {fmt(int(shop.price_uzs))} so'm ({outlets} chiqish kerak)",
+                                  qty=1, unit="dona", price_uzs=int(shop.price_uzs), category="santexnika", **_shop(shop)))
+            continue
+        base, each = int(n["base_uzs"]), int(n["outlet_uzs"])
+        price = base + outlets * each
+        out.append(_make_line(label=label, formula=f"{fmt(base)} so'm + {outlets} chiqish × {fmt(each)} so'm = {fmt(price)} so'm",
+                              qty=1, unit="dona", price_uzs=price, category="santexnika", is_approximate=True, warning=PLUMBING_NORM_WARNING))
+    if out:
+        work = int(n["work_uzs"])
+        out.append(_make_line(label="Ish: kollektorni yig'ish", formula=f"{len(out)} dona × {fmt(work)} so'm", qty=len(out), unit="dona",
+                              price_uzs=work, category="santexnika"))
+    return out
 
 
 def _screen_lines(ds: dict, baths: int, showers: int, catalog: dict) -> list[ComputedLine]:

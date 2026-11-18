@@ -9,6 +9,19 @@ import { roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 import { withWasherPoints } from "@/lib/washer";
+import type { RiserAt } from "@/lib/plumbingRuns";
+
+/** The collector's box, metres (2026-11-18): 40 wide, 25 tall, 8 deep, its middle 30 cm up, 6 cm off the wall. */
+const COLLECTOR = { w: 0.4, h: 0.25, d: 0.08, y: 0.3, out: 0.06 };
+
+/** Where the collector stands: on the riser's wall at the riser, its whole width on the wall; facing the room (local +Z). */
+export function collectorPose(geometry: RoomGeometry, riser: RiserAt): { x: number; y: number; z: number; rotY: number } | null {
+  const w = wallWalk(geometry).find((x) => x.id === riser.wallId);
+  if (!w) return null;
+  const half = Math.min(COLLECTOR.w / 2, w.lengthM / 2);
+  const t = Math.min(w.lengthM - half, Math.max(half, riser.positionMm / 1000));
+  return { x: w.startX + w.dirX * t + w.nx * COLLECTOR.out, y: COLLECTOR.y, z: w.startZ + w.dirZ * t + w.nz * COLLECTOR.out, rotY: Math.atan2(w.nx, w.nz) };
+}
 
 const RADIUS = 0.04;
 const OFF_WALL = 0.01;
@@ -44,6 +57,7 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   const plumbing = useMemo(() => withWasherPoints(withRailPoints(saved, towelRails, geometry), washers, geometry), [saved, towelRails, washers, geometry]);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
   const manualRiser = useRoomStore((s) => s.plumbingRiser);
+  const collector = useRoomStore((s) => s.designState.waterScheme === "collector");
   const movePlumbing = useRoomStore((s) => s.movePlumbing);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -88,9 +102,11 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   }, [controlsRef]);
 
   const pipes = useMemo(
-    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing), hiddenWalls) : []),
-    [showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser],
+    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing, collector), hiddenWalls) : []),
+    [showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser, collector],
   );
+  const riserAt = roomRiser(geometry, manualRiser);
+  const box = showPipeRuns && collector && !hiddenWalls?.has(riserAt.wallId) ? collectorPose(geometry, riserAt) : null;
   if (plumbing.length === 0) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
@@ -118,6 +134,13 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
       {pipes.map((l) => (
         <Line key={l.key} points={drawnPoints(l)} color={COLOUR[l.kind]} lineWidth={l.diameterMm === 110 ? 4 : 2} />
       ))}
+      {/* The collector the lines start from (2026-11-18). */}
+      {box && (
+        <mesh position={[box.x, box.y, box.z]} rotation={[0, box.rotY, 0]}>
+          <boxGeometry args={[COLLECTOR.w, COLLECTOR.h, COLLECTOR.d]} />
+          <meshStandardMaterial color="#CBD5E1" metalness={0.4} roughness={0.4} />
+        </mesh>
+      )}
     </group>
   );
 }

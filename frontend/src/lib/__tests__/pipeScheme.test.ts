@@ -248,6 +248,42 @@ describe('schemeInput', () => {
   })
 })
 
+// ─── The collector scheme (2026-11-18): a line from the riser to each water point ────
+
+describe('buildScheme: collector', () => {
+  it('each water point gets its own line from the riser, the door-free way; no tees; a collector per kind', () => {
+    // c1 at 1000: the way from the riser (7000) back through 4500 and 2500 is 6000 (the other way holds the door).
+    // c2 at 3000: back through 4500, 4000. Lines 10000; corners 2 + 1, an end each: elbows 5.
+    const s = scheme([cold('c1', 1000, 550), cold('c2', 3000, 1050)], { collector: true })
+    expect(s.pipes.water_20).toEqual({ trunkMm: 10000, branchMm: 1200 })
+    expect(s.fittings).toMatchObject({ tee_20: 0, elbow_20: 5, outlet_20: 2, valve_20: 1 })
+    expect(s.why.elbow_20).toEqual({ corners: 3, ends: 2 })
+    expect(s.why.tee_20).toEqual({ branches: 0, riser: 0 })
+    expect(s.collectors).toEqual({ cold: 2, hot: 0 })
+    // Each line drawn 30 mm above the one before, so they lie side by side; each branch rises from its own.
+    expect(s.lines).toEqual([
+      { kind: 'cold', diameterMm: 20, fromMm: 1000, toMm: 7000, heightMm: 200 },
+      { kind: 'cold', diameterMm: 20, fromMm: 3000, toMm: 7000, heightMm: 230 },
+    ])
+    expect(s.branches).toEqual([
+      { pointId: 'c1', kind: 'cold', diameterMm: 20, sMm: 1000, fromHeightMm: 200, toHeightMm: 550 },
+      { pointId: 'c2', kind: 'cold', diameterMm: 20, sMm: 3000, fromHeightMm: 230, toHeightMm: 1050 },
+    ])
+  })
+  it('hot gets its own collector and lines, drawn above the cold ones; drains are as with tees', () => {
+    const pts = [cold('c1', 1000, 550), hot('h1', 1150, 550), drain('d1', 1000, 150)]
+    const s = scheme(pts, { collector: true })
+    const tees = scheme(pts)
+    expect(s.collectors).toEqual({ cold: 1, hot: 1 })
+    expect(s.lines.filter((l) => l.kind === 'hot')).toEqual([{ kind: 'hot', diameterMm: 20, fromMm: 1150, toMm: 7000, heightMm: 250 }])
+    expect(s.pipes.drain_50).toEqual(tees.pipes.drain_50)
+    expect(s.lines.filter((l) => l.kind === 'drain')).toEqual(tees.lines.filter((l) => l.kind === 'drain'))
+  })
+  it('the tee scheme has no collectors', () => {
+    expect(scheme([cold('c1', 1000, 550)]).collectors).toEqual({ cold: 0, hot: 0 })
+  })
+})
+
 // ─── One rule with the estimate (backend app/services/pipe_scheme.py reads the same file) ────
 
 import shared from './fixtures/pipeScheme.json'
@@ -256,8 +292,9 @@ describe('the shared fixture', () => {
   it.each(shared.cases.map((c) => [c.name, c] as const))('%s', (_name, c) => {
     const g = c.geometry as unknown as RoomGeometry
     const pts = c.points as unknown as PlumbingPoint[]
-    expect(schemeInput(g, c.riser, pts)).toEqual(c.input)
-    expect(pipeScheme(g, c.riser, pts)).toEqual(c.expected)
+    const collector = (c as { collector?: boolean }).collector ?? false
+    expect(schemeInput(g, c.riser, pts, collector)).toEqual(c.input)
+    expect(pipeScheme(g, c.riser, pts, collector)).toEqual(c.expected)
   })
 })
 

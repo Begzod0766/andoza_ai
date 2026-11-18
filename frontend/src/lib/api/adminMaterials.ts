@@ -198,6 +198,7 @@ export const SMETA_KEYS: SmetaKeyOption[] = [
   { id: "shtorka_vanna", labelKey: "dokon.admin.smeta_key.shtorka_vanna", packUnit: null, unit: "dona" },
   { id: "dush_shisha", labelKey: "dokon.admin.smeta_key.dush_shisha", packUnit: null, unit: "dona" },
   { id: "parda_hammom", labelKey: "dokon.admin.smeta_key.parda_hammom", packUnit: null, unit: "dona" },
+  { id: "kollektor", labelKey: "dokon.admin.smeta_key.kollektor", packUnit: null, unit: "dona" },
   // A floor drain (2026-11-13): sold by the piece
   { id: "trap_pol", labelKey: "dokon.admin.smeta_key.trap_pol", packUnit: null, unit: "dona" },
   // The water inlet unit (2026-11-14): sold by the piece
