@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PlacedFurniture, RoomGeometry } from '@/store/types'
 import type { CatalogFurniture } from '@/lib/api'
-import { BOILER_H_MM, boilerSpot, frameBoxSpots, hatchBlockers, isWallHung, riserBoxSpot, RISER_BOX_W_MM, wallHungShiftM, wetSpans } from '@/lib/bathroomBoxes'
+import { BOILER_H_MM, boilerSpot, railSpans, frameBoxSpots, hatchBlockers, isWallHung, riserBoxSpot, RISER_BOX_W_MM, wallHungShiftM, wetSpans } from '@/lib/bathroomBoxes'
 import { fixturePoints } from '@/lib/plumbingPoints'
 import { wallWalk } from '@/lib/plumbingRuns'
 
@@ -50,12 +50,17 @@ describe('boilerSpot: an 80 l water heater on the riser wall, beside the box', (
     expect(boilerSpot(g, { wallId: 'A', positionMm: 0 }, 2700)).toEqual({ wallId: before.id, positionMm: Math.round(before.lengthM * 1000) - 625, bottomMm: 1200 })
     expect(boilerSpot(g, { wallId: 'A', positionMm: 900 }, 2700)).toEqual({ wallId: after.id, positionMm: 625, bottomMm: 1200 })
   })
-  it('no room anywhere by the riser: none', () => {
+  it('no room by the riser: the nearest free wall elsewhere, by the walk (prod check 2026-11-18)', () => {
     const tiny = { walls: [
       { id: 'A', length: 900, elements: [] }, { id: 'B', length: 900, elements: [] },
       { id: 'C', length: 900, elements: [] }, { id: 'D', length: 900, elements: [] },
     ] } as unknown as RoomGeometry
-    expect(boilerSpot(tiny, { wallId: 'A', positionMm: 450 }, 2700)).toBeNull()
+    // The box takes the middle of A; B from its start is 450 + 225 = 675 mm round the walls (D's end the same, B comes first).
+    expect(boilerSpot(tiny, { wallId: 'A', positionMm: 450 }, 2700)).toEqual({ wallId: 'B', positionMm: 225, bottomMm: 1200 })
+  })
+  it('every wall taken: none', () => {
+    const all = ['A', 'B', 'C', 'D'].map((id) => ({ wallId: id, from: 0, to: 3000 }))
+    expect(boilerSpot(geometry, { wallId: 'B', positionMm: 1000 }, 2700, all)).toBeNull()
   })
   it('never over a bath or a shower: else the other side or the next wall (mobile check 2026-11-18)', () => {
     // A riser in B's end corner: the box at 1800, the heater towards the middle at 1225 (1000..1450).
@@ -65,8 +70,9 @@ describe('boilerSpot: an 80 l water heater on the riser wall, beside the box', (
     const after = wallWalk(geometry)[(wallWalk(geometry).findIndex((w) => w.id === 'B') + 1) % 4]
     expect(boilerSpot(geometry, { wallId: 'B', positionMm: 2000 }, 2700, [{ wallId: 'B', from: 1000, to: 1700 }]))
       .toEqual({ wallId: after.id, positionMm: 625, bottomMm: 1200 })
-    // A shower in that corner of the next wall too: none.
-    expect(boilerSpot(geometry, { wallId: 'B', positionMm: 2000 }, 2700, [{ wallId: 'B', from: 1000, to: 1700 }, { wallId: after.id, from: 0, to: 900 }])).toBeNull()
+    // A shower in that corner of the next wall too: the nearest free stretch, B before the bath (its end at 1000).
+    expect(boilerSpot(geometry, { wallId: 'B', positionMm: 2000 }, 2700, [{ wallId: 'B', from: 1000, to: 1700 }, { wallId: after.id, from: 0, to: 900 }]))
+      .toEqual({ wallId: 'B', positionMm: 775, bottomMm: 1200 })
   })
   it('under a low ceiling it hangs lower, 15 cm under it', () => {
     expect(boilerSpot(geometry, { wallId: 'B', positionMm: 0 }, 2000)?.bottomMm).toBe(2000 - 150 - BOILER_H_MM)
@@ -127,5 +133,11 @@ describe('hatchBlockers (2026-11-18): what stands in front of the riser box hatc
   })
   it('a rug lies under it: not counted', () => {
     expect(hatchBlockers(geometry, riser, [{ name: 'Gilam', role: 'rug', rect: { x: 1.05, z: -0.4, w: 1, d: 1, rotation: 0 } }])).toEqual([])
+  })
+})
+
+describe('railSpans (2026-11-18): a towel rail takes its width of the wall, and 5 cm each side', () => {
+  it('centred on its place', () => {
+    expect(railSpans([{ id: 'r', wallId: 'A', positionMm: 1000, heightMm: 1100, size: '500x800' }])).toEqual([{ wallId: 'A', from: 700, to: 1300 }])
   })
 })

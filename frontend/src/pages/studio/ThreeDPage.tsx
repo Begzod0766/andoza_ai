@@ -433,8 +433,9 @@ export default function ThreeDPage() {
     return () => mq.removeEventListener?.('change', on);
   }, []);
   useEffect(() => {
-    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked));
-  }, [activePhase, showPanel, panelDocked]);
+    // Off at a camera station or the 360, which every render and saved frame is taken from (2026-11-18).
+    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked, panorama || cameraStation != null));
+  }, [activePhase, showPanel, panelDocked, panorama, cameraStation]);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 

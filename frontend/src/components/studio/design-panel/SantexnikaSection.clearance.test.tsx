@@ -43,4 +43,17 @@ describe('SantexnikaSection: free floor in front of a fixture', () => {
     render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(screen.getByRole('alert')).toHaveTextContent("Rakovina revizion lyukni to'sib turibdi — lyukka yo'l qoldiring")
   })
+
+  it('a water heater with no safe wall anywhere: says so (prod check 2026-11-18)', () => {
+    // A 40 cm square room: no wall takes a 45 cm heater.
+    const tiny = { walls: ['A', 'B', 'C', 'D'].map((id) => ({ id, length: 400, elements: [] })) } as unknown as RoomGeometry
+    useRoomStore.setState((st) => ({ geometry: tiny, designState: { ...st.designState, waterHeater: true } }))
+    render(<SantexnikaSection part="jihozlar" bathroom />)
+    expect(screen.getByRole('alert')).toHaveTextContent("Boyler uchun xavfsiz joy topilmadi")
+  })
+  it('a water heater that fits: no such warning', () => {
+    useRoomStore.setState((st) => ({ designState: { ...st.designState, waterHeater: true } }))
+    render(<SantexnikaSection part="jihozlar" bathroom />)
+    expect(screen.queryByText(/Boyler uchun xavfsiz joy topilmadi/)).toBeNull()
+  })
 })

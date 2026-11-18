@@ -1093,7 +1093,8 @@
       "water_scheme": "Suv tarmog'i",
       "water_scheme_tee": "Uchlik (ketma-ket)",
       "water_scheme_collector": "Kollektor (har nuqtaga alohida)",
-      "hatch_blocked": "{{names}} revizion lyukni to'sib turibdi — lyukka yo'l qoldiring"
+      "hatch_blocked": "{{names}} revizion lyukni to'sib turibdi — lyukka yo'l qoldiring",
+      "boiler_homeless": "Boyler uchun xavfsiz joy topilmadi: eshik, deraza, vanna va dushdan uzoqroq bo'sh devor kerak. Stoyakni suring yoki jihozlarni joylashtiring."
     },
     "backsplash": {
       "title": "Oshxona fartugi",
