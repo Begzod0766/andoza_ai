@@ -53,4 +53,20 @@ describe('the design panel on a phone', () => {
     render(<DesignPanelDock {...props('boyoq')} />)
     expect(screen.getByTestId('design-panel-mobile').className).toContain('w-1/2')
   })
+  // Mobile QA 2026-11-18 (#299): the riser, the towel rail and the machines are dragged in the 3D only while
+  // the plumbing sheet is open, but a full-screen catch layer over the 3D took every touch and closed
+  // the sheet. Above a plumbing sheet the 3D stays live; the sheet closes with its own button.
+  it.each(['quvurlar', 'jihozlar'])('%s leaves the 3D above the sheet touchable', (phase) => {
+    const { container } = render(<DesignPanelDock {...props(phase)} />)
+    expect(container.querySelector('.fixed.inset-0')).toBeNull()
+    expect(screen.getAllByRole('button')[0].getAttribute('aria-label')).toBeTruthy()
+  })
+  it('the half-width panel of the other stages still closes on a tap beside it', () => {
+    const setShowPanel = vi.fn()
+    const { container } = render(<DesignPanelDock {...props('boyoq')} setShowPanel={setShowPanel} />)
+    const backdrop = container.querySelector('.fixed.inset-0') as HTMLElement
+    expect(backdrop).not.toBeNull()
+    backdrop.click()
+    expect(setShowPanel).toHaveBeenCalledWith(false)
+  })
 })
