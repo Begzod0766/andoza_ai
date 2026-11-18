@@ -382,7 +382,7 @@ def _design_state(room: "Room") -> dict:
     silently priced nothing for every real room, regardless of how correct
     the per-wall math below was.
     """
-    state: dict = room.state or {}
+    state: dict = getattr(room, "state", None) or {}
     design_state = state.get("designState")
     if isinstance(design_state, dict):
         return design_state

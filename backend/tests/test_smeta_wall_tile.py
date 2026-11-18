@@ -88,8 +88,11 @@ def test_tile_is_a_tile_line_not_an_ai_priced_print():
     assert tile[0].unit == "m²" and "1.10" in tile[0].formula
 
 
-def test_the_shops_tile_prices_it_and_is_named():
-    [tile] = [ln for ln in lines(room({"ALL": TILE}), {"finish:plitka": PLITKA}) if ln.category == "plitka_devor"]
+def test_the_shops_tile_of_the_walls_size_prices_it_and_is_named():
+    # Only a shop tile of the size chosen is named (2026-11-18, test_smeta_bathroom_e2e).
+    sized = {**TILE, "url": "/wall/tile/plain-600x300.jpg"}
+    catalog = {"finish:plitka": PLITKA, "finish:plitka:300x600": PLITKA}
+    [tile] = [ln for ln in lines(room({"ALL": sized}), catalog) if ln.category == "plitka_devor"]
     assert tile.label == "Devor plitkasi: Kafel 30x60"
     assert tile.unit_price_uzs == 150_000 and tile.store_name == "Stroy Master"
     assert tile.is_approximate is True and tile.warning == FINISH_STAND_IN_NOTE
