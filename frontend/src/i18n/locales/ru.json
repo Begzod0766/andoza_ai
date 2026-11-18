@@ -241,7 +241,9 @@
       "yoq": "Нет",
       "shift_turi": "Тип потолка",
       "parket": "Паркет",
-      "plintus": "Плинтус"
+      "plintus": "Плинтус",
+      "panel_jihozlar": "Панель приборов",
+      "panel_pol": "Панель пола"
     },
     "page": {
       "havola_yaratilmadi": "Не удалось создать ссылку",

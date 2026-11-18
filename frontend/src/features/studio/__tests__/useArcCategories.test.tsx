@@ -58,9 +58,20 @@ describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)',
     const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
     const cat = result.current.find((c) => c.key === 'jihozlar')!
     expect(cat.label).toBe('Jihozlar')
-    expect(cat.items!.map((i) => i.key)).toEqual(['sx:vanna', 'sx:add'])
+    expect(cat.items!.map((i) => i.key)).toEqual(['sx:vanna', 'sx:panel', 'sx:add'])
     cat.items!.find((i) => i.key === 'sx:add')!.onSelect()
     expect(openPanelAt).toHaveBeenCalledWith('quvurlar')
+  })
+
+  it('opens the Jihozlar panel too, the only way to it on a phone (QA 2026-11-18)', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const panel = result.current.find((c) => c.key === 'jihozlar')!.items!.find((i) => i.key === 'sx:panel')!
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('jihozlar')
   })
 
   it('a living room does not', () => {
@@ -68,5 +79,20 @@ describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)',
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
     const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt: () => {} }), { wrapper })
     expect(result.current.find((c) => c.key === 'jihozlar')).toBeUndefined()
+  })
+})
+
+describe('the arc menu Floor category', () => {
+  it('ends with the Pol panel, where the heated floor is (QA 2026-11-18)', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const items = result.current.find((c) => c.key === 'pol')!.items!
+    const panel = items[items.length - 1]
+    expect(panel.key).toBe('pol:panel')
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('pol')
   })
 })

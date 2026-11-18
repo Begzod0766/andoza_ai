@@ -20,7 +20,7 @@ import { fixtureDisplayName } from "@/lib/fixtureName";
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
-import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets } from 'lucide-react'
+import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets, SlidersHorizontal } from 'lucide-react'
 import { FurnitureSymbol, LightSymbol } from '@/lib/catalogIcons'
 import { useRoomStore } from '@/store/roomStore'
 import { listWallpapers, type Wallpaper as WallpaperEntry } from '@/lib/api'
@@ -45,7 +45,7 @@ export interface ArcCategoriesDeps {
    *  same as the design panel uses, falling back to every wall. */
   selectedWall: string | null
   /** Opens the full panel for a category the arc can only show a slice of. */
-  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar') => void
+  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol') => void
 }
 
 /** The catalog room each furniture ring stands for. */
@@ -268,6 +268,9 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
                 }),
               }),
             })),
+          // The Jihozlar panel (machines, towel rail, boiler, screens, warnings): on a phone the arc is
+          // the only way to it, and only Quvurlar had a door after the split (QA 2026-11-18).
+          { key: 'sx:panel', label: t('studio.radial.panel_jihozlar'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('jihozlar') },
           { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('quvurlar') },
         ],
       }] : []),
@@ -323,6 +326,8 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
             })),
             onSelect: () => {},
           },
+          // The Pol panel: the heated floor and the full floor choices live there (QA 2026-11-18).
+          { key: 'pol:panel', label: t('studio.radial.panel_pol'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('pol') },
         ],
       },
       {
