@@ -3,10 +3,11 @@ import { nanoid } from "nanoid";
 import { useTranslation } from "react-i18next";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
-import { inferRole, ROLE_GROUP } from "@/lib/furnitureRole";
+import { inferRole } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
+import { PlumbingFixtures } from "./PlumbingFixtures";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import { useBoilerHomeless, useFixtureClearances, useHatchBlockers } from "@/features/studio/fixtureClearance";
 import type { TowelRailSize } from "@/store/types";
@@ -99,11 +100,6 @@ export function SantexnikaSection({ part, bathroom = false }: {
     const row = byId.get(f.furniture_id);
     return inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? f.furniture_id) === "shower";
   });
-  const fixtures = furniture.flatMap((f) => {
-    const row = byId.get(f.furniture_id);
-    const name = row?.name_uz ?? f.name ?? f.furniture_id;
-    return ROLE_GROUP[inferRole(row?.category ?? null, name)] === "plumbing" ? [{ id: f.id, name: fixtureDisplayName(name, t) }] : [];
-  });
   // A rail's two points are worked out from it, never saved: shown and summed with the rest.
   // A washing machine's two likewise (spec 2026-11-13).
   const points = withWasherPoints(withRailPoints(plumbing, towelRails, geometry), washers, geometry);
@@ -144,6 +140,8 @@ export function SantexnikaSection({ part, bathroom = false }: {
       </div>
 
       {pipes ? (<>
+      {/* The fixtures first (QA 2026-11-18 #5): the points below are theirs. */}
+      <PlumbingFixtures />
       <div>
         <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.points")}</span>
         <ul className="space-y-1">
@@ -256,11 +254,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
         {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
       </p>
       </>) : (<>
-      <div>
-        <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.fixtures")}</span>
-        {fixtures.length === 0
-          ? <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
-          : <ul className="flex flex-wrap gap-1.5">{fixtures.map((f) => <li key={f.id} className="rounded-full border border-line px-2.5 py-1 text-[11px] text-ink">{f.name}</li>)}</ul>}
+      <PlumbingFixtures>
         {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
         {clearances.map((c) => (
           <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">
@@ -273,7 +267,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
             {t("studio.santexnika.hatch_blocked", { names: hatchBlocked.map((n) => fixtureDisplayName(n, t)).join(", ") })}
           </p>
         )}
-      </div>
+      </PlumbingFixtures>
 
       {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}
       {(bathroom || towelRails.length > 0) && (

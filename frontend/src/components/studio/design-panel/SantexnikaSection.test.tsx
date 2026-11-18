@@ -44,11 +44,11 @@ describe('SantexnikaSection', () => {
   })
 
   // Santexnika split in two (spec 2026-11-18): the pipes before the plaster, the fixtures after the floor.
-  it('Quvurlar has the pipes only: no fixtures, rails, machines, heater, screens or fan', () => {
+  it('Quvurlar has the pipes and the fixtures they serve (QA 2026-11-18 #5): no rails, machines, heater, screens or fan', () => {
     placeOn('tub', 'vanna', 'A', 0.7)
     render(<SantexnikaSection part="quvurlar" bathroom />)
     expect(screen.getByRole('heading', { name: 'Quvurlar' })).toBeInTheDocument()
-    expect(screen.queryByText('Vanna 1')).toBeNull()
+    expect(screen.getByText('Vanna 1')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: "Kir yuvish mashinasi qo'shish" })).toBeNull()
     expect(screen.queryByLabelText('Suv isitgich (boyler)')).toBeNull()
     expect(screen.queryByText(/sochiq quritgich/i)).toBeNull()

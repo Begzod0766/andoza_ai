@@ -1035,7 +1035,7 @@
       "hint_quvurlar": "Quvurlar suvoqdan oldin yotqiziladi. Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi; kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
       "hint_jihozlar": "Jihozlar kafel va poldan keyin o'rnatiladi: vanna, rakovina, unitaz, sochiq quritgich, mashinalar va boyler.",
       "fixtures": "Jihozlar",
-      "no_fixtures": "Hali jihoz yo'q: \"Mebel\" bosqichida \"Santexnika\" filtridan qo'shing.",
+      "no_fixtures": "Hali jihoz yo'q: avval jihozlarni qo'shing, keyin ularning quvur nuqtalari o'zi chiqadi.",
       "points": "Nuqtalar",
       "kind": "Turi",
       "wall": "Devor",
@@ -1094,7 +1094,13 @@
       "water_scheme_tee": "Uchlik (ketma-ket)",
       "water_scheme_collector": "Kollektor (har nuqtaga alohida)",
       "hatch_blocked": "{{names}} revizion lyukni to'sib turibdi — lyukka yo'l qoldiring",
-      "boiler_homeless": "Boyler uchun xavfsiz joy topilmadi: eshik, deraza, vanna va dushdan uzoqroq bo'sh devor kerak. Stoyakni suring yoki jihozlarni joylashtiring."
+      "boiler_homeless": "Boyler uchun xavfsiz joy topilmadi: eshik, deraza, vanna va dushdan uzoqroq bo'sh devor kerak. Stoyakni suring yoki jihozlarni joylashtiring.",
+      "add_fixture": "Jihoz qo'shish",
+      "catalog": "Santexnika katalogi",
+      "add_named": "Qo'shish: {{name}}",
+      "remove_named": "Olib tashlash: {{name}}",
+      "catalog_empty": "Katalogda santexnika topilmadi.",
+      "placed_count": "xonada: {{count}}"
     },
     "backsplash": {
       "title": "Oshxona fartugi",
