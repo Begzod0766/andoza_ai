@@ -28,6 +28,7 @@ const CATEGORY_TO_GROUP: Record<string, GroupKey> = {
   laminat: "pol",
   plitka: "pol",
   plintus: "pol",
+  issiq_pol: "pol",
   shift: "shift",
   elektr: "elektr",
   chiroq: "elektr",

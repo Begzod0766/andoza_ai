@@ -260,6 +260,8 @@ export interface DesignState {
   floorDrain?: boolean
   /** The water inlet unit (meter, filter, reducer, check valve) in the estimate: off unless exactly true (2026-11-14). */
   waterInlet?: boolean
+  /** An electric heated floor under the tile, in the estimate: off unless exactly true (2026-11-18). */
+  heatedFloor?: boolean
   /** Kitchen backsplashes (spec 2026-11-14); absent = none. */
   backsplashes?: Backsplash[]
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>

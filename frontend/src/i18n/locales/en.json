@@ -1089,7 +1089,8 @@
       "full": "To the ceiling",
       "custom": "Height, cm",
       "above": "Above the tile"
-    }
+    },
+    "heated_floor": "Heated floor (electric mat)"
   },
   "smeta": {
     "sarlavha": "Estimate",
@@ -1285,7 +1286,14 @@
       "work_pressure_test": "Work: pressure-testing the pipes",
       "hatch": "Revision hatch (tile-in)",
       "work_hatch": "Work: fitting the revision hatch",
-      "silicone": "Sanitary silicone"
+      "silicone": "Sanitary silicone",
+      "heated_mat": "Heating mat (underfloor heating)",
+      "heated_thermostat": "Underfloor heating thermostat",
+      "heated_kit": "Conduit and sensor (underfloor heating)",
+      "heated_breaker": "16 A breaker (underfloor heating)",
+      "heated_cable": "Electric cable (underfloor heating)",
+      "work_heated_mat": "Work: laying the heating mat",
+      "work_heated_thermostat": "Work: installing the thermostat"
     },
     "unit": {
       "qop_one": "bag",
@@ -2352,7 +2360,9 @@
         "sifon_idish": "Dishwasher trap (with an outlet)",
         "uzo": "RCD (RCBO 30 mA)",
         "lyuk": "Revision hatch",
-        "silikon": "Sanitary silicone"
+        "silikon": "Sanitary silicone",
+        "issiq_pol": "Heating mat (m²)",
+        "termoregulyator": "Underfloor heating thermostat"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

@@ -14,8 +14,10 @@ import { FloorPatternGroup, SkirtingGroup } from "./FloorControls";
  * (Do'kon material search and the whole-floor UVW map are the extras that
  * stay in WallSection's own "Pol" wall-target.)
  */
-export function FloorSection({ onSetFloorType }: {
+export function FloorSection({ onSetFloorType, heatable = false }: {
   onSetFloorType(type: string): void;
+  /** A bathroom or a kitchen: the electric heated floor switch is offered (2026-11-18). */
+  heatable?: boolean;
 }) {
   const { t } = useTranslation()
   const floorType = useRoomStore((s) => s.designState.floorType);
@@ -24,6 +26,7 @@ export function FloorSection({ onSetFloorType }: {
   // schema default ('parquet'), so no type is highlighted as if it were chosen.
   const floorConfigured = useRoomStore((s) => s.designState.floorConfigured);
   const floorPattern = useRoomStore((s) => s.designState.floorPattern);
+  const heatedFloor = useRoomStore((s) => s.designState.heatedFloor);
   const setFloorTexture = useRoomStore((s) => s.setFloorTexture);
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const queryClient = useQueryClient();
@@ -95,6 +98,13 @@ export function FloorSection({ onSetFloorType }: {
   return (
     <section>
       <h3 className="text-sm font-semibold text-ink mb-3">{t("studio.pol_turi")}</h3>
+      {heatable && (
+        <label className="mb-3 flex items-center gap-2 text-[12px] text-ink">
+          {/* Off unless ticked: the estimate reads only an exact true (smeta.py _heated_floor_lines). */}
+          <input type="checkbox" checked={heatedFloor === true} onChange={(e) => setDesignState({ heatedFloor: e.target.checked })} />
+          {t("studio.heated_floor")}
+        </label>
+      )}
       {!floorConfigured && !floorTexture && !floorPattern && (
         <p className="mb-2 text-[11px] leading-snug text-ink-muted">
           {t("studio.pol_tanlanmagan")}

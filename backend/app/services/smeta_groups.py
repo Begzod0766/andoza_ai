@@ -52,6 +52,7 @@ CATEGORY_TO_GROUP = {
     "laminat": "pol",
     "plitka": "pol",
     "plintus": "pol",
+    "issiq_pol": "pol",
     "shift": "shift",
     "elektr": "elektr",
     "chiroq": "elektr",

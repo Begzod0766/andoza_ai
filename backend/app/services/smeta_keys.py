@@ -42,6 +42,8 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "hisoblagich_suv": None, "filtr_suv": None, "reduktor": None, "klapan_teskari": None,
     # The drywall box around a wall-hung toilet frame (2026-11-14): a moisture-resistant sheet, by the piece
     "gipsokarton_nam": None,
+    # An electric heated floor (2026-11-18): the mat by the square metre, its thermostat by the piece
+    "issiq_pol": "m2", "termoregulyator": None,
 }
 # The sale unit a key with no pack must have.
 KEY_SALE_UNIT: dict[str, str] = {"kabel": "m", **{k: "dona" for k, pack in KEY_PACK_UNIT.items() if pack is None and k != "kabel"}}
