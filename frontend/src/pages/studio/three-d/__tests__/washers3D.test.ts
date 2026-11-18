@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import type { RoomGeometry } from '@/store/types'
 import { wallWalk } from '@/lib/plumbingRuns'
-import { washerPose } from '../Washers3D'
+import { shownWashers, washerPose } from '../Washers3D'
 
 const geometry = { walls: [
   { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
@@ -29,5 +29,13 @@ describe('a dishwasher in 3D (2026-11-16)', () => {
     const p = washerPose({ id: 'd', wallId: 'B', positionMm: 800, kind: 'dishwasher', widthMm: 450 }, geometry)!
     expect(p.x).toBeCloseTo(w.startX + w.dirX * 0.8 + w.nx * 0.305, 6)
     expect(p.y).toBeCloseTo(0.41, 6)
+  })
+})
+
+describe('shownWashers (mobile QA 2026-11-18, #338 1)', () => {
+  it('a machine or a sink stands on the floor: drawn when its wall is hidden for the view', () => {
+    // The kitchen sink and the dishwasher on wall A went missing when A was the wall nearest the camera.
+    const list = [{ id: 's', wallId: 'A', positionMm: 900, kind: 'kitchen_sink' as const }, { id: 'd', wallId: 'B', positionMm: 800 }]
+    expect(shownWashers(list, new Set(['A', 'D']))).toEqual(list)
   })
 })

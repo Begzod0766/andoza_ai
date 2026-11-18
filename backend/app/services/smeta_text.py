@@ -498,14 +498,14 @@ _FORMULA_COUNTED = {
     "tarmoq": "formula.tarmoq", "stoyak": "formula.stoyak", "burchak": "formula.burchak", "uch": "formula.uch", "unitaz": "formula.unitaz", "liniya": "formula.liniya", "ulanish": "formula.ulanish",
     "xona burchagi": "formula.xona_burchagi", "magistral uchi": "formula.magistral_uchi",
     # What a fixture part's count is made of (2026-11-13).
-    "rakovina": "formula.rakovina", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel", "mashina": "formula.mashina",
+    "rakovina": "formula.rakovina", "moyka": "formula.moyka", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel", "mashina": "formula.mashina",
     # Paint bought in whole cans (2026-11-18).
     "banka": "formula.banka",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|moyka|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)"
     r"(?=\Z|[\s);,:])"
 )
 

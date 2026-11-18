@@ -255,6 +255,8 @@ describe('fixture parts', () => {
     ["2 rakovina + 1 bide = 3 dona × 60 000 so'm", '2 раковины + 1 биде = 3 шт. × 60 000 сум', '2 sinks + 1 bidet = 3 pcs × 60 000 UZS'],
     ["1 vanna + 1 dush = 2 dona × 650 000 so'm", '1 ванна + 1 душ = 2 шт. × 650 000 сум', '1 bathtub + 1 shower = 2 pcs × 650 000 UZS'],
     ["3 smesitel × 100 000 so'm", '3 смесителя × 100 000 сум', '3 mixers × 100 000 UZS'],
+    // A kitchen sink's parts (mobile QA #338 3): counted by the sink, not a basin.
+    ["1 moyka = 1 dona × 450 000 so'm", '1 мойка = 1 шт. × 450 000 сум', '1 sink = 1 pc × 450 000 UZS'],
   ])('%s', (formula, ruText, enText) => {
     expect(localizeFormula(formula, ru)).toBe(ruText)
     expect(localizeFormula(formula, en)).toBe(enText)

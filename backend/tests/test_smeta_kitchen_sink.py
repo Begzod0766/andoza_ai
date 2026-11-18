@@ -35,3 +35,12 @@ def test_its_three_points_are_in_the_pipes():
 def test_it_is_not_a_washing_machine():
     got = by_label([SINK])
     assert not any(k.startswith("Kir yuvish mashinasi") or "kir yuvish" in k for k in got)
+
+
+def test_its_parts_are_counted_by_the_sink_it_is_mobile_qa_338():
+    """#338 3: a kitchen sink's parts read "1 раковина" (a basin); a kitchen's is "мойка"."""
+    from app.services.smeta_text import localize_formula
+    formula = by_label([SINK])["Oshxona smesiteli"].formula
+    assert "1 moyka" in formula and "rakovina" not in formula
+    assert "1 мойка" in localize_formula(formula, "ru")
+    assert "1 sink" in localize_formula(formula, "en")

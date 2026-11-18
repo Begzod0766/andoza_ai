@@ -1779,7 +1779,7 @@ FIXTURE_PARTS: dict[str, tuple[tuple[str, int], ...]] = {
 }
 # The word a fixture is counted by in a part's formula ("2 rakovina + 1 bide = 3 dona ...").
 FIXTURE_PART_WORDS = {
-    "sink": "rakovina", "kitchen_sink": "rakovina", "bathtub": "vanna", "shower": "dush",
+    "sink": "rakovina", "kitchen_sink": "moyka", "bathtub": "vanna", "shower": "dush",
     "shower_own_mixer": "dush", "toilet": "unitaz", "toilet_wall_hung": "unitaz", "bidet": "bide",
 }
 FIXTURE_PART_LABELS = {

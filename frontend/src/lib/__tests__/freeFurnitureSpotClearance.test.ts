@@ -11,6 +11,7 @@ import { riserKeepClear } from '../bathroomBoxes'
 import { roomRiser } from '../plumbingRuns'
 import { fixtureClearances } from '../fixtureClearance'
 import { overlaps, roomModel } from '../aiDesignLayout'
+import { overlapArea } from '../placement'
 import type { FurnitureRole } from '../furnitureRole'
 
 const room = (a: number, b: number, doorAt: number, doorWall = 'D'): RoomGeometry => ({
@@ -92,8 +93,12 @@ describe('a bathroom too small for its bath (mobile QA 2026-11-18)', () => {
   it('bath → sink → toilet: the sink stands clear of the bath (the toilet has no room at all: the overlap warning says so)', () => {
     // 75 cm of bath + 70 of toilet + their gaps is 1.53 m across a 1.5 m room, and the door's swing takes the
     // rest: the toilet cannot stand clear anywhere. The overlap warning names it (lib/fixtureOverlap).
-    const [bath, sink] = place(['bathtub', 'sink', 'toilet'])
+    const [bath, sink, toilet] = place(['bathtub', 'sink', 'toilet'])
     expect(overlaps(bath.rect, sink.rect, 0)).toBe(false)
+    // #338 2: the toilet went under the sink. Into a door's swing (a warning) is better than into a piece:
+    // it pokes a few centimetres into the bath, not into the sink.
+    expect(overlaps(toilet.rect, sink.rect, 0)).toBe(false)
+    expect(overlapArea(toilet.rect, bath.rect)).toBeLessThan(0.03)
   })
   it('the bath stands against the longest wall, its back to it', () => {
     const [bath] = place(['bathtub'])
