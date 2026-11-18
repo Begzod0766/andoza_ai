@@ -26,8 +26,10 @@ import { effectiveRoomType } from "@/lib/roomType";
 import type { Backsplash } from "@/store/types";
 import { isTileCovering } from "@/lib/tileBand";
 import { wallNumber } from "@/lib/wallLabel";
+import { TILE_FACES, TILE_SIZES, wallTileCovering, wallTileUrl, type TileSize } from "@/lib/tileCatalog";
 
-type CoveringMode = "paint" | "texture";
+/** "tile" (Kafel) only in a bathroom or kitchen (QA 2026-11-18 #6): the same tiles as the radial ring. */
+type CoveringMode = "paint" | "texture" | "tile";
 
 
 /** Perceived lightness (0–1) of a #rrggbb, for deciding whether a swatch
@@ -78,7 +80,11 @@ export function WallSection({
   const roomType = useRoomStore((s) => s.roomType);
   const setDesignState = useRoomStore((s) => s.setDesignState);
   // A kitchen's backsplash block (spec 2026-11-14): by the room's type, else what its name reads as.
-  const isKitchen = effectiveRoomType(roomType, room.name ?? "") === "oshxona";
+  const kind = effectiveRoomType(roomType, room.name ?? "");
+  const isKitchen = kind === "oshxona";
+  // A bathroom or kitchen is tiled: the Kafel tab, so a tile goes on every wall or one, not only
+  // from the ring on the wall pressed (whose nearest wall is cut away).
+  const wet = kind === "hammom" || isKitchen;
   function setBacksplashes(backsplashes: Backsplash[]) {
     setDesignState({ backsplashes });
     syncToApi({ ...useRoomStore.getState().designState, backsplashes });
@@ -125,7 +131,10 @@ export function WallSection({
       targetWall === "ALL"
         ? designState.wallCoverings.ALL
         : (designState.wallCoverings[targetWall] ?? designState.wallCoverings.ALL);
-    if (c.kind === "paint" || c.kind === "plaster") {
+    setPickedSize(null);
+    if (wet && isTileCovering(c)) {
+      setCoveringMode("tile");
+    } else if (c.kind === "paint" || c.kind === "plaster") {
       // Bare plaster is the pre-finish state — offer the paint tab, which is
       // the first thing a user does to it.
       setCoveringMode("paint");
@@ -171,6 +180,12 @@ export function WallSection({
   const targetCovering = targetWall === "ALL"
     ? designState.wallCoverings.ALL
     : (designState.wallCoverings[targetWall] ?? designState.wallCoverings.ALL);
+
+  // The Kafel tab's size: the one the target is tiled in, else the first.
+  const tiledSize = TILE_SIZES.find((z) => targetCovering.kind === "texture"
+    && TILE_FACES.some((f) => wallTileUrl(z, f) === targetCovering.url));
+  const [pickedSize, setPickedSize] = React.useState<TileSize | null>(null);
+  const tileSize = pickedSize ?? tiledSize ?? TILE_SIZES[0];
   const wallColorForPreview = resolveWallColor(designState.wallCoverings);
   const hasOboy = Object.values(designState.wallCoverings).some((c) => c?.kind === "oboy");
 
@@ -234,7 +249,7 @@ export function WallSection({
       )}
       <section className="pt-5 border-t border-line">
         <div className="flex gap-1 p-0.5 bg-card-soft rounded-lg">
-          {(["paint", "texture"] as const).map((mode) => (
+          {(wet ? ["paint", "texture", "tile"] as const : ["paint", "texture"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => handleSetCoveringMode(mode)}
@@ -244,11 +259,41 @@ export function WallSection({
                   : "text-ink-muted hover:text-ink"
               }`}
             >
-              {mode === "paint" ? t("studio.dp.paint") : t("studio.radial.oboy")}
+              {mode === "paint" ? t("studio.dp.paint") : mode === "tile" ? t("studio.radial.kafel") : t("studio.radial.oboy")}
             </button>
           ))}
         </div>
       </section>
+
+      {/* Tile: a size, then a face, as on the ring. Laid on the target, a tiled wall keeping its height. */}
+      {coveringMode === "tile" && (
+        <section className="pt-5 border-t border-line">
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {TILE_SIZES.map((z) => (
+              <button key={z.label} type="button" onClick={() => setPickedSize(z)} aria-pressed={z === tileSize}
+                className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  z === tileSize ? "border-brand bg-brand/10 text-ink" : "border-line text-ink-muted hover:text-ink"}`}>
+                {z.label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {TILE_FACES.map((face) => {
+              const url = wallTileUrl(tileSize, face);
+              const on = targetCovering.kind === "texture" && targetCovering.url === url;
+              const label = t(face.labelKey);
+              return (
+                <button key={face.slug} type="button" aria-label={label} title={label} aria-pressed={on}
+                  onClick={() => applyWallCovering(wallTileCovering(tileSize, face, targetCovering))}
+                  className={`flex flex-col items-center gap-1 rounded-lg p-1 border-2 transition-colors ${on ? "border-brand" : "border-transparent hover:border-line"}`}>
+                  <img src={url} alt="" loading="lazy" draggable={false} className="w-full aspect-square rounded-md object-cover" />
+                  <span className="text-[10px] leading-tight text-ink-muted text-center">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Paint colors */}
       {coveringMode === "paint" && (
