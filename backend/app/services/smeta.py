@@ -1794,6 +1794,32 @@ def _fixture_role(furniture_id: str, row: object, names: dict[str, str]) -> str 
     return role if role in PLUMBING_ROLES else None
 
 
+def _kitchen_set_line(item: dict, row: object) -> "ComputedLine | None":
+    """A kitchen set's line, or None for any other piece (prod e2e 2026-11-18). A kitchen set is made
+    to measure and sold by the running metre: the catalog price over the catalog length, times the
+    length the studio fitted to the wall (the placed piece's ``lengthCm``; its whole length without one)."""
+    from app.services.ai_designer import infer_role  # ai_designer imports this module
+
+    if row is None or not getattr(row, "is_active", False):
+        return None
+    if infer_role(getattr(row, "category", None), str(getattr(row, "name_uz", "") or "")) != "kitchen_set":
+        return None
+    price = getattr(row, "price_uzs", None)
+    catalog_m = (_float(getattr(row, "footprint_w", None)) or 0) / 100
+    if not price or price <= 0 or catalog_m <= 0:
+        return None
+    k = _float(item.get("scaleOverride")) or 1
+    fitted_cm = _float(item.get("lengthCm"))
+    fitted_m = round((fitted_cm / 100) if fitted_cm and fitted_cm > 0 else catalog_m * k, 2)
+    per_m = round(int(price) / catalog_m)
+    fmt = lambda n: f"{n:,}".replace(",", " ")  # noqa: E731
+    return _make_line(
+        label=f"Jihoz: {row.name_uz}",
+        formula=f"{fmt(int(price))} so'm ÷ {catalog_m:.2f} m = {fmt(per_m)} so'm/m × {fitted_m:.2f} m",
+        qty=fitted_m, unit="m", price_uzs=per_m, category="jihoz", store_name=_store_name(row),
+    )
+
+
 def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
     """One line per distinct placed furniture item (qty = how many placed).
 
@@ -1822,11 +1848,16 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
     counts: dict[str, int] = {}
     names: dict[str, str] = {}
     snapshot_prices: dict[str, int] = {}
+    lines: list[ComputedLine] = []
     for item in placed:
         if not isinstance(item, dict):
             continue
         fid = item.get("furniture_id")
         if not fid:
+            continue
+        kitchen = _kitchen_set_line(item, (catalog or {}).get(furniture_catalog_key(fid)))
+        if kitchen is not None:
+            lines.append(kitchen)
             continue
         counts[fid] = counts.get(fid, 0) + 1
         name = item.get("name")
@@ -1836,7 +1867,6 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
         if isinstance(snap, (int, float)) and snap > 0 and fid not in snapshot_prices:
             snapshot_prices[fid] = int(snap)
 
-    lines: list[ComputedLine] = []
     for furniture_id, qty in sorted(counts.items()):
         row = (catalog or {}).get(furniture_catalog_key(furniture_id))
         if row is not None and not getattr(row, "is_active", False):

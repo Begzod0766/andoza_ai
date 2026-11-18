@@ -45,7 +45,8 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
   return s.furniture.map((f) => {
     const size = sizeOf(f.furniture_id) ?? UNKNOWN
     const k = f.scaleOverride ?? 1
-    return { x: f.x, y: f.y, rotation: f.rotation, w: size.w * k, d: size.d * k, h: size.h * k, id: f.id, name: nameOf(f), role: roleOf(f.furniture_id) }
+    const w = f.lengthCm && f.lengthCm > 0 ? f.lengthCm / 100 : size.w * k
+    return { x: f.x, y: f.y, rotation: f.rotation, w, d: size.d * k, h: size.h * k, id: f.id, name: nameOf(f), role: roleOf(f.furniture_id) }
   })
 }
 
@@ -63,7 +64,7 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
 export function nextFurnitureSpot(item: {
   name: string; category?: string | null; sizeM?: { w: number; d: number }; heightM?: number
 }): {
-  x: number; y: number; rotation: number
+  x: number; y: number; rotation: number; lengthCm?: number
 } {
   const s = useRoomStore.getState()
   const placed = placedFurnitureBoxes(s)
@@ -74,13 +75,23 @@ export function nextFurnitureSpot(item: {
   // auto-placed stands on the box or in front of the hatch (QA 2026-11-18 #7).
   const kind = effectiveRoomType(s.roomType, s.name)
   const keepClear = kind === 'hammom' || kind === 'oshxona' ? riserKeepClear(s.geometry, riser) : []
-  const { onWall, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name), riser, keepClear)
+  const plumbingWalls = [...new Set((s.plumbing ?? []).map((p) => p.wallId))]
+  const { onWall, lengthM, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name), riser, keepClear, { plumbingWalls })
   if (onWall === false) {
     showToast({
       variant: 'warning',
       title: i18n.t('studio.furn.no_wall_title', { name: item.name }),
       description: i18n.t('studio.furn.no_wall_desc'),
     })
+  }
+  if (lengthM !== undefined) {
+    // A kitchen set is made to measure: cut to the wall it stands on, and the user told so.
+    showToast({
+      variant: 'default',
+      title: i18n.t('studio.furn.cut_to_wall_title', { name: item.name }),
+      description: i18n.t('studio.furn.cut_to_wall_desc', { length: (lengthM).toFixed(2), full: size.w.toFixed(2) }),
+    })
+    return { ...spot, lengthCm: Math.round(lengthM * 100) }
   }
   return spot
 }

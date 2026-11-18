@@ -136,6 +136,9 @@ export interface PlacedFurniture {
   rotation: number
   /** Uniform scale multiplier (1.0 = catalog default size). */
   scaleOverride?: number
+  /** A kitchen set cut to its wall (prod e2e 2026-11-18): its length along the wall, cm. Drawn stretched
+   *  along its width to this, and priced per running metre by it (backend smeta _kitchen_set_line). */
+  lengthCm?: number
   /** Per-material color tints (material name → hex). '*' = wildcard for all materials. */
   colorOverrides?: Record<string, string>
   /** Deleted/detached sub-object keys ("indexPath:name" from modelParts.ts) — pruned from the scene graph on load. */

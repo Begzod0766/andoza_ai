@@ -315,7 +315,7 @@ export function MebelPlanView() {
     if (entry && hull) return hullBounds(hull, 0, itemScale(entry, item) * 1000)
     // Before the symbol has reported (or without a catalog entry): square box
     const so = item.scaleOverride ?? 1
-    const hw = ((entry?.sizeM.w ?? 0.6) * so * 1000) / 2
+    const hw = ((item.lengthCm && item.lengthCm > 0 ? item.lengthCm / 100 : (entry?.sizeM.w ?? 0.6) * so) * 1000) / 2
     const hd = ((entry?.sizeM.d ?? 0.6) * so * 1000) / 2
     return { minX: -hw, maxX: hw, minZ: -hd, maxZ: hd }
   }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useRoomStore } from '@/store/roomStore'
 import { fixtureClearances, fixtureOverlaps, type ClearanceWarning } from '@/lib/fixtureClearance'
+import { furnitureFitWarnings, type FitWarning } from '@/lib/furnitureFit'
 import { placedFurnitureBoxes } from '@/features/studio/nextFurnitureSpot'
 import { boilerSpot, hatchBlockers, railSpans, wetSpans } from '@/lib/bathroomBoxes'
 import { roomRiser } from '@/lib/plumbingRuns'
@@ -19,6 +20,22 @@ function pieces(s: State) {
 
 export function roomClearances(s: State): ClearanceWarning[] {
   return fixtureClearances(pieces(s), s.geometry)
+}
+
+/** The pieces out of the room, through a wall, or in a door's swing (prod e2e 2026-11-18). A warning only. */
+export function roomFitWarnings(s: State): FitWarning[] {
+  return furnitureFitWarnings(pieces(s), s.geometry)
+}
+
+/** The same, kept up to date with the room. */
+export function useFurnitureFitWarnings(): FitWarning[] {
+  const furniture = useRoomStore((s) => s.furniture)
+  const geometry = useRoomStore((s) => s.geometry)
+  const catalog = useRoomStore((s) => s.catalogFurniture)
+  const user = useRoomStore((s) => s.userFurniture)
+  const ceiling = useRoomStore((s) => s.ceilingHeight)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => roomFitWarnings(useRoomStore.getState()), [furniture, geometry, catalog, user, ceiling])
 }
 
 /** The pieces in front of the riser box's revision hatch (2026-11-18), by name. */

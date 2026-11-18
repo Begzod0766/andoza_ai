@@ -20,6 +20,7 @@ import { FurnitureSymbol } from '@/lib/catalogIcons'
 import { rectHull, type Hull } from '@/lib/modelFootprint'
 import { topViewOutline, topViewPoints, type Poly, type TopView } from '@/lib/modelTopView'
 import { yawRadians } from '@/lib/modelYaw'
+import { lengthStretch } from '@/lib/modelSize'
 
 export type AnyFurnitureEntry = FurnitureCatalogEntry | UserFurnitureEntry | ResolvedCatalogEntry
 
@@ -58,11 +59,11 @@ interface ShapeProps {
 }
 
 /** Model-space polylines → one SVG path in plan millimetres. */
-function pathData(polys: Poly[], s: number): string {
+function pathData(polys: Poly[], s: number, stretchX = 1): string {
   return polys
     .map(
       (poly) =>
-        poly.map(([x, z], i) => `${i === 0 ? 'M' : 'L'}${(x * s).toFixed(1)},${(z * s).toFixed(1)}`).join('') +
+        poly.map(([x, z], i) => `${i === 0 ? 'M' : 'L'}${(x * s * stretchX).toFixed(1)},${(z * s).toFixed(1)}`).join('') +
         'Z',
     )
     .join('')
@@ -96,16 +97,22 @@ function PlanSymbol({
   onHull,
   onPointerDown,
 }: ShapeProps & { view: TopView; schematic: boolean }) {
-  const points = useMemo(() => topViewPoints(view), [view])
+  const s = itemScale(entry, item) * 1000 // model units → mm
+  const raw = useMemo(() => topViewPoints(view), [view])
+  // A kitchen set cut to its wall is drawn stretched along its width to its stored length (2026-11-18).
+  const ls = useMemo(() => {
+    const xs = raw.map(([x]) => x)
+    return xs.length ? lengthStretch(item.lengthCm, ((Math.max(...xs) - Math.min(...xs)) * s) / 1000) : 1
+  }, [raw, item.lengthCm, s])
+  const points = useMemo(() => (ls === 1 ? raw : raw.map(([x, z]) => [x * ls, z] as typeof raw[number])), [raw, ls])
 
   useEffect(() => {
     if (points.length >= 3) onHull(item.id, points)
   }, [item.id, points, onHull])
 
-  const s = itemScale(entry, item) * 1000 // model units → mm
   const deg = (-item.rotation * 180) / Math.PI // SVG turns the other way to THREE's +Y yaw
-  const outline = pathData(view.outline, s)
-  const details = pathData(view.details, s)
+  const outline = pathData(view.outline, s, ls)
+  const details = pathData(view.details, s, ls)
 
   return (
     <g style={{ cursor: 'grab' }} onPointerDown={onPointerDown}>
