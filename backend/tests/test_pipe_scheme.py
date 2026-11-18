@@ -34,13 +34,13 @@ def _riser(case):
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_the_input_matches_the_studio(case):
-    assert scheme_input(_metres(case["geometry"]), _riser(case), case["points"]) == case["input"]
+    assert scheme_input(_metres(case["geometry"]), _riser(case), case["points"], case.get("collector", False)) == case["input"]
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_the_scheme_matches_the_studio(case):
     assert build_scheme(case["input"]) == case["expected"]
-    assert pipe_scheme(_metres(case["geometry"]), _riser(case), case["points"]) == case["expected"]
+    assert pipe_scheme(_metres(case["geometry"]), _riser(case), case["points"], case.get("collector", False)) == case["expected"]
 
 
 def test_no_room_and_no_points_give_the_empty_scheme():

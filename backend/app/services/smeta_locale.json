@@ -143,7 +143,10 @@
         "bath_curtain": "Parda va tayoqcha (vanna, dush)",
         "work_bath_glass": "Ish: vanna shtorkasini o'rnatish",
         "work_shower_glass": "Ish: dush shishasini o'rnatish",
-        "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish"
+        "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish",
+        "collector_cold": "Kollektor (sovuq suv)",
+        "collector_hot": "Kollektor (issiq suv)",
+        "work_collector": "Ish: kollektorni yig'ish"
       },
       "unit": {
         "qop_one": "qop",
@@ -430,7 +433,10 @@
         "bath_curtain": "Шторка и карниз (ванна, душ)",
         "work_bath_glass": "Работа: установка шторки на ванну",
         "work_shower_glass": "Работа: установка душевого стекла",
-        "work_bath_curtain": "Работа: установка карниза для шторки"
+        "work_bath_curtain": "Работа: установка карниза для шторки",
+        "collector_cold": "Коллектор (холодная вода)",
+        "collector_hot": "Коллектор (горячая вода)",
+        "work_collector": "Работа: сборка коллектора"
       },
       "unit": {
         "qop_one": "мешок",
@@ -771,7 +777,10 @@
         "bath_curtain": "Curtain and rod (bath, shower)",
         "work_bath_glass": "Work: fitting the bath screen",
         "work_shower_glass": "Work: fitting the shower glass",
-        "work_bath_curtain": "Work: fitting the curtain rod"
+        "work_bath_curtain": "Work: fitting the curtain rod",
+        "collector_cold": "Manifold (cold water)",
+        "collector_hot": "Manifold (hot water)",
+        "work_collector": "Work: assembling the manifold"
       },
       "unit": {
         "qop_one": "bag",

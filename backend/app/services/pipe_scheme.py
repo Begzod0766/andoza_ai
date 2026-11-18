@@ -17,6 +17,7 @@ from app.services.plumbing import _js_round, _room_walls, _wall_walk
 
 WATER_TRUNK_MM = 200
 HOT_DRAWN_MM = 250  # the hot trunk is drawn above the cold one; lengths ignore it
+COLLECTOR_STEP_MM = 30  # with a collector, each further line of a kind is drawn this much above the one before
 EPS = 1e-6
 KINDS = ("drain", "cold", "hot")
 
@@ -32,6 +33,7 @@ def _empty() -> dict:
         },
         "lines": [],
         "branches": [],
+        "collectors": {"cold": 0, "hot": 0},
     }
 
 
@@ -119,24 +121,41 @@ def build_scheme(inp: dict) -> dict:
     height = lambda p: max(0, p["heightMm"])  # noqa: E731
     pipes, why = out["pipes"], out["why"]
 
+    # The height each water point's branch rises from: its trunk's, or with a collector its own line's.
+    from_height: dict[object, int] = {}
     for kind in ("cold", "hot"):
         points = [p for p in inp["points"] if p["kind"] == kind]
         if not points:
             continue
+        base = HOT_DRAWN_MM if kind == "hot" else WATER_TRUNK_MM
+        pipes["water_20"]["branchMm"] += _js_round(sum(abs(height(p) - WATER_TRUNK_MM) for p in points))
+        why["outlet_20"]["points"] += len(points)
+        why["valve_20"]["lines"] += 1
+        if inp.get("collector"):
+            # A line of its own from the riser to each point, the door-free way: a trunk of one point (2026-11-18).
+            out["collectors"][kind] = len(points)
+            for i, p in enumerate(points):
+                line = _trunk(inp, perimeter, [p], inp["doorsMm"])
+                h = base + i * COLLECTOR_STEP_MM
+                from_height[p["id"]] = h
+                pipes["water_20"]["trunkMm"] += _js_round(line["length"])
+                why["elbow_20"]["corners"] += len(line["corners"])
+                if line["length"] > EPS:
+                    why["elbow_20"]["ends"] += 1
+                    out["lines"].append({"kind": kind, "diameterMm": 20, "fromMm": _js_round(line["start"]),
+                                         "toMm": _js_round(line["start"] + line["length"]), "heightMm": h})
+            continue
         tr = _trunk(inp, perimeter, points, inp["doorsMm"])
         ends = (1 if tr["left"] else 0) + (1 if tr["right"] else 0)
         pipes["water_20"]["trunkMm"] += _js_round(tr["length"])
-        pipes["water_20"]["branchMm"] += _js_round(sum(abs(height(p) - WATER_TRUNK_MM) for p in points))
         why["tee_20"]["branches"] += len(points) - ends
         why["tee_20"]["riser"] += 1 if ends == 2 else 0
         why["elbow_20"]["corners"] += len(tr["corners"])
         why["elbow_20"]["ends"] += ends
-        why["outlet_20"]["points"] += len(points)
-        why["valve_20"]["lines"] += 1
         if tr["length"] > EPS:
             out["lines"].append({
                 "kind": kind, "diameterMm": 20, "fromMm": _js_round(tr["start"]), "toMm": _js_round(tr["start"] + tr["length"]),
-                "heightMm": HOT_DRAWN_MM if kind == "hot" else WATER_TRUNK_MM,
+                "heightMm": base,
             })
 
     drains = [p for p in inp["points"] if p["kind"] == "drain"]
@@ -184,13 +203,13 @@ def build_scheme(inp: dict) -> dict:
     }
     out["branches"] = [{
         "pointId": p["id"], "kind": p["kind"], "diameterMm": p["diameterMm"], "sMm": p["sMm"],
-        "fromHeightMm": 0 if p["kind"] == "drain" else HOT_DRAWN_MM if p["kind"] == "hot" else WATER_TRUNK_MM,
+        "fromHeightMm": 0 if p["kind"] == "drain" else from_height.get(p["id"], HOT_DRAWN_MM if p["kind"] == "hot" else WATER_TRUNK_MM),
         "toHeightMm": height(p),
     } for p in inp["points"]]
     return out
 
 
-def scheme_input(geometry: dict | None, riser: tuple[str, float], points: list | None) -> dict:
+def scheme_input(geometry: dict | None, riser: tuple[str, float], points: list | None, collector: bool = False) -> dict:
     """The room as the rule wants it, rounded to whole mm as the studio rounds it (lib/pipeScheme schemeInput)."""
     walls = _room_walls(geometry)
     walk = _wall_walk(walls)
@@ -238,9 +257,10 @@ def scheme_input(geometry: dict | None, riser: tuple[str, float], points: list |
         out.append({"id": p.get("id"), "kind": kind, "diameterMm": 20 if kind != "drain" else 110 if p.get("diameterMm") == 110 else 50,
                     "sMm": s, "heightMm": max(0, _js_round(h))})
     riser_at = place(riser[0], riser[1]) if riser else None
-    return {"wallsMm": walls_mm, "doorsMm": doors, "riserMm": riser_at if riser_at is not None else 0, "points": out}
+    inp = {"wallsMm": walls_mm, "doorsMm": doors, "riserMm": riser_at if riser_at is not None else 0, "points": out}
+    return {**inp, "collector": True} if collector else inp
 
 
-def pipe_scheme(geometry: dict | None, riser: tuple[str, float], points: list | None) -> dict:
-    """The scheme of a room as the estimate holds it."""
-    return build_scheme(scheme_input(geometry, riser, points)) if _room_walls(geometry) else copy.deepcopy(EMPTY_SCHEME)
+def pipe_scheme(geometry: dict | None, riser: tuple[str, float], points: list | None, collector: bool = False) -> dict:
+    """The scheme of a room as the estimate holds it; ``collector``: a line from the riser to each water point."""
+    return build_scheme(scheme_input(geometry, riser, points, collector)) if _room_walls(geometry) else copy.deepcopy(EMPTY_SCHEME)

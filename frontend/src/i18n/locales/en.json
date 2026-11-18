@@ -1087,7 +1087,10 @@
       "screen_none": "None",
       "screen_glass": "Glass",
       "screen_curtain": "Curtain",
-      "clearance": "{{free}} cm free in front of {{name}}, at least {{need}} cm needed"
+      "clearance": "{{free}} cm free in front of {{name}}, at least {{need}} cm needed",
+      "water_scheme": "Water supply layout",
+      "water_scheme_tee": "Tees (in series)",
+      "water_scheme_collector": "Manifold (a line to each point)"
     },
     "backsplash": {
       "title": "Kitchen backsplash",
@@ -1318,7 +1321,10 @@
       "bath_curtain": "Curtain and rod (bath, shower)",
       "work_bath_glass": "Work: fitting the bath screen",
       "work_shower_glass": "Work: fitting the shower glass",
-      "work_bath_curtain": "Work: fitting the curtain rod"
+      "work_bath_curtain": "Work: fitting the curtain rod",
+      "collector_cold": "Manifold (cold water)",
+      "collector_hot": "Manifold (hot water)",
+      "work_collector": "Work: assembling the manifold"
     },
     "unit": {
       "qop_one": "bag",
@@ -2390,7 +2396,8 @@
         "termoregulyator": "Underfloor heating thermostat",
         "shtorka_vanna": "Bath screen (glass)",
         "dush_shisha": "Shower screen (glass)",
-        "parda_hammom": "Bath/shower curtain and rod"
+        "parda_hammom": "Bath/shower curtain and rod",
+        "kollektor": "Water manifold"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",
