@@ -137,7 +137,13 @@
         "heated_breaker": "Avtomat 16 A (issiq pol)",
         "heated_cable": "Elektr kabel (issiq pol)",
         "work_heated_mat": "Ish: issiq pol matini yotqizish",
-        "work_heated_thermostat": "Ish: termoregulyatorni o'rnatish"
+        "work_heated_thermostat": "Ish: termoregulyatorni o'rnatish",
+        "bath_glass": "Vanna shtorkasi (shisha)",
+        "shower_glass": "Dush to'sig'i (shisha)",
+        "bath_curtain": "Parda va tayoqcha (vanna, dush)",
+        "work_bath_glass": "Ish: vanna shtorkasini o'rnatish",
+        "work_shower_glass": "Ish: dush shishasini o'rnatish",
+        "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish"
       },
       "unit": {
         "qop_one": "qop",
@@ -418,7 +424,13 @@
         "heated_breaker": "Автомат 16 А (тёплый пол)",
         "heated_cable": "Электрокабель (тёплый пол)",
         "work_heated_mat": "Работа: укладка нагревательного мата",
-        "work_heated_thermostat": "Работа: установка терморегулятора"
+        "work_heated_thermostat": "Работа: установка терморегулятора",
+        "bath_glass": "Шторка для ванны (стекло)",
+        "shower_glass": "Душевое ограждение (стекло)",
+        "bath_curtain": "Шторка и карниз (ванна, душ)",
+        "work_bath_glass": "Работа: установка шторки на ванну",
+        "work_shower_glass": "Работа: установка душевого стекла",
+        "work_bath_curtain": "Работа: установка карниза для шторки"
       },
       "unit": {
         "qop_one": "мешок",
@@ -753,7 +765,13 @@
         "heated_breaker": "16 A breaker (underfloor heating)",
         "heated_cable": "Electric cable (underfloor heating)",
         "work_heated_mat": "Work: laying the heating mat",
-        "work_heated_thermostat": "Work: installing the thermostat"
+        "work_heated_thermostat": "Work: installing the thermostat",
+        "bath_glass": "Bath screen (glass)",
+        "shower_glass": "Shower screen (glass)",
+        "bath_curtain": "Curtain and rod (bath, shower)",
+        "work_bath_glass": "Work: fitting the bath screen",
+        "work_shower_glass": "Work: fitting the shower glass",
+        "work_bath_curtain": "Work: fitting the curtain rod"
       },
       "unit": {
         "qop_one": "bag",

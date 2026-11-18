@@ -18,6 +18,7 @@ FAN = "Ventilyator"
 ELEC = "Rozetka va kabel"
 SAFETY = "Santexnika: xavfsizlik va sinov"
 HEATED = "Issiq pol (elektr)"
+SCREEN = "Vanna va dush to'sig'i"
 
 CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
     "plumbing": {
@@ -134,6 +135,12 @@ CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
         "el_rail_cable_m": ("Elektr sochiq quritgich kabeli uzunligi", "m", ELEC),
         "washer_cable_m": ("Kir yuvish mashinasi kabeli uzunligi", "m", ELEC),
         "work_washer_socket_uzs": ("Ish: kir yuvish mashinasi rozetkasini o'rnatish", SD, ELEC),
+        "screens.bath_glass_uzs": ("Vanna shtorkasi (shisha)", SD, SCREEN),
+        "screens.work_bath_glass_uzs": ("Ish: vanna shtorkasini o'rnatish", SD, SCREEN),
+        "screens.shower_glass_uzs": ("Dush to'sig'i (shisha)", SD, SCREEN),
+        "screens.work_shower_glass_uzs": ("Ish: dush shishasini o'rnatish", SD, SCREEN),
+        "screens.curtain_uzs": ("Parda va tayoqcha (vanna, dush)", SD, SCREEN),
+        "screens.work_curtain_uzs": ("Ish: parda tayoqchasini o'rnatish", SD, SCREEN),
         "heated_floor.mat_m2_uzs": ("Issiq pol mati (elektr)", SM2, HEATED),
         "heated_floor.mat_step_m2": ("Mat o'lchami qadami", "m²", HEATED),
         "heated_floor.mat_min_m2": ("Eng kichik mat", "m²", HEATED),

@@ -260,6 +260,9 @@ export interface DesignState {
   floorDrain?: boolean
   /** The water inlet unit (meter, filter, reducer, check valve) in the estimate: off unless exactly true (2026-11-14). */
   waterInlet?: boolean
+  /** A bath's and a shower's screen, drawn and priced (2026-11-18): 'glass' or 'curtain'; anything else = none. */
+  bathScreen?: 'glass' | 'curtain'
+  showerScreen?: 'glass' | 'curtain'
   /** An electric heated floor under the tile, in the estimate: off unless exactly true (2026-11-18). */
   heatedFloor?: boolean
   /** Kitchen backsplashes (spec 2026-11-14); absent = none. */
