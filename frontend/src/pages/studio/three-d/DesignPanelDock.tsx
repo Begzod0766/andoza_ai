@@ -41,8 +41,12 @@ export function DesignPanelDock({
           the right half instead of covering the screen as a bottom sheet,
           specifically so the 3D view stays fully visible on the left half
           while it's open (the whole point is watching a material apply to
-          the wall live). Still catches a tap on that left half to close. */}
-      {showPanel && (
+          the wall live). Still catches a tap on that left half to close.
+          Not above a plumbing stage's bottom sheet (mobile QA 2026-11-18,
+          #299): there the riser, the towel rail and the machines are dragged
+          in the 3D while the sheet is open, and this layer took every touch;
+          that sheet closes with its own button. */}
+      {showPanel && !isPlumbingPhase(activePhase) && (
         <div
           className="lg:hidden fixed inset-0 z-40"
           onClick={() => setShowPanel(false)}
