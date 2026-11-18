@@ -15,6 +15,7 @@ import { roomExtents } from '@/lib/roomDims'
 import { halfExtentsToBounds, placementSpot, roomBoundsFromGeometry } from '@/lib/furnitureBounds'
 import { blocksOpening, furnitureSpot, overlaps, roomModel, WALL_GAP, type Rect, type RoomModel } from '@/lib/aiDesignLayout'
 import type { FurnitureRole } from '@/lib/furnitureRole'
+import { fixtureClearances } from '@/lib/fixtureClearance'
 
 /**
  * Stagger offset (mm) for the *n*th piece of a given furniture item already
@@ -166,6 +167,12 @@ export function freeFurnitureSpotMm(
     .filter((p) => p.role !== 'rug')
     .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
     .concat(keepClear)
+  if (SEARCHED.has(role)) {
+    // Every wall spot, scored by the free floor the warning measures (prod check 2026-11-18: a toilet faced
+    // the bath 31 cm away): one that leaves every fixture its clearance, else the one short the least.
+    const spot = bestFixtureSpot(geometry, model, placed, size, role, taken, riser)
+    if (spot) return { ...toMm(spot), onWall: true }
+  }
   if (role === 'shower') {
     const spot = cornerFarthestFromDoor(model, size, taken)
     if (spot) return { ...toMm(spot), onWall: true }
@@ -246,6 +253,59 @@ function cornerFarthestFromDoor(model: RoomModel, size: { w: number; d: number; 
  * The spot against a wall, its front clearance free, nearest the riser (lib/plumbingRuns riserSpot);
  * null when no wall has room. Positions are tried every 5 cm along each wall.
  */
+/** The floor kept before a sink, cm (FIXTURE_FRONT_CLEAR). */
+const SINK_FRONT_CM = 70
+const sinkFrontTaken = (r: Rect, taken: Rect[]) => {
+  const c = SINK_FRONT_CM / 100, out = r.d / 2 + c / 2
+  const zone: Rect = { x: r.x + Math.sin(r.rotation) * out, z: r.z + Math.cos(r.rotation) * out, w: r.w, d: c, rotation: r.rotation }
+  return taken.some((q) => overlaps(zone, q, 0))
+}
+
+/** The fixtures placed by searching every wall spot against the clearance warning. */
+const SEARCHED = new Set<FurnitureRole>(['bathtub', 'sink', 'toilet'])
+/** The search step along a wall, metres. */
+const SEARCH_STEP_M = 0.05
+
+/**
+ * The wall spot for a bath, sink or toilet that leaves every fixture in the room (this one too) the free
+ * floor lib/fixtureClearance wants, the shortfall summed (cm) when none does; ties go to a toilet nearest the
+ * riser (its Ø110 drain), a bath or a sink nearest a corner (the middle left free). Null when no spot
+ * on any wall is free.
+ */
+function bestFixtureSpot(geometry: RoomGeometry, model: RoomModel, placed: readonly PlacedBox[], size: { w: number; d: number }, role: FurnitureRole, taken: Rect[], riser?: { wallId: string; positionMm: number }) {
+  const pieces = placed.filter((p) => p.role !== 'rug').map((p, i) => ({
+    id: p.id ?? `p${i}`, name: p.name ?? '', role: p.role, rect: { x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation },
+  }))
+  const r = riser ?? riserSpot(geometry)
+  const ww = wallWalk(geometry).find((w) => w.id === r.wallId)
+  const rx = ww ? ww.startX + ww.dirX * r.positionMm / 1000 : 0, rz = ww ? ww.startZ + ww.dirZ * r.positionMm / 1000 : 0
+  let best: { x: number; z: number; rotation: number } | null = null
+  let bestKey: [number, number] = [Infinity, Infinity]
+  for (const wall of model.walls) {
+    const rotation = Math.atan2(wall.nx, wall.nz)
+    const half = wall.length / 2 - size.w / 2
+    if (half < 0) continue
+    const out = size.d / 2 + WALL_GAP
+    for (let t = -half; t <= half + 1e-9; t += SEARCH_STEP_M) {
+      const rect: Rect = { x: wall.midX + wall.dirX * t + wall.nx * out, z: wall.midZ + wall.dirZ * t + wall.nz * out, w: size.w, d: size.d, rotation }
+      if (!model.inside(rect) || taken.some((q) => overlaps(rect, q)) || blocksOpening(rect, false, model, { doors: true, windows: false })) continue
+      // A piece already standing losing its floor weighs ten times this one going short: when the room is
+      // too small, the new piece takes the shortfall and its own warning, not the ones placed before it.
+      const short = fixtureClearances([...pieces, { id: '__new', name: '', role, rect }], geometry)
+        .reduce((sum, w) => sum + (w.needCm - w.freeCm) * (w.id === '__new' ? 1 : 10), 0)
+        // A sink is not in the warning, but is stood at: its own 70 cm before it kept free of anything placed.
+        + (role === 'sink' && sinkFrontTaken(rect, taken) ? SINK_FRONT_CM : 0)
+      // A toilet by the riser (its Ø110 drain); a bath or a sink packed into a corner, leaving the middle free.
+      const tie = role === 'toilet' ? Math.hypot(rect.x - rx, rect.z - rz) : half - Math.abs(t)
+      if (short < bestKey[0] - 1e-6 || (Math.abs(short - bestKey[0]) < 1e-6 && tie < bestKey[1] - 1e-6)) {
+        best = { x: rect.x, z: rect.z, rotation }
+        bestKey = [short, tie]
+      }
+    }
+  }
+  return best
+}
+
 function nearRiser(geometry: RoomGeometry, model: RoomModel, size: { w: number; d: number; tall: boolean }, clear: number, taken: Rect[], riser?: { wallId: string; positionMm: number }) {
   const r = riser ?? riserSpot(geometry)
   const ww = wallWalk(geometry).find((w) => w.id === r.wallId)
