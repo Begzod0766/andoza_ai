@@ -5,7 +5,7 @@ import { roomModel, overlaps, type Rect } from '@/lib/aiDesignLayout'
 import { riserPose, wallWalk } from '@/lib/plumbingRuns'
 import {
   washerPoints, withWasherPoints, washerSpans, nearestFreeWasher, placeWasher, keepWashers, saneWashers, washerBox, riserTaken,
-  WASHER_W_MM, WASHER_D_MM, WASHER_H_MM, machineSize, isDishwasher,
+  WASHER_W_MM, WASHER_D_MM, WASHER_H_MM, machineSize, isDishwasher, isKitchenSink,
 } from '@/lib/washer'
 import shared from './fixtures/washerPoints.json'
 
@@ -189,5 +189,26 @@ describe('a dishwasher (2026-11-16)', () => {
       { id: 'b', wallId: 'A', positionMm: 1, kind: 'dishwasher' },
       { id: 'c', wallId: 'A', positionMm: 1 },
     ])
+  })
+})
+
+describe('a kitchen sink (2026-11-18)', () => {
+  it('is a 600 base cabinet: three points, no dishwasher', () => {
+    const s = { id: 's', wallId: 'A', positionMm: 1000, kind: 'kitchen_sink' as const }
+    expect(isKitchenSink(s)).toBe(true)
+    expect(isDishwasher(s)).toBe(false)
+    expect(machineSize(s)).toEqual({ w: 600, d: 600, h: 850 })
+  })
+  it('is kept when a saved room is read', () => {
+    expect(saneWashers([{ id: 's', wallId: 'A', positionMm: 1, kind: 'kitchen_sink' }]))
+      .toEqual([{ id: 's', wallId: 'A', positionMm: 1, kind: 'kitchen_sink' }])
+  })
+  it('a dishwasher goes next to the sink, not by the riser (kitchen QA 2026-11-18 K4)', () => {
+    const g = rect(3500, 3000)
+    // The riser at the start of wall A, the sink at the far end of wall C.
+    const sink = { wallId: 'C', positionMm: 2500, halfMm: 300 }
+    const at = placeWasher(g, { wallId: 'A', positionMm: 0 }, [sink], [], { kind: 'dishwasher', widthMm: 600 }, sink)
+    expect(at?.wallId).toBe('C')
+    expect(Math.abs(at!.positionMm - 2500)).toBe(600)
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { inferRole, isRole, ROLE_GROUP } from '../furnitureRole'
+import { inferRole, isKitchenSet, isRole, ROLE_GROUP } from '../furnitureRole'
 
 describe('furniture roles', () => {
   it.each([
@@ -113,5 +113,16 @@ describe('plumbing roles: accessories and cabinets are not fixtures (final revie
     expect(inferRole('boshqa', 'Мойка кухонная')).toBe('sink')
     expect(inferRole('boshqa', 'Oshxona moykasi')).toBe('sink')
     expect(inferRole('boshqa', 'Dush kabina 90x90')).toBe('shower')
+  })
+})
+
+describe('isKitchenSet (kitchen QA 2026-11-18)', () => {
+  it('a kitchen set by its name, in Uzbek, Russian and English', () => {
+    for (const n of ["Oshxona to'plami 2", 'Oshxona garnituri', 'Кухонный гарнитур Лана', 'Гарнитур', 'Kitchen set Nova'])
+      expect(isKitchenSet(n)).toBe(true)
+  })
+  it('not a kitchen chair, table or a bathroom set', () => {
+    for (const n of ['FITZ KIDS oshxona stuli', 'Stol va stul', "Hammom to'plami", 'Kitchen chair', null, ''])
+      expect(isKitchenSet(n)).toBe(false)
   })
 })

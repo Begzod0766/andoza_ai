@@ -22,6 +22,17 @@ def is_dishwasher(m: dict) -> bool:
     return m.get("kind") == "dishwasher"
 
 
+def is_kitchen_sink(m: dict) -> bool:
+    """``kind`` exactly "kitchen_sink" (kitchen QA 2026-11-18, lib/washer isKitchenSink)."""
+    return m.get("kind") == "kitchen_sink"
+
+
+# A kitchen sink: the drain 500 mm high at its centre, cold and hot 550 mm high, 100 mm either side.
+SINK_DRAIN_HEIGHT_MM = 500
+SINK_WATER_HEIGHT_MM = 550
+SINK_WATER_OFFSET_MM = 100
+
+
 def dishwasher_width(m: dict) -> int:
     w = m.get("widthMm")
     return w if isinstance(w, int) and not isinstance(w, bool) and w in DISHWASHER_WIDTHS else 600
@@ -48,6 +59,15 @@ def _points(m: dict, wall_length_mm: float) -> list[dict]:
         return _js_round(min(wall_length_mm, max(0.0, pos + offset)))
 
     wall = str(m["wallId"])
+    if is_kitchen_sink(m):
+        return [
+            {"id": f"{m['id']}:cold", "kind": "cold", "diameterMm": 20, "wallId": wall,
+             "positionMm": at(-SINK_WATER_OFFSET_MM), "heightMm": SINK_WATER_HEIGHT_MM, "washerId": m["id"]},
+            {"id": f"{m['id']}:hot", "kind": "hot", "diameterMm": 20, "wallId": wall,
+             "positionMm": at(SINK_WATER_OFFSET_MM), "heightMm": SINK_WATER_HEIGHT_MM, "washerId": m["id"]},
+            {"id": f"{m['id']}:drain", "kind": "drain", "diameterMm": 50, "wallId": wall,
+             "positionMm": at(0), "heightMm": SINK_DRAIN_HEIGHT_MM, "washerId": m["id"]},
+        ]
     dish = is_dishwasher(m)
     offset = (100 if dishwasher_width(m) == 450 else 150) if dish else TAP_OFFSET_MM
     cold = DISHWASHER_POINT_HEIGHT_MM if dish else COLD_HEIGHT_MM
