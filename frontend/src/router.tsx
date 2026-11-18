@@ -14,11 +14,14 @@ import { LandingIntro } from "@/components/LandingIntro";
 
 // ---------- Auth guard ----------
 
-function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    // The whole address: the app opens the studio with ?phase=, ?app=1 and ?lang=, and a bounce
+    // through /login used to come back without them (mobile QA 2026-11-18).
+    const from = location.pathname + location.search + location.hash;
+    return <Navigate to="/login" state={{ from }} replace />;
   }
   return <>{children}</>;
 }
