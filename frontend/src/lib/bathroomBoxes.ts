@@ -1,5 +1,5 @@
 import type { CatalogFurniture } from '@/lib/api'
-import type { PlacedFurniture, RoomGeometry } from '@/store/types'
+import type { PlacedFurniture, RoomGeometry, TowelRail } from '@/store/types'
 import { inferRole } from '@/lib/furnitureRole'
 import { wallWalk, type RiserAt } from '@/lib/plumbingRuns'
 import { fixturePoints } from '@/lib/plumbingPoints'
@@ -100,11 +100,48 @@ export function boilerSpot(geometry: RoomGeometry, riser: RiserAt, ceilingMm: nu
   // its depth along the wall that meets it there, so the heater goes on that wall, past the box.
   const corner = RISER_BOX_D_MM + BOILER_GAP_MM + BOILER_R_MM
   const side = riser.positionMm <= half ? walk[(i - 1 + walk.length) % walk.length] : riser.positionMm >= len - half ? walk[(i + 1) % walk.length] : null
-  if (!side || side.id === w.id) return null
-  const sideLen = side.lengthM * 1000
-  // The wall before ends at the corner, the wall after starts there.
-  const c = riser.positionMm <= half ? sideLen - corner : corner
-  return freeOn(side.id, sideLen)(c) ? { wallId: side.id, positionMm: Math.round(c), bottomMm } : null
+  if (side && side.id !== w.id) {
+    const sideLen = side.lengthM * 1000
+    // The wall before ends at the corner, the wall after starts there.
+    const c = riser.positionMm <= half ? sideLen - corner : corner
+    if (freeOn(side.id, sideLen)(c)) return { wallId: side.id, positionMm: Math.round(c), bottomMm }
+  }
+  // Nothing by the riser (prod check 2026-11-18: a door at the riser corner, a bath along the wall that
+  // meets it): the free place nearest the riser round the walls, past the box, 5 cm steps. A longer pipe
+  // run, but a heater that is drawn and priced rather than priced and missing.
+  const starts: number[] = []
+  let total = 0
+  for (const x of walk) { starts.push(total); total += x.lengthM * 1000 }
+  const boxAt = starts[i] + box
+  const boxFree = (k: number, c: number) => {
+    // The box itself and the gap beside it, on its own wall and, in a corner, the wall it stands out along.
+    const s0 = starts[k] + c
+    const d = Math.min(Math.abs(s0 - boxAt), total - Math.abs(s0 - boxAt))
+    return d >= half + BOILER_GAP_MM + BOILER_R_MM
+  }
+  let best: { wallId: string; positionMm: number; d: number } | null = null
+  walk.forEach((_, n) => {
+    const k = (i + n) % walk.length
+    const wk = walk[k]
+    const wl = wk.lengthM * 1000
+    const free = freeOn(wk.id, wl)
+    for (let c = BOILER_R_MM; c <= wl - BOILER_R_MM + 1e-6; c += 50) {
+      if (!free(c) || !boxFree(k, c)) continue
+      const sc = starts[k] + c
+      const d = Math.min(Math.abs(sc - boxAt), total - Math.abs(sc - boxAt))
+      if (!best || d < best.d - 1e-6) best = { wallId: wk.id, positionMm: Math.round(c), d }
+    }
+  })
+  const found = best as { wallId: string; positionMm: number; d: number } | null
+  return found ? { wallId: found.wallId, positionMm: found.positionMm, bottomMm } : null
+}
+
+/** The stretch of wall each towel rail takes (2026-11-18): its width, and 5 cm each side, round its place. */
+export function railSpans(rails: TowelRail[]): WallSpan[] {
+  return rails.map((r) => {
+    const w = (r.size && /^\d+x\d+$/.test(r.size) ? Number(r.size.split('x')[0]) : 500) / 2 + 50
+    return { wallId: r.wallId, from: r.positionMm - w, to: r.positionMm + w }
+  })
 }
 
 /** A wall-hung toilet, as the estimate reads one (backend smeta.py _WALL_HUNG). */

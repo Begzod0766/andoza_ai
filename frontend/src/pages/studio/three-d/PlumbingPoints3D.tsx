@@ -6,6 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
 import { riserPose, roomRiser, wallWalk } from "@/lib/plumbingRuns";
+import { plumbingLayerShown } from "@/lib/plumbingStageOn";
 import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 import { withWasherPoints } from "@/lib/washer";
@@ -64,6 +65,8 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   // A towel rail's two points are worked out from it, never saved: drawn with the rest.
   const plumbing = useMemo(() => withWasherPoints(withRailPoints(saved, towelRails, geometry), washers, geometry), [saved, towelRails, washers, geometry]);
   const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
+  // Only in the 3D at Quvurlar or while a plumbing panel is on (prod check 2026-11-18: the points were in a render).
+  const layer = useRoomStore((s) => plumbingLayerShown(s));
   const manualRiser = useRoomStore((s) => s.plumbingRiser);
   const collector = useRoomStore((s) => s.designState.waterScheme === "collector");
   const movePlumbing = useRoomStore((s) => s.movePlumbing);
@@ -110,13 +113,13 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   }, [controlsRef]);
 
   const pipes = useMemo(
-    () => (showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing, collector), hiddenWalls) : []),
-    [showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser, collector],
+    () => (layer && showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing, collector), hiddenWalls) : []),
+    [layer, showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser, collector],
   );
   const riserAt = roomRiser(geometry, manualRiser);
-  const box = showPipeRuns && collector && !hiddenWalls?.has(riserAt.wallId) ? collectorPose(geometry, riserAt) : null;
+  const box = layer && showPipeRuns && collector && !hiddenWalls?.has(riserAt.wallId) ? collectorPose(geometry, riserAt) : null;
   const feed = box ? collectorFeed(geometry, riserAt) : null;
-  if (plumbing.length === 0) return null;
+  if (plumbing.length === 0 || !layer) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
     if (p.fixtureId || p.railId || p.washerId || e.button !== 0) return;   // not a fixture's or a rail's point, not a right-click

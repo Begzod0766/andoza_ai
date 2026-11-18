@@ -6,7 +6,7 @@ import { roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { effectiveRoomType } from "@/lib/roomType";
 import {
   BOILER_H_MM, BOILER_R_MM, boilerSpot, FRAME_BOX_D_MM, FRAME_BOX_H_MM, FRAME_BOX_W_MM, frameBoxSpots,
-  HATCH_BOTTOM_MM, HATCH_H_MM, HATCH_W_MM, RISER_BOX_D_MM, RISER_BOX_W_MM, riserBoxSpot, wetSpans, type WallSpot,
+  HATCH_BOTTOM_MM, HATCH_H_MM, HATCH_W_MM, RISER_BOX_D_MM, RISER_BOX_W_MM, riserBoxSpot, railSpans, wetSpans, type WallSpot,
 } from "@/lib/bathroomBoxes";
 import { riserVisible } from "./Riser3D";
 import { Wall } from "./WallComponents";
@@ -67,6 +67,7 @@ export function BathroomBoxes3D({ hiddenWalls }: { hiddenWalls?: ReadonlySet<str
   const coverings = useRoomStore((s) => s.designState.wallCoverings);
   const furniture = useRoomStore((s) => s.furniture);
   const catalog = useRoomStore((s) => s.catalogFurniture);
+  const rails = useRoomStore((s) => s.towelRails);
   // At a stage (spec 2026-11-18): the boxes are built before the plaster, the water heater hung with
   // the fixtures. (At Quvurlar the riser box is off already: the bare pipe shows, riserVisible.)
   const boxesBuilt = useDrawnAt("suvoq");
@@ -75,8 +76,8 @@ export function BathroomBoxes3D({ hiddenWalls }: { hiddenWalls?: ReadonlySet<str
   const riser = useMemo(() => roomRiser(geometry, manual), [geometry, manual]);
   const box = useMemo(() => (wet && !pipeShown ? riserBoxSpot(geometry, riser) : null), [wet, pipeShown, geometry, riser]);
   const boiler = useMemo(
-    () => (wet && heater && heaterHung ? boilerSpot(geometry, riser, ceilingMm, wetSpans(furniture, catalog, geometry)) : null),
-    [wet, heater, heaterHung, geometry, riser, ceilingMm, furniture, catalog],
+    () => (wet && heater && heaterHung ? boilerSpot(geometry, riser, ceilingMm, [...wetSpans(furniture, catalog, geometry), ...railSpans(rails)]) : null),
+    [wet, heater, heaterHung, geometry, riser, ceilingMm, furniture, catalog, rails],
   );
   const frames = useMemo(
     () => (wet && boxesBuilt ? frameBoxSpots(furniture, catalog, geometry) : []),

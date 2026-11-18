@@ -1093,7 +1093,8 @@
       "water_scheme": "Water supply layout",
       "water_scheme_tee": "Tees (in series)",
       "water_scheme_collector": "Manifold (a line to each point)",
-      "hatch_blocked": "{{names}} blocks the riser hatch — keep it reachable"
+      "hatch_blocked": "{{names}} blocks the riser hatch — keep it reachable",
+      "boiler_homeless": "No safe place for the water heater: it needs a free wall away from the door, window, bath and shower. Move the riser or the fixtures."
     },
     "backsplash": {
       "title": "Kitchen backsplash",

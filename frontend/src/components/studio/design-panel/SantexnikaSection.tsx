@@ -8,7 +8,7 @@ import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
 import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
-import { useFixtureClearances, useHatchBlockers } from "@/features/studio/fixtureClearance";
+import { useBoilerHomeless, useFixtureClearances, useHatchBlockers } from "@/features/studio/fixtureClearance";
 import type { TowelRailSize } from "@/store/types";
 import { DISHWASHER_WIDTHS, isDishwasher, machineSize, withWasherPoints } from "@/lib/washer";
 import { effectiveRoomType } from "@/lib/roomType";
@@ -54,6 +54,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const clashes = useWallItemClashes();
   const clearances = useFixtureClearances();
   const hatchBlocked = useHatchBlockers();
+  const boilerHomeless = useBoilerHomeless();
   const clashNote = (id: string) => clashes[id] && (
     <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
   );
@@ -390,6 +391,10 @@ export function SantexnikaSection({ part, bathroom = false }: {
         <input type="checkbox" checked={waterHeater === true} onChange={(e) => setDesignState({ waterHeater: e.target.checked })} />
         {t("studio.santexnika.water_heater")}
       </label>
+      {/* No wall takes the heater (2026-11-18): it is priced but cannot be drawn, so say so. */}
+      {boilerHomeless && (
+        <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.boiler_homeless")}</p>
+      )}
       {/* A bath's and a shower's screen (2026-11-18): none until picked; a cabin or a shower panel has its own glass. */}
       {([
         ["bathScreen", "screen_bath", bathScreen, screenedBaths(furniture, catalog).length > 0],

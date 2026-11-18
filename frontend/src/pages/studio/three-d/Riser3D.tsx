@@ -5,6 +5,7 @@ import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry } from "@/store/types";
+import { plumbingLayerShown } from "@/lib/plumbingStageOn";
 import { riserPose, riserSpot, roomRiser, RISER_OFF_WALL_M, RISER_RADIUS_M, type RiserAt } from "@/lib/plumbingRuns";
 import { raycastInFront, railPointerHandlers } from "./TowelRails3D";
 
@@ -24,7 +25,8 @@ export function riserDragTo(geometry: RoomGeometry, worldX: number, worldZ: numb
 /** The riser is drawn in a plumbing stage, where it can be dragged, while the pipe runs are shown, and
  *  bare in the 3D at Quvurlar, before it is boxed in (spec 2026-11-18). */
 export function riserVisible(s: { plumbingStage: boolean; showPipeRuns: boolean; viewStage: ViewStage }): boolean {
-  return s.plumbingStage || s.showPipeRuns || s.viewStage === 'quvurlar';
+  // Not for the pipe runs switch alone (prod check 2026-11-18): left on, it kept the bare pipe through every stage and into a render.
+  return plumbingLayerShown(s);
 }
 
 /**

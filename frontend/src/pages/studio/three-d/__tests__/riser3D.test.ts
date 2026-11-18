@@ -44,7 +44,9 @@ describe('riserDragTo', () => {
 describe('riserVisible', () => {
   it('drawn in a plumbing stage, or while the pipe runs are shown; not otherwise', () => {
     expect(riserVisible({ plumbingStage: true, showPipeRuns: false, viewStage: 'full' })).toBe(true)
-    expect(riserVisible({ plumbingStage: false, showPipeRuns: true, viewStage: 'full' })).toBe(true)
+    // The pipe runs switch no longer keeps it out at the other stages (prod check 2026-11-18).
+    expect(riserVisible({ plumbingStage: false, showPipeRuns: true, viewStage: 'full' })).toBe(false)
+    expect(riserVisible({ plumbingStage: false, showPipeRuns: true, viewStage: 'mebel' })).toBe(false)
     expect(riserVisible({ plumbingStage: false, showPipeRuns: false, viewStage: 'full' })).toBe(false)
   })
   it('the 3D at Quvurlar shows it bare, before it is boxed in (spec 2026-11-18)', () => {
