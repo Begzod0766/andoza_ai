@@ -185,3 +185,13 @@ describe('a kitchen sink by the kitchen set (kitchen QA 2026-11-18)', () => {
     expect(st().washers[1]).toMatchObject({ wallId: 'B', positionMm: 1700 })
   })
 })
+
+describe('a machine keeps off the riser box (2026-11-18)', () => {
+  it('in a bathroom, dragged onto the box in the corner, it stops past it', () => {
+    useRoomStore.setState({ roomType: 'hammom', plumbingRiser: { wallId: 'A', positionMm: 0 }, washers: [{ id: 'm', wallId: 'A', positionMm: 1500 }] })
+    st().beginWasherDrag()
+    st().moveWasher('m', 100)
+    st().endWasherDrag()
+    expect(st().washers[0].positionMm).toBe(400 + 300)
+  })
+})

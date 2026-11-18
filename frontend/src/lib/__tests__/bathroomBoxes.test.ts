@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PlacedFurniture, RoomGeometry } from '@/store/types'
 import type { CatalogFurniture } from '@/lib/api'
-import { BOILER_H_MM, boilerSpot, railSpans, frameBoxSpots, hatchBlockers, isWallHung, riserBoxSpot, RISER_BOX_W_MM, wallHungShiftM, wetSpans } from '@/lib/bathroomBoxes'
+import { BOILER_H_MM, boilerSpot, railSpans, frameBoxSpots, hatchBlockers, isWallHung, riserBoxSpot, riserBoxTaken, RISER_BOX_W_MM, wallHungShiftM, wetSpans } from '@/lib/bathroomBoxes'
 import { fixturePoints } from '@/lib/plumbingPoints'
 import { wallWalk } from '@/lib/plumbingRuns'
 
@@ -139,5 +139,22 @@ describe('hatchBlockers (2026-11-18): what stands in front of the riser box hatc
 describe('railSpans (2026-11-18): a towel rail takes its width of the wall, and 5 cm each side', () => {
   it('centred on its place', () => {
     expect(railSpans([{ id: 'r', wallId: 'A', positionMm: 1000, heightMm: 1100, size: '500x800' }])).toEqual([{ wallId: 'A', from: 700, to: 1300 }])
+  })
+})
+
+describe('riserBoxTaken (mobile QA 2026-11-18): the drywall box as wall space a rail or a machine keeps off', () => {
+  it('mid-wall: the box\'s width on its wall', () => {
+    expect(riserBoxTaken(geometry, { wallId: 'A', positionMm: 1200 })).toEqual([{ wallId: 'A', positionMm: 1200, halfMm: RISER_BOX_W_MM / 2 }])
+  })
+  it('in a corner: its width on its wall and its depth on the wall it stands out along', () => {
+    // A starts where D ends: the box at A 0…400 stands 250 out along the end of D.
+    expect(riserBoxTaken(geometry, { wallId: 'A', positionMm: 0 })).toEqual([
+      { wallId: 'A', positionMm: 200, halfMm: 200 },
+      { wallId: 'D', positionMm: 2000 - 125, halfMm: 125 },
+    ])
+    expect(riserBoxTaken(geometry, { wallId: 'A', positionMm: 2500 })).toEqual([
+      { wallId: 'A', positionMm: 2300, halfMm: 200 },
+      { wallId: 'B', positionMm: 125, halfMm: 125 },
+    ])
   })
 })
