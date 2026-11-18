@@ -113,3 +113,23 @@ def test_every_new_label_reads_in_russian_and_english(label, ru, en):
 
 def test_the_formula_reads_in_russian():
     assert localize_formula("1.20 m × 0.60 m = 0.72 m²", "ru") == "1.20 м × 0.60 м = 0.72 м²"
+
+
+def test_the_wall_under_a_backsplash_is_not_painted():
+    """Kitchen QA 2026-11-18 K11: the paint was bought for the 1.8 m² the backsplash covers too."""
+    from app.services.smeta import _painted_wall_areas
+
+    def painted(r):
+        return sum(area for _, area, _ in _painted_wall_areas(r, {}, {}))
+    bare = painted(room())
+    # A 1.2 m × 0.6 m backsplash on A: tile or skinali, either covers the wall.
+    assert painted(room([splash()])) == pytest.approx(bare - 0.72)
+    assert painted(room([splash("skinali")])) == pytest.approx(bare - 0.72)
+
+
+def test_a_backsplash_inside_a_tile_band_takes_nothing_off_the_paint_above():
+    from app.services.smeta import _painted_wall_areas
+    band = {**TILE, "tileHeightMm": 1500}
+    def painted(r):
+        return sum(area for _, area, _ in _painted_wall_areas(r, {}, {}))
+    assert painted(room([splash()], {"ALL": band})) == pytest.approx(painted(room(None, {"ALL": band})))

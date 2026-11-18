@@ -6,6 +6,9 @@ import WizardPage from './WizardPage'
 import { useRoomStore } from '@/store/roomStore'
 import { applyLanguage } from '@/i18n'
 import ru from '@/i18n/locales/ru.json'
+import uz from '@/i18n/locales/uz.json'
+
+const UZ_ROOM_TYPES = uz.rooms.type
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -273,6 +276,19 @@ describe('WizardPage – Step 5 (Results)', () => {
     }
     await waitFor(() => expect(createRoom).toHaveBeenCalled())
     expect(vi.mocked(createRoom).mock.calls[0][1]).toMatchObject({ room_type: 'yotoqxona' })
+  })
+
+  it('a room of a picked type is named by it, not "Xona" (kitchen QA 2026-11-18 K10)', async () => {
+    const { createRoom } = await import('@/lib/api')
+    vi.mocked(createRoom).mockClear()
+    renderWizard()
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'oshxona' } })
+    for (let i = 0; i < 5; i++) {
+      await waitFor(() => screen.getByText('Keyingi'))
+      fireEvent.click(screen.getByText('Keyingi'))
+    }
+    await waitFor(() => expect(createRoom).toHaveBeenCalled())
+    expect(vi.mocked(createRoom).mock.calls[0][1]).toMatchObject({ room_type: 'oshxona', name: UZ_ROOM_TYPES.oshxona })
   })
 
   it('calls createApartment and createRoom on step 5', async () => {

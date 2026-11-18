@@ -1,5 +1,8 @@
 import * as React from "react";
 import { formatDecimal } from "@/lib/utils";
+
+/** A card's size to the centimetre, no trailing zeros: 0.36700000000000005 read as noise (kitchen QA 2026-11-18 K8). */
+const cardSize = (m: number) => formatDecimal(m, 2).replace(/[.,]?0+$/, "");
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
 import { nanoid } from "nanoid";
@@ -162,7 +165,7 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
         <p className="text-[11px] font-semibold text-ink leading-tight line-clamp-2">
           {isOver ? t('studio.mebel.apply_texture') : entry.name}
         </p>
-        <p className="text-[10px] text-ink-muted mt-0.5">{entry.sizeM.w}×{entry.sizeM.d} m</p>
+        <p className="text-[10px] text-ink-muted mt-0.5">{cardSize(entry.sizeM.w)}×{cardSize(entry.sizeM.d)} m</p>
         {entry.isShop && (
           <p className="text-[10px] text-ink-muted mt-0.5 truncate" title={entry.storeName ?? undefined}>
             <Store size={11} className="mr-1 inline -mt-0.5" aria-hidden="true" />{entry.storeName ?? t('studio.mebel.no_shop')}
