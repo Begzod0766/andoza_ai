@@ -65,6 +65,14 @@ def test_a_shower_sold_with_its_glass_gets_none_but_keeps_its_mixer():
     assert "Dush smesiteli" in got
 
 
+def test_a_bath_sold_with_its_glass_gets_no_screen():
+    # The catalog's baths come with a glass screen and are named "(shishali)" (2026-11-18).
+    got = lines(room("Vanna 3 (shishali)", bath="glass"))
+    assert not {BATH_G, BATH_GW} & set(got)
+    got = lines(room("Vanna 3 (shishali)", bath="curtain"))
+    assert not {CURTAIN, CURTAIN_W} & set(got)
+
+
 def test_a_pick_with_no_such_fixture_prices_nothing():
     assert not set(ALL) & set(lines(room("Rakovina", bath="glass", shower="curtain")))
 

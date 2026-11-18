@@ -15,6 +15,9 @@ export const screenChoice = (v: unknown): ScreenKind | null => (v === 'glass' ||
 /** A shower sold with its own glass, as the estimate reads one (backend smeta.py _OWN_GLASS): a cabin, a
  * shower panel, or a walk-in set named "(shishali)" (2026-11-18). */
 export const hasOwnGlass = (name: string): boolean => /kabin|кабин|cabin|panel|панел|shishali|стекл|glass/i.test(name)
+/** A bath sold with its own glass screen (2026-11-18: the catalog's, named "(shishali)"). Narrower than a
+ * shower's: a "vanna paneli" is a bath's front panel, not glass (backend smeta.py _BATH_OWN_GLASS). */
+export const bathHasOwnGlass = (name: string): boolean => /shishali|стекл|glass/i.test(name)
 
 /** A bath or shower on the floor, metres: centre, width along its own x, depth along its z, turned about +Y. */
 export interface WetRect { id: string; x: number; z: number; w: number; d: number; rotation: number }
@@ -78,6 +81,7 @@ function placedRects(furniture: PlacedFurniture[], catalog: CatalogFurniture[], 
     const row = byId.get(f.furniture_id)
     const name = row?.name_uz ?? f.name ?? f.furniture_id
     if (inferRole(row?.category ?? null, name) !== role) return []
+    if (role === 'bathtub' && bathHasOwnGlass(name)) return []
     if (role === 'shower') {
       if (hasOwnGlass(name)) return []
       const { w, d } = showerZoneSize(row?.footprint_w, row?.footprint_d, f.scaleOverride)
