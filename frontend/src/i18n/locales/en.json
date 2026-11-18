@@ -1073,7 +1073,8 @@
       "screen_shower": "Shower screen",
       "screen_none": "None",
       "screen_glass": "Glass",
-      "screen_curtain": "Curtain"
+      "screen_curtain": "Curtain",
+      "clearance": "{{free}} cm free in front of {{name}}, at least {{need}} cm needed"
     },
     "backsplash": {
       "title": "Kitchen backsplash",
