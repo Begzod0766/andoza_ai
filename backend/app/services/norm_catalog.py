@@ -19,6 +19,7 @@ ELEC = "Rozetka va kabel"
 SAFETY = "Santexnika: xavfsizlik va sinov"
 HEATED = "Issiq pol (elektr)"
 SCREEN = "Vanna va dush to'sig'i"
+CEILING = "Shift (bo'yash)"
 
 CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
     "plumbing": {
@@ -114,6 +115,7 @@ CATALOG: dict[str, dict[str, tuple[str, str, str]]] = {
         "work_backsplash_m2_uzs": ("Ish: fartuk plitkasini terish", SM2, APRON),
         "skinali_m2_uzs": ("Skinali (shisha fartuk)", SM2, APRON),
         "work_skinali_m2_uzs": ("Ish: skinali o'rnatish", SM2, APRON),
+        "work_ceiling_paint_m2_uzs": ("Ish: shiftni grunt va bo'yash", SM2, CEILING),
     },
     "bathroom_extras": {
         "towel_rail_uzs_by_size.500x500": ("Sochiq quritgich 50×50 (suvli)", SD, RAIL),

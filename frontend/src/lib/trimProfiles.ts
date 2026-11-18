@@ -738,3 +738,18 @@ export function trimProfileSvgPath(def: TrimProfileDef, flipY = false): string {
     .join(' ')
   return `${d} Z`
 }
+
+/**
+ * The skirting a room draws: `null` (the user took it off) draws none, a saved
+ * one draws that, and a never-touched one the default board — except in a
+ * bathroom with a tile floor, which is tiled to the wall foot (2026-11-18). The
+ * estimate (backend smeta._skirting_lines) prices the same rule.
+ */
+export function roomSkirting(
+  design: { skirting?: TrimState | null; floorType?: string },
+  bathroom: boolean,
+): ResolvedTrim | null {
+  if (design.skirting === null) return null
+  if (design.skirting === undefined && bathroom && design.floorType === 'tile') return null
+  return resolveTrim(design.skirting, 'skirting')
+}

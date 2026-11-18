@@ -146,7 +146,17 @@
         "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish",
         "collector_cold": "Kollektor (sovuq suv)",
         "collector_hot": "Kollektor (issiq suv)",
-        "work_collector": "Ish: kollektorni yig'ish"
+        "work_collector": "Ish: kollektorni yig'ish",
+        "wall_tile_avg": "Devor plitkasi (o'rtacha narx)",
+        "floor_tile_avg": "Pol plitkasi (o'rtacha narx)",
+        "backsplash_tile_avg": "Fartuk plitkasi (o'rtacha narx)",
+        "shift_grunt": "Shift grunti",
+        "shift_grunt_bag": "Shift grunti (asosiy qatlam) {{kg}} kg qop",
+        "shift_paint": "Shift bo'yog'i",
+        "shift_paint_wet": "Namga chidamli shift bo'yog'i",
+        "shift_paint_none": "Shift bo'yog'i (material tanlanmagan)",
+        "shift_paint_wet_none": "Namga chidamli shift bo'yog'i (material tanlanmagan)",
+        "work_ceiling_paint": "Ish: shiftni bo'yash"
       },
       "unit": {
         "qop_one": "qop",
@@ -227,7 +237,10 @@
         "smesitel_other": "smesitel",
         "branch_pieces_head": "Tik bo'laklar",
         "mashina_one": "mashina",
-        "mashina_other": "mashina"
+        "mashina_other": "mashina",
+        "under_fixtures": "jihozlar ostida",
+        "banka_one": "banka",
+        "banka_other": "banka"
       },
       "warning": {
         "norm_missing": "Bu qism uchun aniq norma topilmadi — standart ko'rsatkich bo'yicha hisoblandi.",
@@ -436,7 +449,17 @@
         "work_bath_curtain": "Работа: установка карниза для шторки",
         "collector_cold": "Коллектор (холодная вода)",
         "collector_hot": "Коллектор (горячая вода)",
-        "work_collector": "Работа: сборка коллектора"
+        "work_collector": "Работа: сборка коллектора",
+        "wall_tile_avg": "Настенная плитка (средняя цена)",
+        "floor_tile_avg": "Напольная плитка (средняя цена)",
+        "backsplash_tile_avg": "Плитка для фартука (средняя цена)",
+        "shift_grunt": "Грунтовка потолка",
+        "shift_grunt_bag": "Грунтовка потолка (базовый слой), мешок {{kg}} кг",
+        "shift_paint": "Краска для потолка",
+        "shift_paint_wet": "Влагостойкая краска для потолка",
+        "shift_paint_none": "Краска для потолка (материал не выбран)",
+        "shift_paint_wet_none": "Влагостойкая краска для потолка (материал не выбран)",
+        "work_ceiling_paint": "Работа: покраска потолка"
       },
       "unit": {
         "qop_one": "мешок",
@@ -569,7 +592,12 @@
         "mashina_one": "машина",
         "mashina_few": "машины",
         "mashina_many": "машин",
-        "mashina_other": "машины"
+        "mashina_other": "машины",
+        "under_fixtures": "под приборами",
+        "banka_one": "банка",
+        "banka_few": "банки",
+        "banka_many": "банок",
+        "banka_other": "банки"
       },
       "warning": {
         "norm_missing": "Точной нормы для этой части нет: посчитано по стандартному показателю.",
@@ -780,7 +808,17 @@
         "work_bath_curtain": "Work: fitting the curtain rod",
         "collector_cold": "Manifold (cold water)",
         "collector_hot": "Manifold (hot water)",
-        "work_collector": "Work: assembling the manifold"
+        "work_collector": "Work: assembling the manifold",
+        "wall_tile_avg": "Wall tile (average price)",
+        "floor_tile_avg": "Floor tile (average price)",
+        "backsplash_tile_avg": "Backsplash tile (average price)",
+        "shift_grunt": "Ceiling primer",
+        "shift_grunt_bag": "Ceiling primer (base coat), {{kg}} kg bag",
+        "shift_paint": "Ceiling paint",
+        "shift_paint_wet": "Moisture-resistant ceiling paint",
+        "shift_paint_none": "Ceiling paint (no product chosen)",
+        "shift_paint_wet_none": "Moisture-resistant ceiling paint (no product chosen)",
+        "work_ceiling_paint": "Work: painting the ceiling"
       },
       "unit": {
         "qop_one": "bag",
@@ -861,7 +899,10 @@
         "smesitel_other": "mixers",
         "branch_pieces_head": "Branches",
         "mashina_one": "machine",
-        "mashina_other": "machines"
+        "mashina_other": "machines",
+        "under_fixtures": "under fixtures",
+        "banka_one": "can",
+        "banka_other": "cans"
       },
       "warning": {
         "norm_missing": "No exact norm was found for this part: it is calculated with the standard rate.",

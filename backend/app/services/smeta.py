@@ -838,23 +838,66 @@ def _tile_above_areas(room: "Room") -> list[tuple[str, float]]:
     return out
 
 
-def _wall_tile_line(area_m2: float, wall_ids: list[str], catalog: dict) -> ComputedLine:
-    """The wall tile to buy: the tiled area plus waste, at the shop's median tile price (nobody
-    picks a tile product for a wall yet), else a norm price. Approximate either way."""
+_WALL_TILE_URL_SIZE = re.compile(r"-(\d+)x(\d+)\.\w+$")
+
+
+def _covering_tile_size(covering: object) -> tuple[int, int] | None:
+    """The size of a wall's tile (mm, short side first), off the studio's baked tile image
+    ("/wall/tile/marble-white-600x300.jpg", see frontend wallTileUrl); None when it gives none."""
+    url = covering.get("url") if isinstance(covering, dict) else None
+    m = _WALL_TILE_URL_SIZE.search(str(url or ""))
+    if m is None:
+        return None
+    a, b = int(m[1]), int(m[2])
+    return (min(a, b), max(a, b))
+
+
+def _floor_tile_size(room: "Room") -> tuple[int, int] | None:
+    """The size of a tile floor's tile (mm, short side first), from its laying pattern's plank."""
+    pattern = _design_state(room).get("floorPattern")
+    settings = pattern.get("settings") if isinstance(pattern, dict) else None
+    if not isinstance(settings, dict):
+        return None
+    a, b = _float(settings.get("plankLengthCm")) * 10, _float(settings.get("plankWidthCm")) * 10
+    if a <= 0 or b <= 0:
+        return None
+    return (int(round(min(a, b))), int(round(max(a, b))))
+
+
+def _tile_stand_in(catalog: dict, sizes: list) -> tuple["Material | None", bool]:
+    """The shop tile a tile nobody picked a product for is priced from, and whether the line may
+    name it (2026-11-18): the median shop tile of the one size chosen, when there is one, else the
+    median of all the shop's tiles, which is no product the user chose and is not named."""
+    from app.services.estimate_catalog import tile_size_key
+
+    if sizes and len(set(sizes)) == 1 and sizes[0] is not None:
+        shop = catalog.get(tile_size_key(sizes[0]))
+        if _price_per(shop, "m2"):
+            return shop, True
+    return catalog.get("finish:plitka"), False
+
+
+def _wall_tile_line(area_m2: float, wall_ids: list[str], catalog: dict, sizes: list | None = None) -> ComputedLine:
+    """The wall tile to buy: the tiled area plus waste, at the shop's median tile price of the
+    walls' tile size (nobody picks a tile product for a wall yet), else of every tile, else a norm
+    price. Approximate either way; only a tile of the chosen size is named."""
     from app.services.tile_work import load_tile_norms
 
-    shop = catalog.get("finish:plitka")
+    shop, named = _tile_stand_in(catalog, sizes or [])
     shop_price = _price_per(shop, "m2")
     price = shop_price or int(load_tile_norms()["wall_tile_m2_uzs"])
     qty = _round2(area_m2 * TILE_WASTE)
     walls = f" (devor {', '.join(wall_ids)})" if wall_ids else ""
+    label = "Devor plitkasi"
+    if shop_price:
+        label = f"Devor plitkasi: {shop.name_uz}" if named else "Devor plitkasi (o'rtacha narx)"
     return _make_line(
-        label=f"Devor plitkasi: {shop.name_uz}" if shop_price else "Devor plitkasi",
+        label=label,
         formula=f"{area_m2:.2f} m² × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²{walls}",
         qty=qty, unit="m²", price_uzs=price, category="plitka_devor",
         is_approximate=True,
         warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
-        **(_shop(shop) if shop_price else {}),
+        **(_shop(shop) if shop_price and named else {}),
     )
 
 
@@ -964,10 +1007,10 @@ def _backsplash_lines(room: "Room", catalog: dict) -> tuple[list[ComputedLine], 
         shop_price = _price_per(shop, "m2")
         qty = _round2(tile_m2 * TILE_WASTE)
         lines.append(_make_line(
-            label=f"Fartuk plitkasi: {shop.name_uz}" if shop_price else "Fartuk plitkasi",
+            label="Fartuk plitkasi (o'rtacha narx)" if shop_price else "Fartuk plitkasi",
             formula=f"{text} × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²", qty=qty, unit="m²",
             price_uzs=shop_price or int(n["wall_tile_m2_uzs"]), category="fartuk", is_approximate=True,
-            warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE, **(_shop(shop) if shop_price else {}),
+            warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
         ))
         work = int(n["work_backsplash_m2_uzs"])
         lines.append(_make_line(
@@ -1207,6 +1250,32 @@ def _texture_line(url: str, area_m2: float, wall_ids: list[str]) -> ComputedLine
     )
 
 
+# "2,5 л", "0,75 LT", "10L": the can a paint is sold in, as its name gives it.
+_PAINT_CAN = re.compile(r"(?<![\d.,])(\d+(?:[.,]\d+)?)\s*(?:л|l|lt|litr|литр)(?![^\W\d_])", re.I)
+
+
+def _paint_can_l(material: object) -> float | None:
+    """The litres in one can of *material*: its pack, else what its name says; None if neither."""
+    pack = _pack_of(material, "litr")  # type: ignore[arg-type]
+    if pack:
+        return pack
+    m = _PAINT_CAN.search(str(getattr(material, "name_uz", "") or ""))
+    can = float(m[1].replace(",", ".")) if m else 0.0
+    return can if can > 0 else None
+
+
+def _paint_litres(material: object, need_l: float) -> tuple[float, str]:
+    """The litres of paint to buy for *need_l* and the working after "=": whole cans of the size
+    the product is sold in (2026-11-18), else whole litres."""
+    can = _paint_can_l(material)
+    if can is None:
+        liters = math.ceil(need_l - 1e-9)
+        return liters, f"{liters} litr"
+    cans = max(1, math.ceil(need_l / can - 1e-9))
+    liters = _round2(cans * can)
+    return liters, f"{need_l:.1f} litr → {cans} banka ({can:g} litr) = {liters:g} litr"
+
+
 class _PaintMaterialLike:
     """Duck-typed stand-in for Material when a painted wall resolves to no
     real boyoq row anywhere — not even a same-room fallback. Lets
@@ -1228,6 +1297,8 @@ def _paint_only_line(
     *,
     is_approximate: bool = False,
     warning: str | None = None,
+    label_head: str = "Bo'yoq",
+    category: str = "boyoq",
 ) -> ComputedLine:
     """Bo'yoq (paint) finish coat only — always required regardless of stage.
 
@@ -1248,19 +1319,17 @@ def _paint_only_line(
         norm_note = APPROXIMATE_NORM_NOTE
         warning = f"{warning} {norm_note}" if warning else norm_note
 
-    liters = math.ceil(net_wall_m2 * coats / coverage)
     wall_note = f" (devor {', '.join(wall_ids)})" if wall_ids else ""
+    working = f"{net_wall_m2:.1f} m²{wall_note} × {coats} qatlam ÷ {coverage:.1f} m²/litr"
+    liters, can_working = _paint_litres(material, net_wall_m2 * coats / coverage)
     has_id = getattr(material, "id", None) is not None
     return _make_line(
-        label=f"Bo'yoq: {material.name_uz}",
-        formula=(
-            f"{net_wall_m2:.1f} m²{wall_note} × {coats} qatlam "
-            f"÷ {coverage:.1f} m²/litr = {liters} litr"
-        ),
+        label=f"{label_head}: {material.name_uz}",
+        formula=f"{working} = {can_working}",
         qty=liters,
         unit="litr",
         price_uzs=material.price_uzs,
-        category="boyoq",
+        category=category,
         material_id=str(material.id) if has_id else None,
         store_name=_store_name(material) if has_id else None,
         is_approximate=is_approximate,
@@ -1454,9 +1523,23 @@ def _laminate_lines(
         store_name=_store_name(material),
     ))
 
-    lines.append(_plinth_line(room, norms_map, plinth_material))
+    lines.extend(_skirting_lines(room, norms_map, plinth_material, tile_floor=False))
 
     return lines
+
+
+def _skirting_lines(
+    room: "Room", norms_map: "dict[str, Norm]", material: "Material | None", *, tile_floor: bool,
+) -> list[ComputedLine]:
+    """The floor's skirting board, when the room has one (2026-11-18): designState.skirting null
+    is one the user took off, an object one they put on; never touched, every room has the
+    studio's default board except a bathroom with a tile floor, which is tiled to the floor."""
+    ds = _design_state(room)
+    if "skirting" in ds and ds["skirting"] is None:
+        return []
+    if not isinstance(ds.get("skirting"), dict) and tile_floor and _is_bathroom(room):
+        return []
+    return [_plinth_line(room, norms_map, material)]
 
 
 def _plinth_line(
@@ -1551,10 +1634,14 @@ def _designed_floor_lines(
     if laid is None:
         return []
     kind, keys = laid
-    stand_in = next((catalog[k] for k in keys if catalog.get(k) is not None), None)
+    named = True
+    if kind == "plitka":
+        stand_in, named = _tile_stand_in(catalog, [_floor_tile_size(room)])
+    else:
+        stand_in = next((catalog[k] for k in keys if catalog.get(k) is not None), None)
     if stand_in is None:
-        plinth = _plinth_line(room, norms_map, catalog.get("plintus"))
-        return [_norm_floor_tile_line(room), plinth] if kind == "plitka" else [plinth]
+        plinth = _skirting_lines(room, norms_map, catalog.get("plintus"), tile_floor=kind == "plitka")
+        return [_norm_floor_tile_line(room), *plinth] if kind == "plitka" else plinth
     if kind == "plitka":
         lines = _tile_lines(room, stand_in, norms_map, catalog.get("plintus"))
     else:
@@ -1562,7 +1649,10 @@ def _designed_floor_lines(
         lines = _laminate_lines(room, stand_in, norm, norms_map, catalog.get("plintus"))
     lines[0].is_approximate = True
     lines[0].warning = FINISH_STAND_IN_NOTE
-    if lines[0].store_name is None:
+    if not named:
+        # The median of every tile in the shops: no one tile of them is what the user chose.
+        lines[0].label, lines[0].material_id, lines[0].store_name = "Pol plitkasi (o'rtacha narx)", None, None
+    elif lines[0].store_name is None:
         lines[0].store_name = _store_name(stand_in)
     return lines
 
@@ -1638,7 +1728,7 @@ def _tile_lines(
         material_id=str(material.id),
         store_name=_store_name(material),
     )
-    return [tile_line, _plinth_line(room, norms_map, plinth_material)]
+    return [tile_line, *_skirting_lines(room, norms_map, plinth_material, tile_floor=True)]
 
 
 def furniture_catalog_key(furniture_id: str) -> str:
@@ -2815,6 +2905,65 @@ def _electrical_line(
     )
 
 
+def _ceiling_finish_lines(
+    room: "Room", norms_map: "dict[str, Norm]", catalog: dict, ceiling_state: str | None,
+) -> list[ComputedLine]:
+    """The ceiling's own finish (2026-11-18), whatever is built under it (the bare slab or a
+    board ceiling): primed until it is puttied, then painted, with the painter's work, over the
+    floor's area. A bathroom's paint is a moisture-resistant one. The paint is the shop's median
+    (nobody picks a ceiling paint yet), else the fallback price; approximate either way."""
+    from app.services.tile_work import load_tile_norms
+
+    area = _float(room.floor_area)
+    if area <= 0:
+        return []
+    wet = _is_bathroom(room)
+    head = "Namga chidamli shift bo'yog'i" if wet else "Shift bo'yog'i"
+    lines: list[ComputedLine] = []
+
+    if stage_index(ceiling_state) < stage_index(STAGE_SHPAKLOVKA):
+        grunt_norm = norms_map.get("grunt")
+        params = grunt_norm.params if grunt_norm and grunt_norm.params else {}
+        rate = float(params.get("rate_kg_m2", PRIMER_RATE_KG_M2))
+        bag_kg, bag_price = int(params.get("bag_kg", PRIMER_BAG_KG)), int(params.get("bag_price_uzs", PRIMER_BAG_PRICE_UZS))
+        material = catalog.get("grunt")
+        shop = _bag_from_shop(material)
+        label = f"Shift grunti (asosiy qatlam) {bag_kg} kg qop"
+        if shop:
+            (bag_kg, bag_price), label = shop, f"Shift grunti: {_named(material.name_uz, f'{shop[0]:g} kg')}"
+        kg = math.ceil(area * rate)
+        bags = max(1, math.ceil(kg / bag_kg))
+        lines.append(_make_line(
+            label=label, formula=f"{area:.1f} m² × {rate} kg/m² = {kg} kg → {bags} qop",
+            qty=bags, unit="qop", price_uzs=bag_price, category="shift_boyoq",
+            is_approximate=grunt_norm is None, warning=APPROXIMATE_NORM_NOTE if grunt_norm is None else None,
+            **(_shop(material) if shop else {}),
+        ))
+
+    paint = catalog.get("finish:boyoq")
+    if paint is not None:
+        lines.append(_paint_only_line(
+            paint, norms_map.get("boyoq"), area, [], is_approximate=True, warning=FINISH_STAND_IN_NOTE,
+            label_head=head, category="shift_boyoq",
+        ))
+    else:
+        line = _paint_only_line(
+            _PaintMaterialLike("", PAINT_FALLBACK_PRICE_PER_LITER_UZS), norms_map.get("boyoq"), area, [],
+            is_approximate=True, warning="Material tanlanmagan — taxminiy narx ishlatildi.",
+            label_head=head, category="shift_boyoq",
+        )
+        line.label = f"{head} (material tanlanmagan)"
+        lines.append(line)
+
+    work = int(load_tile_norms()["work_ceiling_paint_m2_uzs"])
+    qty = _round2(area)
+    lines.append(_make_line(
+        label="Ish: shiftni bo'yash", formula=f"{qty:.2f} m² × {work:,} so'm".replace(",", " "),
+        qty=qty, unit="m²", price_uzs=work, category="shift_boyoq",
+    ))
+    return lines
+
+
 def _ceiling_construction_lines(
     room: "Room",
     norms_map: "dict[str, Norm]",
@@ -3170,7 +3319,11 @@ def compute_estimate(
             lines.append(_texture_line(url, area, wall_ids))
         # Wall tile is a texture to the studio, but it is bought by the square metre.
         if wall_tile_m2 > 0:
-            lines.append(_wall_tile_line(wall_tile_m2, [wall for wall, area in tiled if area > 0], catalog))
+            sizes = {key: _covering_tile_size(covering) for key, _, covering, _ in _tiled_walls(room)}
+            lines.append(_wall_tile_line(
+                wall_tile_m2, [wall for wall, area in tiled if area > 0], catalog,
+                [sizes.get(wall) for wall, area in tiled if area > 0],
+            ))
 
     # ------------------------------------------------------------------ #
     # 3. Floor covering — skipped entirely when floor_state is finished   #
@@ -3205,6 +3358,7 @@ def compute_estimate(
     ceiling_already_done = ceiling_state == "tayyor"
     if not ceiling_already_done:
         lines.extend(_ceiling_construction_lines(room, norms_map, ceiling_catalog, set(picked)))
+        lines.extend(_ceiling_finish_lines(room, norms_map, ceiling_catalog, ceiling_state))
 
     # The cornice the studio draws (a choice of its own, made by the user or a ready-made
     # style), so it is listed whatever stage the ceiling itself is at.

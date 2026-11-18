@@ -359,3 +359,20 @@ describe("a towel rail by its size (2026-11-15)", () => {
     expect(localizeLabel("Sochiq quritgich (50×50)", uz)).toBe("Sochiq quritgich (50×50)");
   });
 });
+
+describe("estimate text from the 2026-11-18 bathroom test", () => {
+  it("names an unpicked tile by the average price and the ceiling's finish", () => {
+    expect(localizeLabel("Devor plitkasi (o'rtacha narx)", ru)).toBe("Настенная плитка (средняя цена)");
+    expect(localizeLabel("Pol plitkasi (o'rtacha narx)", en)).toBe("Floor tile (average price)");
+    expect(localizeLabel("Shift grunti (asosiy qatlam) 5 kg qop", ru)).toBe("Грунтовка потолка (базовый слой), мешок 5 кг");
+    expect(localizeLabel("Namga chidamli shift bo'yog'i: Polisan 2,5 л", en)).toBe("Moisture-resistant ceiling paint: Polisan 2,5 л");
+    expect(localizeLabel("Ish: shiftni bo'yash", ru)).toBe("Работа: покраска потолка");
+  });
+
+  it("translates the heated floor's and a paint can's working", () => {
+    expect(localizeFormula("4.50 m² − 1.67 m² (jihozlar ostida) = 2.83 m² → 2.5 m²", ru))
+      .toBe("4.50 м² − 1.67 м² (под приборами) = 2.83 м² → 2.5 м²");
+    expect(localizeFormula("6.8 m² × 2 qatlam ÷ 9.0 m²/litr = 1.5 litr → 1 banka (2.5 litr) = 2.5 litr", ru))
+      .toBe("6.8 м² × 2 слоя ÷ 9.0 м²/л = 1.5 л → 1 банка (2.5 л) = 2.5 л");
+  });
+});

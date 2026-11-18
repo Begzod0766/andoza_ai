@@ -85,6 +85,10 @@ const LABEL_HEADS = {
   "Quti profili (karkas)": "frame_box_profile",
   "Elektr sochiq quritgich": "el_towel_rail",
   "Namga chidamli rozetka (IP44)": "socket_ip44",
+  // The ceiling's finish (2026-11-18): a shop's product follows the colon.
+  "Shift grunti": "shift_grunt",
+  "Shift bo'yog'i": "shift_paint",
+  "Namga chidamli shift bo'yog'i": "shift_paint_wet",
   "Qiyalik styajkasi aralashmasi": "slope_mix",
   "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
 } as const;
@@ -210,6 +214,12 @@ const WHOLE_LABELS = {
   "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
   "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
   "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",
+  "Devor plitkasi (o'rtacha narx)": "wall_tile_avg",
+  "Pol plitkasi (o'rtacha narx)": "floor_tile_avg",
+  "Fartuk plitkasi (o'rtacha narx)": "backsplash_tile_avg",
+  "Shift bo'yog'i (material tanlanmagan)": "shift_paint_none",
+  "Namga chidamli shift bo'yog'i (material tanlanmagan)": "shift_paint_wet_none",
+  "Ish: shiftni bo'yash": "work_ceiling_paint",
 } as const;
 
 /** Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type. */
@@ -244,6 +254,8 @@ export function localizeLabel(label: string, t: TFunction): string {
   if (m) return t("smeta.line.suvoq_bag", { kg: m[1] });
   m = /^Grunt \(asosiy qatlam\) (\S+) kg qop$/.exec(label);
   if (m) return t("smeta.line.grunt_bag", { kg: m[1] });
+  m = /^Shift grunti \(asosiy qatlam\) (\S+) kg qop$/.exec(label);
+  if (m) return t("smeta.line.shift_grunt_bag", { kg: m[1] });
   m = /^Shpatlyovka (\S+) kg qop$/.exec(label);
   if (m) return t("smeta.line.putty_bag", { kg: m[1] });
   m = /^Plintus \((\S+) m dona\)$/.exec(label);
@@ -301,6 +313,8 @@ const FORMULA_PHRASES: ReadonlyArray<[RegExp, (t: TFunction, ...groups: string[]
   [/ — o'lchamiga qarab chop etiladi/g, (t) => ` — ${t("smeta.formula.printed")}`],
   [/(\S+) m lenta(?![\p{L}'])/gu, (t, m) => t("smeta.formula.strip", { m })],
   [/\(yuqori\/pastki karkas\)/g, (t) => `(${t("smeta.formula.frame")})`],
+  // A heated floor (2026-11-18): "4.50 m² − 1.67 m² (jihozlar ostida) = …".
+  [/\(jihozlar ostida\)/g, (t) => `(${t("smeta.formula.under_fixtures")})`],
   [/\((isrof|chiqindi|zaxira)\)/g, (t, word) => `(${t(`smeta.formula.${word as "isrof" | "chiqindi" | "zaxira"}`)})`],
   // "Devor 0: ..." opens a wallpaper wall's working; "(devor 1, 3)" names the painted walls.
   [/^Devor (\S+?):/g, (t, wall) => `${t("smeta.formula.wall_head", { wall })}:`],
@@ -328,10 +342,12 @@ const FORMULA_COUNTED = {
   "xona burchagi": "smeta.formula.xona_burchagi", "magistral uchi": "smeta.formula.magistral_uchi",
   // What a fixture part's count is made of (2026-11-13).
   rakovina: "smeta.formula.rakovina", vanna: "smeta.formula.vanna", dush: "smeta.formula.dush", bide: "smeta.formula.bide", smesitel: "smeta.formula.smesitel", mashina: "smeta.formula.mashina",
+  // Paint bought in whole cans (2026-11-18).
+  banka: "smeta.formula.banka",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|litr|m²|kg|m)(?=$|[\s);,:])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });

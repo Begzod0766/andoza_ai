@@ -1327,7 +1327,17 @@
       "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish",
       "collector_cold": "Kollektor (sovuq suv)",
       "collector_hot": "Kollektor (issiq suv)",
-      "work_collector": "Ish: kollektorni yig'ish"
+      "work_collector": "Ish: kollektorni yig'ish",
+      "wall_tile_avg": "Devor plitkasi (o'rtacha narx)",
+      "floor_tile_avg": "Pol plitkasi (o'rtacha narx)",
+      "backsplash_tile_avg": "Fartuk plitkasi (o'rtacha narx)",
+      "shift_grunt": "Shift grunti",
+      "shift_grunt_bag": "Shift grunti (asosiy qatlam) {{kg}} kg qop",
+      "shift_paint": "Shift bo'yog'i",
+      "shift_paint_wet": "Namga chidamli shift bo'yog'i",
+      "shift_paint_none": "Shift bo'yog'i (material tanlanmagan)",
+      "shift_paint_wet_none": "Namga chidamli shift bo'yog'i (material tanlanmagan)",
+      "work_ceiling_paint": "Ish: shiftni bo'yash"
     },
     "unit": {
       "qop_one": "qop",
@@ -1435,7 +1445,10 @@
       "smesitel_other": "smesitel",
       "branch_pieces_head": "Tik bo'laklar",
       "mashina_one": "mashina",
-      "mashina_other": "mashina"
+      "mashina_other": "mashina",
+      "under_fixtures": "jihozlar ostida",
+      "banka_one": "banka",
+      "banka_other": "banka"
     }
   },
   "ustalar": {
