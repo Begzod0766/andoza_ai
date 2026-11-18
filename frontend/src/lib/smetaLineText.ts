@@ -361,13 +361,13 @@ const FORMULA_COUNTED = {
   tarmoq: "smeta.formula.tarmoq", stoyak: "smeta.formula.stoyak", burchak: "smeta.formula.burchak", uch: "smeta.formula.uch", unitaz: "smeta.formula.unitaz", liniya: "smeta.formula.liniya", ulanish: "smeta.formula.ulanish",
   "xona burchagi": "smeta.formula.xona_burchagi", "magistral uchi": "smeta.formula.magistral_uchi",
   // What a fixture part's count is made of (2026-11-13).
-  rakovina: "smeta.formula.rakovina", vanna: "smeta.formula.vanna", dush: "smeta.formula.dush", bide: "smeta.formula.bide", smesitel: "smeta.formula.smesitel", mashina: "smeta.formula.mashina",
+  rakovina: "smeta.formula.rakovina", moyka: "smeta.formula.moyka", vanna: "smeta.formula.vanna", dush: "smeta.formula.dush", bide: "smeta.formula.bide", smesitel: "smeta.formula.smesitel", mashina: "smeta.formula.mashina",
   // Paint bought in whole cans (2026-11-18).
   banka: "smeta.formula.banka",
 } as const;
 
 /** A unit right after a number. Longer units first, so "m²/litr" is never read as "m²". */
-const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)(?=$|[\s);,:])/g;
+const FORMULA_UNIT = /(\d+(?:\.\d+)?) (kg\/m²|m²\/litr|m²\/quti|m²\/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|moyka|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)(?=$|[\s);,:])/g;
 
 function formulaUnit(unit: string, count: number, t: TFunction): string {
   if (has(FORMULA_COUNTED, unit)) return t(FORMULA_COUNTED[unit], { count });

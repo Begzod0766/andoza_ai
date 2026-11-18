@@ -41,6 +41,16 @@ export function washerPose(m: Washer, geometry: RoomGeometry): { x: number; y: n
 }
 
 /**
+ * The machines and kitchen sinks drawn for a view: all of them, also on a wall hidden to look into the
+ * room (mobile QA 2026-11-18, #338: a kitchen's sink and dishwasher on the wall nearest the camera went
+ * missing). They stand on the floor like the furniture, which stays too; what hangs on a wall (a towel
+ * rail, a socket) goes with its wall.
+ */
+export function shownWashers<T extends Washer>(washers: readonly T[], _hiddenWalls?: ReadonlySet<string>): readonly T[] {
+  return washers
+}
+
+/**
  * The washing machines (spec 2026-11-13): a plain white box each with a dark round door, drawn in code.
  * In a plumbing stage a machine slides along its wall by drag; the store keeps it off doors,
  * windows, towel rails, other machines and the wall's ends.
@@ -112,7 +122,7 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
 
   return (
     <group>
-      {washers.filter((m) => !hiddenWalls?.has(m.wallId)).map((m) => {
+      {shownWashers(washers, hiddenWalls).map((m) => {
         const pose = washerPose(m, geometry);
         if (!pose) return null;
         const { W, D, H } = dims(m);

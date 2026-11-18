@@ -382,7 +382,7 @@ function bestFixtureSpot(geometry: RoomGeometry, model: RoomModel, placed: reado
   // No spot clear of what stands (mobile QA 2026-11-18: a toilet in a 1.6 × 1.5 room with a 171 cm bath):
   // the one overlapping least, so it pokes a few centimetres into another piece rather than stands in it.
   let least: { x: number; z: number; rotation: number } | null = null
-  let leastArea: [number, number] = [Infinity, Infinity]
+  let leastArea: [number, number, number] = [Infinity, Infinity, Infinity]
   // Into a piece first; the floor kept clear before the riser's hatch (its own warning) second.
   const solid = pieces.map((p) => p.rect)
   const kept = taken.filter((q) => !solid.some((r) => r.x === q.x && r.z === q.z && r.w === q.w && r.d === q.d))
@@ -393,14 +393,17 @@ function bestFixtureSpot(geometry: RoomGeometry, model: RoomModel, placed: reado
     const out = size.d / 2 + WALL_GAP
     for (let t = -half; t <= half + 1e-9; t += SEARCH_STEP_M) {
       const rect: Rect = { x: wall.midX + wall.dirX * t + wall.nx * out, z: wall.midZ + wall.dirZ * t + wall.nz * out, w: size.w, d: size.d, rotation }
-      if (!model.inside(rect) || blocksOpening(rect, false, model, { doors: true, windows: false })) continue
-      if (taken.some((q) => overlaps(rect, q))) {
-        const into = solid.reduce((sum, q) => sum + overlapArea(rect, q), 0)
-        const hatch = kept.reduce((sum, q) => sum + overlapArea(rect, q), 0)
-        if (into < leastArea[0] - 1e-9 || (Math.abs(into - leastArea[0]) < 1e-9 && hatch < leastArea[1] - 1e-9)) {
-          least = { x: rect.x, z: rect.z, rotation }
-          leastArea = [into, hatch]
-        }
+      if (!model.inside(rect)) continue
+      const inSwing = blocksOpening(rect, false, model, { doors: true, windows: false })
+      if (inSwing || taken.some((q) => overlaps(rect, q))) {
+        // Into a piece is worst (#338: a toilet went under the sink); a door's swing next (the fit warning
+        // names it); the hatch's floor last.
+        const key: [number, number, number] = [
+          solid.reduce((sum, q) => sum + overlapArea(rect, q), 0), inSwing ? 1 : 0, kept.reduce((sum, q) => sum + overlapArea(rect, q), 0),
+        ]
+        const less = key[0] < leastArea[0] - 1e-9
+          || (Math.abs(key[0] - leastArea[0]) < 1e-9 && (key[1] < leastArea[1] || (key[1] === leastArea[1] && key[2] < leastArea[2] - 1e-9)))
+        if (less) { least = { x: rect.x, z: rect.z, rotation }; leastArea = key }
         continue
       }
       // A piece already standing losing its floor weighs ten times this one going short: when the room is
