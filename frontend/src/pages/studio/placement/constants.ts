@@ -23,6 +23,8 @@ export const CATALOG: CatalogEntry[] = [
   { type: 'socket1',      height: 300 },
   { type: 'socket2',      height: 300 },
   { type: 'socket_media', height: 1200 },
+  // A cooker's 32 A outlet on its own line, low on the wall behind the cooker.
+  { type: 'socket_power', height: 150 },
   // Mounted high on the wall, just under the ceiling line, the way a
   // split unit's indoor half actually hangs.
   { type: 'ac',           height: 2400 },
@@ -35,6 +37,7 @@ const LABEL_KEYS = {
   socket1: 'studio.placement.dev.socket1',
   socket2: 'studio.placement.dev.socket2',
   socket_media: 'studio.placement.dev.socket_media',
+  socket_power: 'studio.placement.dev.socket_power',
   ac: 'studio.placement.dev.ac',
 } as const satisfies Record<ElectricalType, string>
 
@@ -50,7 +53,35 @@ export function electricalShort(type: ElectricalType): string {
   return type === 'socket_media' ? i18n.t('studio.placement.dev_short.socket_media') : electricalLabel(type)
 }
 
-export const SOCKET_TYPES = new Set<ElectricalType>(['socket1', 'socket2', 'socket_media'])
+export const SOCKET_TYPES = new Set<ElectricalType>(['socket1', 'socket2', 'socket_media', 'socket_power'])
+
+/** One device the wall ring offers: `key` tells apart two offers of the same type. */
+export interface RingEntry { key: string; type: ElectricalType; height: number; label: () => string }
+
+// A kitchen's sockets sit over the worktop, not down by the skirting.
+const KITCHEN_WORKTOP_MM = 1100
+// The hood's socket hides above the wall cabinets, under the hood's duct.
+const KITCHEN_HOOD_MM = 2000
+
+/**
+ * What the wall ring offers in a room of this type (lib/roomType's effectiveRoomType). Every room
+ * gets the catalog at its heights. A kitchen (2026-11-18) puts its sockets at worktop height and
+ * adds a hood socket — an ordinary single socket, only placed high, so it is wired and priced as
+ * one — while the cooker outlet is offered only there.
+ */
+export function electricalCatalogFor(roomType: string | undefined): RingEntry[] {
+  const kitchen = roomType === 'oshxona'
+  const out: RingEntry[] = []
+  for (const c of CATALOG) {
+    if (c.type === 'socket_power' && !kitchen) continue
+    const worktop = kitchen && (c.type === 'socket1' || c.type === 'socket2')
+    out.push({ key: c.type, type: c.type, height: worktop ? KITCHEN_WORKTOP_MM : c.height, label: () => electricalLabel(c.type) })
+    if (kitchen && c.type === 'socket1') {
+      out.push({ key: 'socket1:hood', type: 'socket1', height: KITCHEN_HOOD_MM, label: () => i18n.t('studio.placement.dev.socket_hood') })
+    }
+  }
+  return out
+}
 export const SWITCH_TYPES = new Set<ElectricalType>(['switch1', 'switch2'])
 
 // ─── Wire routing (wall-surface only) ────────────────────────────────────────
@@ -82,6 +113,7 @@ export const ELEC_DIMS_3D: Record<ElectricalType, { w: number; h: number }> = {
   socket1:      { w: 0.08, h: 0.08 },
   socket2:      { w: 0.14, h: 0.08 },
   socket_media: { w: 0.18, h: 0.08 },
+  socket_power: { w: 0.08, h: 0.08 },
   panel:        { w: 0.40, h: 0.50 },
   ac:           { w: 0.90, h: 0.30 },
 }

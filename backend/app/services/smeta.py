@@ -2810,6 +2810,69 @@ def _light_lines(room: "Room", catalog: "dict[str, Material] | None" = None) -> 
     return lines
 
 
+# The wall devices the studio places (frontend ElectricalType), in the order the estimate lists them:
+# (type, label, the shop's smeta key, the norm in bathroom_extras_norms.json "electrics"). The air
+# conditioner is not here: a split unit is bought and fitted by its own trade.
+_ELECTRICAL_DEVICES: tuple[tuple[str, str, str, str], ...] = (
+    ("socket1", "Rozetka (bitta)", "rozetka", "socket1_uzs"),
+    ("socket2", "Rozetka (ikkitalik)", "rozetka_2", "socket2_uzs"),
+    ("socket_media", "Media rozetka (TV, internet)", "rozetka_media", "socket_media_uzs"),
+    ("socket_power", "Kuch rozetkasi (plita, 32 A)", "rozetka_kuch", "socket_power_uzs"),
+    ("switch1", "Kalit (bitta)", "vyklyuchatel", "switch1_uzs"),
+    ("switch2", "Kalit (ikkitalik)", "vyklyuchatel_2", "switch2_uzs"),
+    ("panel", "Elektr qutisi (shchit)", "shchit", "panel_uzs"),
+)
+
+
+def _electrical_device_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
+    """The placed wall devices themselves (2026-11-18), in every room: one line per type with its
+    count (a shop's product under the type's key, else the norm, marked approximate), and the work
+    of fitting them by the point; the panel's fitting is a bigger job and a line of its own. A
+    cooker outlet runs on its own 32 A line: a breaker in the panel each and a 3×6 mm² cable to it
+    (a shop's "kabel_kuch" per metre, else the norm). _electrical_line still prices the ordinary
+    cable; before this the devices were never priced at all."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    catalog = catalog or {}
+    placed = (room.state or {}).get("electricals") or []
+    counts: dict[str, int] = {}
+    for item in placed:
+        if isinstance(item, dict) and isinstance(item.get("type"), str):
+            counts[item["type"]] = counts.get(item["type"], 0) + 1
+    n = load_bathroom_extras_norms()["electrics"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    lines: list[ComputedLine] = []
+    for kind, label, key, norm in _ELECTRICAL_DEVICES:
+        if counts.get(kind):
+            lines.append(_piece_line(label, catalog.get(key), int(n[norm]), "elektr", qty=counts[kind]))
+
+    power = counts.get("socket_power", 0)
+    if power:
+        lines.append(_piece_line("Avtomat 32 A (plita liniyasi)", catalog.get("avtomat_32"), int(n["breaker_32_uzs"]),
+                                 "elektr", qty=power))
+        cable = catalog.get("kabel_kuch")
+        shop_price = _price_per(cable, "m")
+        per_m = shop_price or int(n["power_cable_m_uzs"])
+        run = int(n["power_cable_m"])
+        lines.append(_make_line(
+            label="Elektr kabel 3×6 mm² (plita liniyasi)",
+            formula=f"{power} dona × {run} m = {power * run} m × {fmt(per_m)} so'm",
+            qty=power * run, unit="m", price_uzs=per_m, category="elektr", is_approximate=True,
+            **(_shop(cable) if shop_price else {}),
+        ))
+
+    points = sum(counts.get(kind, 0) for kind, *_ in _ELECTRICAL_DEVICES if kind != "panel")
+    if points:
+        work = int(n["work_point_uzs"])
+        lines.append(_make_line(label="Ish: elektr nuqtalarini o'rnatish", formula=f"{points} nuqta × {fmt(work)} so'm",
+                                qty=points, unit="dona", price_uzs=work, category="elektr"))
+    if counts.get("panel"):
+        work = int(n["work_panel_uzs"])
+        lines.append(_make_line(label="Ish: elektr qutisini o'rnatish", formula=f"{counts['panel']} dona × {fmt(work)} so'm",
+                                qty=counts["panel"], unit="dona", price_uzs=work, category="elektr"))
+    return lines
+
+
 def _electrical_line(
     room: "Room",
     norms_map: "dict[str, Norm]",
@@ -3394,6 +3457,8 @@ def compute_estimate(
     # ------------------------------------------------------------------ #
     elec_line = _electrical_line(room, norms_map, wiring_meters, catalog.get("kabel"))
     lines.append(elec_line)
+    # 5b. The devices on those points, and the work of fitting them.
+    lines.extend(_electrical_device_lines(room, catalog))
 
     # Totals — total_uzs is the FULL expected spend (exact + approximate).
     # Silently dropping approximate lines here used to understate the total

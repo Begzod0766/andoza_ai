@@ -111,7 +111,9 @@
         "socket1": "Single socket",
         "socket2": "Double socket",
         "socket_media": "TV + Ethernet + antenna",
-        "ac": "Air conditioner"
+        "ac": "Air conditioner",
+        "socket_power": "Cooker outlet (32 A)",
+        "socket_hood": "Hood socket"
       },
       "dev_short": {
         "socket_media": "TV+ETH+ANT"
@@ -900,7 +902,8 @@
       "shop_board": "Plasterboard",
       "shop_profile": "Frame profile",
       "shop_strip": "LED strip",
-      "shop_pick_note": "A product chosen from the shop goes into the estimate at its exact price."
+      "shop_pick_note": "A product chosen from the shop goes into the estimate at its exact price.",
+      "el_socket_power": "Cooker outlet (32 A, own line)"
     },
     "mebel": {
       "drop_here": "Drop the image",
@@ -1344,7 +1347,18 @@
       "shift_paint_wet": "Moisture-resistant ceiling paint",
       "shift_paint_none": "Ceiling paint (no product chosen)",
       "shift_paint_wet_none": "Moisture-resistant ceiling paint (no product chosen)",
-      "work_ceiling_paint": "Work: painting the ceiling"
+      "work_ceiling_paint": "Work: painting the ceiling",
+      "el_socket1": "Socket (single)",
+      "el_socket2": "Socket (double)",
+      "el_socket_media": "Media outlet (TV, internet)",
+      "el_socket_power": "Power outlet (cooker, 32 A)",
+      "el_switch1": "Switch (one-gang)",
+      "el_switch2": "Switch (two-gang)",
+      "el_panel": "Consumer unit",
+      "el_breaker_32": "Breaker 32 A (cooker line)",
+      "el_power_cable": "Electric cable 3×6 mm² (cooker line)",
+      "work_el_points": "Work: fitting the electrical points",
+      "work_el_panel": "Work: fitting the consumer unit"
     },
     "unit": {
       "qop_one": "bag",
@@ -2420,7 +2434,16 @@
         "shtorka_vanna": "Bath screen (glass)",
         "dush_shisha": "Shower screen (glass)",
         "parda_hammom": "Bath/shower curtain and rod",
-        "kollektor": "Water manifold"
+        "kollektor": "Water manifold",
+        "rozetka": "Socket (single)",
+        "rozetka_2": "Socket (double)",
+        "rozetka_media": "Media outlet (TV, internet)",
+        "rozetka_kuch": "Power outlet (cooker, 32 A)",
+        "vyklyuchatel": "Switch (one-gang)",
+        "vyklyuchatel_2": "Switch (two-gang)",
+        "shchit": "Consumer unit",
+        "avtomat_32": "Breaker 32 A",
+        "kabel_kuch": "Cable 3×6 mm² (cooker line)"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

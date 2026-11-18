@@ -2,7 +2,7 @@ import { RadialIcons, type RadialItem } from "@/components/studio/SurfaceRadialM
 import i18n from "@/i18n";
 import type { PhaseKey } from "@/lib/phases";
 import type { RadialState } from "./useSurfaceRadialMenu";
-import { CATALOG as ELECTRICAL_CATALOG, electricalLabel } from "@/pages/studio/placement/constants";
+import { electricalCatalogFor } from "@/pages/studio/placement/constants";
 import { LIGHT_TYPES } from "@/lib/lightCatalog";
 import { trimLabel, trimProfilesOf } from "@/lib/trimProfiles";
 import { WINDOW_STYLES } from "@/lib/windowStyles";
@@ -75,13 +75,15 @@ export function buildRadialItems(
     setFloorPattern: (floorType: 'parquet' | 'tile', patternId: string, settings: FloorPatternSettings) => void;
     /** Reshapes the ceiling, keeping whatever settings it already had. */
     setCeilingDesign: (id: CeilingDesignId) => void;
+    /** The room's kind (lib/roomType effectiveRoomType): a kitchen's sockets go over the worktop. */
+    roomType?: string;
   },
 ): RadialItem[] {
   const {
     setSelectedWall, setActivePhase, setShowPanel, createOpening,
     placeElectrical, placeLight, setCornice, wallpapers, applyWallpaper, applyWallColor, applyWallTile, addRoomThroughWall,
     createWindowStyled, createDoorStyled,
-    setFloorPattern, setSkirting, setCeilingDesign, restyleOpening,
+    setFloorPattern, setSkirting, setCeilingDesign, restyleOpening, roomType,
   } = deps;
 
   /** Sends the user to the full panel — what a ring with nothing in it can
@@ -223,9 +225,9 @@ export function buildRadialItems(
         key: 'elektr', label: i18n.t('studio.radial.elektr'), icon: RadialIcons.socket,
         childLabel: i18n.t('studio.radial.elektr'),
         onSelect: () => {},
-        children: ELECTRICAL_CATALOG.map((entry) => ({
-          key: `el:${entry.type}`,
-          label: electricalLabel(entry.type),
+        children: electricalCatalogFor(roomType).map((entry) => ({
+          key: `el:${entry.key}`,
+          label: entry.label(),
           icon: RadialIcons.socket,
           // Each fitting drawn face-on, from the same range the 3D ones are
           // modelled on: one socket icon repeated told the user nothing.

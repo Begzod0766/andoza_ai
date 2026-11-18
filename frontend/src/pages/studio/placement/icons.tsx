@@ -70,6 +70,16 @@ export function ElectricalIcon({ type }: { type: ElectricalType }) {
           ))}
         </svg>
       )
+    case 'socket_power':
+      // A cooker's 32 A outlet: a single socket with its rating, on a line of its own.
+      return (
+        <svg width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="19.5" fill="white" stroke={C} strokeWidth="2.6"/>
+          <rect x="16.5" y="10" width="4.5" height="10" rx="2" fill={C}/>
+          <rect x="23" y="10" width="4.5" height="10" rx="2" fill={C}/>
+          <text x="22" y="34" textAnchor="middle" fontSize="9" fontFamily="sans-serif" fontWeight="700" fill="#DC2626">32A</text>
+        </svg>
+      )
     case 'socket_media':
       return (
         <svg width="100" height="44" viewBox="0 0 100 44">
@@ -141,6 +151,13 @@ export function MiniSymbol({ type, wallId, rotDeg }: { type: ElectricalType; wal
           <line x1="-3" y1="-1" x2="-3" y2="-5" stroke={C} strokeWidth="1.2"/>
           <line x1="3" y1="-1" x2="3" y2="-5" stroke={C} strokeWidth="1.2"/>
           <line x1="7" y1="-1" x2="7" y2="-5" stroke={C} strokeWidth="1.2"/>
+        </>
+      case 'socket_power':
+        return <>
+          <circle r="6" fill="none" stroke={C} strokeWidth="2.4"/>
+          <line x1="-3" y1="-2" x2="-3" y2="-7" stroke={C} strokeWidth="1.5"/>
+          <line x1="3" y1="-2" x2="3" y2="-7" stroke={C} strokeWidth="1.5"/>
+          <circle r="1.6" fill="#DC2626"/>
         </>
       case 'socket_media':
         return <>

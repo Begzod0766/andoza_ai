@@ -88,7 +88,8 @@ export interface RoomGeometry {
 
 export type AppliedSurfaces = Record<string, string>
 
-export type ElectricalType = 'switch1' | 'switch2' | 'socket1' | 'socket2' | 'socket_media' | 'panel' | 'ac'
+/** `socket_power` is a cooker's 32 A outlet on a line of its own (2026-11-18). */
+export type ElectricalType = 'switch1' | 'switch2' | 'socket1' | 'socket2' | 'socket_media' | 'socket_power' | 'panel' | 'ac'
 
 export interface PlacedElectrical {
   id: string

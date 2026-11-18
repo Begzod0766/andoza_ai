@@ -1239,6 +1239,7 @@ export default function ThreeDPage() {
         aiPin={aiPin}
         radial={radial}
         radialItems={(r) => buildRadialItems(r, {
+          roomType: effectiveRoomType(room.room_type, room.name),
           setSelectedWall, setActivePhase: openPhasePanel, setShowPanel, createOpening,
           placeElectrical: placeElectricalAt,
           placeLight: placeLightAt,

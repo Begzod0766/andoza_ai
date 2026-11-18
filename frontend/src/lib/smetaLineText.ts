@@ -91,6 +91,15 @@ const LABEL_HEADS = {
   "Namga chidamli shift bo'yog'i": "shift_paint_wet",
   "Qiyalik styajkasi aralashmasi": "slope_mix",
   "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
+  // The wall devices (2026-11-18)
+  "Rozetka (bitta)": "el_socket1",
+  "Rozetka (ikkitalik)": "el_socket2",
+  "Media rozetka (TV, internet)": "el_socket_media",
+  "Kuch rozetkasi (plita, 32 A)": "el_socket_power",
+  "Kalit (bitta)": "el_switch1",
+  "Kalit (ikkitalik)": "el_switch2",
+  "Elektr qutisi (shchit)": "el_panel",
+  "Avtomat 32 A (plita liniyasi)": "el_breaker_32",
 } as const;
 
 /** Labels the estimate writes in full, with no product name in them. */
@@ -214,6 +223,17 @@ const WHOLE_LABELS = {
   "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
   "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
   "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",
+  "Rozetka (bitta)": "el_socket1",
+  "Rozetka (ikkitalik)": "el_socket2",
+  "Media rozetka (TV, internet)": "el_socket_media",
+  "Kuch rozetkasi (plita, 32 A)": "el_socket_power",
+  "Kalit (bitta)": "el_switch1",
+  "Kalit (ikkitalik)": "el_switch2",
+  "Elektr qutisi (shchit)": "el_panel",
+  "Avtomat 32 A (plita liniyasi)": "el_breaker_32",
+  "Elektr kabel 3×6 mm² (plita liniyasi)": "el_power_cable",
+  "Ish: elektr nuqtalarini o'rnatish": "work_el_points",
+  "Ish: elektr qutisini o'rnatish": "work_el_panel",
   "Devor plitkasi (o'rtacha narx)": "wall_tile_avg",
   "Pol plitkasi (o'rtacha narx)": "floor_tile_avg",
   "Fartuk plitkasi (o'rtacha narx)": "backsplash_tile_avg",
