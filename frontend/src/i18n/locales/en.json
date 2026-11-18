@@ -1334,7 +1334,17 @@
       "work_bath_curtain": "Work: fitting the curtain rod",
       "collector_cold": "Manifold (cold water)",
       "collector_hot": "Manifold (hot water)",
-      "work_collector": "Work: assembling the manifold"
+      "work_collector": "Work: assembling the manifold",
+      "wall_tile_avg": "Wall tile (average price)",
+      "floor_tile_avg": "Floor tile (average price)",
+      "backsplash_tile_avg": "Backsplash tile (average price)",
+      "shift_grunt": "Ceiling primer",
+      "shift_grunt_bag": "Ceiling primer (base coat), {{kg}} kg bag",
+      "shift_paint": "Ceiling paint",
+      "shift_paint_wet": "Moisture-resistant ceiling paint",
+      "shift_paint_none": "Ceiling paint (no product chosen)",
+      "shift_paint_wet_none": "Moisture-resistant ceiling paint (no product chosen)",
+      "work_ceiling_paint": "Work: painting the ceiling"
     },
     "unit": {
       "qop_one": "bag",
@@ -1442,7 +1452,10 @@
       "smesitel_other": "mixers",
       "branch_pieces_head": "Branches",
       "mashina_one": "machine",
-      "mashina_other": "machines"
+      "mashina_other": "machines",
+      "under_fixtures": "under fixtures",
+      "banka_one": "can",
+      "banka_other": "cans"
     }
   },
   "ustalar": {

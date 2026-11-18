@@ -54,6 +54,7 @@ CATEGORY_TO_GROUP = {
     "plintus": "pol",
     "issiq_pol": "pol",
     "shift": "shift",
+    "shift_boyoq": "shift",
     "elektr": "elektr",
     "chiroq": "elektr",
     "ventilyatsiya": "elektr",

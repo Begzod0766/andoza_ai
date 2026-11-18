@@ -176,6 +176,10 @@ _LABEL_HEADS = {
     "Skinali (shisha fartuk)": "skinali",
     "Elektr sochiq quritgich": "el_towel_rail",
     "Namga chidamli rozetka (IP44)": "socket_ip44",
+    # The ceiling's finish (2026-11-18): a shop's product follows the colon.
+    "Shift grunti": "shift_grunt",
+    "Shift bo'yog'i": "shift_paint",
+    "Namga chidamli shift bo'yog'i": "shift_paint_wet",
     "Qiyalik styajkasi aralashmasi": "slope_mix",
     "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
     "Suv hisoblagichi": "water_meter",
@@ -307,6 +311,12 @@ _WHOLE_LABELS = {
     "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
     "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
     "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",
+    "Devor plitkasi (o'rtacha narx)": "wall_tile_avg",
+    "Pol plitkasi (o'rtacha narx)": "floor_tile_avg",
+    "Fartuk plitkasi (o'rtacha narx)": "backsplash_tile_avg",
+    "Shift bo'yog'i (material tanlanmagan)": "shift_paint_none",
+    "Namga chidamli shift bo'yog'i (material tanlanmagan)": "shift_paint_wet_none",
+    "Ish: shiftni bo'yash": "work_ceiling_paint",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.
@@ -367,6 +377,8 @@ def localize_label(label: str, lang: str) -> str:
         return t("line.suvoq_bag", lang, kg=m[1])
     if m := re.fullmatch(r"Grunt \(asosiy qatlam\) (\S+) kg qop", label):
         return t("line.grunt_bag", lang, kg=m[1])
+    if m := re.fullmatch(r"Shift grunti \(asosiy qatlam\) (\S+) kg qop", label):
+        return t("line.shift_grunt_bag", lang, kg=m[1])
     if m := re.fullmatch(r"Shpatlyovka (\S+) kg qop", label):
         return t("line.putty_bag", lang, kg=m[1])
     if m := re.fullmatch(r"Plintus \((\S+) m dona\)", label):
@@ -432,6 +444,8 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
      lambda lang, m: t("formula.strip", lang, m=m)),
     (re.compile(r"\(yuqori/pastki karkas\)"),
      lambda lang: f"({t('formula.frame', lang)})"),
+    # A heated floor (2026-11-18): "4.50 m² − 1.67 m² (jihozlar ostida) = …".
+    (re.compile(r"\(jihozlar ostida\)"), lambda lang: f"({t('formula.under_fixtures', lang)})"),
     (re.compile(r"\((isrof|chiqindi|zaxira)\)"),
      lambda lang, word: f"({t(f'formula.{word}', lang)})"),
     # "Devor 0: ..." opens a wallpaper wall's working; "(devor 1, 3)" names the painted walls.
@@ -465,11 +479,13 @@ _FORMULA_COUNTED = {
     "xona burchagi": "formula.xona_burchagi", "magistral uchi": "formula.magistral_uchi",
     # What a fixture part's count is made of (2026-11-13).
     "rakovina": "formula.rakovina", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel", "mashina": "formula.mashina",
+    # Paint bought in whole cans (2026-11-18).
+    "banka": "formula.banka",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|litr|m²|kg|m)"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)"
     r"(?=\Z|[\s);,:])"
 )
 

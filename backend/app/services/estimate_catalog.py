@@ -67,16 +67,42 @@ FINISH_UNITS: dict[str, set[str]] = {
 }
 
 
+# "60х120см", "600x600 мм", "60×60": two sizes with a cross between them (Latin x, Cyrillic х, ×).
+_TILE_SIZE = re.compile(r"(?<![\d.,])(\d{2,4})\s*[xх×*]\s*(\d{2,4})(?![\d.,])\s*(мм|mm|см|cm|sm)?", re.I)
+
+
+def tile_size_mm(name: str) -> tuple[int, int] | None:
+    """A tile's size off its name, in millimetres, the short side first; None when the name gives
+    none. In centimetres when it says so, or when no unit is given and both sides are under 200."""
+    m = _TILE_SIZE.search(name or "")
+    if m is None:
+        return None
+    a, b, unit = int(m[1]), int(m[2]), (m[3] or "").lower()
+    if unit in ("см", "cm", "sm") or (not unit and a < 200 and b < 200):
+        a, b = a * 10, b * 10
+    return (min(a, b), max(a, b))
+
+
+def tile_size_key(size: tuple[int, int]) -> str:
+    """The ``catalog`` key of the median shop tile of *size* (short side first, mm)."""
+    return f"finish:plitka:{size[0]}x{size[1]}"
+
+
 def pick_median_finishes(materials: Iterable[Material]) -> dict[str, Material]:
     """{"finish:<category>": the median-priced active product of that finish}, the stand-in
     price for a finish nobody picked a product for (the line says so). Products compare by
-    unit cost; with an even count the lower of the two middle ones is kept."""
+    unit cost; with an even count the lower of the two middle ones is kept. Tiles are also
+    grouped by the size their name gives (``tile_size_key``), so a tile chosen by size in the
+    studio is priced, and named, from the shop's tiles of that size (2026-11-18)."""
     groups: dict[str, list[Material]] = {}
     for m in materials:
         units = FINISH_UNITS.get(str(m.category))
         if not units or str(m.unit) not in units or not m.is_active:
             continue
         groups.setdefault(f"finish:{m.category}", []).append(m)
+        size = tile_size_mm(m.name_uz) if m.category == "plitka" else None
+        if size is not None:
+            groups.setdefault(tile_size_key(size), []).append(m)
     return {
         key: sorted(items, key=unit_cost)[(len(items) - 1) // 2]
         for key, items in groups.items()

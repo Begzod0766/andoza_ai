@@ -1366,7 +1366,17 @@
       "work_bath_curtain": "Работа: установка карниза для шторки",
       "collector_cold": "Коллектор (холодная вода)",
       "collector_hot": "Коллектор (горячая вода)",
-      "work_collector": "Работа: сборка коллектора"
+      "work_collector": "Работа: сборка коллектора",
+      "wall_tile_avg": "Настенная плитка (средняя цена)",
+      "floor_tile_avg": "Напольная плитка (средняя цена)",
+      "backsplash_tile_avg": "Плитка для фартука (средняя цена)",
+      "shift_grunt": "Грунтовка потолка",
+      "shift_grunt_bag": "Грунтовка потолка (базовый слой), мешок {{kg}} кг",
+      "shift_paint": "Краска для потолка",
+      "shift_paint_wet": "Влагостойкая краска для потолка",
+      "shift_paint_none": "Краска для потолка (материал не выбран)",
+      "shift_paint_wet_none": "Влагостойкая краска для потолка (материал не выбран)",
+      "work_ceiling_paint": "Работа: покраска потолка"
     },
     "unit": {
       "qop_one": "мешок",
@@ -1526,7 +1536,12 @@
       "mashina_one": "машина",
       "mashina_few": "машины",
       "mashina_many": "машин",
-      "mashina_other": "машины"
+      "mashina_other": "машины",
+      "under_fixtures": "под приборами",
+      "banka_one": "банка",
+      "banka_few": "банки",
+      "banka_many": "банок",
+      "banka_other": "банки"
     }
   },
   "ustalar": {
