@@ -33,3 +33,12 @@ describe('MontajSection', () => {
     expect(screen.queryByText(/Konditsioner ·/)).toBeNull()
   })
 })
+
+describe('MontajSection: a hood socket (kitchen re-check 2026-11-19 R5)', () => {
+  it('a socket placed at the hood\'s height reads as the hood\'s, not a plain socket', () => {
+    useRoomStore.setState({ electricals: [point('h', 'socket1', 'C', 2000), point('w', 'socket1', 'C', 1100)] })
+    render(<MontajSection />)
+    expect(screen.getByText('Devor C · 200 sm balandlikda · Vityajka rozetkasi')).toBeInTheDocument()
+    expect(screen.getByText('Devor C · 110 sm balandlikda')).toBeInTheDocument()
+  })
+})

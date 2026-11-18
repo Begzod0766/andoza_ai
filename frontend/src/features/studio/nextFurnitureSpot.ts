@@ -75,7 +75,9 @@ export function nextFurnitureSpot(item: {
   // auto-placed stands on the box or in front of the hatch (QA 2026-11-18 #7).
   const kind = effectiveRoomType(s.roomType, s.name)
   const keepClear = kind === 'hammom' || kind === 'oshxona' ? riserKeepClear(s.geometry, riser) : []
-  const plumbingWalls = [...new Set((s.plumbing ?? []).map((p) => p.wallId))]
+  // The walls with plumbing: the points saved by hand or by a fixture, and the walls a kitchen sink or a
+  // machine stands on (their points are worked out, not saved: kitchen re-check 2026-11-19 R1).
+  const plumbingWalls = [...new Set([...(s.plumbing ?? []).map((p) => p.wallId), ...(s.washers ?? []).map((m) => m.wallId)])]
   const { onWall, lengthM, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name), riser, keepClear, { plumbingWalls })
   if (onWall === false) {
     showToast({

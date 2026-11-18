@@ -1763,6 +1763,11 @@ def furniture_catalog_key(furniture_id: str) -> str:
 PLUMBING_ROLES = ("bathtub", "sink", "toilet", "shower", "bidet")
 # "Ish: <fixture> o'rnatish": the fixture's plain Uzbek name.
 FIXTURE_WORK_NAMES = {"bathtub": "vanna", "sink": "rakovina", "toilet": "unitaz", "shower": "dush", "bidet": "bide"}
+
+
+def _work_names(kitchen: bool) -> dict[str, str]:
+    """The fixtures' plain names; a kitchen's sink is a "moyka", not a basin (kitchen re-check 2026-11-19 R3)."""
+    return {**FIXTURE_WORK_NAMES, "sink": "moyka"} if kitchen else FIXTURE_WORK_NAMES
 PLUMBING_RESERVE = 1.15
 # A fixture's own parts (2026-11-13), by kind of fixture: (shop key, how many per fixture). A shower
 # cabin or panel comes with its mixer; a kitchen sink takes the kitchen mixer and trap.
@@ -2228,12 +2233,12 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             continue
         price = int(norms["work_fixture_uzs"][role])
         lines.append(_make_line(
-            label=f"Ish: {FIXTURE_WORK_NAMES[role]} o'rnatish",
+            label=f"Ish: {_work_names(kitchen)[role]} o'rnatish",
             formula=f"{roles[role]} dona × {price:,} so'm".replace(",", " "),
             qty=roles[role], unit="dona", price_uzs=price, category="santexnika",
         ))
     if _design_state(room).get("plumbingDemolition") is True and roles:
-        lines.extend(_demolition_lines(roles, norms))
+        lines.extend(_demolition_lines(roles, norms, kitchen))
     mixers = sum(n for kind, n in part_kinds.items() if any(k.startswith("smesitel_") for k, _ in FIXTURE_PARTS[kind]))
     if mixers:
         price = int(norms["work_mixer_uzs"])
@@ -2295,7 +2300,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         lines.extend(_washer_socket_lines(len(dishwashers), catalog, "idish"))
     lines.extend(_screen_lines(_design_state(room), screen_baths, screen_showers, catalog))
     if points:
-        lines.extend(_safety_lines(_is_bathroom(room), roles, catalog, norms))
+        lines.extend(_safety_lines(_is_bathroom(room), roles, catalog, norms, kitchen))
     return lines
 
 
@@ -2339,7 +2344,7 @@ def _electric_rail_lines(rails: list[dict], catalog: dict) -> list[ComputedLine]
     ]
 
 
-def _safety_lines(bathroom: bool, roles: dict[str, int], catalog: dict, norms: dict) -> list[ComputedLine]:
+def _safety_lines(bathroom: bool, roles: dict[str, int], catalog: dict, norms: dict, kitchen: bool = False) -> list[ComputedLine]:
     """What every plumbing renovation has but the estimate lacked (2026-11-16), in a room with plumbing
     points: an RCD for the wet zone, the pressure test of the pipes before they are closed up, and
     sanitary silicone (a tube per two fixtures, at least one); in a bathroom also the equipotential
@@ -2369,7 +2374,7 @@ def _safety_lines(bathroom: bool, roles: dict[str, int], catalog: dict, norms: d
     fixtures = sum(c for _, c in parts)
     per = int(n["fixtures_per_silicone"])
     tubes = max(1, math.ceil(fixtures / per))
-    why = (" + ".join(f"{c} {FIXTURE_WORK_NAMES[r]}" for r, c in parts) + f" = {fixtures} ÷ {per} →") if parts else None
+    why = (" + ".join(f"{c} {_work_names(kitchen)[r]}" for r, c in parts) + f" = {fixtures} ÷ {per} →") if parts else None
     line = _piece_line("Sanitariya silikoni", catalog.get("silikon"), int(n["silicone_uzs"]), "santexnika", qty=tubes, why=why)
     if why:
         line.formula = line.formula.replace(f"{why} = ", f"{why} ", 1)
@@ -2638,7 +2643,7 @@ def _chase_lines(pipes: dict, norms: dict) -> list[ComputedLine]:
     return out
 
 
-def _demolition_lines(roles: dict[str, int], norms: dict) -> list[ComputedLine]:
+def _demolition_lines(roles: dict[str, int], norms: dict, kitchen: bool = False) -> list[ComputedLine]:
     """Taking the old plumbing out (2026-11-13), when the user switched it on (``plumbingDemolition``
     exactly true): as many old fixtures as the room has new ones, each at its kind's price, and the
     old pipes once."""
@@ -2650,7 +2655,7 @@ def _demolition_lines(roles: dict[str, int], norms: dict) -> list[ComputedLine]:
     return [
         _make_line(
             label="Ish: eski santexnikani demontaj qilish",
-            formula=" + ".join(f"{n} {FIXTURE_WORK_NAMES[r]} × {fmt(p)}" for r, n, p in parts) + f" = {fmt(total)} so'm",
+            formula=" + ".join(f"{n} {_work_names(kitchen)[r]} × {fmt(p)}" for r, n, p in parts) + f" = {fmt(total)} so'm",
             qty=1, unit="komplekt", price_uzs=total, category="santexnika",
         ),
         _make_line(

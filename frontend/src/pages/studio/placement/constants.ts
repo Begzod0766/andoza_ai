@@ -61,7 +61,7 @@ export interface RingEntry { key: string; type: ElectricalType; height: number; 
 // A kitchen's sockets sit over the worktop, not down by the skirting.
 const KITCHEN_WORKTOP_MM = 1100
 // The hood's socket hides above the wall cabinets, under the hood's duct.
-const KITCHEN_HOOD_MM = 2000
+export const KITCHEN_HOOD_MM = 2000
 
 /**
  * What the wall ring offers in a room of this type (lib/roomType's effectiveRoomType). Every room

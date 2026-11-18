@@ -5,7 +5,10 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import type { RoomGeometry, Washer } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
-import { isDishwasher, isKitchenSink, machineSize, WASHER_WALL_GAP_MM } from "@/lib/washer";
+import { isDishwasher, isKitchenSink, machineSize, washerBox, WASHER_WALL_GAP_MM } from "@/lib/washer";
+import { overlaps, type Rect } from "@/lib/aiDesignLayout";
+import { isKitchenSet } from "@/lib/furnitureRole";
+import { placedFurnitureBoxes } from "@/features/studio/nextFurnitureSpot";
 import { dragToPositionMm, raycastInFront, railPointerHandlers } from "./TowelRails3D";
 import { noRaycast } from "./constants";
 import { clashColor } from "@/lib/wallItemClash";
@@ -41,13 +44,17 @@ export function washerPose(m: Washer, geometry: RoomGeometry): { x: number; y: n
 }
 
 /**
- * The machines and kitchen sinks drawn for a view: all of them, also on a wall hidden to look into the
+ * The machines and kitchen sinks drawn for a view. All of them also on a wall hidden to look into the
  * room (mobile QA 2026-11-18, #338: a kitchen's sink and dishwasher on the wall nearest the camera went
- * missing). They stand on the floor like the furniture, which stays too; what hangs on a wall (a towel
- * rail, a socket) goes with its wall.
+ * missing): they stand on the floor like the furniture, which stays too. A kitchen sink standing in a
+ * kitchen set is not drawn (kitchen re-check 2026-11-19 R1): the set's model has its own sink, and two showed.
  */
-export function shownWashers<T extends Washer>(washers: readonly T[], _hiddenWalls?: ReadonlySet<string>): readonly T[] {
-  return washers
+export function shownWashers<T extends Washer>(washers: readonly T[], geometry: RoomGeometry, kitchenSets: readonly Rect[]): T[] {
+  return washers.filter((m) => {
+    if (!isKitchenSink(m) || !kitchenSets.length) return true
+    const box = washerBox(geometry, m)
+    return !box || !kitchenSets.some((set) => overlaps(box, set, 0))
+  })
 }
 
 /**
@@ -55,11 +62,21 @@ export function shownWashers<T extends Washer>(washers: readonly T[], _hiddenWal
  * In a plumbing stage a machine slides along its wall by drag; the store keeps it off doors,
  * windows, towel rails, other machines and the wall's ends.
  */
-export function Washers3D({ controlsRef, hiddenWalls }: {
+export function Washers3D({ controlsRef }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  /** Not used: a machine stands on the floor and is drawn whatever wall is hidden (#338). */
   hiddenWalls?: ReadonlySet<string>;
 }) {
   const washers = useRoomStore((s) => s.washers);
+  // The kitchen sets' footprints: a kitchen sink in one is the set's own (R1).
+  const furniture = useRoomStore((s) => s.furniture);
+  const catalog = useRoomStore((s) => s.catalogFurniture);
+  const kitchenSets = useMemo(
+    () => placedFurnitureBoxes(useRoomStore.getState()).filter((p) => p.role === 'kitchen_set' || isKitchenSet(p.name))
+      .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [furniture, catalog],
+  );
   const geometry = useRoomStore((s) => s.geometry);
   const moveWasher = useRoomStore((s) => s.moveWasher);
   const active = useRoomStore((s) => s.plumbingStage);
@@ -122,7 +139,7 @@ export function Washers3D({ controlsRef, hiddenWalls }: {
 
   return (
     <group>
-      {shownWashers(washers, hiddenWalls).map((m) => {
+      {shownWashers(washers, geometry, kitchenSets).map((m) => {
         const pose = washerPose(m, geometry);
         if (!pose) return null;
         const { W, D, H } = dims(m);

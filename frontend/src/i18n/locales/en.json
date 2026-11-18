@@ -1240,6 +1240,7 @@
       "work_point": "Work: connecting a point",
       "work_bathtub": "Work: installing the bathtub",
       "work_sink": "Work: installing the sink",
+      "work_kitchen_sink": "Work: installing the kitchen sink",
       "work_toilet": "Work: installing the toilet",
       "work_shower": "Work: installing the shower",
       "work_bidet": "Work: installing the bidet",

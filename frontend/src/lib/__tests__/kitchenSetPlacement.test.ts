@@ -71,3 +71,21 @@ describe('adding the prod kitchen set from the menu (nextFurnitureSpot)', () => 
     expect(roomFitWarnings(useRoomStore.getState())).toEqual([expect.objectContaining({ id: 'p1', kind: 'outside' })])
   })
 })
+
+describe('a kitchen set and the kitchen sink on a wall (kitchen re-check 2026-11-19 R1)', () => {
+  it('stands on the wall the sink and the dishwasher are on, though no hand point is there', async () => {
+    // Prod: the sink and the dishwasher on A, no saved points; the set went to C, and the room had two sinks.
+    const { useRoomStore } = await import('@/store/roomStore')
+    const { nextFurnitureSpot } = await import('@/features/studio/nextFurnitureSpot')
+    useRoomStore.setState({
+      // The riser in the A/D corner, as prod had it (D 3000): its box takes the start of A, so C's run is longer.
+      geometry: kitchen(), roomType: 'oshxona', plumbingRiser: { wallId: 'D', positionMm: 3000 }, catalogFurniture: [], furniture: [], plumbing: [],
+      washers: [{ id: 's', wallId: 'A', positionMm: 550, kind: 'kitchen_sink' }, { id: 'd', wallId: 'A', positionMm: 1150, kind: 'dishwasher', widthMm: 600 }],
+      userFurniture: [{ id: 'set', name: "Oshxona to'plami 2", emoji: '', modelPath: 'x', scale: 1, sizeM: { w: 4, d: 0.63, h: 0.9 } }] as never,
+    })
+    const spot = nextFurnitureSpot({ name: "Oshxona to'plami 2", category: 'boshqa', sizeM: { w: 4, d: 0.63 }, heightM: 0.9 })
+    const a = roomModel(kitchen()).walls.find((w) => w.id === 'A')!
+    // Its back on A: as far off A's line as half its depth and the gap.
+    expect((spot.x / 1000 - a.midX) * a.nx + (spot.y / 1000 - a.midZ) * a.nz).toBeCloseTo(0.63 / 2 + 0.04, 2)
+  })
+})
