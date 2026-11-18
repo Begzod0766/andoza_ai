@@ -1102,6 +1102,7 @@
       "water_scheme_tee": "Tees (in series)",
       "water_scheme_collector": "Manifold (a line to each point)",
       "hatch_blocked": "{{names}} blocks the riser hatch — keep it reachable",
+      "overlap": "{{a}} and {{b}} stand in each other: the room has no floor for both. Move one, or pick a smaller one.",
       "boiler_homeless": "No safe place for the water heater: it needs a free wall away from the door, window, bath and shower. Move the riser or the fixtures.",
       "add_fixture": "Add a fixture",
       "catalog": "Plumbing catalog",

@@ -414,5 +414,12 @@ export function buildRadialItems(
         })),
       })),
     },
+    {
+      // The Pol panel (mobile QA 2026-11-18 #5): the heated floor and the shop's floors are there, and a
+      // phone had no way to it from the floor. Not "Rang" or "Narsa", which stay out (the user's call).
+      key: 'floor:panel', label: i18n.t('studio.radial.panel_pol'), icon: RadialIcons.add,
+      closesMenu: true,
+      onSelect: () => { setActivePhase('pol'); setShowPanel(true); },
+    },
   ];
 }

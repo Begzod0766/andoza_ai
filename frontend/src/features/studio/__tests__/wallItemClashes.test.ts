@@ -43,3 +43,15 @@ describe('wallItemClashes', () => {
     expect(wallItemClashes(st())).toEqual({})
   })
 })
+
+describe('a shop fixture with no height (mobile QA 2026-11-18, #298)', () => {
+  it('a toilet whose row has no height_cm, standing in the machine: the machine names it', () => {
+    // The shop's "Unitaz" (56 × 70, no height): read as 0 m tall, it touched nothing at any height.
+    useRoomStore.setState({
+      catalogFurniture: [{ id: 'wc', name_uz: 'Unitaz', category: 'boshqa', room_type: 'hammom', glb_url: '/m/wc.glb', footprint_w: 56, footprint_d: 70, height_cm: null } as never],
+      furniture: [{ id: 't', furniture_id: 'wc', name: 'Unitaz', x: 860, y: -600, rotation: -Math.PI / 2 } as never],
+      washers: [{ id: 'm', wallId: 'A', positionMm: 2200 }],
+    })
+    expect(wallItemClashes(st())).toEqual({ m: ['Unitaz'] })
+  })
+})

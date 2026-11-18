@@ -13,7 +13,7 @@ import type { RoomGeometry } from '@/store/roomStore'
 import { riserSpot, wallWalk } from './plumbingRuns'
 import { roomExtents } from '@/lib/roomDims'
 import { halfExtentsToBounds, placementSpot, roomBoundsFromGeometry } from '@/lib/furnitureBounds'
-import { blocksOpening, furnitureSpot, overlaps, roomModel, WALL_GAP, type Rect, type RoomModel } from '@/lib/aiDesignLayout'
+import { blocksOpening, furnitureSpot, overlaps, rectCorners, roomModel, WALL_GAP, type Rect, type RoomModel } from '@/lib/aiDesignLayout'
 import type { FurnitureRole } from '@/lib/furnitureRole'
 import { fixtureClearances } from '@/lib/fixtureClearance'
 
@@ -172,6 +172,11 @@ export function freeFurnitureSpotMm(
     // the bath 31 cm away): one that leaves every fixture its clearance, else the one short the least.
     const spot = bestFixtureSpot(geometry, model, placed, size, role, taken, riser)
     if (spot) return { ...toMm(spot), onWall: true }
+    // Longer than every wall (mobile QA 2026-11-18: a 171 cm bath in a 1.6 × 1.5 room): against the longest
+    // wall it fits on, sticking out at its ends (the fit warning names it), not in the middle, where the
+    // pieces after it found no floor and were put inside it.
+    const flush = longerThanWalls(model, size, taken)
+    if (flush) return { ...toMm(flush), onWall: false }
   }
   if (role === 'shower') {
     const spot = cornerFarthestFromDoor(model, size, taken)
@@ -231,6 +236,23 @@ export function freeFurnitureSpotMm(
   return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: 0 } : toMm(spot)
 }
 
+/** A piece no wall is long enough for: centred on the longest wall whose spot is clear of what stands, its
+ *  back to it; one clear of the doors' swing too if there is one. Null when every wall's spot is taken, or
+ *  some wall is long enough for it. */
+function longerThanWalls(model: RoomModel, size: { w: number; d: number; tall: boolean }, taken: Rect[]) {
+  if (model.walls.some((w) => w.length >= size.w)) return null
+  let swing: Rect | null = null
+  for (const wall of [...model.walls].sort((a, b) => b.length - a.length)) {
+    const out = size.d / 2 + WALL_GAP
+    const rect: Rect = { x: wall.midX + wall.nx * out, z: wall.midZ + wall.nz * out, w: size.w, d: size.d, rotation: Math.atan2(wall.nx, wall.nz) }
+    if (taken.some((q) => overlaps(rect, q))) continue
+    if (!blocksOpening(rect, false, model, { doors: true, windows: false })) return { x: rect.x, z: rect.z, rotation: rect.rotation }
+    // In a door's swing: kept, if no wall does better (the room is too small for it, the warning says so).
+    swing ??= rect
+  }
+  return swing && { x: swing.x, z: swing.z, rotation: swing.rotation }
+}
+
 /** A shower's corner: of the free ones, the farthest from the door (the first free one with no door). */
 function cornerFarthestFromDoor(model: RoomModel, size: { w: number; d: number; tall: boolean }, taken: Rect[]) {
   const doors = model.clear.filter((z) => z.kind === 'door').map((z) => z.rect)
@@ -261,6 +283,16 @@ const sinkFrontTaken = (r: Rect, taken: Rect[]) => {
   return taken.some((q) => overlaps(zone, q, 0))
 }
 
+/** The floor two footprints share, m² (their bounding boxes': the pieces stand square to the walls). */
+export function overlapArea(a: Rect, b: Rect): number {
+  const box = (r: Rect) => {
+    const c = rectCorners(r)
+    return [Math.min(...c.map((p) => p[0])), Math.max(...c.map((p) => p[0])), Math.min(...c.map((p) => p[1])), Math.max(...c.map((p) => p[1]))]
+  }
+  const [ax0, ax1, az0, az1] = box(a), [bx0, bx1, bz0, bz1] = box(b)
+  return Math.max(0, Math.min(ax1, bx1) - Math.max(ax0, bx0)) * Math.max(0, Math.min(az1, bz1) - Math.max(az0, bz0))
+}
+
 /** The fixtures placed by searching every wall spot against the clearance warning. */
 const SEARCHED = new Set<FurnitureRole>(['bathtub', 'sink', 'toilet'])
 /** The search step along a wall, metres. */
@@ -281,6 +313,13 @@ function bestFixtureSpot(geometry: RoomGeometry, model: RoomModel, placed: reado
   const rx = ww ? ww.startX + ww.dirX * r.positionMm / 1000 : 0, rz = ww ? ww.startZ + ww.dirZ * r.positionMm / 1000 : 0
   let best: { x: number; z: number; rotation: number } | null = null
   let bestKey: [number, number] = [Infinity, Infinity]
+  // No spot clear of what stands (mobile QA 2026-11-18: a toilet in a 1.6 × 1.5 room with a 171 cm bath):
+  // the one overlapping least, so it pokes a few centimetres into another piece rather than stands in it.
+  let least: { x: number; z: number; rotation: number } | null = null
+  let leastArea: [number, number] = [Infinity, Infinity]
+  // Into a piece first; the floor kept clear before the riser's hatch (its own warning) second.
+  const solid = pieces.map((p) => p.rect)
+  const kept = taken.filter((q) => !solid.some((r) => r.x === q.x && r.z === q.z && r.w === q.w && r.d === q.d))
   for (const wall of model.walls) {
     const rotation = Math.atan2(wall.nx, wall.nz)
     const half = wall.length / 2 - size.w / 2
@@ -288,7 +327,16 @@ function bestFixtureSpot(geometry: RoomGeometry, model: RoomModel, placed: reado
     const out = size.d / 2 + WALL_GAP
     for (let t = -half; t <= half + 1e-9; t += SEARCH_STEP_M) {
       const rect: Rect = { x: wall.midX + wall.dirX * t + wall.nx * out, z: wall.midZ + wall.dirZ * t + wall.nz * out, w: size.w, d: size.d, rotation }
-      if (!model.inside(rect) || taken.some((q) => overlaps(rect, q)) || blocksOpening(rect, false, model, { doors: true, windows: false })) continue
+      if (!model.inside(rect) || blocksOpening(rect, false, model, { doors: true, windows: false })) continue
+      if (taken.some((q) => overlaps(rect, q))) {
+        const into = solid.reduce((sum, q) => sum + overlapArea(rect, q), 0)
+        const hatch = kept.reduce((sum, q) => sum + overlapArea(rect, q), 0)
+        if (into < leastArea[0] - 1e-9 || (Math.abs(into - leastArea[0]) < 1e-9 && hatch < leastArea[1] - 1e-9)) {
+          least = { x: rect.x, z: rect.z, rotation }
+          leastArea = [into, hatch]
+        }
+        continue
+      }
       // A piece already standing losing its floor weighs ten times this one going short: when the room is
       // too small, the new piece takes the shortfall and its own warning, not the ones placed before it.
       const short = fixtureClearances([...pieces, { id: '__new', name: '', role, rect }], geometry)
@@ -303,7 +351,7 @@ function bestFixtureSpot(geometry: RoomGeometry, model: RoomModel, placed: reado
       }
     }
   }
-  return best
+  return best ?? least
 }
 
 function nearRiser(geometry: RoomGeometry, model: RoomModel, size: { w: number; d: number; tall: boolean }, clear: number, taken: Rect[], riser?: { wallId: string; positionMm: number }) {

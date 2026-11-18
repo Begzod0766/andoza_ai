@@ -10,6 +10,7 @@ import { freeFurnitureSpotMm, type PlacedBox } from '../placement'
 import { riserKeepClear } from '../bathroomBoxes'
 import { roomRiser } from '../plumbingRuns'
 import { fixtureClearances } from '../fixtureClearance'
+import { overlaps, roomModel } from '../aiDesignLayout'
 import type { FurnitureRole } from '../furnitureRole'
 
 const room = (a: number, b: number, doorAt: number, doorWall = 'D'): RoomGeometry => ({
@@ -67,5 +68,37 @@ describe('auto-placed fixtures keep each other\'s front floor free', () => {
       placed.push({ ...s, ...SIZE[role], role, name: role })
     }
     expect(placed).toHaveLength(3)
+  })
+})
+
+/**
+ * Mobile QA 2026-11-18 (#326/#320): a 1.6 × 1.5 bathroom, door 70 cm in the middle of D, Vanna 5 (171 × 75),
+ * Rakovina 3 (41 × 62), Unitaz (56 × 70). The bath is longer than any wall; it was put in the middle, and the
+ * sink and the toilet then had no free floor and were put inside it. A piece that fits no wall stands against
+ * the longest one (it sticks out, and says so), and the pieces after it never go inside another.
+ */
+describe('a bathroom too small for its bath (mobile QA 2026-11-18)', () => {
+  const QA: Record<string, { w: number; d: number }> = { bathtub: { w: 1.71, d: 0.75 }, sink: { w: 0.41, d: 0.62 }, toilet: { w: 0.56, d: 0.7 } }
+  const g = room(1600, 1500, 400)
+  function place(order: FurnitureRole[]) {
+    const riser = roomRiser(g, null)
+    const placed: PlacedBox[] = []
+    for (const role of order) {
+      const s = freeFurnitureSpotMm(g, placed, QA[role], role, riser, riserKeepClear(g, riser))
+      placed.push({ ...s, ...QA[role], role, name: role })
+    }
+    return placed.map((p) => ({ role: p.role, rect: { x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation } }))
+  }
+  it('bath → sink → toilet: the sink stands clear of the bath (the toilet has no room at all: the overlap warning says so)', () => {
+    // 75 cm of bath + 70 of toilet + their gaps is 1.53 m across a 1.5 m room, and the door's swing takes the
+    // rest: the toilet cannot stand clear anywhere. The overlap warning names it (lib/fixtureOverlap).
+    const [bath, sink] = place(['bathtub', 'sink', 'toilet'])
+    expect(overlaps(bath.rect, sink.rect, 0)).toBe(false)
+  })
+  it('the bath stands against the longest wall, its back to it', () => {
+    const [bath] = place(['bathtub'])
+    const a = roomModel(g).walls.find((w) => w.id === 'A')!
+    const off = (bath.rect.x - a.midX) * a.nx + (bath.rect.z - a.midZ) * a.nz
+    expect(off).toBeCloseTo(0.75 / 2 + 0.04, 2)
   })
 })
