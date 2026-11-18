@@ -151,6 +151,8 @@ export function freeFurnitureSpotMm(
   role: FurnitureRole,
   /** The room's riser (lib/plumbingRuns roomRiser): a toilet stands by it. Default: the door corner. */
   riser?: { wallId: string; positionMm: number },
+  /** Floor no piece but a rug may take (store metres): a bathroom's riser box and its hatch (lib/bathroomBoxes riserKeepClear). */
+  keepClear: readonly Rect[] = [],
 ): { x: number; y: number; rotation: number; onWall?: boolean } {
   const model = roomModel(geometry)
   const size = { w: sizeM.w > 0 ? sizeM.w : 0.6, d: sizeM.d > 0 ? sizeM.d : 0.6, tall: TALL_ROLES.has(role) }
@@ -163,6 +165,7 @@ export function freeFurnitureSpotMm(
   const taken: Rect[] = placed
     .filter((p) => p.role !== 'rug')
     .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
+    .concat(keepClear)
   if (role === 'shower') {
     const spot = cornerFarthestFromDoor(model, size, taken)
     if (spot) return { ...toMm(spot), onWall: true }

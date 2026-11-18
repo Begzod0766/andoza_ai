@@ -147,12 +147,31 @@ function overlaps(a: Rect, b: Rect): boolean {
   return true
 }
 
+/** The riser box on the floor and the floor in front of its hatch (store metres), or null when the room lacks the wall. */
+function riserBoxRects(geometry: RoomGeometry, riser: RiserAt): { box: Rect; hatch: Rect } | null {
+  const spot = riserBoxSpot(geometry, riser)
+  const w = spot && wallWalk(geometry).find((x) => x.id === spot.wallId)
+  if (!spot || !w) return null
+  const t = spot.positionMm / 1000, deep = RISER_BOX_D_MM / 1000, rotation = Math.atan2(w.nx, w.nz)
+  const at = (out: number) => ({ x: w.startX + w.dirX * t + w.nx * out, z: w.startZ + w.dirZ * t + w.nz * out })
+  return {
+    box: { ...at(deep / 2), w: RISER_BOX_W_MM / 1000, d: deep, rotation },
+    hatch: { ...at(deep + HATCH_ZONE_D / 2), w: HATCH_ZONE_W, d: HATCH_ZONE_D, rotation },
+  }
+}
+
 /** The pieces standing in front of the riser box's revision hatch (2026-11-18), by name: it must stay reachable. A rug does not count. */
 export function hatchBlockers(geometry: RoomGeometry, riser: RiserAt, pieces: Array<{ name: string; role?: string; rect: Rect }>): string[] {
-  const box = riserBoxSpot(geometry, riser)
-  const w = box && wallWalk(geometry).find((x) => x.id === box.wallId)
-  if (!box || !w) return []
-  const t = box.positionMm / 1000, out = RISER_BOX_D_MM / 1000 + HATCH_ZONE_D / 2
-  const zone: Rect = { x: w.startX + w.dirX * t + w.nx * out, z: w.startZ + w.dirZ * t + w.nz * out, w: HATCH_ZONE_W, d: HATCH_ZONE_D, rotation: Math.atan2(w.nx, w.nz) }
+  const zone = riserBoxRects(geometry, riser)?.hatch
+  if (!zone) return []
   return pieces.filter((p) => p.role !== 'rug' && overlaps(zone, p.rect)).map((p) => p.name)
+}
+
+/**
+ * The floor an auto-placed piece in a bathroom or kitchen keeps off (QA 2026-11-18 #7): the riser box
+ * and the floor in front of its hatch, so a fresh room does not open with the hatch warning.
+ */
+export function riserKeepClear(geometry: RoomGeometry, riser: RiserAt): Rect[] {
+  const r = riserBoxRects(geometry, riser)
+  return r ? [r.box, r.hatch] : []
 }
