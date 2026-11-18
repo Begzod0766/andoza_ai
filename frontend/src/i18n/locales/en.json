@@ -1020,6 +1020,8 @@
     "santexnika": {
       "title": "Plumbing",
       "hint": "A fixture brings its points when it is placed. Add an extra point here, for a washing machine say.",
+      "hint_quvurlar": "Pipes are laid before the plaster. A fixture's points appear by themselves once it is placed; add an extra point, say for a washing machine, here.",
+      "hint_jihozlar": "Fixtures go in after the tiles and the floor: bath, basin, toilet, towel rail, machines and the water heater.",
       "fixtures": "Fixtures",
       "no_fixtures": "No fixtures yet: add them in the Furniture stage with the Plumbing filter.",
       "points": "Points",

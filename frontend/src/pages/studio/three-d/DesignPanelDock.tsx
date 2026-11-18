@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
 import { DesignPanel } from "@/components/studio/DesignPanel";
 import type { Room } from "@/lib/api";
-import type { PhaseKey } from "@/lib/phases";
+import { isPlumbingPhase, type PhaseKey } from "@/lib/phases";
 import type { LightTypeId } from "@/lib/lightCatalog";
 
 /**
@@ -96,10 +96,10 @@ export function DesignPanelDock({
       <div
         data-testid="design-panel-mobile"
         className={[
-          /* mobile base — the Santexnika stage is a form: from the bottom at full width, the 3D and
+          /* mobile base — the plumbing stages (Quvurlar, Jihozlar) are forms: from the bottom at full width, the 3D and
              its pipe runs in view above (mobile QA 2026-11-09 #1); every other stage takes the right
              half, so the wall being finished stays in view. */
-          activePhase === 'santexnika'
+          isPlumbingPhase(activePhase)
             ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-hidden flex flex-col bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
             : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full'}`,
           /* desktop override */
@@ -123,7 +123,7 @@ export function DesignPanelDock({
             </svg>
           </button>
         </div>
-        {activePhase === 'santexnika' ? (
+        {isPlumbingPhase(activePhase) ? (
           <div data-testid="design-panel-scroll"
             className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)] lg:h-full lg:overflow-visible lg:pb-0">
             <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}

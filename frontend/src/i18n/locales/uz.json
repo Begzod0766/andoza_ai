@@ -1020,6 +1020,8 @@
     "santexnika": {
       "title": "Santexnika",
       "hint": "Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi. Kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
+      "hint_quvurlar": "Quvurlar suvoqdan oldin yotqiziladi. Jihoz qo'yilganda uning nuqtalari o'zi paydo bo'ladi; kir yuvish mashinasi kabi qo'shimcha nuqtani shu yerdan qo'shing.",
+      "hint_jihozlar": "Jihozlar kafel va poldan keyin o'rnatiladi: vanna, rakovina, unitaz, sochiq quritgich, mashinalar va boyler.",
       "fixtures": "Jihozlar",
       "no_fixtures": "Hali jihoz yo'q: \"Mebel\" bosqichida \"Santexnika\" filtridan qo'shing.",
       "points": "Nuqtalar",
