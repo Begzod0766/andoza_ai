@@ -317,7 +317,8 @@ export default function ThreeDPage() {
   // needs doing (an already-plastered wall skips Suvoq, a puttied wall skips
   // Suvoq + Shpaklovka). Earlier stages then render as done via the existing
   // positional check-mark logic. The wizard's post-creation hand-off passes
-  // ?phase=suvoq so a brand-new room opens at the START of the phase flow
+  // its first stage (lib/phases newRoomStudioPath: Quvurlar in a bathroom or kitchen, else Suvoq)
+  // so a brand-new room opens at the START of the phase flow
   // (its walls are still bare plaster — nothing has been done to them yet).
   // With no link it opens at the last stage, Mebel, on the finished room (spec 2026-11-18; it was
   // Bo'yoq) — REOPENING a room (projects list, tab switches, direct links).

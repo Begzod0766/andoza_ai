@@ -1,4 +1,5 @@
 import type { TKey } from '@/i18n'
+import { catalogRoomType } from '@/lib/roomType'
 
 /**
  * Renovation phases — the left-hand stepper in the studio, and the key the
@@ -48,6 +49,16 @@ const PLUMBING_ROOMS = new Set(['hammom', 'oshxona'])
 /** The stages a room of catalog kind `roomKind` shows: no plumbing stages outside a bathroom or kitchen. */
 export function visibleStages(roomKind: string | undefined): typeof RENO_STAGES {
   return roomKind && PLUMBING_ROOMS.has(roomKind) ? RENO_STAGES : RENO_STAGES.filter((s) => !isPlumbingPhase(s.key))
+}
+
+/**
+ * Where the wizard hands a brand-new room to the studio: its first stage, so a bathroom or a
+ * kitchen starts at Quvurlar, the pipes laid before the plaster (QA 2026-11-18 #4: it opened at
+ * Suvoq and the stage list showed Quvurlar as done).
+ */
+export function newRoomStudioPath(roomId: string, roomType: string | null | undefined): string {
+  const first = visibleStages(catalogRoomType(roomType ?? undefined))[0].key
+  return `/studio/${roomId}/ichkarida?phase=${first}`
 }
 
 /** The link's `?phase=` as a stage this room has (an old `santexnika` is Jihozlar), else null. */

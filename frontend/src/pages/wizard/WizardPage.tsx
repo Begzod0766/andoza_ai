@@ -23,6 +23,7 @@ import { Panel } from '@/components/ui/Panel'
 import type { TFunction } from 'i18next'
 import { RoomTypePicker } from '@/components/studio/RoomTypePicker'
 import { guessRoomType } from '@/lib/roomType'
+import { newRoomStudioPath } from '@/lib/phases'
 import { sizeForType } from '@/lib/roomTypeSize'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -578,7 +579,7 @@ function Step5({ roomId, geometry, ceilingHeight, saving, saveFailed, onRetrySav
         <Button
           size="lg"
           className="w-full"
-          onClick={() => roomId && navigate(`/studio/${roomId}/ichkarida?phase=suvoq`)}
+          onClick={() => roomId && navigate(newRoomStudioPath(roomId, useRoomStore.getState().roomType))}
           disabled={!roomId}
         >
           {t('wizard.bezashni_boshlash')}
@@ -917,7 +918,7 @@ export default function WizardPage() {
     if (step === 0 && isFromDraw) {
       void handleSave().then((id) => {
         void persistLayoutPos()
-        if (id) navigate(`/studio/${id}/ichkarida?phase=suvoq`)
+        if (id) navigate(newRoomStudioPath(id, useRoomStore.getState().roomType))
       })
       return
     }
