@@ -60,7 +60,7 @@ describe('studio lib label keys', () => {
     expect(i18n.t(CEILING_DESIGNS[0].labelKey)).toBe('Ровный потолок')
     expect(i18n.t(LIGHT_TYPES[0].nameKey)).toBe('Подвесной светильник')
     expect(i18n.t(WINDOW_STYLES[0].labelKey)).toBe('Одностворчатое')
-    expect(i18n.t(RENO_STAGES[0].labelKey)).toBe('Штукатурка')
+    expect(i18n.t(RENO_STAGES[0].labelKey)).toBe('Трубы')
     expect(i18n.t(TILE_FACES[1].labelKey)).toBe('Белый мрамор')
     expect(wallColorName('#6D6A41')).toBe('Оливковый зелёный')
     act(() => applyLanguage('en'))

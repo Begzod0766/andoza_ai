@@ -23,7 +23,7 @@ beforeEach(() => {
 describe('SantexnikaSection: screens', () => {
   it('with a bath: a "bath screen" choice, none until picked; picking glass is saved', () => {
     useRoomStore.setState({ furniture: [piece('Vanna 170')] })
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     const pick = screen.getByLabelText("Vanna to'sig'i") as HTMLSelectElement
     expect(pick.value).toBe('')
     fireEvent.change(pick, { target: { value: 'glass' } })
@@ -34,16 +34,16 @@ describe('SantexnikaSection: screens', () => {
   })
   it('with a shower tray: a "shower screen" choice; with a cabin only, none', () => {
     useRoomStore.setState({ furniture: [piece('Dush poddoni')] })
-    const { unmount } = render(<SantexnikaSection bathroom />)
+    const { unmount } = render(<SantexnikaSection part="jihozlar" bathroom />)
     fireEvent.change(screen.getByLabelText("Dush to'sig'i"), { target: { value: 'curtain' } })
     expect(useRoomStore.getState().designState.showerScreen).toBe('curtain')
     unmount()
     useRoomStore.setState({ furniture: [piece('Dush kabinasi')] })
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(screen.queryByLabelText("Dush to'sig'i")).toBeNull()
   })
   it('no bath and no shower: no choice', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(screen.queryByLabelText("Vanna to'sig'i")).toBeNull()
     expect(screen.queryByLabelText("Dush to'sig'i")).toBeNull()
   })

@@ -50,22 +50,23 @@ describe('the arc menu furniture by room', () => {
   })
 })
 
-describe('the arc menu Santexnika category (spec 2026-11-08)', () => {
-  it('a bathroom has it: its fixtures and "add point"', () => {
+describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)', () => {
+  it('a bathroom has it: its fixtures, and "add point" opening Quvurlar', () => {
     useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
     const openPanelAt = vi.fn()
     const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
-    const cat = result.current.find((c) => c.key === 'santexnika')!
+    const cat = result.current.find((c) => c.key === 'jihozlar')!
+    expect(cat.label).toBe('Jihozlar')
     expect(cat.items!.map((i) => i.key)).toEqual(['sx:vanna', 'sx:add'])
     cat.items!.find((i) => i.key === 'sx:add')!.onSelect()
-    expect(openPanelAt).toHaveBeenCalledWith('santexnika')
+    expect(openPanelAt).toHaveBeenCalledWith('quvurlar')
   })
 
   it('a living room does not', () => {
     useRoomStore.setState({ roomType: 'mehmonxona', name: 'Zal' })
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
     const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt: () => {} }), { wrapper })
-    expect(result.current.find((c) => c.key === 'santexnika')).toBeUndefined()
+    expect(result.current.find((c) => c.key === 'jihozlar')).toBeUndefined()
   })
 })

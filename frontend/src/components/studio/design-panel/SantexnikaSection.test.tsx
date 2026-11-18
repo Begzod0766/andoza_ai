@@ -34,15 +34,41 @@ beforeEach(() => {
 })
 
 describe('SantexnikaSection', () => {
-  it("lists the room's fixtures and their points", () => {
+  it("Jihozlar lists the room's fixtures; Quvurlar their points", () => {
     placeOn('tub', 'vanna', 'A', 0.7)
-    render(<SantexnikaSection />)
+    const { unmount } = render(<SantexnikaSection part="jihozlar" />)
     expect(screen.getByText('Vanna 1')).toBeInTheDocument()
+    unmount()
+    render(<SantexnikaSection part="quvurlar" />)
     expect(screen.getAllByRole('listitem', { name: /kanalizatsiya|sovuq suv|issiq suv/i })).toHaveLength(3)
   })
 
+  // Santexnika split in two (spec 2026-11-18): the pipes before the plaster, the fixtures after the floor.
+  it('Quvurlar has the pipes only: no fixtures, rails, machines, heater, screens or fan', () => {
+    placeOn('tub', 'vanna', 'A', 0.7)
+    render(<SantexnikaSection part="quvurlar" bathroom />)
+    expect(screen.getByRole('heading', { name: 'Quvurlar' })).toBeInTheDocument()
+    expect(screen.queryByText('Vanna 1')).toBeNull()
+    expect(screen.queryByRole('button', { name: "Kir yuvish mashinasi qo'shish" })).toBeNull()
+    expect(screen.queryByLabelText('Suv isitgich (boyler)')).toBeNull()
+    expect(screen.queryByText(/sochiq quritgich/i)).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: /ventilyator/i })).toBeNull()
+    expect(screen.getByLabelText('Stoyak devori')).toBeInTheDocument()
+    expect(screen.getByLabelText('Suv kirish uzeli (hisoblagich, filtr, reduktor)')).toBeInTheDocument()
+  })
+  it('Jihozlar has the fixtures only: no point form, riser, pipe switches or summary', () => {
+    render(<SantexnikaSection part="jihozlar" bathroom />)
+    expect(screen.getByRole('heading', { name: 'Jihozlar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /nuqta qo'shish/i })).toBeNull()
+    expect(screen.queryByLabelText('Stoyak devori')).toBeNull()
+    expect(screen.queryByLabelText('Eski santexnikani olib tashlash')).toBeNull()
+    expect(screen.queryByText(/Kanalizatsiya: \d+ nuqta/)).toBeNull()
+    expect(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" })).toBeInTheDocument()
+    expect(screen.getByLabelText('Suv isitgich (boyler)')).toBeInTheDocument()
+  })
+
   it('adds a point by hand, with no fixture of its own', () => {
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     fireEvent.change(screen.getByLabelText('Turi'), { target: { value: 'cold' } })
     fireEvent.change(screen.getByLabelText('Devor'), { target: { value: 'B' } })
     fireEvent.change(screen.getByLabelText('Balandligi, sm'), { target: { value: '90' } })
@@ -55,7 +81,7 @@ describe('SantexnikaSection', () => {
 
   it('a hand point can be removed from its row', () => {
     useRoomStore.getState().addPlumbing({ id: 'wm', kind: 'drain', diameterMm: 50, wallId: 'C', positionMm: 500, heightMm: 500 })
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     const item = screen.getByRole('listitem', { name: /kanalizatsiya/i })
     fireEvent.click(within(item).getByRole('button', { name: /olib tashlash/i }))
     expect(useRoomStore.getState().plumbing).toEqual([])
@@ -63,7 +89,7 @@ describe('SantexnikaSection', () => {
 
   it('sums the points up: drains and water, with pipe metres', () => {
     placeOn('tub', 'vanna', 'A', 0.7)
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     const s = useRoomStore.getState()
     const sum = plumbingSummary(s.geometry, s.plumbing, riserSpot(s.geometry))
     expect(screen.getByText(new RegExp(`Kanalizatsiya: ${sum.drain.points} nuqta`))).toBeInTheDocument()
@@ -73,7 +99,7 @@ describe('SantexnikaSection', () => {
   it('its pipe metres are the pipe scheme\'s, the same the estimate prices (spec 2026-11-11)', () => {
     placeOn('tub', 'vanna', 'A', 0.7)
     placeOn('sink', 'rak', 'C', 0.62)
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     const s = useRoomStore.getState()
     const p = pipeScheme(s.geometry, riserSpot(s.geometry), s.plumbing).pipes
     const m = (mm: number) => formatDecimal(Math.round(mm / 1000 * 1.15 * 100) / 100, 1)
@@ -85,14 +111,14 @@ describe('SantexnikaSection', () => {
   // The riser the user moves (2026-11-13).
   describe('the riser', () => {
     it('shows where it is: the door corner until one is set', () => {
-      render(<SantexnikaSection />)
+      render(<SantexnikaSection part="quvurlar" />)
       const auto = riserSpot(useRoomStore.getState().geometry)
       expect((screen.getByLabelText('Stoyak devori') as HTMLSelectElement).value).toBe(auto.wallId)
       expect((screen.getByLabelText('Devor boshidan, sm') as HTMLInputElement).value).toBe(String(Math.round(auto.positionMm / 10)))
       expect(screen.getByRole('button', { name: /Avtomatik/ })).toBeDisabled()
     })
     it('a wall and a distance set it by hand; "Avtomatik" puts it back at the door corner', () => {
-      render(<SantexnikaSection />)
+      render(<SantexnikaSection part="quvurlar" />)
       fireEvent.change(screen.getByLabelText('Stoyak devori'), { target: { value: 'C' } })
       expect(useRoomStore.getState().plumbingRiser?.wallId).toBe('C')
       fireEvent.change(screen.getByLabelText('Devor boshidan, sm'), { target: { value: '120' } })
@@ -102,7 +128,7 @@ describe('SantexnikaSection', () => {
       expect(useRoomStore.getState().plumbingRiser).toBeNull()
     })
     it('a distance past the wall\'s end stops at its end', () => {
-      render(<SantexnikaSection />)
+      render(<SantexnikaSection part="quvurlar" />)
       fireEvent.change(screen.getByLabelText('Stoyak devori'), { target: { value: 'B' } })
       fireEvent.change(screen.getByLabelText('Devor boshidan, sm'), { target: { value: '999' } })
       fireEvent.blur(screen.getByLabelText('Devor boshidan, sm'))
@@ -111,7 +137,7 @@ describe('SantexnikaSection', () => {
     it('the summary measures from the riser the user set', () => {
       placeOn('tub', 'vanna', 'A', 0.7)
       useRoomStore.getState().setPlumbingRiser({ wallId: 'C', positionMm: 1250 })
-      render(<SantexnikaSection />)
+      render(<SantexnikaSection part="quvurlar" />)
       const s = useRoomStore.getState()
       const sum = plumbingSummary(s.geometry, s.plumbing, roomRiser(s.geometry, s.plumbingRiser))
       const auto = plumbingSummary(s.geometry, s.plumbing, riserSpot(s.geometry))
@@ -122,7 +148,7 @@ describe('SantexnikaSection', () => {
 
   // Old plumbing out and pipes in the wall (2026-11-13): two switches, for the estimate.
   it('"remove the old plumbing" is off until ticked; "pipes in the wall" is on until unticked', () => {
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     const demolish = screen.getByLabelText('Eski santexnikani olib tashlash') as HTMLInputElement
     const inWall = screen.getByLabelText('Quvurlar devor ichida (shtroba)') as HTMLInputElement
     expect(demolish.checked).toBe(false)
@@ -134,7 +160,7 @@ describe('SantexnikaSection', () => {
     expect(useRoomStore.getState().isDirty).toBe(true)
   })
   it('"water heater" is off until ticked, in a bathroom and a kitchen (2026-11-13)', () => {
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="jihozlar" />)
     const heater = screen.getByLabelText('Suv isitgich (boyler)') as HTMLInputElement
     expect(heater.checked).toBe(false)
     fireEvent.click(heater)
@@ -142,7 +168,7 @@ describe('SantexnikaSection', () => {
   })
   it('both switches are in a kitchen too', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     expect(screen.getByLabelText('Eski santexnikani olib tashlash')).toBeInTheDocument()
     expect(screen.getByLabelText('Quvurlar devor ichida (shtroba)')).toBeInTheDocument()
   })
@@ -150,7 +176,7 @@ describe('SantexnikaSection', () => {
   // A washing machine (spec 2026-11-13).
   describe('the washing machine', () => {
     it('is added from the panel, listed, its two points with it, and removed with them', () => {
-      render(<SantexnikaSection bathroom />)
+      render(<><SantexnikaSection part="jihozlar" bathroom /><SantexnikaSection part="quvurlar" bathroom /></>)
       fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
       const s = useRoomStore.getState()
       expect(s.washers).toHaveLength(1)
@@ -161,7 +187,7 @@ describe('SantexnikaSection', () => {
       expect(screen.queryAllByText('(mashinaniki)')).toHaveLength(0)
     })
     it('its points raise the summary by one water and one drain point', () => {
-      render(<SantexnikaSection bathroom />)
+      render(<><SantexnikaSection part="jihozlar" bathroom /><SantexnikaSection part="quvurlar" bathroom /></>)
       const before = screen.getByText(/Kanalizatsiya: \d+ nuqta/).textContent!
       fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
       const after = screen.getByText(/Kanalizatsiya: \d+ nuqta/).textContent!
@@ -171,12 +197,12 @@ describe('SantexnikaSection', () => {
     })
     it('is offered in a kitchen too', () => {
       useRoomStore.setState({ roomType: 'oshxona' })
-      render(<SantexnikaSection />)
+      render(<SantexnikaSection part="jihozlar" />)
       expect(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" })).toBeInTheDocument()
     })
     it('no room left: the panel says so', () => {
       useRoomStore.setState({ geometry: { walls: [] } as never })
-      render(<SantexnikaSection bathroom />)
+      render(<SantexnikaSection part="jihozlar" bathroom />)
       fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
       expect(screen.getByRole('alert')).toHaveTextContent("Devorlarda kir yuvish mashinasi uchun joy yo'q.")
     })
@@ -184,12 +210,12 @@ describe('SantexnikaSection', () => {
 
   // A floor drain for a shower with no tray (spec 2026-11-13).
   it('"shower with no tray" is shown only with a shower, unticked; ticking sets floorDrain', () => {
-    const { unmount } = render(<SantexnikaSection bathroom />)
+    const { unmount } = render(<SantexnikaSection part="quvurlar" bathroom />)
     expect(screen.queryByLabelText('Dush poddonsiz (pol trapi)')).toBeNull()
     unmount()
     useRoomStore.setState({ catalogFurniture: [...useRoomStore.getState().catalogFurniture, row('dush', 'Dush poddoni 90', 90, 90)] })
     placeOn('sh', 'dush', 'C', 0.9)
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="quvurlar" bathroom />)
     const box = screen.getByLabelText('Dush poddonsiz (pol trapi)') as HTMLInputElement
     expect(box.checked).toBe(false)
     fireEvent.click(box)
@@ -197,7 +223,7 @@ describe('SantexnikaSection', () => {
   })
 
   it('"water inlet" is off until ticked; ticking sets waterInlet (2026-11-14)', () => {
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     const box = screen.getByLabelText('Suv kirish uzeli (hisoblagich, filtr, reduktor)') as HTMLInputElement
     expect(box.checked).toBe(false)
     fireEvent.click(box)
@@ -207,7 +233,7 @@ describe('SantexnikaSection', () => {
   it('in a kitchen, a sink brings its three points', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     placeOn('sink', 'rak', 'B', 0.62)
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     expect(screen.getAllByRole('listitem', { name: /kanalizatsiya|sovuq suv|issiq suv/i })).toHaveLength(3)
   })
 })
@@ -216,7 +242,7 @@ describe('SantexnikaSection pipe runs toggle', () => {
   // Mobile QA 2026-11-09 #3 (user's call): on a phone the open panel hides half the 3D, so the runs
   // stay drawn after the panel closes, until the box is unticked.
   it('switches the pipe runs on, and they stay on after the panel closes until unticked', () => {
-    const { unmount } = render(<SantexnikaSection />)
+    const { unmount } = render(<SantexnikaSection part="quvurlar" />)
     fireEvent.click(screen.getByRole('checkbox', { name: /quvur yo'llarini ko'rsatish/i }))
     expect(useRoomStore.getState().showPipeRuns).toBe(true)
     unmount()
@@ -228,7 +254,7 @@ describe('SantexnikaSection on a phone (mobile QA 2026-11-09)', () => {
   it('#4: the height field scrolls into view when focused, above the keyboard', () => {
     const spy = vi.fn()
     Element.prototype.scrollIntoView = spy
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     fireEvent.focus(screen.getByLabelText('Balandligi, sm'))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }))
   })
@@ -238,7 +264,7 @@ describe('SantexnikaSection on a phone (mobile QA 2026-11-09)', () => {
     await i18n.changeLanguage('en')
     try {
       placeOn('tub', 'vanna', 'A', 0.7)
-      render(<SantexnikaSection />)
+      render(<SantexnikaSection part="jihozlar" />)
       expect(screen.getByText('Bathtub 1')).toBeInTheDocument()
       expect(screen.queryByText('Vanna 1')).toBeNull()
     } finally { await i18n.changeLanguage('uz') }
@@ -252,7 +278,7 @@ describe('SantexnikaSection on a phone (mobile QA 2026-11-09)', () => {
 
 describe('the wall picker follows the room (review minor 2026-11-09)', () => {
   it('when the room\'s walls change under an open panel, a new point goes on a wall the room has', () => {
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="quvurlar" />)
     useRoomStore.setState({ geometry: { walls: [{ id: 'W1', length: 3000, elements: [] }, { id: 'W2', length: 2000, elements: [] }, { id: 'W3', length: 3000, elements: [] }] } as never })
     fireEvent.click(screen.getByRole('button', { name: /nuqta qo'shish/i }))
     expect(useRoomStore.getState().plumbing.at(-1)!.wallId).toBe('W1')

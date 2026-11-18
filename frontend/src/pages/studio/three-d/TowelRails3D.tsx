@@ -78,7 +78,7 @@ export function raycastInFront(this: THREE.Mesh, raycaster: THREE.Raycaster, int
 }
 
 /**
- * A rail's pointer handlers. In the Santexnika stage a press starts the drag, and a tap ends at the
+ * A rail's pointer handlers. In a plumbing stage a press starts the drag, and a tap ends at the
  * rail: its hit area is the nearest thing on the ray but had no click handler, so a tap that moved
  * nothing went on to the wall behind and opened the wall's menu (mobile re-check 2026-11-11). In any
  * other stage there are none and a touch goes through.
@@ -102,10 +102,10 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
   const towelRails = useRoomStore((s) => s.towelRails);
   const geometry = useRoomStore((s) => s.geometry);
   const moveTowelRail = useRoomStore((s) => s.moveTowelRail);
-  // Caught and dragged in the Santexnika stage only; in any other it is scenery, and a touch goes
+  // Caught and dragged in a plumbing stage only; in any other it is scenery, and a touch goes
   // through it to the camera or to whatever is there.
   const active = useRoomStore((s) => s.plumbingStage);
-  // Touching furniture (2026-11-15): drawn in warning red in the Santexnika stage.
+  // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);

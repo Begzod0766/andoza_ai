@@ -5,6 +5,11 @@ import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/types'
 import { SantexnikaSection } from './SantexnikaSection'
 
+/** Both plumbing panels at once (split 2026-11-18): Jihozlar adds the item, Quvurlar lists its points. */
+const Both = ({ bathroom }: { bathroom?: boolean }) => (
+  <><SantexnikaSection part="jihozlar" bathroom={bathroom} /><SantexnikaSection part="quvurlar" bathroom={bathroom} /></>
+)
+
 vi.mock('./ShopPickList', () => ({ ShopPickList: () => null }))
 
 const geometry = { walls: [
@@ -21,7 +26,7 @@ beforeEach(() => {
 
 describe('SantexnikaSection: dishwasher', () => {
   it('a kitchen offers it; adding lists it at 60 sm with its two own points', () => {
-    render(<SantexnikaSection />)
+    render(<Both />)
     fireEvent.click(addButton()!)
     expect(useRoomStore.getState().washers[0]).toMatchObject({ kind: 'dishwasher', widthMm: 600 })
     const select = within(dishRow()).getByRole('combobox', { name: "Eni" }) as HTMLSelectElement
@@ -31,7 +36,7 @@ describe('SantexnikaSection: dishwasher', () => {
   })
 
   it('the width select changes it', () => {
-    render(<SantexnikaSection />)
+    render(<Both />)
     fireEvent.click(addButton()!)
     fireEvent.change(within(dishRow()).getByRole('combobox', { name: "Eni" }), { target: { value: '450' } })
     expect(useRoomStore.getState().washers[0].widthMm).toBe(450)
@@ -39,11 +44,11 @@ describe('SantexnikaSection: dishwasher', () => {
 
   it('it is not listed with the washing machines, and a bathroom does not offer it', () => {
     useRoomStore.setState({ washers: [{ id: 'd', wallId: 'A', positionMm: 1000, kind: 'dishwasher', widthMm: 600 }] })
-    const { unmount } = render(<SantexnikaSection />)
+    const { unmount } = render(<Both />)
     expect(screen.queryByRole('listitem', { name: /^kir yuvish/i })).toBeNull()
     unmount()
     useRoomStore.setState({ roomType: 'hammom', washers: [] })
-    render(<SantexnikaSection bathroom />)
+    render(<Both bathroom />)
     expect(addButton()).toBeNull()
   })
 })

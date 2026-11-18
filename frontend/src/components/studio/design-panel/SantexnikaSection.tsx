@@ -21,14 +21,20 @@ import { screenChoice, screenedBaths, screenedShowers } from "@/lib/showerScreen
 const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
 
 /**
- * "Santexnika" stage (spec 2026-11-08): the room's fixtures, their drain and water points and any
- * added by hand, a form to add one, and the pipe runs summed up. Shown in a bathroom or kitchen only.
+ * The two plumbing stages (spec 2026-11-08, split 2026-11-18), shown in a bathroom or kitchen only.
+ * Quvurlar, before the plaster: the drain and water points (the fixtures' own and any added by
+ * hand), the riser, the pipe runs and the switches the estimate prices them by, summed up.
+ * Jihozlar, after the floor: the fixtures and their clearance, towel rails, machines, the water
+ * heater, the bath and shower screens and the fan. One component, so both read the same store.
  */
-export function SantexnikaSection({ bathroom = false }: {
+export function SantexnikaSection({ part, bathroom = false }: {
+  /** Which of the two stages this is. */
+  part: "quvurlar" | "jihozlar";
   /** The room is a bathroom: the towel rail and the extractor fan are offered (spec 2026-11-10). */
   bathroom?: boolean;
 }) {
   const { t } = useTranslation();
+  const pipes = part === "quvurlar";
   const ventFan = useRoomStore((s) => s.designState.ventFan);
   const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
   const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
@@ -130,23 +136,11 @@ export function SantexnikaSection({ bathroom = false }: {
   return (
     <section className="space-y-4">
       <div>
-        <h3 className="mb-1 text-sm font-semibold text-ink">{t("studio.santexnika.title")}</h3>
-        <p className="text-[11px] leading-snug text-ink-muted">{t("studio.santexnika.hint")}</p>
+        <h3 className="mb-1 text-sm font-semibold text-ink">{t(pipes ? "studio.lib.stage.quvurlar" : "studio.lib.stage.jihozlar")}</h3>
+        <p className="text-[11px] leading-snug text-ink-muted">{t(pipes ? "studio.santexnika.hint_quvurlar" : "studio.santexnika.hint_jihozlar")}</p>
       </div>
 
-      <div>
-        <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.fixtures")}</span>
-        {fixtures.length === 0
-          ? <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
-          : <ul className="flex flex-wrap gap-1.5">{fixtures.map((f) => <li key={f.id} className="rounded-full border border-line px-2.5 py-1 text-[11px] text-ink">{f.name}</li>)}</ul>}
-        {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
-        {clearances.map((c) => (
-          <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">
-            {t("studio.santexnika.clearance", { name: fixtureDisplayName(c.name, t), free: c.freeCm, need: c.needCm })}
-          </p>
-        ))}
-      </div>
-
+      {pipes ? (<>
       <div>
         <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.points")}</span>
         <ul className="space-y-1">
@@ -191,6 +185,77 @@ export function SantexnikaSection({ bathroom = false }: {
       <button type="button" onClick={add} className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
         {t("studio.santexnika.add")}
       </button>
+
+
+      {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
+      <div className="space-y-1.5">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.riser")}</span>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_wall")}
+            <select aria-label={t("studio.santexnika.riser_wall")} value={riser.wallId} className={field}
+              onChange={(e) => placeRiser(e.target.value, riser.positionMm)}>
+              {geometry.walls.map((w) => <option key={w.id} value={w.id}>{wallNumber(w.id)}</option>)}
+            </select>
+          </label>
+          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_pos")}
+            <input aria-label={t("studio.santexnika.riser_pos")} inputMode="decimal" className={field}
+              value={riserDraft ?? String(Math.round(riser.positionMm / 10))}
+              onChange={(e) => setRiserDraft(e.target.value)} onBlur={commitRiserDraft}
+              onKeyDown={(e) => { if (e.key === "Enter") commitRiserDraft(); }}
+              onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
+          </label>
+        </div>
+        <button type="button" disabled={!plumbingRiser} onClick={() => { setRiserDraft(null); setPlumbingRiser(null); }}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink">
+          {t("studio.santexnika.riser_auto")}
+        </button>
+        <p className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_hint")}</p>
+      </div>
+
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
+        {t("studio.santexnika.pipes")}
+      </label>
+
+      {/* For the estimate (2026-11-13): the old plumbing taken out (off unless ticked), the walls
+          chased for the pipes (on unless unticked). smeta.py reads exactly true / exactly false. */}
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={plumbingDemolition === true} onChange={(e) => setDesignState({ plumbingDemolition: e.target.checked })} />
+        {t("studio.santexnika.demolition")}
+      </label>
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />
+        {t("studio.santexnika.in_wall")}
+      </label>
+      {hasShower && (
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          {/* Off unless ticked: the estimate reads only an exact true (smeta.py _fixture_part_lines). */}
+          <input type="checkbox" checked={floorDrain === true} onChange={(e) => setDesignState({ floorDrain: e.target.checked })} />
+          {t("studio.santexnika.floor_drain")}
+        </label>
+      )}
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_inlet_lines). */}
+        <input type="checkbox" checked={waterInlet === true} onChange={(e) => setDesignState({ waterInlet: e.target.checked })} />
+        {t("studio.santexnika.water_inlet")}
+      </label>
+
+      <p className="text-[11px] font-medium text-ink">
+        {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
+      </p>
+      </>) : (<>
+      <div>
+        <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.fixtures")}</span>
+        {fixtures.length === 0
+          ? <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
+          : <ul className="flex flex-wrap gap-1.5">{fixtures.map((f) => <li key={f.id} className="rounded-full border border-line px-2.5 py-1 text-[11px] text-ink">{f.name}</li>)}</ul>}
+        {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
+        {clearances.map((c) => (
+          <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.clearance", { name: fixtureDisplayName(c.name, t), free: c.freeCm, need: c.needCm })}
+          </p>
+        ))}
+      </div>
 
       {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}
       {(bathroom || towelRails.length > 0) && (
@@ -303,62 +368,10 @@ export function SantexnikaSection({ bathroom = false }: {
         </div>
       )}
 
-      {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
-      <div className="space-y-1.5">
-        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.riser")}</span>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_wall")}
-            <select aria-label={t("studio.santexnika.riser_wall")} value={riser.wallId} className={field}
-              onChange={(e) => placeRiser(e.target.value, riser.positionMm)}>
-              {geometry.walls.map((w) => <option key={w.id} value={w.id}>{wallNumber(w.id)}</option>)}
-            </select>
-          </label>
-          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_pos")}
-            <input aria-label={t("studio.santexnika.riser_pos")} inputMode="decimal" className={field}
-              value={riserDraft ?? String(Math.round(riser.positionMm / 10))}
-              onChange={(e) => setRiserDraft(e.target.value)} onBlur={commitRiserDraft}
-              onKeyDown={(e) => { if (e.key === "Enter") commitRiserDraft(); }}
-              onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
-          </label>
-        </div>
-        <button type="button" disabled={!plumbingRiser} onClick={() => { setRiserDraft(null); setPlumbingRiser(null); }}
-          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink">
-          {t("studio.santexnika.riser_auto")}
-        </button>
-        <p className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_hint")}</p>
-      </div>
-
-      <label className="flex items-center gap-2 text-[12px] text-ink">
-        <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
-        {t("studio.santexnika.pipes")}
-      </label>
-
-      {/* For the estimate (2026-11-13): the old plumbing taken out (off unless ticked), the walls
-          chased for the pipes (on unless unticked). smeta.py reads exactly true / exactly false. */}
-      <label className="flex items-center gap-2 text-[12px] text-ink">
-        <input type="checkbox" checked={plumbingDemolition === true} onChange={(e) => setDesignState({ plumbingDemolition: e.target.checked })} />
-        {t("studio.santexnika.demolition")}
-      </label>
-      <label className="flex items-center gap-2 text-[12px] text-ink">
-        <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />
-        {t("studio.santexnika.in_wall")}
-      </label>
-      {hasShower && (
-        <label className="flex items-center gap-2 text-[12px] text-ink">
-          {/* Off unless ticked: the estimate reads only an exact true (smeta.py _fixture_part_lines). */}
-          <input type="checkbox" checked={floorDrain === true} onChange={(e) => setDesignState({ floorDrain: e.target.checked })} />
-          {t("studio.santexnika.floor_drain")}
-        </label>
-      )}
       <label className="flex items-center gap-2 text-[12px] text-ink">
         {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_heater_lines). */}
         <input type="checkbox" checked={waterHeater === true} onChange={(e) => setDesignState({ waterHeater: e.target.checked })} />
         {t("studio.santexnika.water_heater")}
-      </label>
-      <label className="flex items-center gap-2 text-[12px] text-ink">
-        {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_inlet_lines). */}
-        <input type="checkbox" checked={waterInlet === true} onChange={(e) => setDesignState({ waterInlet: e.target.checked })} />
-        {t("studio.santexnika.water_inlet")}
       </label>
       {/* A bath's and a shower's screen (2026-11-18): none until picked; a cabin or a shower panel has its own glass. */}
       {([
@@ -383,10 +396,7 @@ export function SantexnikaSection({ bathroom = false }: {
           {t("studio.santexnika.fan")}
         </label>
       )}
-
-      <p className="text-[11px] font-medium text-ink">
-        {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
-      </p>
+      </>)}
     </section>
   );
 }

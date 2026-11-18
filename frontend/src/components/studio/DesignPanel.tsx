@@ -359,7 +359,9 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
           />
         )}
         {phase === 'montaj' && <MontajSection />}
-        {phase === 'santexnika' && <SantexnikaSection bathroom={effectiveRoomType(room.room_type, room.name) === 'hammom'} />}
+        {(phase === 'quvurlar' || phase === 'jihozlar') && (
+          <SantexnikaSection key={phase} part={phase} bathroom={effectiveRoomType(room.room_type, room.name) === 'hammom'} />
+        )}
 
         {mutation.isPending && (
           <p className="text-xs text-ink-muted animate-pulse">{t("common.saqlash")}...</p>

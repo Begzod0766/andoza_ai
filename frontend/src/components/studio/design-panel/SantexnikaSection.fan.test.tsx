@@ -19,13 +19,13 @@ describe('SantexnikaSection: extractor fan', () => {
   })
 
   it('is on in a bathroom that never set it', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     expect(box()!.checked).toBe(true)
     expect('ventFan' in useRoomStore.getState().designState).toBe(false)
   })
 
   it('unticking saves ventFan false, ticking again saves true', () => {
-    render(<SantexnikaSection bathroom />)
+    render(<SantexnikaSection part="jihozlar" bathroom />)
     fireEvent.click(box()!)
     expect(useRoomStore.getState().designState.ventFan).toBe(false)
     expect(useRoomStore.getState().isDirty).toBe(true)
@@ -35,7 +35,7 @@ describe('SantexnikaSection: extractor fan', () => {
   })
 
   it('is not offered outside a bathroom', () => {
-    render(<SantexnikaSection />)
+    render(<SantexnikaSection part="jihozlar" />)
     expect(box()).toBeNull()
   })
 })

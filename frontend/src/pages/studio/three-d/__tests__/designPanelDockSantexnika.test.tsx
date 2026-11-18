@@ -15,8 +15,8 @@ const props = (activePhase: string) => ({
 })
 
 describe('the design panel on a phone', () => {
-  it('Santexnika comes up from the bottom at full width', () => {
-    render(<DesignPanelDock {...props('santexnika')} />)
+  it.each(['quvurlar', 'jihozlar'])('%s comes up from the bottom at full width', (phase) => {
+    render(<DesignPanelDock {...props(phase)} />)
     const panel = screen.getByTestId('design-panel-mobile')
     expect(panel.className).toContain('w-full')
     expect(panel.className).toContain('bottom-0')
@@ -29,8 +29,8 @@ describe('the design panel on a phone', () => {
   // button scrolled away; the last line sat on the home indicator. A sticky bar did not do: on iOS a
   // row still showed a few pixels above the rounded top (re-check 2026-11-12, #244). Now only the
   // body below the close bar scrolls, inside a sheet that clips.
-  it('Santexnika scrolls its body only, below a close bar that stays put', () => {
-    render(<DesignPanelDock {...props('santexnika')} />)
+  it.each(['quvurlar', 'jihozlar'])('%s scrolls its body only, below a close bar that stays put', (phase) => {
+    render(<DesignPanelDock {...props(phase)} />)
     const sheet = screen.getByTestId('design-panel-mobile')
     expect(sheet.className).toContain('overflow-hidden')
     expect(sheet.className).not.toMatch(/(^| )overflow-y-auto/)
@@ -44,7 +44,7 @@ describe('the design panel on a phone', () => {
   })
   // Re-check 2026-11-12, #244: a 1 pt light line down the sheet's left edge — the sidebar's border.
   it('the left border is a desktop sidebar\'s only', () => {
-    render(<DesignPanelDock {...props('santexnika')} />)
+    render(<DesignPanelDock {...props('jihozlar')} />)
     const panel = screen.getByTestId('design-panel-mobile')
     expect(panel.className).toContain('lg:border-l')
     expect(panel.className).not.toMatch(/(^| )border-l( |$)/)
