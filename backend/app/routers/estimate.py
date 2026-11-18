@@ -36,10 +36,12 @@ from __future__ import annotations
 import dataclasses
 import functools
 import io
+import re
 import uuid
 from pathlib import Path
 from datetime import date, datetime, timezone
 from typing import Any
+from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
 import structlog
@@ -526,6 +528,18 @@ async def list_estimates(
 # GET /rooms/{room_id}/estimate.pdf  +  GET /rooms/{room_id}/estimate/pdf
 # ---------------------------------------------------------------------------
 
+
+def _pdf_content_disposition(room_name: str, day: date) -> str:
+    """`Content-Disposition` for the estimate PDF. HTTP headers are latin-1, so a Cyrillic room
+    name ("Ванная", the app's ru default) used to make the response a 500. The plain `filename`
+    keeps only the name's ASCII letters; `filename*` (RFC 5987) carries the whole name."""
+    words = re.sub(r"\s+", "_", (room_name or "").strip())
+    ascii_name = re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9_-]", "", words)).strip("_")
+    plain = f"smeta_{ascii_name}_{day}.pdf" if ascii_name else f"smeta_{day}.pdf"
+    full = f"smeta_{words}_{day}.pdf" if words else plain
+    return f'attachment; filename="{plain}"; filename*=UTF-8\'\'{quote(full, safe="")}'
+
+
 async def _generate_estimate_pdf(
     room_id: uuid.UUID,
     current_user: CurrentUser,
@@ -550,11 +564,10 @@ async def _generate_estimate_pdf(
 
     pdf_bytes = _build_pdf(room, computed, lang=lang)
 
-    filename = f"smeta_{room.name.replace(' ', '_')}_{date.today()}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _pdf_content_disposition(room.name, date.today())},
     )
 
 

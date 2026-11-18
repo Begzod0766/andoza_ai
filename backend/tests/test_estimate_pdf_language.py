@@ -2,6 +2,7 @@
 and the font can draw Cyrillic."""
 from __future__ import annotations
 
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -184,3 +185,47 @@ def test_every_unit_fits_its_column_in_every_language():
                 text = localize_unit(unit, qty, lang)
                 assert stringWidth(text, font, 8) <= room_pt, (lang, text)
     assert sum(router._PDF_COL_WIDTHS) == pytest.approx(17 * 28.3465, abs=0.5)
+
+
+
+class TestNonLatinRoomName:
+    """A room named in Cyrillic (the app's ru default names) must still download: HTTP headers are
+    latin-1, so the room name goes into `filename*` (RFC 5987) and the plain `filename` stays ASCII."""
+
+    DAY = date(2026, 11, 18)
+
+    def test_cyrillic_name(self):
+        cd = router._pdf_content_disposition("Ванная комната", self.DAY)
+        cd.encode("ascii")
+        assert cd.startswith('attachment; filename="smeta_2026-11-18.pdf"; ')
+        assert cd.endswith("filename*=UTF-8''smeta_%D0%92%D0%B0%D0%BD%D0%BD%D0%B0%D1%8F_"
+                           "%D0%BA%D0%BE%D0%BC%D0%BD%D0%B0%D1%82%D0%B0_2026-11-18.pdf")
+
+    def test_uzbek_latin_name_keeps_its_letters(self):
+        cd = router._pdf_content_disposition("Oshxona 2", self.DAY)
+        assert 'filename="smeta_Oshxona_2_2026-11-18.pdf"' in cd
+
+    def test_uzbek_apostrophes_and_mixed_names(self):
+        cd = router._pdf_content_disposition("Bolalar xonasi — O‘g‘il", self.DAY)
+        cd.encode("ascii")
+        assert 'filename="smeta_Bolalar_xonasi_Ogil_2026-11-18.pdf"' in cd
+
+    def test_header_breaking_characters_are_dropped(self):
+        cd = router._pdf_content_disposition('Zal "katta"\r\n;x', self.DAY)
+        assert "\r" not in cd and "\n" not in cd
+        assert 'filename="smeta_Zal_katta_x_2026-11-18.pdf"' in cd
+
+    def test_route_answers_200_for_a_cyrillic_room(self, client):
+        room = _room(name="Ванная")
+        _as(_user(), _db())
+        with patch.object(router, "_load_room_for_pricing", return_value=(room, room, {}, 0)), \
+             patch.object(router, "_load_norms", return_value={}), \
+             patch.object(router, "_load_stage", return_value=(None, None, None)), \
+             patch.object(router, "load_estimate_catalog", return_value=None), \
+             patch.object(router, "compute_estimate", return_value=_estimate()), \
+             patch.object(router, "fill_ai_price_gaps", side_effect=lambda c, **_: c), \
+             patch.object(router, "_with_market_prices", side_effect=lambda c, *_: (c, None, None)), \
+             patch.object(router, "_build_pdf", return_value=b"%PDF-1.4 stub"):
+            r = client.get(f"/api/v1/rooms/{room.id}/estimate/pdf")
+        assert r.status_code == 200, r.text
+        assert "filename*=UTF-8''smeta_%D0%92" in r.headers["content-disposition"]
