@@ -70,6 +70,7 @@ import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
 import { StageBanner } from "@/components/studio/StageBanner";
+import { MobileStagePicker } from "@/components/studio/MobileStagePicker";
 import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
@@ -333,6 +334,9 @@ export default function ThreeDPage() {
   // the render cameras — goes back to the finished room, so a user repainting the wall beside the
   // sofa never sees the sofa vanish. Set again whenever another room opens in this page.
   const setViewStage = useRoomStore((s) => s.setViewStage);
+  const viewStage = useRoomStore((s) => s.viewStage);
+  /** The phone's stage list is open (MobileStagePicker). */
+  const [stageListOpen, setStageListOpen] = useState(false);
   useEffect(() => {
     setViewStage(initialViewStage(openArgs));
     return () => setViewStage('full');
@@ -951,8 +955,12 @@ export default function ThreeDPage() {
           {/* Below lg: once, how to reach the tools — tap a surface. The
               room/stage pill that sat at the top was removed at the user's
               request (2026-11-07). */}
-          {/* The 3D at a stage (spec 2026-11-18): what is not in yet, and the way back to the finished room. */}
-          <div className="pointer-events-none absolute inset-x-3 top-16 z-20 flex justify-center lg:top-3">
+          {/* The 3D at a stage (spec 2026-11-18): on a phone the stage pill (the desktop has the left
+              list), then what is not in yet and the way back to the finished room. */}
+          {/* z-30 like the tap hint, under every sheet; while the stage list is open it goes over the
+              3D's own floating buttons (drei <Html>, z 83) too. */}
+          <div className={`pointer-events-none absolute inset-x-3 top-16 flex flex-col items-start gap-2 lg:top-3 lg:items-center ${stageListOpen ? 'z-[90]' : 'z-30'}`}>
+            <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
             <StageBanner />
           </div>
 

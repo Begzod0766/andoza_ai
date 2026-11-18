@@ -4,6 +4,8 @@
   },
   "studio": {
     "stage_view": {
+      "stage": "Stage",
+      "full": "Finished room",
       "hidden": "Not in yet at this stage: {{things}}",
       "show_full": "See the finished room",
       "electricals": "sockets",

@@ -4,6 +4,8 @@
   },
   "studio": {
     "stage_view": {
+      "stage": "Этап",
+      "full": "Готовая комната",
       "hidden": "На этом этапе ещё нет: {{things}}",
       "show_full": "Показать готовую комнату",
       "electricals": "розетки",
