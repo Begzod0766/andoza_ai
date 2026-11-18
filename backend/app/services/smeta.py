@@ -2129,6 +2129,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         lines.extend(_washer_socket_lines(len(machines), catalog))
     if dishwashers:
         lines.extend(_washer_socket_lines(len(dishwashers), catalog, "idish"))
+    lines.extend(_screen_lines(_design_state(room), roles.get("bathtub", 0), part_kinds.get("shower", 0), catalog))
     if points:
         lines.extend(_safety_lines(_is_bathroom(room), roles, catalog, norms))
     return lines
@@ -2291,6 +2292,37 @@ def _heated_floor_lines(room: "Room", catalog: dict, floor_already_done: bool = 
         _make_line(label="Ish: termoregulyatorni o'rnatish", formula=f"1 dona × {fmt(work_thermo)} so'm", qty=1, unit="dona",
                    price_uzs=work_thermo, category=cat),
     ]
+
+
+def _screen_lines(ds: dict, baths: int, showers: int, catalog: dict) -> list[ComputedLine]:
+    """A bath's and a shower's screen (2026-11-18), the user's pick: an 80 cm glass panel on each bath, a
+    glass wall on each shower that is not a cabin or a panel (``showers`` counts only those), or a curtain
+    with its rod on each, with their fitting. Nothing unless picked, or with no such fixture."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    n = load_bathroom_extras_norms()["screens"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    bath, shower = ds.get("bathScreen"), ds.get("showerScreen")
+    out: list[ComputedLine] = []
+    for pick, count, label, key, price, work_label, work in (
+        (bath, baths, "Vanna shtorkasi (shisha)", "shtorka_vanna", "bath_glass_uzs", "Ish: vanna shtorkasini o'rnatish", "work_bath_glass_uzs"),
+        (shower, showers, "Dush to'sig'i (shisha)", "dush_shisha", "shower_glass_uzs", "Ish: dush shishasini o'rnatish", "work_shower_glass_uzs"),
+    ):
+        if pick == "glass" and count:
+            w = int(n[work])
+            out += [_piece_line(label, catalog.get(key), int(n[price]), "santexnika", qty=count),
+                    _make_line(label=work_label, formula=f"{count} dona × {fmt(w)} so'm", qty=count, unit="dona", price_uzs=w, category="santexnika")]
+    parts = [(c, word) for pick, c, word in ((bath, baths, "vanna"), (shower, showers, "dush")) if pick == "curtain" and c]
+    if parts:
+        total = sum(c for c, _ in parts)
+        why = " + ".join(f"{c} {word}" for c, word in parts) + f" = {total}" if len(parts) > 1 else None
+        line = _piece_line("Parda va tayoqcha (vanna, dush)", catalog.get("parda_hammom"), int(n["curtain_uzs"]), "santexnika", qty=total, why=why)
+        if why:
+            line.formula = line.formula.replace(f"{why} = {total} dona", f"{why} dona", 1)
+        w = int(n["work_curtain_uzs"])
+        out += [line, _make_line(label="Ish: parda tayoqchasini o'rnatish", formula=f"{total} dona × {fmt(w)} so'm", qty=total, unit="dona",
+                                 price_uzs=w, category="santexnika")]
+    return out
 
 
 _SOCKET_LABELS = {

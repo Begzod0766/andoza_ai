@@ -45,5 +45,13 @@
     "toilet_d_cm": 65,
     "bidet_w_cm": 40,
     "bidet_d_cm": 55
+  },
+  "screens": {
+    "bath_glass_uzs": 1200000,
+    "work_bath_glass_uzs": 150000,
+    "shower_glass_uzs": 2000000,
+    "work_shower_glass_uzs": 300000,
+    "curtain_uzs": 150000,
+    "work_curtain_uzs": 50000
   }
 }

@@ -15,6 +15,7 @@ import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
 import { fixtureDisplayName } from "@/lib/fixtureName";
 import { PIPE_COLOUR } from "@/lib/pipeScheme";
+import { screenChoice, screenedBaths, screenedShowers } from "@/lib/showerScreens";
 
 const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
 
@@ -33,6 +34,8 @@ export function SantexnikaSection({ bathroom = false }: {
   const waterHeater = useRoomStore((s) => s.designState.waterHeater);
   const floorDrain = useRoomStore((s) => s.designState.floorDrain);
   const waterInlet = useRoomStore((s) => s.designState.waterInlet);
+  const bathScreen = useRoomStore((s) => screenChoice(s.designState.bathScreen));
+  const showerScreen = useRoomStore((s) => screenChoice(s.designState.showerScreen));
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
@@ -349,6 +352,21 @@ export function SantexnikaSection({ bathroom = false }: {
         <input type="checkbox" checked={waterInlet === true} onChange={(e) => setDesignState({ waterInlet: e.target.checked })} />
         {t("studio.santexnika.water_inlet")}
       </label>
+      {/* A bath's and a shower's screen (2026-11-18): none until picked; a cabin or a shower panel has its own glass. */}
+      {([
+        ["bathScreen", "screen_bath", bathScreen, screenedBaths(furniture, catalog).length > 0],
+        ["showerScreen", "screen_shower", showerScreen, screenedShowers(furniture, catalog).length > 0],
+      ] as const).map(([key, label, value, shown]) => shown && (
+        <label key={key} className="flex items-center justify-between gap-2 text-[12px] text-ink">
+          {t(`studio.santexnika.${label}`)}
+          <select aria-label={t(`studio.santexnika.${label}`)} value={value ?? ""} className={`${field} w-auto`}
+            onChange={(e) => setDesignState({ [key]: screenChoice(e.target.value) ?? undefined })}>
+            <option value="">{t("studio.santexnika.screen_none")}</option>
+            <option value="glass">{t("studio.santexnika.screen_glass")}</option>
+            <option value="curtain">{t("studio.santexnika.screen_curtain")}</option>
+          </select>
+        </label>
+      ))}
 
       {bathroom && (
         <label className="flex items-center gap-2 text-[12px] text-ink">

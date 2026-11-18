@@ -1068,7 +1068,12 @@
       "dish_no_room": "There is no room on the walls for a dishwasher.",
       "dish_width_no_room": "This width does not fit on the wall",
       "floor_drain": "Shower with no tray (floor drain)",
-      "water_inlet": "Water inlet (meter, filter, pressure reducer)"
+      "water_inlet": "Water inlet (meter, filter, pressure reducer)",
+      "screen_bath": "Bath screen",
+      "screen_shower": "Shower screen",
+      "screen_none": "None",
+      "screen_glass": "Glass",
+      "screen_curtain": "Curtain"
     },
     "backsplash": {
       "title": "Kitchen backsplash",
@@ -1293,7 +1298,13 @@
       "heated_breaker": "16 A breaker (underfloor heating)",
       "heated_cable": "Electric cable (underfloor heating)",
       "work_heated_mat": "Work: laying the heating mat",
-      "work_heated_thermostat": "Work: installing the thermostat"
+      "work_heated_thermostat": "Work: installing the thermostat",
+      "bath_glass": "Bath screen (glass)",
+      "shower_glass": "Shower screen (glass)",
+      "bath_curtain": "Curtain and rod (bath, shower)",
+      "work_bath_glass": "Work: fitting the bath screen",
+      "work_shower_glass": "Work: fitting the shower glass",
+      "work_bath_curtain": "Work: fitting the curtain rod"
     },
     "unit": {
       "qop_one": "bag",
@@ -2362,7 +2373,10 @@
         "lyuk": "Revision hatch",
         "silikon": "Sanitary silicone",
         "issiq_pol": "Heating mat (m²)",
-        "termoregulyator": "Underfloor heating thermostat"
+        "termoregulyator": "Underfloor heating thermostat",
+        "shtorka_vanna": "Bath screen (glass)",
+        "dush_shisha": "Shower screen (glass)",
+        "parda_hammom": "Bath/shower curtain and rod"
       },
       "hammasi": "All",
       "tahrirlash": "Edit",

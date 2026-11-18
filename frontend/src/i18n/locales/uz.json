@@ -1068,7 +1068,12 @@
       "dish_no_room": "Devorlarda idish yuvish mashinasi uchun joy yo'q.",
       "dish_width_no_room": "Bu eni devorga sig'maydi",
       "floor_drain": "Dush poddonsiz (pol trapi)",
-      "water_inlet": "Suv kirish uzeli (hisoblagich, filtr, reduktor)"
+      "water_inlet": "Suv kirish uzeli (hisoblagich, filtr, reduktor)",
+      "screen_bath": "Vanna to'sig'i",
+      "screen_shower": "Dush to'sig'i",
+      "screen_none": "Yo'q",
+      "screen_glass": "Shisha",
+      "screen_curtain": "Parda"
     },
     "backsplash": {
       "title": "Oshxona fartugi",
@@ -1293,7 +1298,13 @@
       "heated_breaker": "Avtomat 16 A (issiq pol)",
       "heated_cable": "Elektr kabel (issiq pol)",
       "work_heated_mat": "Ish: issiq pol matini yotqizish",
-      "work_heated_thermostat": "Ish: termoregulyatorni o'rnatish"
+      "work_heated_thermostat": "Ish: termoregulyatorni o'rnatish",
+      "bath_glass": "Vanna shtorkasi (shisha)",
+      "shower_glass": "Dush to'sig'i (shisha)",
+      "bath_curtain": "Parda va tayoqcha (vanna, dush)",
+      "work_bath_glass": "Ish: vanna shtorkasini o'rnatish",
+      "work_shower_glass": "Ish: dush shishasini o'rnatish",
+      "work_bath_curtain": "Ish: parda tayoqchasini o'rnatish"
     },
     "unit": {
       "qop_one": "qop",
@@ -2362,7 +2373,10 @@
         "lyuk": "Revizion lyuk",
         "silikon": "Sanitariya silikoni",
         "issiq_pol": "Issiq pol mati (m²)",
-        "termoregulyator": "Issiq pol termoregulyatori"
+        "termoregulyator": "Issiq pol termoregulyatori",
+        "shtorka_vanna": "Vanna shtorkasi (shisha)",
+        "dush_shisha": "Dush to'sig'i (shisha)",
+        "parda_hammom": "Vanna/dush pardasi va tayoqcha"
       },
       "hammasi": "Hammasi",
       "tahrirlash": "Tahrirlash",

@@ -56,6 +56,7 @@ import { Riser3D } from "./Riser3D";
 import { Washers3D } from "./Washers3D";
 import { VentFan3D } from "./VentFan3D";
 import { BathroomBoxes3D } from "./BathroomBoxes3D";
+import { ShowerScreens3D } from "./ShowerScreens3D";
 import { FloorDrains3D } from "./FloorDrains3D";
 import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } from "./SiblingRoomLayout";
 import { RealismEffects, SceneLighting, MoonriseSky, SUN_INTENSITY } from "./SceneEnvironment";
@@ -1018,6 +1019,7 @@ export function ThreeDCanvasScene({
         <Washers3D controlsRef={controlsRef} hiddenWalls={behind} />
         <VentFan3D hiddenWalls={behind} />
         <BathroomBoxes3D hiddenWalls={behind} />
+        <ShowerScreens3D />
         <FloorDrains3D />
         <OpeningLayer
           geometry={ownOpeningGeometry}
