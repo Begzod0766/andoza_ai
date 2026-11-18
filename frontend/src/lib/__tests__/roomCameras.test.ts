@@ -210,3 +210,22 @@ describe('CAMERA_CHOICES', () => {
     }
   })
 })
+
+describe('a camera clear of the furniture (kitchen re-check 2026-11-19)', () => {
+  const kitchen = { walls: [
+    { id: 'A', length: 3500, elements: [] }, { id: 'B', length: 3000, elements: [] },
+    { id: 'C', length: 3500, elements: [] }, { id: 'D', length: 3000, elements: [] },
+  ] } as unknown as RoomGeometry
+  // A 3.42 m kitchen set along wall A (z = −1.5), 63 cm deep: camera 1 stood inside it and saw only teal.
+  const set = { x: 0, z: -1.5 + 0.04 + 0.315, w: 3.42, d: 0.63, rotation: 0 }
+  const inside = (p: { x: number; z: number }, r: typeof set, margin: number) =>
+    Math.abs(p.x - r.x) < r.w / 2 + margin && Math.abs(p.z - r.z) < r.d / 2 + margin
+  it('no station stands in a piece or within 15 cm of it', () => {
+    for (const pose of roomCameraPoses(kitchen, undefined, [set])) expect(inside(pose.position, set, 0.15)).toBe(false)
+  })
+  it('a station clear of every piece stays where it was', () => {
+    const plain = roomCameraPoses(kitchen)
+    const moved = roomCameraPoses(kitchen, undefined, [set])
+    expect(moved[2].position).toEqual(plain[2].position)
+  })
+})

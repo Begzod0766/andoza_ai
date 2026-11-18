@@ -253,19 +253,48 @@ function cornerDirections(
 export function roomCameraPoses(
   geometry: RoomGeometry,
   fallback?: { W: number; D: number },
+  /** The furniture's footprints, world metres (kitchen re-check 2026-11-19: camera 1 stood inside a
+   *  kitchen set and saw nothing). A station in one, or within CAMERA_FURNITURE_GAP of it, steps in
+   *  towards the middle until it is clear; one with no clear point on the way keeps its place. */
+  obstacles: readonly FootprintRect[] = [],
 ): CameraPose[] {
   const room = roomBoundsFromGeometry(geometry, fallback)
   const centre = planToWorld(roomCentrePlan(room), room)
   const target = { x: centre.x, y: RENDER_EYE_HEIGHT, z: centre.z }
 
   return roomCameraStations(room).map((station, i) => {
-    const p = planToWorld(station, room)
+    const p = clearOf(planToWorld(station, room), centre, obstacles)
     return {
       index: i + 1,
       position: { x: p.x, y: RENDER_EYE_HEIGHT, z: p.z },
       target,
     }
   })
+}
+
+/** A footprint on the floor: its centre, size and turn, world metres (lib/aiDesignLayout Rect). */
+export interface FootprintRect { x: number; z: number; w: number; d: number; rotation: number }
+
+/** How far a camera keeps off a piece of furniture, metres. */
+export const CAMERA_FURNITURE_GAP = 0.15
+
+function within(p: { x: number; z: number }, r: FootprintRect, margin: number): boolean {
+  const dx = p.x - r.x, dz = p.z - r.z
+  const c = Math.cos(r.rotation), s = Math.sin(r.rotation)
+  // Into the piece's own axes: width along (cos, −sin), depth along (sin, cos), as rectCorners reads it.
+  const along = dx * c - dz * s, across = dx * s + dz * c
+  return Math.abs(along) < r.w / 2 + margin && Math.abs(across) < r.d / 2 + margin
+}
+
+/** `p`, or the first point from it towards `centre`, 5 cm apart, clear of every piece. */
+function clearOf(p: { x: number; z: number }, centre: { x: number; z: number }, obstacles: readonly FootprintRect[]) {
+  if (!obstacles.some((r) => within(p, r, CAMERA_FURNITURE_GAP))) return p
+  const len = Math.hypot(centre.x - p.x, centre.z - p.z)
+  for (let t = 0.05; t <= len; t += 0.05) {
+    const q = { x: p.x + (centre.x - p.x) * (t / len), z: p.z + (centre.z - p.z) * (t / len) }
+    if (!obstacles.some((r) => within(q, r, CAMERA_FURNITURE_GAP))) return q
+  }
+  return p
 }
 
 /** One entry in the camera button's list. */
