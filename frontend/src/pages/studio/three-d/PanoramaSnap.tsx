@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useThree } from "@react-three/fiber";
-import { capturePanoramaCanvas } from "@/lib/panorama360";
+import { capturePanoramaCanvas, panoramaSeamYaw } from "@/lib/panorama360";
+import { useRoomStore } from "@/store/roomStore";
+import { placedFurnitureBoxes } from "@/features/studio/nextFurnitureSpot";
 import { SNAP_EVENT, type SnapRequest } from "@/lib/panoramaSnap";
 import { roomCentreWorld } from "@/lib/roomCentre";
 import type { RoomGeometry } from "@/store/roomStore";
@@ -33,7 +35,11 @@ export function PanoramaSnap({ geometry }: {
     const handler = (e: Event) => {
       const request = (e as CustomEvent<SnapRequest>).detail;
       try {
-        request.resolve(capturePanoramaCanvas(gl, scene, eye));
+        // Turned so the picture's seam, which the render service blurs, is not on the furniture (kitchen
+        // re-check 2026-11-19). Read at the moment of the request: the room as it is now. A rug lies flat.
+        const pieces = placedFurnitureBoxes(useRoomStore.getState()).filter((p) => p.role !== "rug")
+          .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }));
+        request.resolve(capturePanoramaCanvas(gl, scene, eye, panoramaSeamYaw(eye, pieces)));
       } catch {
         request.resolve(null); // a GPU that would not grant the render target
       } finally {

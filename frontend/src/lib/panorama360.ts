@@ -87,10 +87,11 @@ const FACE_SIZE = 1024
  */
 export const EQUIRECT_FRAGMENT = /* glsl */`
   uniform samplerCube cube;
+  uniform float yaw;
   varying vec2 vUv;
   #define PI 3.141592653589793
   void main() {
-    float lon = (vUv.x - 0.5) * 2.0 * PI;
+    float lon = (vUv.x - 0.5) * 2.0 * PI + yaw;
     float lat = (vUv.y - 0.5) * PI;
     vec3 dir = vec3(
       -cos(lat) * sin(lon),
@@ -132,6 +133,8 @@ export function renderPanorama(
   scene: THREE.Scene,
   position: THREE.Vector3,
   size: { width: number; height: number },
+  /** The turn of the picture, radians (`panoramaSeamYaw`): 0 has its middle toward +z, its seam toward -z. */
+  yaw = 0,
 ): { pixels: Uint8Array; width: number; height: number } {
   const cubeTarget = new THREE.WebGLCubeRenderTarget(FACE_SIZE, {
     generateMipmaps: false,
@@ -151,7 +154,7 @@ export function renderPanorama(
   const quadScene = new THREE.Scene()
   const quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
   const material = new THREE.ShaderMaterial({
-    uniforms: { cube: { value: cubeTarget.texture } },
+    uniforms: { cube: { value: cubeTarget.texture }, yaw: { value: yaw } },
     vertexShader: EQUIRECT_VERTEX,
     fragmentShader: EQUIRECT_FRAGMENT,
     depthTest: false,
@@ -220,9 +223,11 @@ export function capturePanoramaCanvas(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   eye: { x: number; z: number } = { x: 0, z: 0 },
+  /** The picture's turn (`panoramaSeamYaw`), so its seam is not on the furniture. */
+  yaw = 0,
 ): HTMLCanvasElement {
   const size = panoramaSizeFor(renderer.capabilities.maxTextureSize)
-  const { pixels, width, height } = renderPanorama(renderer, scene, new THREE.Vector3(eye.x, PANO_EYE_HEIGHT, eye.z), size)
+  const { pixels, width, height } = renderPanorama(renderer, scene, new THREE.Vector3(eye.x, PANO_EYE_HEIGHT, eye.z), size, yaw)
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -322,4 +327,48 @@ export function meshesAroundEye(scene: THREE.Object3D, eye: THREE.Vector3): THRE
     if (box.expandByScalar(EYE_CLEARANCE).containsPoint(eye)) found.push(o)
   })
   return found
+}
+
+/** Half the width of the strip either side of the seam the render service blurs, radians (about 20 degrees). */
+const SEAM_HALF = Math.PI / 9
+/** The turns tried for the seam, 5 degrees apart. */
+const SEAM_STEP = Math.PI / 36
+
+/**
+ * The turn for the panorama so its seam (its left and right edges, which the render service does not join
+ * and blurs: kitchen re-check 2026-11-19, the seam on the kitchen set) faces the emptiest way from `eye`.
+ * The cost of a turn is how much of the pieces' outline, seen from the eye, falls in the strip either side
+ * of the seam. 0, the old turn, when nothing is there; else the least costly, the nearest to 0 on a tie.
+ * Pieces in world metres, as the studio draws them; one the eye stands in is left out.
+ */
+export function panoramaSeamYaw(eye: { x: number; z: number }, pieces: readonly { x: number; z: number; w: number; d: number; rotation: number }[]): number {
+  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a))
+  // The way a point lies from the eye, as an angle a seam at that yaw faces: seam(yaw) = (sin yaw, -cos yaw).
+  const spans = pieces.flatMap((r) => {
+    const fx = Math.sin(r.rotation), fz = Math.cos(r.rotation), wx = Math.cos(r.rotation), wz = -Math.sin(r.rotation)
+    const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => ({
+      x: r.x + wx * (r.w / 2) * a + fx * (r.d / 2) * b, z: r.z + wz * (r.w / 2) * a + fz * (r.d / 2) * b,
+    }))
+    const angles = corners.map((c) => Math.atan2(c.x - eye.x, -(c.z - eye.z)))
+    // Around the first corner, so a piece across the -PI/PI line is one span, not two.
+    const rel = angles.map((a) => wrap(a - angles[0]))
+    const lo = Math.min(...rel), hi = Math.max(...rel)
+    return hi - lo >= Math.PI ? [] : [{ from: angles[0] + lo, to: angles[0] + hi }]
+  })
+  const cost = (yaw: number) => spans.reduce((sum, sp) => {
+    const a = wrap(sp.from - yaw), b = a + (sp.to - sp.from)
+    const part = (lo: number, hi: number) => Math.max(0, Math.min(hi, SEAM_HALF) - Math.max(lo, -SEAM_HALF))
+    // A span past +PI comes round again from -PI.
+    return sum + part(a, b) + part(a - 2 * Math.PI, b - 2 * Math.PI)
+  }, 0)
+  if (cost(0) <= 1e-9) return 0
+  let best = 0, bestCost = cost(0)
+  for (let k = 1; k < 72; k++) {
+    for (const yaw of [k * SEAM_STEP, -k * SEAM_STEP]) {
+      if (Math.abs(yaw) > Math.PI + 1e-9) continue
+      const c = cost(yaw)
+      if (c < bestCost - 1e-9) { best = yaw; bestCost = c }
+    }
+  }
+  return best
 }
