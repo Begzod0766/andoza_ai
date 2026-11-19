@@ -90,6 +90,11 @@ def tile_size_key(size: tuple[int, int]) -> str:
     return f"finish:plitka:{size[0]}x{size[1]}"
 
 
+# An enamel (alkyd, ПФ-115) is for metal and wood, not a wall, though shops file it as paint (kitchen QA
+# 2026-11-18 K9): never the stand-in wall paint. The studio's paint list leaves them out too (lib/wallPaint).
+_ENAMEL = re.compile(r"enamel|emal|эмал|alkyd|алкид|пф-?\s?115|pf-?\s?115", re.I)
+
+
 def pick_median_finishes(materials: Iterable[Material]) -> dict[str, Material]:
     """{"finish:<category>": the median-priced active product of that finish}, the stand-in
     price for a finish nobody picked a product for (the line says so). Products compare by
@@ -100,6 +105,8 @@ def pick_median_finishes(materials: Iterable[Material]) -> dict[str, Material]:
     for m in materials:
         units = FINISH_UNITS.get(str(m.category))
         if not units or str(m.unit) not in units or not m.is_active:
+            continue
+        if m.category == "boyoq" and _ENAMEL.search(m.name_uz or ""):
             continue
         groups.setdefault(f"finish:{m.category}", []).append(m)
         size = tile_size_mm(m.name_uz) if m.category == "plitka" else None

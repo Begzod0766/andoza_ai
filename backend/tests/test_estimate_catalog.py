@@ -384,3 +384,17 @@ class TestShopWallpaperModeration:
         # only pending is excluded: a rejected (hidden) oboy still prices rooms already saved with it
         assert "wallpapers.status != 'pending'" in sql
         assert "rejected" not in sql
+
+
+def test_an_enamel_is_not_the_stand_in_wall_paint():
+    """Kitchen QA 2026-11-18 K9: the shop files Inoria alkyd enamels (for metal and wood) as paint; the
+    median wall paint must not be one of them."""
+    from app.services.estimate_catalog import pick_median_finishes
+
+    def paint(name, price):
+        return SimpleNamespace(id=uuid.uuid4(), name_uz=name, unit="litr", price_uzs=price, pack_qty=None, pack_unit=None,
+                               smeta_key=None, is_active=True, store=STORE, category="boyoq")
+    rows = [paint("Inoria MATT ALKYD ENAMEL (инория ) 3,75 LT", 36_000), paint("Inoria LUX ALKYD ENAMEL PORLOQ 2,5 LT", 38_000),
+            paint("Эмаль ПФ-115 белая", 39_000), paint("Tikkurila Euro 3 Oq", 45_000), paint("Dulux Mos Sariq", 42_000)]
+    got = pick_median_finishes(rows)["finish:boyoq"]
+    assert got.name_uz in ("Tikkurila Euro 3 Oq", "Dulux Mos Sariq")
