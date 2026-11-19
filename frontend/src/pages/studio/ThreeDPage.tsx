@@ -349,10 +349,14 @@ export default function ThreeDPage() {
     setActivePhase(phase);
     setViewStage(phase);
   }, [setViewStage]);
-  /** A quick path to a panel: the panel goes there, the 3D shows the finished room. */
+  /** A quick path to a panel: the panel goes there, and the 3D stays at its stage, or goes forward to the
+   *  panel's own when that does not show its things yet (mobile QA 2026-11-19, #350: opening the Montaj
+   *  panel sent the view to the finished room). */
   const openPhasePanel = useCallback((phase: PhaseKey) => {
     setActivePhase(phase);
-    setViewStage('full');
+    const s = useRoomStore.getState();
+    const kind = catalogRoomType(effectiveRoomType(s.roomType, s.name));
+    setViewStage(stageAfterPlacing(phase, s.viewStage, visibleStages(kind).map((st) => st.key)));
   }, [setViewStage]);
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)

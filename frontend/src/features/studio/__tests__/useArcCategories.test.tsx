@@ -109,3 +109,18 @@ describe('the arc menu Montaj category (mobile QA 2026-11-19, #345 1)', () => {
     expect(openPanelAt).toHaveBeenCalledWith('montaj')
   })
 })
+
+describe('the arc menu Rang category (mobile QA 2026-11-19, #350 2)', () => {
+  it('ends with the paint panel, where the shop\'s wall paints are: a phone had no way to them', () => {
+    useRoomStore.setState({ roomType: 'oshxona', name: 'Oshxona' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const items = result.current.find((c) => c.key === 'rang')!.items!
+    const panel = items[items.length - 1]
+    expect(panel.key).toBe('rang:panel')
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('boyoq')
+  })
+})

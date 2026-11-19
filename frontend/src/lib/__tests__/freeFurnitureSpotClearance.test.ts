@@ -100,6 +100,10 @@ describe('a bathroom too small for its bath (mobile QA 2026-11-18)', () => {
     expect(overlaps(toilet.rect, sink.rect, 0)).toBe(false)
     expect(overlapArea(toilet.rect, bath.rect)).toBeLessThan(0.03)
   })
+  it('a bath against a wall is said to be on it (#350 3: "no room at the wall" showed for one standing there)', () => {
+    const riser = roomRiser(g, null)
+    expect(freeFurnitureSpotMm(g, [], QA.bathtub, 'bathtub', riser, riserKeepClear(g, riser)).onWall).toBe(true)
+  })
   it('the bath stands against the longest wall, its back to it', () => {
     const [bath] = place(['bathtub'])
     const a = roomModel(g).walls.find((w) => w.id === 'A')!
