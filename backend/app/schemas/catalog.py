@@ -38,6 +38,9 @@ class StoreOut(BaseModel):
     district: str | None
     phone: str | None
     telegram: str | None
+    address: str | None = None
+    lat: float | None = None
+    lng: float | None = None
     logo_color: str | None
     partner_tier: str
 

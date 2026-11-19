@@ -1,27 +1,8 @@
-import { ChevronDown, Armchair, Droplets, Grid3x3, LayoutGrid, Hammer, Layers, Package, PaintRoller, Zap, type LucideIcon } from "lucide-react";
-import { GROUP_COLOUR, formatQuantity, formatShare, type GroupKey, type LineGroup } from "@/lib/smetaGroups";
+import { ChevronDown } from "lucide-react";
+import { GROUP_COLOUR, formatShare, type LineGroup } from "@/lib/smetaGroups";
 import { useTranslation } from "react-i18next";
-import { intlLocale } from "@/i18n";
-import { localizeFormula, localizeLabel, localizeUnit, localizeWarning } from "@/lib/smetaLineText";
-
-const GROUP_ICON: Record<GroupKey, LucideIcon> = {
-  tayyorlash: Hammer,
-  pardoz: PaintRoller,
-  pol: Grid3x3,
-  plitka_ish: LayoutGrid,
-  shift: Layers,
-  elektr: Zap,
-  santexnika: Droplets,
-  jihoz: Armchair,
-  boshqa: Package,
-};
-
-const digits = (text: string) => text.replace(/\D/g, "");
-
-/** "2 dona × 250 000 so'm" under a line that already says "2 dona × 250 000 so'm" adds nothing. */
-function repeatsQuantityLine(line: LineGroup["items"][number]["line"]): boolean {
-  return digits(line.formula) === digits(`${formatQuantity(line.quantity)}${line.unit_price}`);
-}
+import { GROUP_ICON } from "./groupIcon";
+import { EstimateLineRow } from "./EstimateLineRow";
 
 /**
  * One group of the estimate: a header that folds the group away (its name, how many lines, its
@@ -81,58 +62,7 @@ export function CategorySection({
       {open && (
         <ul id={panelId} className="divide-y divide-line border-t border-line">
           {group.items.map(({ line, index }) => (
-            <li
-              key={index}
-              data-line-index={index}
-              className={[
-                "flex items-start justify-between gap-4 px-4 py-3.5 transition-colors sm:px-5",
-                highlighted.has(String(index)) ? "bg-yellow-400/15 ring-1 ring-inset ring-yellow-400/50" : "",
-              ].join(" ")}
-            >
-              <div className="min-w-0">
-                <p className="font-medium text-ink">
-                  {localizeLabel(line.label, t)}
-                  {line.price_source === "market" && (
-                    <span className="ml-2 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 align-middle text-[11px] font-medium text-emerald-500">
-                      {t("smeta.bozor_belgi")}
-                    </span>
-                  )}
-                  {line.is_approximate && (
-                    // An amber tint with the page's own text colour on it: the `warn` amber as text on its own tint falls under 4.5:1 by day.
-                    <span className="ml-2 inline-block rounded-full bg-warn/15 px-2 py-0.5 align-middle text-[11px] font-medium text-ink">
-                      {t("smeta.taxminiy")}
-                    </span>
-                  )}
-                </p>
-                <p className="mt-0.5 text-sm tabular-nums text-ink-muted">
-                  {formatQuantity(line.quantity)} {localizeUnit(line.unit, line.quantity, t)} × {fmt(line.unit_price)}
-                </p>
-                {line.price_source === "market" && (
-                  <p className="mt-0.5 text-xs leading-snug text-emerald-500">
-                    {line.store_name}
-                    {line.price_checked_at && ` · ${new Date(line.price_checked_at).toLocaleDateString(intlLocale())}`}
-                    {line.source_url && /^https?:\/\//i.test(line.source_url) && (
-                      <>
-                        {" · "}
-                        <a href={line.source_url} target="_blank" rel="noopener noreferrer" className="underline">
-                          {t("smeta.bozor_manba")}
-                        </a>
-                      </>
-                    )}
-                  </p>
-                )}
-                {line.price_source !== "market" && line.store_name && (
-                  <p className="mt-0.5 text-xs leading-snug text-ink-muted">
-                    {t("smeta.dokon")}: {line.store_name}
-                  </p>
-                )}
-                {line.formula && !repeatsQuantityLine(line) && (
-                  <p className="mt-0.5 text-xs leading-snug text-ink-muted">{localizeFormula(line.formula, t)}</p>
-                )}
-                {line.warning && <p className="mt-1 text-xs leading-snug text-warn">{localizeWarning(line.warning, t)}</p>}
-              </div>
-              <p className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-ink">{fmt(line.total_uzs)}</p>
-            </li>
+            <EstimateLineRow key={index} line={line} index={index} fmt={fmt} highlighted={highlighted.has(String(index))} />
           ))}
         </ul>
       )}

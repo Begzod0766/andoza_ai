@@ -10,7 +10,8 @@ import { join } from "node:path";
 // a night value.
 const src = join(__dirname, "..", "..");
 const css = readFileSync(join(__dirname, "..", "global.css"), "utf8");
-const ESTIMATE_FILES = ["components/smeta/CategorySection.tsx", "pages/smeta/SmetaPage.tsx"];
+// The line row (warning, badge) moved out of CategorySection into EstimateLineRow, shared with ShopSection.
+const ESTIMATE_FILES = ["components/smeta/EstimateLineRow.tsx", "pages/smeta/SmetaPage.tsx", "components/smeta/CategorySection.tsx", "components/smeta/ShopSection.tsx"];
 
 type Rgb = [number, number, number];
 function channels(token: string): { day: Rgb; night: Rgb } {

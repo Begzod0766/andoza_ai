@@ -15,6 +15,10 @@ export interface SellerStore {
   district: string | null;
   phone: string | null;
   telegram: string | null;
+  /** Street address and map point (null until the shop sets them). */
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   logo_color: string | null;
   partner_tier: string;
   status: ModerationStatus;
@@ -58,6 +62,9 @@ export interface StoreApplication {
   district?: string | null;
   phone?: string | null;
   telegram?: string | null;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   logo_color?: string | null;
 }
 
