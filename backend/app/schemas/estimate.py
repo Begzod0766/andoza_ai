@@ -55,6 +55,9 @@ class EstimateResponse(BaseModel):
     market_prices_available: bool = False
     market_checked: int = 0
     market_updated: int = 0
+    # The caller is a guest: the AI gap-fill and market prices were skipped,
+    # so the prices are approximate (spec 2026-11-20 mehmon rejimi).
+    prices_approximate_for_guest: bool = False
 
 
 class EstimateSummary(BaseModel):
