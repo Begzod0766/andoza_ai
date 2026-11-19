@@ -27,11 +27,12 @@ def create_access_token(
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(subject: str) -> str:
-    """Return a signed JWT refresh token for *subject*."""
-    expire = datetime.now(tz=timezone.utc) + timedelta(
-        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-    )
+def create_refresh_token(subject: str, expires_days: Optional[int] = None) -> str:
+    """Return a signed JWT refresh token for *subject*, valid *expires_days*
+    (default ``REFRESH_TOKEN_EXPIRE_DAYS``; guests get a longer one)."""
+    if expires_days is None:
+        expires_days = settings.REFRESH_TOKEN_EXPIRE_DAYS
+    expire = datetime.now(tz=timezone.utc) + timedelta(days=expires_days)
     payload = {
         "sub": subject,
         "exp": expire,

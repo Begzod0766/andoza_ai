@@ -20,7 +20,7 @@ kirmaydi. Kalitlarni hech qachon commit qilmang.
 | `ENVIRONMENT` | `development` | Muhit nomi (productionda ham hozir `development`). |
 | `API_DOCS_ENABLED` | `true` | `/docs`, `/redoc`, `/openapi.json`. Ochiq serverda `false` qiling. |
 | `CORS_ORIGINS_STR` | localhost portlari | Ruxsat etilgan originlar: vergul bilan yoki JSON ro'yxat. Capacitor originlari (`capacitor://localhost`, `http://localhost`) har doim qo'shiladi. |
-| `TRUST_PROXY_HEADERS` | `false` | `X-Forwarded-For` ga ishonish (OTP limitlari uchun mijoz IP'si). |
+| `TRUST_PROXY_HEADERS` | `false` | `X-Forwarded-For` ga ishonish (OTP va mehmon limitlari uchun mijoz IP'si). |
 | `GOOGLE_CLIENT_IDS` | prod web + iOS client ID'lari | "Google orqali kirish": qabul qilinadigan ID token `aud` qiymatlari (vergul bilan). Bo'sh = o'chiq (503). |
 | `APPLE_CLIENT_IDS` | `uz.andozaai.app` | "Apple orqali kirish": qabul qilinadigan identity token `aud` qiymatlari, ya'ni iOS bundle id (vergul bilan). Bo'sh = o'chiq (503). |
 | `SENTRY_DSN` | bo'sh | Xatolarni Sentry'ga yuborish. |
@@ -41,6 +41,22 @@ kirmaydi. Kalitlarni hech qachon commit qilmang.
 | `ESKIZ_EMAIL`, `ESKIZ_PASSWORD` | bo'sh | Eskiz hisobi. |
 | `PLAYMOBILE_URL`, `PLAYMOBILE_LOGIN`, `PLAYMOBILE_PASSWORD` | — | Playmobile hisobi. |
 | `OTP_GLOBAL_DAILY_LIMIT` | `2000` | Kuniga jami OTP SMS chegarasi. |
+
+## Mehmon rejimi (ro'yxatdan o'tmasdan)
+Spec: `docs/superpowers/specs/2026-11-20-mehmon-rejimi-design.md`.
+
+| O'zgaruvchi | Standart | Vazifasi |
+|---|---|---|
+| `GUEST_MODE_ENABLED` | `false` | `POST /api/v1/auth/guest`. O'chiq bo'lsa 503 (ilova login ekraniga tushadi). Mavjud mehmon tokenlari baribir ishlaydi. |
+| `GUEST_REFRESH_TOKEN_EXPIRE_DAYS` | `90` | Mehmonning yangilash tokeni muddati (oddiy foydalanuvchiga `REFRESH_TOKEN_EXPIRE_DAYS`). |
+| `GUEST_IP_RATE_LIMIT` | `30` | Bitta IP'dan soatiga ochiladigan mehmonlar. |
+| `GUEST_INSTALL_RATE_LIMIT` | `3` | Bitta o'rnatishdan (`install_id`) kuniga. |
+| `GUEST_GLOBAL_DAILY_LIMIT` | `5000` | Kuniga jami mehmonlar. |
+| `GUEST_CLEANUP_EMPTY_DAYS` | `14` | Xonasiz mehmon shuncha kun harakatsiz bo'lsa o'chiriladi (har kuni 04:00, Celery beat). |
+| `GUEST_CLEANUP_IDLE_DAYS` | `100` | Har qanday mehmon shuncha kun harakatsiz bo'lsa o'chiriladi. |
+
+**`GUEST_MODE_ENABLED=true` qilishdan oldin `TRUST_PROXY_HEADERS` `true` bo'lishi shart**: aks holda hamma so'rov proksi IP'sidan keladi va 30/soat limit barcha
+mehmonlarga birgalikda qo'llanadi. Proksi `X-Forwarded-For` ni o'rnatishini ham tekshiring.
 
 ## AI va tashqi xizmatlar
 | O'zgaruvchi | Standart | Vazifasi |

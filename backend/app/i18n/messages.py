@@ -106,6 +106,9 @@ MESSAGES: dict[str, dict[str, str]] = _table(
     ("Refresh token missing.", "Отсутствует токен обновления.", "Refresh token missing.", "Yangilash tokeni yo'q."),
     ("Invalid or expired refresh token.", "Неверный или просроченный токен обновления.", "Invalid or expired refresh token.", "Yangilash tokeni noto'g'ri yoki muddati tugagan."),
     ("User not found.", "Пользователь не найден.", "User not found.", "Foydalanuvchi topilmadi."),
+    # Guest mode (spec 2026-11-20).
+    ("Mehmon rejimi hozircha yoqilmagan.", "Гостевой режим пока не включён.", "Guest mode is not enabled yet."),
+    ("Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.", "Открыто слишком много гостевых сессий. Попробуйте позже.", "Too many guest sessions were opened. Please try again later."),
     ("Bu username allaqachon band.", "Это имя пользователя уже занято.", "This username is already taken."),
     ("Username yoki parol noto'g'ri.", "Неверное имя пользователя или пароль.", "Incorrect username or password."),
     ("Bu IP manzildan juda ko'p ro'yxatdan o'tish urinishi bo'ldi. Birozdan keyin qayta urinib ko'ring.", "Слишком много попыток регистрации с этого IP-адреса. Повторите попытку чуть позже.", "Too many sign-up attempts from this IP address. Please try again in a little while."),

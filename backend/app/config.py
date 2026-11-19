@@ -134,6 +134,19 @@ class Settings(BaseSettings):
     OTP_GLOBAL_DAILY_LIMIT: int = 2000
 
     # ------------------------------------------------------------------ #
+    # Guest mode (spec 2026-11-20): POST /auth/guest opens a session with no
+    # sign-up. Off by default; TRUST_PROXY_HEADERS must be true before it is
+    # turned on, or the per-IP limit is shared by every guest.
+    # ------------------------------------------------------------------ #
+    GUEST_MODE_ENABLED: bool = False
+    GUEST_REFRESH_TOKEN_EXPIRE_DAYS: int = 90
+    GUEST_IP_RATE_LIMIT: int = 30          # guests per IP per hour
+    GUEST_INSTALL_RATE_LIMIT: int = 3      # guests per app install per day
+    GUEST_GLOBAL_DAILY_LIMIT: int = 5000   # guests in all per day
+    GUEST_CLEANUP_EMPTY_DAYS: int = 14     # idle guest with no room
+    GUEST_CLEANUP_IDLE_DAYS: int = 100     # any idle guest
+
+    # ------------------------------------------------------------------ #
     # AI features
     # ------------------------------------------------------------------ #
     AI_FEATURES_ENABLED: bool = False

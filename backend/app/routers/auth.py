@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated
 
 import httpx
@@ -23,7 +23,7 @@ from app.core.security import create_access_token, create_refresh_token, verify_
 from app.core.sms import generate_otp, send_otp, store_otp, verify_otp
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import AppleLoginRequest, DeleteAccountRequest, GoogleLoginRequest, LoginRequest, LoginResponse, MeUpdate, OTPRequest, OTPVerify, RegisterRequest, UserOut
+from app.schemas.auth import AppleLoginRequest, DeleteAccountRequest, GoogleLoginRequest, GuestCreateRequest, LoginRequest, LoginResponse, MeUpdate, OTPRequest, OTPVerify, RegisterRequest, UserOut
 
 def _hash_password(password: str) -> str:
     return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
@@ -59,6 +59,12 @@ _REGISTER_IP_RATE_WINDOW = 3600  # 1 hour
 # Account deletion: password confirmation must not be brute-forceable.
 _DELETE_USER_RATE_LIMIT = 5
 _DELETE_USER_RATE_WINDOW = 900
+
+# Guest sessions (POST /auth/guest): one message for all three limits, so the
+# answer does not tell an abuser which axis it hit.
+_GUEST_IP_RATE_WINDOW = 3600       # 1 hour
+_GUEST_INSTALL_RATE_WINDOW = 86400  # 1 day
+_GUEST_GLOBAL_RATE_WINDOW = 86400   # 1 day
 
 _IS_DEV = settings.ENVIRONMENT == "development"
 _COOKIE_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -107,15 +113,16 @@ def _set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
-def _set_refresh_cookie(response: Response, token: str) -> None:
-    """Set the HttpOnly refresh token cookie, scoped to the refresh endpoint only."""
+def _set_refresh_cookie(response: Response, token: str, max_age: int | None = None) -> None:
+    """Set the HttpOnly refresh token cookie, scoped to the refresh endpoint only.
+    *max_age* defaults to the registered-user refresh lifetime."""
     response.set_cookie(
         key="refresh_token",
         value=token,
         httponly=True,
         secure=not _IS_DEV,
         samesite="lax",
-        max_age=_REFRESH_COOKIE_MAX_AGE,
+        max_age=_REFRESH_COOKIE_MAX_AGE if max_age is None else max_age,
         path="/api/v1/auth/refresh",
     )
 
@@ -483,6 +490,8 @@ def _login_response(user: User, request: Request, response: Response) -> LoginRe
     """Sign *user* in: set the auth cookies and build the LoginResponse
     (tokens echoed in the body for native clients only). Shared by the
     password, Google and Apple logins so all answer identically."""
+    if user.is_guest is True:
+        return _guest_login_response(user, request, response)
     subject = str(user.id)
     access_token = create_access_token(subject)
     refresh_token = create_refresh_token(subject)
@@ -495,6 +504,85 @@ def _login_response(user: User, request: Request, response: Response) -> LoginRe
         access_token=access_token if is_native else None,
         refresh_token=refresh_token if is_native else None,
     )
+
+
+def _guest_login_response(user: User, request: Request, response: Response) -> LoginResponse:
+    """_login_response for a guest: the refresh token (and its cookie) lives
+    GUEST_REFRESH_TOKEN_EXPIRE_DAYS — it is the guest's only "password"."""
+    subject = str(user.id)
+    days = settings.GUEST_REFRESH_TOKEN_EXPIRE_DAYS
+    access_token = create_access_token(subject)
+    refresh_token = create_refresh_token(subject, expires_days=days)
+    _set_auth_cookie(response, access_token)
+    _set_refresh_cookie(response, refresh_token, max_age=days * 86400)
+
+    is_native = _is_native_client(request)
+    return LoginResponse(
+        user=UserOut.model_validate(user),
+        access_token=access_token if is_native else None,
+        refresh_token=refresh_token if is_native else None,
+    )
+
+
+@router.post(
+    "/guest",
+    response_model=LoginResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Open a guest session (no sign-up)",
+)
+async def create_guest(
+    body: GuestCreateRequest,
+    request: Request,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> LoginResponse:
+    """A new guest user with no phone/username/email/sub. Free features work
+    for it; paid and identity ones answer 403 registration_required. Off
+    unless GUEST_MODE_ENABLED. Rate-limited per IP, per app install and
+    globally per day."""
+    if not settings.GUEST_MODE_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Mehmon rejimi hozircha yoqilmagan.",
+        )
+
+    redis = get_redis()
+    await _enforce_rate_limit(
+        redis,
+        f"guest_ip_rate:{_get_client_ip(request)}",
+        settings.GUEST_IP_RATE_LIMIT,
+        _GUEST_IP_RATE_WINDOW,
+        "Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.",
+    )
+    if body.install_id is not None:
+        await _enforce_rate_limit(
+            redis,
+            f"guest_install_rate:{body.install_id}",
+            settings.GUEST_INSTALL_RATE_LIMIT,
+            _GUEST_INSTALL_RATE_WINDOW,
+            "Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.",
+        )
+    await _enforce_rate_limit(
+        redis,
+        "guest_global_daily",
+        settings.GUEST_GLOBAL_DAILY_LIMIT,
+        _GUEST_GLOBAL_RATE_WINDOW,
+        "Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.",
+    )
+
+    user = User(
+        is_guest=True,
+        language=body.language or "uz",
+        last_seen_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.flush()
+    # Load server defaults (created_at) so UserOut serialises fully.
+    await db.refresh(user)
+
+    # user_id only: no IP or install id in the log.
+    logger.info("guest_created", user_id=str(user.id))
+    return _guest_login_response(user, request, response)
 
 
 _GOOGLE_ISSUERS = frozenset({"accounts.google.com", "https://accounts.google.com"})

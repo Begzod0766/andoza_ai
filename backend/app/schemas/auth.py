@@ -93,6 +93,14 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class GuestCreateRequest(BaseModel):
+    """POST /auth/guest. ``install_id`` is a random id the app keeps per
+    install (only used for the per-install rate limit, never stored)."""
+
+    install_id: UUID | None = None
+    language: Literal["uz", "ru", "en"] | None = None
+
+
 class RegisterRequest(BaseModel):
     # The sign-up form's own limits (LoginPage). username is varchar(50); an
     # empty password made an account that could never self-delete.
