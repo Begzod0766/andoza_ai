@@ -182,7 +182,9 @@ export function freeFurnitureSpotMm(
     // wall it fits on, sticking out at its ends (the fit warning names it), not in the middle, where the
     // pieces after it found no floor and were put inside it.
     const flush = longerThanWalls(model, size, taken)
-    if (flush) return { ...toMm(flush), onWall: false }
+    // A few centimetres longer than the wall is on the wall (#350: "no room at the wall" showed for a 171 cm
+    // bath on a 1.6 m wall); much longer still is not, and is said so.
+    if (flush) return { ...toMm(flush), onWall: size.w - Math.max(...model.walls.map((w) => w.length)) <= OVERHANG_ON_WALL_M }
   }
   if (role === 'shower') {
     const spot = cornerFarthestFromDoor(model, size, taken)
@@ -241,6 +243,9 @@ export function freeFurnitureSpotMm(
   const spot = furnitureSpot('center', size, model, taken)
   return spot.fit === 'none' ? { ...furniturePlacementMm(geometry, placed.length, sizeM), rotation: 0 } : toMm(spot)
 }
+
+/** How much longer than its wall a piece may be and still count as standing on it, metres (#350). */
+const OVERHANG_ON_WALL_M = 0.15
 
 /** A piece no wall is long enough for: centred on the longest wall whose spot is clear of what stands, its
  *  back to it; one clear of the doors' swing too if there is one. Null when every wall's spot is taken, or

@@ -278,7 +278,8 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         key: 'rang',
         label: t('studio.radial.rang'),
         icon: <Wallpaper size={19} strokeWidth={1.8} />,
-        items: papers,
+        // The paint panel last (mobile QA 2026-11-19, #350): the shop's wall paints are there, and a phone had no way to them.
+        items: [...papers, { key: 'rang:panel', label: t('studio.radial.panel_boyoq'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('boyoq') }],
         emptyItem: { key: 'rang:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('boyoq') },
       },
       {
