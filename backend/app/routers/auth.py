@@ -347,24 +347,22 @@ async def refresh_tokens(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
+        # 401, not 404: a guest merged into another account (or deleted) has
+        # no row any more, and its old refresh token must end the session
+        # the way any dead token does.
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token.",
         )
+
+    # Stale guests are cleaned up by this (app/tasks/maintenance.py).
+    user.last_seen_at = datetime.now(timezone.utc)
 
     logger.info("tokens_rotated", user_id=user_id)
 
-    access_token = create_access_token(user_id)
-    refresh_token_new = create_refresh_token(user_id)
-    _set_auth_cookie(response, access_token)
-    _set_refresh_cookie(response, refresh_token_new)
-
-    is_native = _is_native_client(request)
-    return LoginResponse(
-        user=UserOut.model_validate(user),
-        access_token=access_token if is_native else None,
-        refresh_token=refresh_token_new if is_native else None,
-    )
+    # The lifetime follows what the row is NOW: a guest token refreshed after
+    # an upgrade gets the registered (shorter) refresh token.
+    return _login_response(user, request, response)
 
 
 @router.post(
