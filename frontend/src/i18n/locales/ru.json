@@ -278,6 +278,7 @@
       "olchamlar_koppburchak_few": "{{area}} м² · {{count}} стены · потолок {{height}} м",
       "olchamlar_koppburchak_many": "{{area}} м² · {{count}} стен · потолок {{height}} м",
       "havola_bekor": "Отключить",
+      "ochirilgan": "Эта комната удалена: изменения не сохраняются",
       "saqlanmadi": "Не сохранено",
       "qayta_urinish": "Повторить",
       "xona_olchami_btn": "Размеры комнаты: {{dims}}. Изменить",
