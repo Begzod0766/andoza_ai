@@ -46,6 +46,7 @@ import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
 import { initialPhaseFor, initialViewStage, visibleStages, type PhaseKey } from "@/lib/phases";
+import { stageAfterPlacing } from "@/lib/stageView";
 import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
 import { computeAbsolutePositions } from "./three-d/helpers";
@@ -550,7 +551,10 @@ export default function ThreeDPage() {
       // ceiling and would push through anything lower.
       heightMm,
     });
-    openPhasePanel('montaj');
+    // The Montaj panel lists it; the 3D stays at the stage it was at, or goes forward to Montaj so the
+    // socket shows (mobile QA 2026-11-19, #345: it went to the finished room).
+    setActivePhase('montaj');
+    setViewStage(stageAfterPlacing('montaj', useRoomStore.getState().viewStage, visibleStages(stageRoomKind).map((st) => st.key)));
   }
 
   /** The window the ring last made, so picking another style changes that one
@@ -721,7 +725,7 @@ export default function ThreeDPage() {
   /** The corner arc's categories, read from the same sources the design panel
    *  uses. `openPanelAt` is its escape hatch: a category with more items than
    *  the arc holds ends in a button that opens the full panel instead. */
-  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol') => {
+  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol' | 'montaj') => {
     openPhasePanel(phase);
     setShowPanel(true);
   }, [openPhasePanel]);

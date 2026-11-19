@@ -25,6 +25,15 @@ export function drawnAt(item: ItemStage, view: ViewStage, stages: readonly Phase
   return stages.indexOf(at) <= stages.indexOf(view)
 }
 
+/**
+ * The stage the 3D shows once a thing of stage `item` is placed (mobile QA 2026-11-19, #345: a socket put
+ * on at Montaj sent the view to the finished room): the same, when it already draws it or is the finished
+ * room; else forward to the thing's own stage, so it is seen.
+ */
+export function stageAfterPlacing(item: PhaseKey, view: ViewStage, stages: readonly PhaseKey[]): ViewStage {
+  return view === 'full' || drawnAt(item, view, stages) ? view : item
+}
+
 /** A piece of furniture's stage: a bathroom fixture comes with Jihozlar; in a kitchen the sink sits in its cabinet, so Mebel. */
 export function furnitureStage(name: string, category: string | null | undefined, roomKind: string | undefined): PhaseKey {
   return ROLE_GROUP[inferRole(category ?? null, name)] === 'plumbing' && roomKind !== 'oshxona' ? 'jihozlar' : 'mebel'

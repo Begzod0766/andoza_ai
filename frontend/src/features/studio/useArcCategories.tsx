@@ -20,7 +20,7 @@ import { fixtureDisplayName } from "@/lib/fixtureName";
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
-import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets, SlidersHorizontal } from 'lucide-react'
+import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets, SlidersHorizontal, Plug } from 'lucide-react'
 import { FurnitureSymbol, LightSymbol } from '@/lib/catalogIcons'
 import { useRoomStore } from '@/store/roomStore'
 import { listWallpapers, type Wallpaper as WallpaperEntry } from '@/lib/api'
@@ -45,7 +45,7 @@ export interface ArcCategoriesDeps {
    *  same as the design panel uses, falling back to every wall. */
   selectedWall: string | null
   /** Opens the full panel for a category the arc can only show a slice of. */
-  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol') => void
+  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol' | 'montaj') => void
 }
 
 /** The catalog room each furniture ring stands for. */
@@ -328,6 +328,16 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
           },
           // The Pol panel: the heated floor and the full floor choices live there (QA 2026-11-18).
           { key: 'pol:panel', label: t('studio.radial.panel_pol'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('pol') },
+        ],
+      },
+      {
+        // The Montaj panel (mobile QA 2026-11-19, #345): the list of the sockets and switches put on. A
+        // phone had no way to it; they are put on from the wall's ring, so this is the panel only.
+        key: 'montaj',
+        label: t('studio.lib.stage.montaj'),
+        icon: <Plug size={19} strokeWidth={1.8} />,
+        items: [
+          { key: 'montaj:panel', label: t('studio.radial.panel_montaj'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('montaj') },
         ],
       },
       {

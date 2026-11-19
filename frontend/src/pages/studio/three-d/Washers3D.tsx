@@ -51,7 +51,8 @@ export function washerPose(m: Washer, geometry: RoomGeometry): { x: number; y: n
  */
 export function shownWashers<T extends Washer>(washers: readonly T[], geometry: RoomGeometry, kitchenSets: readonly Rect[]): T[] {
   return washers.filter((m) => {
-    if (!isKitchenSink(m) || !kitchenSets.length) return true
+    // A dishwasher too (mobile QA 2026-11-19, #345): built in behind the set's front, its body showed under the plinth.
+    if ((!isKitchenSink(m) && !isDishwasher(m)) || !kitchenSets.length) return true
     const box = washerBox(geometry, m)
     return !box || !kitchenSets.some((set) => overlaps(box, set, 0))
   })
