@@ -115,7 +115,7 @@ async def _new_workshop_token(db) -> str:
 
 @router.post("/projects/{project_id}/workshop-link", response_model=WorkshopLinkOut,
              summary="The project's workshop token for label QR codes (created on first call)")
-async def create_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> WorkshopLinkOut:
+async def create_workshop_link(project_id: uuid_module.UUID, current_user: Annotated[User, Depends(registered_user("workshop_link"))], db: DbSession) -> WorkshopLinkOut:
     row = await _own_project(db, current_user, project_id)
     if row.workshop_token:
         return WorkshopLinkOut(token=row.workshop_token)

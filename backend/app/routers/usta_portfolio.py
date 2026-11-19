@@ -8,11 +8,11 @@ from __future__ import annotations
 import uuid as uuid_module
 
 import structlog
-from fastapi import APIRouter, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy import func, select
 
 from app.i18n import translate_detail
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
 from app.core.storage import absolute_media_url, upload_file
 from app.models.usta import Usta
 from app.models.usta_portfolio import UstaPortfolioItem
@@ -22,7 +22,9 @@ from app.schemas.usta_portfolio import PortfolioItemOut
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/usta/portfolio", tags=["usta"])
+# Business section: a guest gets registration_required (spec 2026-11-20).
+# public_router below (the public gallery) stays open.
+router = APIRouter(prefix="/usta/portfolio", tags=["usta"], dependencies=[Depends(registered_user("business"))])
 public_router = APIRouter(tags=["ustalar"])
 
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024

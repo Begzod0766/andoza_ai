@@ -6,14 +6,16 @@ Also holds the seller's dashboard numbers.
 """
 from __future__ import annotations
 
+from typing import Annotated
+
 import uuid as uuid_module
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
 from app.models.apartment import Apartment
 from app.models.furniture import Furniture
 from app.models.room import Room
@@ -36,7 +38,8 @@ from app.schemas.shop_inquiry import (
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/shops", tags=["shops"])
-seller_router = APIRouter(prefix="/seller", tags=["seller"])
+# Business section: a guest gets registration_required (spec 2026-11-20).
+seller_router = APIRouter(prefix="/seller", tags=["seller"], dependencies=[Depends(registered_user("business"))])
 
 _MAX_PER_DAY = 5
 
@@ -48,7 +51,7 @@ _MAX_PER_DAY = 5
     summary="Ask a shop about a product",
 )
 async def create_inquiry(
-    store_id: uuid_module.UUID, body: ShopInquiryCreate, current_user: CurrentUser, db: DbSession
+    store_id: uuid_module.UUID, body: ShopInquiryCreate, current_user: Annotated[User, Depends(registered_user("contact"))], db: DbSession
 ) -> ShopInquiry:
     store = (await db.execute(
         select(Store).where(Store.id == store_id, Store.status == "approved", Store.is_active.is_(True))

@@ -75,6 +75,9 @@ class _EmptyDb:
     async def flush(self):
         pass
 
+    async def refresh(self, *_a, **_k):
+        pass
+
     async def commit(self):
         pass
 
@@ -201,3 +204,101 @@ def test_every_paid_route_is_gated():
             assert gated, key
             seen.add(key)
     assert set(GATED_ROUTES) <= seen
+
+
+# ---------------------------------------------------------------------------
+# Spec table B — identity needed (contact, order, business).
+# ---------------------------------------------------------------------------
+IDENTITY = [
+    ("POST", "/api/v1/leads", "contact"),
+    ("POST", f"/api/v1/shops/{R}/inquiries", "contact"),
+    ("POST", "/api/v1/orders", "order"),
+    ("POST", f"/api/v1/mebel/projects/{R}/workshop-link", "workshop_link"),
+    ("GET", "/api/v1/seller/stats", "business"),
+    ("GET", "/api/v1/seller/inquiries", "business"),
+    ("GET", "/api/v1/seller/store", "business"),
+    ("PATCH", "/api/v1/seller/store", "business"),
+    ("GET", "/api/v1/seller/furniture", "business"),
+    ("POST", "/api/v1/usta/profile", "business"),
+    ("GET", "/api/v1/usta/leads", "business"),
+    ("GET", "/api/v1/usta/portfolio", "business"),
+]
+
+# Whole routers that are business-only: every route on them is gated.
+BUSINESS_MODULES = {"app.routers.seller", "app.routers.usta_profile"}
+BUSINESS_PREFIXES = ("/api/v1/seller/", "/api/v1/usta/")
+
+
+@pytest.mark.parametrize(("method", "path", "feature"), IDENTITY)
+def test_guest_identity_endpoints_need_registration(as_guest, method, path, feature):
+    r = as_guest.request(method, path, json={})
+    assert r.status_code == 403
+    detail = r.json()["detail"]
+    assert detail["code"] == "registration_required" and detail["feature"] == feature
+
+
+@pytest.mark.parametrize(("method", "path", "feature"), IDENTITY)
+def test_registered_identity_endpoints_not_gated(as_registered, method, path, feature):
+    assert not _is_guest_403(as_registered.request(method, path, json={}))
+
+
+def test_every_business_route_is_gated():
+    seen = 0
+    for key, r, gated in _routes():
+        _, path = key
+        if r.endpoint.__module__ in BUSINESS_MODULES or path.startswith(BUSINESS_PREFIXES) or path == "/api/v1/usta/portfolio":
+            assert gated, key
+            seen += 1
+    assert seen > 20
+
+
+def test_identity_routes_are_gated():
+    keys = {k: g for k, _r, g in _routes()}
+    for k in [
+        ("POST", "/api/v1/leads"),
+        ("POST", "/api/v1/shops/{store_id}/inquiries"),
+        ("POST", "/api/v1/orders"),
+        ("POST", "/api/v1/mebel/projects/{project_id}/workshop-link"),
+    ]:
+        assert keys[k], k
+
+
+def test_guest_may_share_room(as_guest):
+    # Spec §8.3: the share link stays open for guests (growth).
+    from app.models.room import Room
+
+    room = Room(id=uuid.uuid4(), apartment_id=uuid.uuid4(), name="X", deleted=False, share_token=None)
+    db = _EmptyDb()
+    results = iter([room, None])  # get_owned_room, then the token collision check
+
+    async def execute(*_a, **_k):
+        res = MagicMock()
+        res.scalar_one_or_none.return_value = next(results)
+        return res
+
+    db.execute = execute
+    app.dependency_overrides[get_db] = lambda: db
+    r = as_guest.post(f"/api/v1/rooms/{room.id}/share")
+    assert r.status_code in (200, 201)
+    assert r.json()["share_token"] == room.share_token
+
+
+def test_public_usta_portfolio_open():
+    app.dependency_overrides[get_db] = lambda: _EmptyDb()
+    try:
+        r = TestClient(app).get(f"/api/v1/ustalar/{uuid.uuid4()}/portfolio")
+        assert r.status_code != 403 and r.status_code != 401
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize(("method", "path"), [
+    # Spec table C: open to guests.
+    ("POST", "/api/v1/reports"),
+    ("POST", "/api/v1/wallpapers"),
+    ("GET", "/api/v1/mebel/projects"),
+    ("GET", "/api/v1/mebel/price-book"),
+    ("DELETE", f"/api/v1/rooms/{R}/share"),
+])
+def test_table_c_stays_open(as_guest, method, path):
+    assert not _is_guest_403(as_guest.request(method, path, json={}))
