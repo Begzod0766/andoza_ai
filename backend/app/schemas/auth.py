@@ -91,6 +91,10 @@ class LoginResponse(BaseModel):
     access_token: str | None = None
     refresh_token: str | None = None
     token_type: str = "bearer"
+    # A sign-in that merged a guest into an existing account: how many of the
+    # guest's rooms moved there (the app says so). None otherwise; older
+    # clients ignore it.
+    guest_merged_rooms: int | None = None
 
 
 class GuestCreateRequest(BaseModel):
