@@ -74,7 +74,9 @@ export default function StudioPage() {
   // DesignPanel) so uploaded models reappear on reload without opening panels
   useRestoreUserModels();
   const isDirty = useRoomStore((s) => s.isDirty);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'deleted'>('idle');
+  /** The room this page opened was deleted elsewhere (2026-11-19): nothing more is saved, and it is never made again. */
+  const deletedRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // The header used to be measured, to place the drawers that opened beneath
@@ -287,6 +289,7 @@ export default function StudioPage() {
     // writing it to this URL's room would overwrite that room with the other's design.
     const held = useRoomStore.getState().roomId;
     if (roomId && held && held !== roomId) return false;
+    if (deletedRef.current) return true;
     setSaveStatus('saving');
     try {
       const s = useRoomStore.getState();
@@ -345,6 +348,13 @@ export default function StudioPage() {
           // failure — a refused value, the network — used to fall through
           // too, and each autosave retry could make a copy of the room.
           if (!(err instanceof ApiError && err.status === 404)) throw err;
+          // A room this page opened from the server and the server no longer has was deleted elsewhere
+          // (2026-11-19): it used to be made again, with a new id, without a word. Said so, and left deleted.
+          if (loadedAtRef.current != null) {
+            deletedRef.current = true;
+            setSaveStatus('deleted');
+            return true;
+          }
         }
       }
 
@@ -673,6 +683,9 @@ export default function StudioPage() {
               )}
               {saveStatus === 'saved' && (
                 <span className="text-emerald-600">✓ {t('studio.page.saqlandi')}</span>
+              )}
+              {saveStatus === 'deleted' && (
+                <span role="alert" className="text-red-600">{t('studio.page.ochirilgan')}</span>
               )}
               {saveStatus === 'error' && (
                 <>
