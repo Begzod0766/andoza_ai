@@ -57,8 +57,18 @@ class UserOut(BaseModel):
     is_admin: bool = False
     language: Literal["uz", "ru", "en"] = "uz"
     created_at: datetime
+    # A guest session (no sign-up yet); older clients ignore the field.
+    is_guest: bool = False
 
     model_config = {"from_attributes": True}
+
+    @field_validator("is_guest", mode="before")
+    @classmethod
+    def _only_true_is_guest(cls, v: object) -> bool:
+        # A User() not flushed yet has None here (the column default fills it
+        # at INSERT). Only a real True marks a guest — the same identity rule
+        # as deps.registered_user.
+        return v is True
 
 
 class MeUpdate(BaseModel):
