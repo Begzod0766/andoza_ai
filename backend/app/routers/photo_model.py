@@ -10,14 +10,17 @@ GLB the studio imports like any uploaded model.
 """
 from __future__ import annotations
 
+from typing import Annotated
+
 import uuid as uuid_module
 
 import structlog
-from fastapi import APIRouter, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 
 from app.i18n import translate_detail
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
+from app.models.user import User
 from app.config import settings
 from app.core.storage import download_file, upload_file
 from app.models.media_job import MediaJob
@@ -69,7 +72,7 @@ async def _read_photo(file: UploadFile) -> bytes:
 )
 async def create_model_from_photo(
     file: UploadFile,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("photo_model"))],
     db: DbSession,
     left: UploadFile | None = None,
     back: UploadFile | None = None,
@@ -118,7 +121,7 @@ async def create_model_from_photo(
     "/models/from-photo/glb",
     summary="Download a model built from the caller's own photo",
 )
-async def get_photo_model_glb(key: str, current_user: CurrentUser, db: DbSession) -> Response:
+async def get_photo_model_glb(key: str, current_user: Annotated[User, Depends(registered_user("photo_model"))], db: DbSession) -> Response:
     """Stream the GLB through the API so the studio can fetch it same-origin, with
     its cookie, instead of depending on the storage host's CORS rules. Only the
     caller's own models: the key is a storage path, so it must stay in their
