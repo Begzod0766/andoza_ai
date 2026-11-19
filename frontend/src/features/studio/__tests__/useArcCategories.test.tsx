@@ -96,3 +96,16 @@ describe('the arc menu Floor category', () => {
     expect(openPanelAt).toHaveBeenCalledWith('pol')
   })
 })
+
+describe('the arc menu Montaj category (mobile QA 2026-11-19, #345 1)', () => {
+  it('opens the Montaj panel, the list of sockets and switches: a phone had no way to it', () => {
+    useRoomStore.setState({ roomType: 'oshxona', name: 'Oshxona' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const panel = result.current.find((c) => c.key === 'montaj')!.items!.find((i) => i.key === 'montaj:panel')!
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('montaj')
+  })
+})

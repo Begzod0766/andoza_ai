@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { visibleStages } from '../phases'
-import { drawnAt, furnitureStage, coveringStage, stagedDesignState, hiddenAt, BARE_WALL } from '../stageView'
+import { drawnAt, furnitureStage, coveringStage, stagedDesignState, hiddenAt, BARE_WALL, stageAfterPlacing } from '../stageView'
 import type { DesignState } from '@/store/types'
 
 const bath = visibleStages('hammom').map((s) => s.key)
@@ -119,5 +119,19 @@ describe('withStageTag: a covering put on in Suvoq or Shpaklovka remembers it', 
   it('a covering carried into Bo\'yoq loses an old tag', async () => {
     const { withStageTag } = await import('../stageView')
     expect(withStageTag({ kind: 'paint', color: '#abc', stage: 'suvoq' }, 'boyoq')).toEqual({ kind: 'paint', color: '#abc' })
+  })
+})
+
+describe('stageAfterPlacing (mobile QA 2026-11-19, #345 2)', () => {
+  const stages = ['quvurlar', 'suvoq', 'shpaklovka', 'boyoq', 'pol', 'montaj', 'jihozlar', 'chiroq', 'mebel'] as const
+  it('placed at the Montaj stage: stays there, not the finished room', () => {
+    expect(stageAfterPlacing('montaj', 'montaj', [...stages])).toBe('montaj')
+  })
+  it('at a stage the device is drawn at, or the finished room: unchanged', () => {
+    expect(stageAfterPlacing('montaj', 'mebel', [...stages])).toBe('mebel')
+    expect(stageAfterPlacing('montaj', 'full', [...stages])).toBe('full')
+  })
+  it('at an earlier stage, where it would not show: forward to its own', () => {
+    expect(stageAfterPlacing('montaj', 'pol', [...stages])).toBe('montaj')
   })
 })
