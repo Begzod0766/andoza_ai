@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  PANO_EYE_HEIGHT, PANO_WIDTH, PANO_HEIGHT, panoramaSizeFor, flipRows, EQUIRECT_FRAGMENT,
+  PANO_EYE_HEIGHT, PANO_WIDTH, PANO_HEIGHT, panoramaSizeFor, flipRows, EQUIRECT_FRAGMENT, panoramaSeamYaw,
 } from '../panorama360'
 import { RENDER_EYE_HEIGHT } from '../roomCameras'
 
@@ -111,5 +111,31 @@ describe('the picture is not mirrored', () => {
     expect(x).toBeCloseTo(-1, 10)
     const [xl] = direction(-Math.PI / 2)
     expect(xl).toBeCloseTo(1, 10)
+  })
+})
+
+/**
+ * The 360 picture's seam (kitchen re-check 2026-11-19): the render service does not wrap the picture, so
+ * whatever stands across its left and right edges comes back blurred. The seam fell on the kitchen set.
+ * The panorama is turned so its seam faces the emptiest way from the eye.
+ */
+describe('the panorama seam', () => {
+  /** The way the seam faces for a yaw: opposite the middle of the image (lon = ±PI). */
+  const seam = (yaw: number) => ({ x: Math.sin(yaw), z: -Math.cos(yaw) })
+  const set = { x: 0, z: -1.155, w: 3.42, d: 0.63, rotation: 0 }
+  it('the shader turns by the yaw it is given', () => {
+    expect(EQUIRECT_FRAGMENT).toMatch(/uniform float yaw;/)
+    expect(EQUIRECT_FRAGMENT).toMatch(/\* PI \+ yaw;/)
+  })
+  it('an empty room keeps the old turn', () => {
+    expect(panoramaSeamYaw({ x: 0, z: 0 }, [])).toBe(0)
+  })
+  it('a kitchen set along -z: the seam turns away from it', () => {
+    const s = seam(panoramaSeamYaw({ x: 0, z: 0 }, [set]))
+    // Not within 60 degrees of the set (straight ahead of the eye at -z).
+    expect(s.z).toBeGreaterThan(-Math.cos(Math.PI / 3))
+  })
+  it('a set the seam was not on leaves it where it was', () => {
+    expect(panoramaSeamYaw({ x: 0, z: 0 }, [{ ...set, z: 1.155 }])).toBe(0)
   })
 })
