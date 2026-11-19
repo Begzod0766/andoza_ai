@@ -1,4 +1,5 @@
 import * as React from "react";
+import { isWallPaint } from "@/lib/wallPaint";
 import { formatDecimal } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { getMaterials, previewEstimate } from "@/lib/api";
@@ -122,6 +123,8 @@ export function WallSection({
   const { data: boyoqProducts = [] } = useQuery({
     queryKey: ["materials", "boyoq", debouncedBoyoqQuery],
     queryFn: () => getMaterials({ category: "boyoq", q: debouncedBoyoqQuery || undefined, per_page: 20 }),
+    // An enamel is for metal and wood, not a wall (kitchen QA 2026-11-18 K9).
+    select: (rows) => rows.filter((m) => isWallPaint(m.name_uz)),
     staleTime: 10 * 60 * 1000,
   });
 
