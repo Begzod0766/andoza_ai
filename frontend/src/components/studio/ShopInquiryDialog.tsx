@@ -4,6 +4,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { createShopInquiry } from "@/lib/api";
 import { errorMessage } from "@/pages/dokon/admin/errorMessage";
+import { useGuestGate } from "@/lib/guestGate";
 
 const MAX_MESSAGE = 500;
 // A draft room that has not been saved yet has a local id, which the server would refuse.
@@ -28,6 +29,8 @@ export function ShopInquiryDialog({
   roomId?: string | null;
 }) {
   const { t } = useTranslation();
+  // Contacting a shop needs an account: a guest of the app is asked to sign up instead.
+  const { gate, promptIfRequired } = useGuestGate();
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -43,6 +46,7 @@ export function ShopInquiryDialog({
   }
 
   async function send() {
+    if (gate("contact")) return;
     setError(null);
     setSending(true);
     try {
@@ -54,7 +58,7 @@ export function ShopInquiryDialog({
       });
       setSent(true);
     } catch (err) {
-      setError(errorMessage(err, t("studio.inquiry.send_failed")));
+      if (!promptIfRequired(err)) setError(errorMessage(err, t("studio.inquiry.send_failed")));
     } finally {
       setSending(false);
     }

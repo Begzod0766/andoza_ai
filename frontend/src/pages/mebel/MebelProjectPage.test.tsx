@@ -9,6 +9,8 @@ import * as api from '@/lib/api'
 import i18n from '@/i18n'
 import { formatMm } from '@/features/mebel/ui/format'
 import { EMPTY_PRICE_BOOK, newProject } from '@/features/mebel/engine'
+import { ApiError } from '@/lib/api/client'
+import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
 vi.mock('@/lib/api', async () => {
   const actual = await vi.importActual<typeof api>('@/lib/api')
@@ -904,5 +906,46 @@ describe('MebelProjectPage review fixes', () => {
     mount()
     await screen.findByRole('table', { name: t('mebel.tab.parts') })
     expect(document.documentElement.getAttribute('data-app-theme')).toMatch(/^(day|night)$/)
+  })
+})
+
+describe('MebelProjectPage labels in guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('guest: printing labels asks for registration and makes no workshop link', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"workshop_link"}'))
+    expect(api.createWorkshopLink).not.toHaveBeenCalled()
+    expect(print).not.toHaveBeenCalled()
+    print.mockRestore()
+  })
+
+  it('late 403 opens the prompt instead of the error toast', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    vi.mocked(api.createWorkshopLink).mockRejectedValue(new ApiError(body403('workshop_link'), 403))
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"workshop_link"}'))
+    expect(screen.queryByText(t('mebel.workshop.link_failed'))).toBeNull()
+    expect(print).not.toHaveBeenCalled()
+    print.mockRestore()
+  })
+
+  it('registered user unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    mount()
+    await exportItem(t('mebel.labels.a4'))
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
+    expect(api.createWorkshopLink).toHaveBeenCalledWith('p1')
+    expect(post).not.toHaveBeenCalled()
+    print.mockRestore()
   })
 })

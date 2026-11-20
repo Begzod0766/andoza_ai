@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { MebelSection } from './MebelSection'
 import { useRoomStore } from '@/store/roomStore'
@@ -35,7 +36,8 @@ const shop = (over: Record<string, unknown> = {}) => ({
 
 function renderPanel() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={qc}><FeedbackProvider><MebelSection /></FeedbackProvider></QueryClientProvider>)
+  // Under a router like the Studio itself: the shop dialog's guest gate can send to /login.
+  return render(<MemoryRouter><QueryClientProvider client={qc}><FeedbackProvider><MebelSection /></FeedbackProvider></QueryClientProvider></MemoryRouter>)
 }
 
 // The room store is module-level: a room type one test set (a bathroom) would
