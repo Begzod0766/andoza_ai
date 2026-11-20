@@ -23,6 +23,7 @@ import { deleteUserModel, getStores, updateUserModel } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { StoreContactLinks } from "@/components/studio/StoreContactLinks";
 import { ShopInquiryDialog } from "@/components/studio/ShopInquiryDialog";
+import { useGuestGate } from "@/lib/guestGate";
 import { fitsCatalogRoom } from '@/lib/furnitureRoomFit';
 import { catalogRoomType, effectiveRoomType } from '@/lib/roomType';
 import { inferRole, ROLE_GROUP } from '@/lib/furnitureRole';
@@ -128,6 +129,8 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
   const ready = (!entry.isUser && !entry.isShop) || !!entry.modelPath;
   const roomId = useRoomStore((s) => s.roomId);
   const [inquiryOpen, setInquiryOpen] = React.useState(false);
+  // Contacting a shop needs an account: a guest of the app signs up before typing a message.
+  const { gate } = useGuestGate();
   const canTexture = entry.isUser && !!entry.modelPath;
   const { isOver, dropProps } = useFileDrop({
     onDrop: onFiles,
@@ -178,7 +181,7 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
           <>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setInquiryOpen(true); }}
+              onClick={(e) => { e.stopPropagation(); if (!gate("contact")) setInquiryOpen(true); }}
               className="mt-1 w-full rounded-md border border-brand/30 px-1.5 py-0.5 text-center text-[10px] font-semibold text-accent hover:bg-brand/5"
             >
               {t('studio.inquiry.title')}

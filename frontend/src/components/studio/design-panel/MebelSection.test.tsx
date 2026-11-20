@@ -5,13 +5,14 @@
  * showed, because that hand-off was missing. This renders the real panel and checks
  * the buttons reach the card.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
 import { MebelSection } from './MebelSection'
 import { useRoomStore } from '@/store/roomStore'
+import { asGuest, asRegistered, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
 const getStores = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api', async (orig) => ({ ...(await orig<object>()), getStores: (...a: unknown[]) => getStores(...a) }))
@@ -146,5 +147,32 @@ describe('Mebel panel — a card\'s size (kitchen QA 2026-11-18 K8)', () => {
     useRoomStore.getState().setCatalogFurniture([model({ footprint_w: 36.700000000000005, footprint_d: 400 })])
     renderPanel()
     expect(await screen.findByText('0.37×4 m')).toBeInTheDocument()
+  })
+})
+
+describe('Mebel panel — shop inquiry in guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('guest: the inquiry button asks for registration once and opens no dialog', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    getStores.mockResolvedValue([shop()])
+    useRoomStore.getState().setCatalogFurniture([model()])
+    renderPanel()
+    fireEvent.click(await screen.findByRole('button', { name: "Do'konga murojaat" }))
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(post).toHaveBeenCalledWith('{"feature":"contact"}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('registered: the inquiry button opens the dialog', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    getStores.mockResolvedValue([shop()])
+    useRoomStore.getState().setCatalogFurniture([model()])
+    renderPanel()
+    fireEvent.click(await screen.findByRole('button', { name: "Do'konga murojaat" }))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
   })
 })
