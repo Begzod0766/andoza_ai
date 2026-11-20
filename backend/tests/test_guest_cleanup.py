@@ -69,8 +69,11 @@ class _Session:
         sql = _sql(stmt)
         self.store["sql"].append(sql)
         if "FOR UPDATE" not in sql:
-            return _Res(self.store["ids"])
-        uid = next(i for i in self.store["ids"] if str(i) in sql)
+            batches = self.store.get("batches")
+            if batches is None:  # one short batch: everything at once
+                return _Res(self.store["ids"])
+            return _Res(batches.pop(0) if batches else [])
+        uid = next(i for i in self.store["rows"] if str(i) in sql)
         return _Res(self.store["rows"].get(uid))
 
     async def commit(self):
@@ -166,3 +169,38 @@ def test_beat_schedule():
     e = celery_app.app.conf.beat_schedule["cleanup-stale-guests"]
     assert e["task"] == "app.tasks.maintenance.cleanup_stale_guests"
     assert e["schedule"] == crontab(hour=4, minute=0)
+
+
+def test_query_pages_by_id():
+    after = uuid.uuid4()
+    sql = _sql(maintenance.stale_guests_query(NOW, after_id=after))
+    assert f"users.id > '{after}'" in sql and "ORDER BY users.id" in sql
+
+
+async def test_cleanup_pages_past_full_batches_and_failures(fake, monkeypatch):
+    monkeypatch.setattr(maintenance, "_BATCH", 2)
+    a, b, c = sorted([uuid.uuid4() for _ in range(3)])
+    fake["rows"] = {i: User(id=i, is_guest=True) for i in (a, b, c)}
+    fake["batches"] = [[a, b], [c]]
+    # a keeps failing: it must not stop the run or hold the next page back
+
+    async def _del(db, user):
+        if user.id == a:
+            raise RuntimeError("x")
+
+    fake["deleted"].side_effect = _del
+    res = await maintenance.cleanup_stale_guests_async(NOW)
+    assert res == {"deleted": 2}
+    lists = [s for s in fake["sql"] if "FOR UPDATE" not in s]
+    assert len(lists) == 2
+    assert f"users.id > '{b}'" in lists[1]
+
+
+async def test_cleanup_stops_at_the_batch_cap(fake, monkeypatch):
+    monkeypatch.setattr(maintenance, "_BATCH", 1)
+    monkeypatch.setattr(maintenance, "_MAX_BATCHES", 2)
+    ids = sorted(uuid.uuid4() for _ in range(5))
+    fake["rows"] = {i: User(id=i, is_guest=True) for i in ids}
+    fake["batches"] = [[i] for i in ids]
+    res = await maintenance.cleanup_stale_guests_async(NOW)
+    assert res == {"deleted": 2}

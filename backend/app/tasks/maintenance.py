@@ -9,6 +9,7 @@ storage files go too.
 """
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -25,6 +26,10 @@ from celery_app import app
 logger = structlog.get_logger(__name__)
 
 _BATCH = 200
+# One run's cap: 50 batches (10 000 guests) or 10 minutes, whichever first;
+# the next day's run carries on.
+_MAX_BATCHES = 50
+_TIME_BUDGET_S = 600
 
 
 async def delete_account(db, user: User) -> None:
@@ -59,46 +64,67 @@ def _stale_condition(now: datetime):
     )
 
 
-def stale_guests_query(now: datetime) -> Select:
-    """Ids of up to 200 guests due for deletion at *now*."""
-    return select(User.id).where(_stale_condition(now)).order_by(User.id).limit(_BATCH)
+def stale_guests_query(now: datetime, after_id: uuid.UUID | None = None) -> Select:
+    """Ids of up to 200 guests due for deletion at *now*, in id order after
+    *after_id* (keyset paging: a guest that fails to delete is passed over,
+    not read again in every batch)."""
+    query = select(User.id).where(_stale_condition(now))
+    if after_id is not None:
+        query = query.where(User.id > after_id)
+    return query.order_by(User.id).limit(_BATCH)
 
 
 async def cleanup_stale_guests_async(now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     engine, Session = await _open_session()
     deleted = 0
+    started = time.monotonic()
+    last_id: uuid.UUID | None = None
     try:
-        async with Session() as db:
-            ids: list[uuid.UUID] = list((await db.execute(stale_guests_query(now))).scalars().all())
-        for user_id in ids:
-            # Its own transaction per guest. The row is locked and the rule
-            # checked again: a guest that signed up (or came back) since the
-            # list was read survives.
+        for _ in range(_MAX_BATCHES):
+            if time.monotonic() - started > _TIME_BUDGET_S:
+                break
             async with Session() as db:
-                try:
-                    user = (
-                        await db.execute(
-                            select(User)
-                            .where(User.id == user_id, _stale_condition(now))
-                            .with_for_update()
-                        )
-                    ).scalar_one_or_none()
-                    if user is None:
-                        continue
-                    await delete_account(db, user)
-                    await db.commit()
-                except Exception as exc:  # one bad row must not stop the rest
-                    await db.rollback()
-                    logger.error("guest_cleanup_failed", user_id=str(user_id), error=type(exc).__name__)
-                    continue
-                deleted += 1
-                # The storage deletes delete_account queued for after the commit.
-                await _run_after_commit_hooks(db)
+                ids: list[uuid.UUID] = list(
+                    (await db.execute(stale_guests_query(now, after_id=last_id))).scalars().all()
+                )
+            deleted += await _delete_batch(Session, ids, now)
+            if len(ids) < _BATCH:
+                break
+            last_id = ids[-1]
     finally:
         await engine.dispose()
     logger.info("guest_cleaned", count=deleted)
     return {"deleted": deleted}
+
+
+async def _delete_batch(Session, ids: list[uuid.UUID], now: datetime) -> int:
+    deleted = 0
+    for user_id in ids:
+        # Its own transaction per guest. The row is locked and the rule
+        # checked again: a guest that signed up (or came back) since the
+        # list was read survives.
+        async with Session() as db:
+            try:
+                user = (
+                    await db.execute(
+                        select(User)
+                        .where(User.id == user_id, _stale_condition(now))
+                        .with_for_update()
+                    )
+                ).scalar_one_or_none()
+                if user is None:
+                    continue
+                await delete_account(db, user)
+                await db.commit()
+            except Exception as exc:  # one bad row must not stop the rest
+                await db.rollback()
+                logger.error("guest_cleanup_failed", user_id=str(user_id), error=type(exc).__name__)
+                continue
+            deleted += 1
+            # The storage deletes delete_account queued for after the commit.
+            await _run_after_commit_hooks(db)
+    return deleted
 
 
 @app.task(name="app.tasks.maintenance.cleanup_stale_guests")
