@@ -53,8 +53,17 @@ def test_pre_upgrade_guest_tokens_die_and_upgrade_tokens_work(world):
     assert up.status_code == 201, up.text
     assert up.json()["user"]["id"] == g["user"]["id"] and up.json()["user"]["is_guest"] is False
 
-    # the guest's own tokens: refused
+    # Each check carries only the token under test. The register response set
+    # a `token` cookie (the new one); a cookie wins over Bearer in
+    # get_current_user, and with ENVIRONMENT=development (CI) the cookie is not
+    # Secure, so the client's jar would send it and authenticate the request
+    # with the NEW token.
+    client.cookies.clear()
+
+    # the guest's own tokens: refused, as Bearer and as cookie
     assert client.get("/api/v1/auth/me", headers=_bearer(old_access)).status_code == 401
+    assert client.get("/api/v1/auth/me", headers=NATIVE, cookies={"token": old_access}).status_code == 401
+    client.cookies.clear()
     r = client.post("/api/v1/auth/refresh", cookies={"refresh_token": old_refresh}, headers=NATIVE)
     assert r.status_code == 401
     # the tokens the upgrade issued: fine
