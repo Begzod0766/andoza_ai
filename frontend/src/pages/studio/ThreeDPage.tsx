@@ -1002,7 +1002,7 @@ export default function ThreeDPage() {
               the current phase, this one names the three outright. */}
           {showsEditingCorners({ panorama, cameraStation }) && <div className="lg:hidden">
             <QuarterArcMenu
-              className="bottom-5 right-4"
+              className="bottom-1 right-1"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
             />

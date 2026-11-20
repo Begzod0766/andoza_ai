@@ -1236,7 +1236,8 @@ export function ThreeDCanvasScene({
     </CanvasErrorBoundary>
     <SceneLoadingOverlay />
     {aptRooms && aptRooms.length > 1 && showsEditingCorners({ panorama, cameraStation }) && (
-      <div className="pointer-events-auto absolute bottom-5 right-20 z-20">
+      <div className="pointer-events-auto absolute bottom-5 right-32 z-20">
+        {/* right-32: clear of the corner menu's small arc, ~120px in. */}
         <FlatToggle flat={focusedRoomId === null} onToggle={() => setFocusedRoomId(focusedRoomId === null ? room.id : null)} />
       </div>
     )}

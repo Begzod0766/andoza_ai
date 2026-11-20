@@ -1,8 +1,10 @@
 /**
- * QuarterArcMenu — a round arrow button pinned to the bottom-right corner that
- * fans out along a quarter circle, up and to the left, in two rings: the
- * categories on the inner arc, and the chosen category's own items on an outer
- * one beyond them.
+ * QuarterArcMenu — the categories sit as small buttons on a tight quarter arc
+ * in the bottom-right corner. Pressing one blows the menu up along a larger
+ * quarter circle, up and to the left, in two rings: the categories at full
+ * size on the inner arc, and the pressed category's own items on an outer one
+ * beyond them. There used to be an arrow button that had to be opened first;
+ * the small categories are that button now, one tap closer to what they hold.
  *
  * The outer ring scrolls ALONG the arc. A library of 87 wallpapers will never
  * fit on a quarter circle, and a "more" button that dumped the user into a
@@ -17,7 +19,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  ARC_FAB, ARC_ITEM, ARC_ITEM_OUTER, ARC_RADIUS, ARC_RADIUS_OUTER,
+  ARC_ITEM, ARC_ITEM_OUTER, ARC_RADIUS, ARC_RADIUS_OUTER,
   angleAt, arcCapacity, arcOffsets, arcSlots, distanceFrom,
   maxArcOffset, ringAtDistance, slotsFromAngleDelta, wrapArcOffset,
 } from '@/lib/arcMenu'
@@ -52,6 +54,18 @@ export interface ArcCategory {
 /** Finger travel, in slot units, past which a drag stops counting as a tap. */
 const DRAG_SLOP_SLOTS = 0.18
 
+/**
+ * The arc's centre is the middle of an invisible box this size; the caller's
+ * `className` places the box. It no longer draws anything — the arrow it used
+ * to be is gone — it only fixes where both arcs are measured from.
+ */
+const ANCHOR = 40
+/** The closed menu: small categories hugging the corner. The radius is the
+ *  least at which four of them clear each other, so the closed arc holds the
+ *  same slots as the open one and a category stays put as it grows. */
+const COMPACT_ITEM = 34
+const COMPACT_RADIUS = 78
+
 export function QuarterArcMenu({
   categories,
   label,
@@ -59,9 +73,9 @@ export function QuarterArcMenu({
   onOpenChange,
 }: {
   categories: ArcCategory[]
-  /** Accessible name for the corner button itself. */
+  /** Accessible name for the group of corner buttons. */
   label?: string
-  /** Positioning for the anchor — defaults to the bottom-right corner. */
+  /** Positioning for the (invisible) anchor box the arcs are centred on. */
   className?: string
   /** Fires as the menu opens and closes, so the page can clear whatever the
    *  fanned-out ring would otherwise land on top of. */
@@ -78,7 +92,7 @@ export function QuarterArcMenu({
   // One scroll position per ring: six categories no more fit the inner arc
   // than 87 wallpapers fit the outer one, and they scroll independently.
   const [offset, setOffset] = useState({ inner: 0, outer: 0 })
-  const fabRef = useRef<HTMLButtonElement | null>(null)
+  const fabRef = useRef<HTMLDivElement | null>(null)
   /** Live gesture: which ring it grabbed, where it started, and whether it has
    *  become a drag yet. */
   const drag = useRef<
@@ -126,8 +140,7 @@ export function QuarterArcMenu({
    * — a spread-to-fit layout would slide every button around under the finger
    * as the list advanced — and the ring scrolls.
    */
-  function ringLayout(count: number, radius: number, size: number, off: number) {
-    const capacity = arcCapacity(radius, size)
+  function ringLayout(count: number, radius: number, size: number, off: number, capacity = arcCapacity(radius, size)) {
     const scrollable = maxArcOffset(count, capacity) > 0
     return {
       capacity,
@@ -137,11 +150,20 @@ export function QuarterArcMenu({
     }
   }
 
-  const innerRing = ringLayout(categories.length, ARC_RADIUS, ARC_ITEM, offset.inner)
+  // Closed, the categories ride the small arc — but with the open arc's slot
+  // count, so each one is in the same place on both and simply grows outward.
+  const innerRing = ringLayout(
+    categories.length,
+    open ? ARC_RADIUS : COMPACT_RADIUS,
+    ARC_ITEM,
+    offset.inner,
+    arcCapacity(ARC_RADIUS, ARC_ITEM),
+  )
+  const catSize = open ? ARC_ITEM : COMPACT_ITEM
   const outerRing = ringLayout(outer.length, ARC_RADIUS_OUTER, ARC_ITEM_OUTER, offset.outer)
   const scrollable = innerRing.scrollable || outerRing.scrollable
 
-  /** The arc's centre in client coordinates — the corner button's own centre. */
+  /** The arc's centre in client coordinates — the anchor box's centre. */
   function centre() {
     const r = fabRef.current?.getBoundingClientRect()
     if (!r) return null
@@ -163,7 +185,7 @@ export function QuarterArcMenu({
     // Commit to one ring now: they scroll independently, and a finger that
     // drifted between them mid-sweep would otherwise hand the gesture over
     // halfway through.
-    const ring = ringAtDistance(distanceFrom(c.cx, c.cy, e.clientX, e.clientY))
+    const ring = open ? ringAtDistance(distanceFrom(c.cx, c.cy, e.clientX, e.clientY)) : 'inner'
     drag.current = {
       ring,
       startAngle: angleAt(c.cx, c.cy, e.clientX, e.clientY),
@@ -203,7 +225,8 @@ export function QuarterArcMenu({
    * Picking deliberately leaves the menu open. Adding things comes in runs —
    * three downlights, a few wallpapers to compare — and closing after each one
    * meant reopening and scrolling back to the same place every time. It closes
-   * when the user says so: the corner arrow, a tap on the backdrop, or Escape.
+   * when the user says so: a tap on the backdrop, or Escape — which puts it
+   * back down into the small corner arc.
    */
   function pick(item: ArcItem) {
     if (didDrag.current) return
@@ -226,10 +249,10 @@ export function QuarterArcMenu({
         onPointerUp={() => onDragEnd()}
         onClick={(e) => { e.stopPropagation(); pick(item) }}
         title={item.label}
-        className="absolute flex flex-col items-center justify-center gap-0.5 rounded-full bg-white text-brand shadow-lg ring-1 ring-black/5 overflow-hidden active:scale-95"
+        className="pointer-events-auto absolute flex flex-col items-center justify-center gap-0.5 rounded-full bg-white text-brand shadow-lg ring-1 ring-black/5 overflow-hidden active:scale-95"
         style={{
-          left: ARC_FAB / 2 + pos.dx,
-          top: ARC_FAB / 2 + pos.dy,
+          left: ANCHOR / 2 + pos.dx,
+          top: ANCHOR / 2 + pos.dy,
           width: ARC_ITEM_OUTER,
           height: ARC_ITEM_OUTER,
           transform: 'translate(-50%, -50%)',
@@ -284,7 +307,13 @@ export function QuarterArcMenu({
         />
       )}
 
-      <div className={`absolute z-30 ${className}`}>
+      <div
+        ref={fabRef}
+        role="group"
+        aria-label={buttonLabel}
+        className={`absolute z-30 pointer-events-none ${className}`}
+        style={{ width: ANCHOR, height: ANCHOR }}
+      >
         {/* Outer ring — the active category's own things. Rendered first so
             the category buttons paint over it where the rings crowd. */}
         {open && outerRing.slots
@@ -293,9 +322,11 @@ export function QuarterArcMenu({
             ? outer.map((item, i) => renderOuterButton(item, outerRing.even![i], 1, i, item.key))
             : null}
 
-        {/* Inner ring — the categories. Tapping one swaps the outer ring
-            instead of closing, so the three stay reachable from each other. */}
-        {open && (innerRing.slots
+        {/* Inner ring — the categories, always there: small in the corner
+            while closed, full size once open. Tapping one while open swaps the
+            outer ring instead of closing, so they stay reachable from each
+            other; tapping one while closed opens the menu straight onto it. */}
+        {(innerRing.slots
           ? innerRing.slots.map((s) => ({ cat: categories[s.index], pos: s, i: s.index, opacity: s.opacity, slotKey: s.key as number | string }))
           : categories.map((cat, i) => ({ cat, pos: innerRing.even![i], i, opacity: 1, slotKey: cat.key as number | string }))
         ).map(({ cat, pos, i, opacity, slotKey }) => {
@@ -312,6 +343,12 @@ export function QuarterArcMenu({
                 if (didDrag.current) return
                 // A different category starts its own ring at the beginning.
                 setOffset((o) => ({ ...o, outer: 0 }))
+                if (!open) {
+                  setOpen(true)
+                  setTrail([])
+                  setActiveKey(cat.key)
+                  return
+                }
                 // Tapping the live category backs out of a sub-ring first, so
                 // the way back from a room's models is the button that opened
                 // it — the same place the finger already is.
@@ -320,24 +357,28 @@ export function QuarterArcMenu({
                 setActiveKey((k) => (k === cat.key ? null : cat.key))
               }}
               aria-pressed={isActive}
-              className={`absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 transition-colors ${
+              className={`pointer-events-auto absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
                 isActive ? 'bg-brand text-white ring-brand/40' : 'bg-white text-brand ring-black/5'
               }`}
               style={{
-                left: ARC_FAB / 2 + dx,
-                top: ARC_FAB / 2 + dy,
-                width: ARC_ITEM,
-                height: ARC_ITEM,
+                left: ANCHOR / 2 + dx,
+                top: ANCHOR / 2 + dy,
+                width: catSize,
+                height: catSize,
                 transform: 'translate(-50%, -50%)',
                 opacity,
-                // Staggered along the arc, so the fan reads as one motion out
-                // of the corner rather than every button appearing at once.
-                animation: innerRing.scrollable ? undefined : `arcpop 160ms ease-out ${i * 45}ms backwards`,
+                // Grows and slides out of the corner on open, back in on
+                // close — but not while a drag is turning the ring, which it
+                // would only lag behind. Staggered along the arc so the fan
+                // reads as one motion rather than every button at once.
+                transition: drag.current
+                  ? 'background-color 150ms, color 150ms'
+                  : `left 200ms ease-out ${i * 30}ms, top 200ms ease-out ${i * 30}ms, width 200ms ease-out ${i * 30}ms, height 200ms ease-out ${i * 30}ms, background-color 150ms, color 150ms`,
                 touchAction: 'none',
               }}
             >
-              <span className="w-5 h-5 flex items-center justify-center">{cat.icon}</span>
-              <span className={`text-[8px] font-semibold leading-none ${isActive ? 'text-white' : 'text-gray-600'}`}>
+              <span className={`flex items-center justify-center ${open ? 'w-5 h-5' : 'w-4 h-4 [&_svg]:w-4 [&_svg]:h-4'}`}>{cat.icon}</span>
+              <span className={`${open ? 'text-[8px]' : 'text-[6.5px]'} font-semibold leading-none ${isActive ? 'text-white' : 'text-gray-600'}`}>
                 {cat.label}
               </span>
             </button>
@@ -360,8 +401,8 @@ export function QuarterArcMenu({
               aria-label={t('studio.arc.position_aria', { pos, total: r.total })}
               className="absolute whitespace-nowrap rounded-full bg-white/85 text-[9px] font-bold text-gray-600 px-1.5 py-0.5 shadow pointer-events-none"
               style={{
-                left: ARC_FAB / 2 - ARC_RADIUS_OUTER - 6,
-                top: ARC_FAB / 2 - ARC_RADIUS_OUTER - 6,
+                left: ANCHOR / 2 - ARC_RADIUS_OUTER - 6,
+                top: ANCHOR / 2 - ARC_RADIUS_OUTER - 6,
                 transform: 'translate(-50%, -50%)',
               }}
             >
@@ -373,33 +414,6 @@ export function QuarterArcMenu({
           )
         })()}
 
-        {/* The corner button. One arrow that turns 180° instead of swapping to
-            an X: it points up the arc to open, and back down into the corner
-            to put it away. */}
-        <button
-          ref={fabRef}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); open ? closeAll() : setOpen(true) }}
-          aria-label={buttonLabel}
-          aria-expanded={open}
-          title={buttonLabel}
-          className="relative flex items-center justify-center rounded-full bg-white text-brand shadow-lg ring-1 ring-black/5 active:scale-95 transition-transform"
-          style={{ width: ARC_FAB, height: ARC_FAB }}
-        >
-          <svg
-            width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{
-              transform: `rotate(${open ? 180 : 0}deg)`,
-              transition: 'transform 200ms ease',
-            }}
-            aria-hidden="true"
-          >
-            {/* Diagonal arrow, aiming up-left into the quarter the menu opens into. */}
-            <path d="M17 17L7 7" />
-            <path d="M7 14V7h7" />
-          </svg>
-        </button>
       </div>
 
       <style>{`

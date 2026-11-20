@@ -19,7 +19,7 @@ function category(count: number): ArcCategory {
 
 function openRing(count: number) {
   render(<QuarterArcMenu categories={[category(count)]} />)
-  fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.arc.add') }))
+  // No arrow to open first: pressing the category opens the menu onto it.
   fireEvent.click(screen.getByRole('button', { name: /Devor/ }))
 }
 
