@@ -135,6 +135,9 @@ async def create_store(payload: StoreCreate, admin: AdminUser, db: DbSession) ->
         district=payload.district,
         phone=payload.phone,
         telegram=payload.telegram,
+        address=payload.address,
+        lat=payload.lat,
+        lng=payload.lng,
         logo_color=payload.logo_color,
         partner_tier=payload.partner_tier,
     )

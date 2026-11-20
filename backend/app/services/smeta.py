@@ -271,6 +271,11 @@ class ComputedLine:
     category: str = ""
     material_id: str | None = None
     store_name: str | None = None
+    # The shop (Store.id) a line's price came from, and its product's photo — set wherever a
+    # line is priced from a shop's Material / Furniture / Wallpaper row (see _source). Saved
+    # estimates from before these existed simply lack them.
+    store_id: str | None = None
+    image_url: str | None = None
     is_approximate: bool = False
     warning: str | None = None
     # Set only on a line compute_estimate genuinely cannot price on its own
@@ -403,6 +408,8 @@ def _make_line(
     category: str = "",
     material_id: str | None = None,
     store_name: str | None = None,
+    store_id: str | None = None,
+    image_url: str | None = None,
     is_approximate: bool = False,
     warning: str | None = None,
     needs_ai_price: bool = False,
@@ -424,6 +431,8 @@ def _make_line(
         category=category,
         material_id=material_id,
         store_name=store_name,
+        store_id=store_id,
+        image_url=image_url,
         is_approximate=is_approximate,
         warning=warning,
         needs_ai_price=needs_ai_price,
@@ -465,6 +474,25 @@ def _store_name(material: "Material") -> str | None:
         return None
 
 
+def _source(row: object) -> dict:
+    """The line fields naming the shop a catalog row (Material, Furniture) belongs to and
+    the product's photo: a Material's ``image_url``, a Furniture row's thumbnail."""
+    # From the loaded shop row, like store_name: the two always name the same shop.
+    store_id = getattr(getattr(row, "store", None), "id", None)
+    image = getattr(row, "image_url", None)
+    if not image:
+        key = getattr(row, "thumbnail_key", None)
+        if key:
+            from app.core.storage import public_url
+
+            image = public_url(str(key))
+    return {
+        "store_name": _store_name(row),
+        "store_id": str(store_id) if store_id else None,
+        "image_url": str(image) if image else None,
+    }
+
+
 def _named(name: str, pack: str) -> str:
     """A product's name with its pack size, unless the name already says it ("... 30 kg")."""
     return name if pack.lower() in name.lower() else f"{name} ({pack})"
@@ -502,7 +530,7 @@ def _shop(material: "Material | None") -> dict:
     """The line fields that say which shop product a price came from."""
     if material is None or getattr(material, "id", None) is None:
         return {}
-    return {"material_id": str(material.id), "store_name": _store_name(material)}
+    return {"material_id": str(material.id), **_source(material)}
 
 
 # ---------------------------------------------------------------------------
@@ -1180,6 +1208,8 @@ class WallpaperRoll:
     roll_width_cm: float
     roll_length_m: float
     store_name: str | None = None
+    store_id: str | None = None
+    image_url: str | None = None
 
 
 def wallpaper_catalog_key(storage_key: str) -> str:
@@ -1244,6 +1274,8 @@ def _shop_wallpaper_lines(room: "Room", catalog: "dict | None") -> tuple[list[Co
             price_uzs=int(roll.price_uzs),
             category="oboy",
             store_name=roll.store_name,
+            store_id=roll.store_id,
+            image_url=roll.image_url,
         ))
     return lines, priced
 
@@ -1354,7 +1386,7 @@ def _paint_only_line(
         price_uzs=material.price_uzs,
         category=category,
         material_id=str(material.id) if has_id else None,
-        store_name=_store_name(material) if has_id else None,
+        **(_source(material) if has_id else {}),
         is_approximate=is_approximate,
         warning=warning,
     )
@@ -1492,7 +1524,7 @@ def _wallpaper_lines(
             price_uzs=price_uzs,
             category="oboy",
             material_id=str(material.id) if material else None,
-            store_name=_store_name(material) if material else None,
+            **(_source(material) if material else {}),
             is_approximate=material_missing or standing_in,
             warning=(
                 "Material topilmadi — narx smetaga kirmadi. "
@@ -1543,7 +1575,7 @@ def _laminate_lines(
         price_uzs=material.price_uzs,
         category="laminat",
         material_id=str(material.id),
-        store_name=_store_name(material),
+        **_source(material),
     ))
 
     lines.extend(_skirting_lines(room, norms_map, plinth_material, tile_floor=False))
@@ -1674,9 +1706,12 @@ def _designed_floor_lines(
     lines[0].warning = FINISH_STAND_IN_NOTE
     if not named:
         # The median of every tile in the shops: no one tile of them is what the user chose.
-        lines[0].label, lines[0].material_id, lines[0].store_name = "Pol plitkasi (o'rtacha narx)", None, None
+        lines[0].label, lines[0].material_id = "Pol plitkasi (o'rtacha narx)", None
+        lines[0].store_name = lines[0].store_id = lines[0].image_url = None
     elif lines[0].store_name is None:
-        lines[0].store_name = _store_name(stand_in)
+        src = _source(stand_in)
+        lines[0].store_name, lines[0].store_id = src["store_name"], src["store_id"]
+        lines[0].image_url = lines[0].image_url or src["image_url"]
     return lines
 
 
@@ -1749,7 +1784,7 @@ def _tile_lines(
         subtotal_uzs=subtotal_uzs,
         category="plitka",
         material_id=str(material.id),
-        store_name=_store_name(material),
+        **_source(material),
     )
     return [tile_line, *_skirting_lines(room, norms_map, plinth_material, tile_floor=True)]
 
@@ -1844,7 +1879,7 @@ def _kitchen_set_line(item: dict, row: object) -> "ComputedLine | None":
     return _make_line(
         label=f"Jihoz: {row.name_uz}",
         formula=f"{fmt(int(price))} so'm ÷ {catalog_m:.2f} m = {fmt(per_m)} so'm/m × {fitted_m:.2f} m",
-        qty=fitted_m, unit="m", price_uzs=per_m, category="jihoz", store_name=_store_name(row),
+        qty=fitted_m, unit="m", price_uzs=per_m, category="jihoz", **_source(row),
     )
 
 
@@ -1911,7 +1946,6 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
         if price is None:
             price = FURNITURE_FALLBACK_PRICE_UZS
         label = (getattr(row, "name_uz", None) if row is not None else None) or names.get(furniture_id) or furniture_id
-        store_name = _store_name(row) if row is not None else None
         lines.append(_make_line(
             label=f"Jihoz: {label}",
             formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
@@ -1919,7 +1953,7 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
             unit="dona",
             price_uzs=price,
             category="jihoz",
-            store_name=store_name,
+            **(_source(row) if row is not None else {}),
             is_approximate=is_approximate,
             warning=(
                 "Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q."
@@ -2147,7 +2181,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             label=f"Santexnika: {label}",
             formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
             qty=qty, unit="dona", price_uzs=price, category="santexnika",
-            store_name=_store_name(row) if row is not None else None,
+            **(_source(row) if row is not None else {}),
             is_approximate=approx,
             warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
         ))

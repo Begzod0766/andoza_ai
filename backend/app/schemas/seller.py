@@ -13,6 +13,7 @@ from app.schemas.admin_catalog import (  # noqa: F401  (re-exported for the rout
     parse_styles_form,
 )
 from app.schemas.auth import normalize_contact_phone
+from app.schemas.store_location import StoreLocationIn
 from app.schemas.usta_profile import PendingUstaOut
 from app.schemas.wallpaper import WallpaperOut
 
@@ -25,7 +26,7 @@ def _strip(v: object) -> object:
     return v.strip() if isinstance(v, str) else v
 
 
-class StoreApply(BaseModel):
+class StoreApply(StoreLocationIn):
     """A user's application to run a shop. The tier and status are never theirs to set."""
 
     name: str = Field(min_length=1, max_length=200)
@@ -45,7 +46,7 @@ class StoreApply(BaseModel):
         return normalize_contact_phone(v)
 
 
-class SellerStoreUpdate(BaseModel):
+class SellerStoreUpdate(StoreLocationIn):
     """All optional: a PATCH changes only what is sent."""
 
     name: str | None = Field(default=None, min_length=1, max_length=200)
@@ -71,6 +72,9 @@ class SellerStoreOut(BaseModel):
     district: str | None
     phone: str | None
     telegram: str | None
+    address: str | None = None
+    lat: float | None = None
+    lng: float | None = None
     logo_color: str | None
     partner_tier: str
     status: str

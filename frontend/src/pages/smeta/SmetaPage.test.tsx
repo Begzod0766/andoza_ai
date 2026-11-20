@@ -63,6 +63,16 @@ vi.mock('@/lib/api', () => ({
   smetaAsk: vi.fn(),
 }))
 
+// Leaflet needs a real layout engine: the map is stood in for by one button per shop.
+vi.mock('@/components/maps/lazyMaps', () => ({
+  LazyShopsMap: ({ shops, onPick }: { shops: Array<{ id: string; name: string }>; onPick: (id: string) => void }) => (
+    <div data-testid="shops-map">
+      {shops.map((s) => <button key={s.id} type="button" onClick={() => onPick(s.id)}>{`marker ${s.name}`}</button>)}
+    </div>
+  ),
+  LazyPointPicker: () => null,
+}))
+
 function renderSmetaPage(url = '/smeta/room-1') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -261,7 +271,7 @@ describe('SmetaPage (market prices)', () => {
     const source = screen.getByText('manba') as HTMLAnchorElement
     expect(source.getAttribute('href')).toBe('https://shop.uz/p/1')
     expect(source.getAttribute('rel')).toContain('noopener')
-    expect(screen.getByText(/Stroy Master/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Stroy Master/).length).toBeGreaterThan(0)
 
     previewEstimate.mockResolvedValueOnce({ ...ESTIMATE_RESPONSE, market_prices_available: true })
     fireEvent.click(screen.getByText('Katalog narxlariga qaytish'))
@@ -304,7 +314,12 @@ describe('SmetaPage (shop on each line)', () => {
         is_approximate: false, store_id: null, category: 'suvoq', store_name: 'Leroy Merlin Tashkent' }],
     })
     renderSmetaPage()
-    expect(await screen.findByText("Do'kon: Leroy Merlin Tashkent")).toBeInTheDocument()
+    // By shop (the default once a line names a shop) the name heads the shop's group...
+    expect(await screen.findByText('Leroy Merlin Tashkent')).toBeInTheDocument()
+    expect(screen.queryByText("Do'kon: Leroy Merlin Tashkent")).toBeNull()
+    // ...and by section it is under the line.
+    fireEvent.click(screen.getByRole('button', { name: "Bo'limlar bo'yicha" }))
+    expect(screen.getByText("Do'kon: Leroy Merlin Tashkent")).toBeInTheDocument()
   })
 
   it('shows no shop line when the price is a default', async () => {
@@ -605,5 +620,85 @@ describe('SmetaPage in English', () => {
   it('the room name is the page\'s heading', async () => {
     renderSmetaPage()
     expect(await screen.findByRole('heading', { level: 1 })).toHaveAttribute('data-testid', 'smeta-room')
+  })
+})
+
+describe('SmetaPage (by shop: photos, shop cards, map)', () => {
+  const base = { formula: '', quantity: 1, unit: 'dona', is_approximate: false, category: 'boyoq' }
+  const shopA = { id: 'a', name: "Bo'yoq Markazi", district: 'Chilonzor', address: '9-kvartal', lat: 41.285, lng: 69.204, phone: '+998901112233', telegram: '@boyoqmarkaz' }
+  const shopB = { id: 'b', name: 'Mebel Plus', district: 'Yunusobod', address: null, lat: null, lng: null, phone: null, telegram: null }
+  const estimate = {
+    ...ESTIMATE_RESPONSE,
+    total_uzs: 1_150_000,
+    stores: [shopA, shopB],
+    lines: [
+      { ...base, label: "Bo'yoq", unit_price: 100_000, total_uzs: 100_000, store_id: 'a', store_name: shopA.name, image_url: 'https://cdn.example/paint.webp' },
+      { ...base, label: 'Ish haqi', unit_price: 50_000, total_uzs: 50_000, store_id: null, category: 'ish', is_approximate: true },
+      { ...base, label: 'Jihoz: Divan', unit_price: 1_000_000, total_uzs: 1_000_000, store_id: 'b', store_name: shopB.name, category: 'jihoz' },
+    ],
+  }
+
+  it('groups lines under shop cards, biggest first, the no-shop group last, with totals', async () => {
+    previewEstimate.mockResolvedValueOnce(estimate)
+    renderSmetaPage()
+    await screen.findByText('Mebel Plus')
+    const sections = document.querySelectorAll('[data-shop]')
+    expect([...sections].map((el) => el.getAttribute('data-shop'))).toEqual(['b', 'a', '__no_shop__'])
+    expect(within(sections[1] as HTMLElement).getByRole('button', { expanded: true }).textContent).toContain(formatUZS(100_000))
+    expect(within(sections[0] as HTMLElement).getByRole('button', { expanded: true }).textContent).toContain(formatUZS(1_000_000))
+    expect(within(sections[2] as HTMLElement).getByText("Do'kon tanlanmagan / ishlar")).toBeInTheDocument()
+  })
+
+  it("a shop card has its address, contacts and both maps links; one with no point shows its district only", async () => {
+    previewEstimate.mockResolvedValueOnce(estimate)
+    renderSmetaPage()
+    await screen.findByText('Mebel Plus')
+    const a = document.querySelector('[data-shop="a"]') as HTMLElement
+    expect(within(a).getByText('Chilonzor, 9-kvartal')).toBeInTheDocument()
+    expect(within(a).getByRole('link', { name: /Yandex/ }).getAttribute('href')).toBe('https://yandex.uz/maps/?pt=69.204,41.285&z=16&l=map')
+    expect(within(a).getByRole('link', { name: /Google/ }).getAttribute('href')).toBe('https://www.google.com/maps/search/?api=1&query=41.285%2C69.204')
+    expect(within(a).getByText('Telegram').closest('a')?.getAttribute('href')).toBe('https://t.me/boyoqmarkaz')
+    const b = document.querySelector('[data-shop="b"]') as HTMLElement
+    expect(within(b).getByText('Yunusobod')).toBeInTheDocument()
+    expect(within(b).getByText(/Xaritadagi joyi kiritilmagan/)).toBeInTheDocument()
+    expect(within(b).queryByRole('link', { name: /Yandex|Google/ })).toBeNull()
+  })
+
+  it('a line priced from a product shows its photo; others show the section icon, also when the photo fails', async () => {
+    previewEstimate.mockResolvedValueOnce(estimate)
+    renderSmetaPage()
+    await screen.findByText('Mebel Plus')
+    const photo = screen.getByTestId('line-photo') as HTMLImageElement
+    expect(photo.getAttribute('src')).toBe('https://cdn.example/paint.webp')
+    expect(photo.getAttribute('loading')).toBe('lazy')
+    expect(screen.getAllByTestId('line-icon')).toHaveLength(2)
+    fireEvent.error(photo)
+    expect(screen.queryByTestId('line-photo')).toBeNull()
+    expect(screen.getAllByTestId('line-icon')).toHaveLength(3)
+  })
+
+  it('maps only the shops with a point, says some are missing, and a marker scrolls to its shop', async () => {
+    const scrolled = vi.fn()
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function (this: Element) { scrolled(this.id) } as typeof original
+    previewEstimate.mockResolvedValueOnce(estimate)
+    renderSmetaPage()
+    const map = await screen.findByTestId('shops-map')
+    expect(within(map).getAllByRole('button').map((b) => b.textContent)).toEqual(["marker Bo'yoq Markazi"])
+    expect(screen.getByText(/Ba'zi do'konlar xaritada yo'q/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Bo'limlar bo'yicha/ }))
+    fireEvent.click(within(map).getByRole('button'))
+    await waitFor(() => expect(scrolled).toHaveBeenCalledWith('smeta-shop-a'))
+    expect(document.querySelector('[data-shop="a"]')).not.toBeNull()
+    Element.prototype.scrollIntoView = original
+  })
+
+  it('an estimate with no shop at all (or from an older server) keeps the sections view and no map', async () => {
+    previewEstimate.mockResolvedValueOnce({ ...ESTIMATE_RESPONSE, lines: [{ ...base, label: 'Ish haqi', unit_price: 1, total_uzs: 1, store_id: null }] })
+    renderSmetaPage()
+    await screen.findByText('Ish haqi')
+    expect(screen.queryByTestId('shops-map')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Do'konlar bo'yicha/ })).toBeNull()
+    expect(document.querySelector('[data-shop]')).toBeNull()
   })
 })

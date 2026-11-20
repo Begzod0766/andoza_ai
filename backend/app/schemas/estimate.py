@@ -23,6 +23,22 @@ class EstimateLine(BaseModel):
     source_url: str | None = None
     store_name: str | None = None
     price_checked_at: str | None = None
+    # The shop product's photo (absolute URL); None for a line with no product behind it.
+    image_url: str | None = None
+
+
+class EstimateStore(BaseModel):
+    """One shop the estimate buys from, listed once however many lines it has: what the
+    estimate page's shop card and map need. lat/lng are None until the shop sets its point."""
+
+    id: UUID
+    name: str
+    district: str | None = None
+    address: str | None = None
+    lat: float | None = None
+    lng: float | None = None
+    phone: str | None = None
+    telegram: str | None = None
 
 
 class EstimateResponse(BaseModel):
@@ -55,6 +71,8 @@ class EstimateResponse(BaseModel):
     market_prices_available: bool = False
     market_checked: int = 0
     market_updated: int = 0
+    # Every shop a line's store_id points to, once (see EstimateStore).
+    stores: list[EstimateStore] = []
 
 
 class EstimateSummary(BaseModel):

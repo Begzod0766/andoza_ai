@@ -1488,6 +1488,21 @@
       "under_fixtures": "jihozlar ostida",
       "banka_one": "banka",
       "banka_other": "banka"
+    },
+    "shop": {
+      "view_shops": "Do'konlar bo'yicha",
+      "view_sections": "Bo'limlar bo'yicha",
+      "view_aria": "Smetani qanday guruhlash",
+      "none": "Do'kon tanlanmagan / ishlar",
+      "open_map": "Xaritada ochish",
+      "yandex": "Yandex Xaritalar",
+      "google": "Google Xaritalar",
+      "map_title": "Do'konlar xaritada",
+      "map_hint": "Belgini bosing — o'sha do'kon qatorlariga o'tadi",
+      "map_missing": "Ba'zi do'konlar xaritada yo'q: joyini hali kiritmagan",
+      "map_aria": "Smetadagi do'konlar xaritasi",
+      "no_point": "Xaritadagi joyi kiritilmagan",
+      "photo_alt": "{{name}} — rasm"
     }
   },
   "ustalar": {
@@ -2914,6 +2929,22 @@
       "restore_failed": "Qaytarib bo'lmadi",
       "model_hint": "Oboy qo'shmoqchimisiz?",
       "model_add": "Oboy qo'shish"
+    },
+    "location": {
+      "address": "Manzil",
+      "address_placeholder": "Masalan: Chilonzor 9-kvartal, 12-uy",
+      "title": "Xaritadagi joy",
+      "lat": "Kenglik (lat)",
+      "lng": "Uzunlik (lng)",
+      "pick": "Xaritadan tanlash",
+      "hide_map": "Xaritani yopish",
+      "pick_hint": "Xaritani bosing — nuqta shu yerga qo'yiladi",
+      "clear": "Nuqtani o'chirish",
+      "outside": "Nuqta O'zbekiston hududida bo'lishi kerak",
+      "pair": "Kenglik va uzunlikni birga kiriting",
+      "hint": "Mijozlar smetada do'koningizni xaritada ko'radi va yo'l topadi",
+      "edit": "Manzil va xarita",
+      "saved": "Manzil saqlandi"
     }
   },
   "rooms": {
