@@ -1,11 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render as rtlRender, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import i18n from '@/i18n'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/roomStore'
 import type { AiDesignPlan } from '@/lib/api'
+import { MemoryRouter } from 'react-router-dom'
+import { ApiError } from '@/lib/api/client'
 import { AiBuilderSheet, zoneLabel } from './AiBuilderSheet'
+import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
 const aiDesign = vi.fn()
 const aiDesignFromImage = vi.fn()
@@ -36,7 +39,8 @@ vi.mock('@/lib/applyToRooms', () => ({
 let queryClient: QueryClient
 function render(ui: React.ReactElement) {
   const client = queryClient
-  return rtlRender(ui, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+  // Under a router like the Studio itself: the guest gate can send to /login.
+  return rtlRender(ui, { wrapper: ({ children }) => <MemoryRouter><QueryClientProvider client={client}>{children}</QueryClientProvider></MemoryRouter> })
 }
 
 const PLAN: AiDesignPlan = {
@@ -1281,5 +1285,50 @@ describe('AiBuilderSheet: what to change, chosen before the design', () => {
     expect(screen.getByRole('button', { name: "Qorong'i" })).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
     expect(screen.getByText('Dizayn yaratish').closest('button')).toBeDisabled()
+  })
+})
+
+describe('AiBuilderSheet in guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('guest: the AI designer asks for registration and sends nothing', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    renderSheet()
+    fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
+    fireEvent.click(screen.getByText('Dizayn yaratish'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"ai_design"}'))
+    expect(aiDesign).not.toHaveBeenCalled()
+  })
+
+  it('late 403 opens the prompt instead of the error text', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    aiDesign.mockRejectedValue(new ApiError(body403('ai_design'), 403))
+    renderSheet()
+    fireEvent.change(screen.getByLabelText('Dizayn tavsifi'), { target: { value: "qorong'i xona" } })
+    fireEvent.click(screen.getByText('Dizayn yaratish'))
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"ai_design"}'))
+    expect(screen.queryByText(/registration_required/)).toBeNull()
+    expect(screen.queryByText(i18n.t('ai.xato'))).toBeNull()
+  })
+
+  it('registered user unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    aiDesign.mockResolvedValue(PLAN)
+    renderSheet({ onSave: savesOk() })
+    await generate()
+    expect(aiDesign).toHaveBeenCalledTimes(1)
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('guest can still apply a ready-made style (it costs nothing)', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    renderSheet({ onSave: savesOk() })
+    fireEvent.click(screen.getByText('Qorong\'i'))
+    expect(screen.getByText("Qorong'i, iliq atmosfera")).toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
   })
 })

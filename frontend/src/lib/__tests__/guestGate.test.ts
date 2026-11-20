@@ -153,4 +153,16 @@ describe('useGuestGate', () => {
     expect(result.current.gate('render')).toBe(false)
     expect(post).not.toHaveBeenCalled()
   })
+
+  it('promptIfRequired turns the registration 403 into the prompt, and only that', () => {
+    const post = vi.fn()
+    window.AndozaAuthGate = { postMessage: post }
+    isEmbeddedApp('?app=1')
+    setUser({})
+    const { result } = renderHook(() => useGuestGate(), { wrapper: inRouter })
+    expect(result.current.promptIfRequired(new ApiError(body, 403))).toBe(true)
+    expect(post).toHaveBeenCalledWith('{"feature":"render"}')
+    expect(result.current.promptIfRequired(new ApiError('{"detail":"boshqa"}', 403))).toBe(false)
+    expect(post).toHaveBeenCalledTimes(1)
+  })
 })

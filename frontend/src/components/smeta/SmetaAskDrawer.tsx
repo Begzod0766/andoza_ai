@@ -2,6 +2,7 @@ import * as React from "react"
 import { BottomSheet } from "@/components/ui/BottomSheet"
 import { useTranslation } from "react-i18next";
 import { smetaAsk } from "@/lib/api"
+import { useGuestGate } from "@/lib/guestGate"
 
 interface SmetaAskDrawerProps {
   open: boolean
@@ -24,6 +25,8 @@ export function SmetaAskDrawer({
   onHighlight,
 }: SmetaAskDrawerProps) {
   const { t } = useTranslation()
+  // Questions go to a paid AI: a guest of the app is asked to sign up instead.
+  const { gate, promptIfRequired } = useGuestGate()
   const suggested = [t("ai.tavsiya_1"), t("ai.tavsiya_2"), t("ai.tavsiya_3")]
   const [input, setInput] = React.useState("")
   const [messages, setMessages] = React.useState<ChatMessage[]>([])
@@ -38,6 +41,7 @@ export function SmetaAskDrawer({
 
   async function handleAsk(question: string) {
     if (!question.trim() || loading) return
+    if (gate("smeta_ask")) return
     setError("")
     const userMsg: ChatMessage = { id: idRef.current++, role: "user", text: question }
     setMessages((prev) => [...prev, userMsg])
@@ -53,6 +57,12 @@ export function SmetaAskDrawer({
         onHighlight(res.related_line_ids)
       }
     } catch (exc: unknown) {
+      if (promptIfRequired(exc)) {
+        // Not answered: take the question back off the chat and into the box.
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id))
+        setInput(question)
+        return
+      }
       const msg = exc instanceof Error ? exc.message : t("errors.nomalum_xato")
       setError(msg)
     } finally {

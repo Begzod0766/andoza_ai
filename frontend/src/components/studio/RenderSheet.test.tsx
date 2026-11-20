@@ -1,6 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { ReactElement } from 'react'
+import { render as rtlRender, screen, waitFor, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { ApiError } from '@/lib/api/client'
 import { RenderSheet } from './RenderSheet'
+import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
+
+// The sheet lives in the Studio, under the app's router (the guest gate navigates).
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter })
 
 const createRender = vi.fn()
 const createRelight = vi.fn()
@@ -262,5 +269,39 @@ describe('RenderSheet', () => {
       expect(createUpscale).toHaveBeenLastCalledWith('renders/u/b.jpg')
       expect(screen.getByRole('button', { name: '4K ✓' })).toBeDisabled()
     })
+  })
+})
+
+describe('RenderSheet in guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('guest: render asks for registration and sends nothing', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    panoramaJpeg.mockResolvedValue(new Blob(['pano']))
+    const onOpenChange = vi.fn()
+    render(<RenderSheet open onOpenChange={onOpenChange} roomId="room-7" />)
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
+    expect(createRender).not.toHaveBeenCalled()
+    expect(panoramaJpeg).not.toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('late 403 opens the prompt instead of the error text', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    panoramaJpeg.mockResolvedValue(new Blob(['pano']))
+    createRender.mockRejectedValue(new ApiError(body403('render'), 403))
+    render(<RenderSheet open onOpenChange={() => {}} roomId="room-7" />)
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
+    expect(screen.queryByText(/registration_required/)).toBeNull()
+  })
+
+  it('registered user unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    await renderOnce(FIRST, 'room-7')
+    expect(createRender).toHaveBeenCalledTimes(1)
+    expect(post).not.toHaveBeenCalled()
   })
 })

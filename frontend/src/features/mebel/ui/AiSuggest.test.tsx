@@ -1,5 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { ReactElement } from 'react'
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { ApiError } from '@/lib/api/client'
+import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 import { AiSuggest, applySuggestion } from './AiSuggest'
 import { newProject } from '@/features/mebel/engine'
 import type { MebelSuggestion } from '@/lib/api'
@@ -11,6 +15,8 @@ vi.mock('@/lib/api', async () => {
   return { ...actual, suggestMebelCabinets: vi.fn() }
 })
 
+// Under a router like the mebel page itself: the guest gate can send to /login.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter })
 const t = (k: string, o?: Record<string, unknown>) => i18n.t(k, o)
 const SUGGESTION: MebelSuggestion = {
   cabinets: [
@@ -105,5 +111,45 @@ describe('AiSuggest', () => {
     expect(screen.getByRole('button', { name: t('mebel.ai.add') })).toBeDisabled()
     expect(screen.getByText(t('mebel.ai.over_limit', { max: 30 }))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: t('mebel.ai.replace') })).not.toBeDisabled()
+  })
+})
+
+describe('AiSuggest in guest mode', () => {
+  beforeEach(() => vi.clearAllMocks())
+  afterEach(resetGuestMode)
+
+  function askAi() {
+    fireEvent.change(screen.getByLabelText(t('mebel.ai.label')), { target: { value: '2400 oshxona' } })
+    fireEvent.click(screen.getByRole('button', { name: t('mebel.ai.ask') }))
+  }
+
+  it('guest: asking the AI asks for registration and sends nothing', () => {
+    const post = inAppWithChannel()
+    asGuest()
+    render(<AiSuggest update={vi.fn()} />)
+    askAi()
+    expect(post).toHaveBeenCalledWith('{"feature":"mebel_ai"}')
+    expect(api.suggestMebelCabinets).not.toHaveBeenCalled()
+  })
+
+  it('late 403 opens the prompt instead of the error text', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    vi.mocked(api.suggestMebelCabinets).mockRejectedValue(new ApiError(body403('mebel_ai'), 403))
+    render(<AiSuggest update={vi.fn()} />)
+    askAi()
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"mebel_ai"}'))
+    expect(screen.queryByText(/registration_required/)).toBeNull()
+  })
+
+  it('registered user unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    vi.mocked(api.suggestMebelCabinets).mockResolvedValue(SUGGESTION)
+    render(<AiSuggest update={vi.fn()} />)
+    askAi()
+    expect(await screen.findByText('Devor shkaflari balandligi 720 mi?')).toBeInTheDocument()
+    expect(api.suggestMebelCabinets).toHaveBeenCalledTimes(1)
+    expect(post).not.toHaveBeenCalled()
   })
 })

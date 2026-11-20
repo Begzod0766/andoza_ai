@@ -5,6 +5,7 @@ import type { MebelSuggestion } from "@/lib/api";
 import { newCabinet } from "@/features/mebel/engine";
 import type { CabinetSpec, FurnitureProject } from "@/features/mebel/engine";
 import { nextX } from "./layout";
+import { useGuestGate } from "@/lib/guestGate";
 
 /**
  * The AI's proposal applied to a project: added after the existing cabinets
@@ -39,18 +40,21 @@ export function AiSuggest({
   update, cabinetCount = 0,
 }: { update: (fn: (p: FurnitureProject) => FurnitureProject) => void; cabinetCount?: number }) {
   const { t } = useTranslation();
+  // The cabinet AI is paid: a guest of the app is asked to sign up instead.
+  const { gate, promptIfRequired } = useGuestGate();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [proposal, setProposal] = useState<MebelSuggestion | null>(null);
 
   async function ask() {
+    if (gate("mebel_ai")) return;
     setBusy(true);
     setError("");
     try {
       setProposal(await suggestMebelCabinets(text.trim()));
     } catch (e) {
-      setError(errorMessage(e));
+      if (!promptIfRequired(e)) setError(errorMessage(e));
     } finally {
       setBusy(false);
     }

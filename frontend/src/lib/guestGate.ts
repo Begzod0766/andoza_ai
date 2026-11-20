@@ -89,8 +89,16 @@ export function requestRegistration(feature: GuestFeature, navigate: Navigate): 
   navigate("/login", { state: { from: pathname + search + hash } });
 }
 
-/** `gate(feature)` prompts a guest and returns true (the caller stops); false for everyone else. */
-export function useGuestGate(): { guest: boolean; gate: (feature: GuestFeature) => boolean } {
+export interface GuestGate {
+  /** The signed-in account is a guest (re-renders when that changes). */
+  guest: boolean;
+  /** Prompts a guest and returns true (the caller stops); false for everyone else. */
+  gate: (feature: GuestFeature) => boolean;
+  /** For a catch block: true when *err* was the registration 403 and the prompt is shown. */
+  promptIfRequired: (err: unknown) => boolean;
+}
+
+export function useGuestGate(): GuestGate {
   const navigate = useNavigate();
   const guest = useAuthStore((s) => s.user?.is_guest === true);
   const gate = useCallback(
@@ -101,5 +109,14 @@ export function useGuestGate(): { guest: boolean; gate: (feature: GuestFeature) 
     },
     [navigate],
   );
-  return { guest, gate };
+  const promptIfRequired = useCallback(
+    (err: unknown) => {
+      const feature = registrationRequiredFeature(err);
+      if (!feature) return false;
+      requestRegistration(feature, navigate);
+      return true;
+    },
+    [navigate],
+  );
+  return { guest, gate, promptIfRequired };
 }
