@@ -3,6 +3,7 @@ import type { ReactElement } from 'react'
 import { render as rtlRender, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '@/lib/api/client'
+import i18n from '@/i18n'
 import { RenderSheet } from './RenderSheet'
 import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
@@ -292,9 +293,42 @@ describe('RenderSheet in guest mode', () => {
     asRegistered()
     panoramaJpeg.mockResolvedValue(new Blob(['pano']))
     createRender.mockRejectedValue(new ApiError(body403('render'), 403))
-    render(<RenderSheet open onOpenChange={() => {}} roomId="room-7" />)
+    const onOpenChange = vi.fn()
+    render(<RenderSheet open onOpenChange={onOpenChange} roomId="room-7" />)
     await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    // back to idle: no spinner, no error, the empty frame
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText(i18n.t('render.natija_joyi'))).toBeInTheDocument()
     expect(screen.queryByText(/registration_required/)).toBeNull()
+  })
+
+  /** A saved first render (not yet 4K) shown from the gallery: relight and 4K are both on offer. */
+  async function guestWithSavedRender() {
+    listRenders.mockResolvedValue([{
+      id: '1', kind: 'render', url: 'https://s3/old.jpg', key: 'renders/u/old.jpg', lighting: null, prompt: null,
+      panorama: true, parent_key: null, room_id: 'room-7', created_at: '2026-10-01T10:00:00Z',
+    }])
+    const post = inAppWithChannel()
+    asGuest()
+    render(<RenderSheet open onOpenChange={() => {}} roomId="room-7" mode="gallery" />)
+    await waitFor(() => expect(viewerSrc()).toBe('https://s3/old.jpg'))
+    return post
+  }
+
+  it('guest: relight asks for registration and sends nothing', async () => {
+    const post = await guestWithSavedRender()
+    fireEvent.click(screen.getByRole('button', { name: 'Iliq chiroqlar' }))
+    expect(post).toHaveBeenCalledWith('{"feature":"render"}')
+    expect(createRelight).not.toHaveBeenCalled()
+  })
+
+  it('guest: 4K asks for registration and sends nothing', async () => {
+    const post = await guestWithSavedRender()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('render.to4k') }))
+    expect(post).toHaveBeenCalledWith('{"feature":"render"}')
+    expect(createUpscale).not.toHaveBeenCalled()
   })
 
   it('registered user unchanged', async () => {
