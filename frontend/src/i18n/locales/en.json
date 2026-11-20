@@ -1488,6 +1488,21 @@
       "under_fixtures": "under fixtures",
       "banka_one": "can",
       "banka_other": "cans"
+    },
+    "shop": {
+      "view_shops": "By shop",
+      "view_sections": "By section",
+      "view_aria": "How to group the estimate",
+      "none": "No shop chosen / labour",
+      "open_map": "Open in maps",
+      "yandex": "Yandex Maps",
+      "google": "Google Maps",
+      "map_title": "Shops on the map",
+      "map_hint": "Tap a marker to jump to that shop's lines",
+      "map_missing": "Some shops are not on the map: they have not set their location yet",
+      "map_aria": "Map of the shops in this estimate",
+      "no_point": "No map location yet",
+      "photo_alt": "{{name}} — photo"
     }
   },
   "ustalar": {
@@ -2914,6 +2929,22 @@
       "restore_failed": "Could not restore",
       "model_hint": "Want to add a wallpaper?",
       "model_add": "Add wallpaper"
+    },
+    "location": {
+      "address": "Address",
+      "address_placeholder": "E.g. Chilonzor 9th block, 12",
+      "title": "Map location",
+      "lat": "Latitude (lat)",
+      "lng": "Longitude (lng)",
+      "pick": "Pick on the map",
+      "hide_map": "Hide the map",
+      "pick_hint": "Tap the map to put the point there",
+      "clear": "Clear the point",
+      "outside": "The point must be inside Uzbekistan",
+      "pair": "Enter latitude and longitude together",
+      "hint": "Buyers see your shop on the estimate's map and can get directions",
+      "edit": "Address and map",
+      "saved": "Address saved"
     }
   },
   "rooms": {

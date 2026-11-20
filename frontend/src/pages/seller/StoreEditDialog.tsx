@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { updateMyStore, type SellerStore } from "@/lib/api";
 import { isUzPhone } from "@/lib/phone";
+import { StoreLocationFields, locationDraft, locationPatch } from "@/components/maps/StoreLocationFields";
 import { type FormError, formErrorText, localError, requestError } from "@/lib/formError";
 
 export function StoreEditDialog({
@@ -24,15 +25,17 @@ export function StoreEditDialog({
   const [district, setDistrict] = useState(store.district ?? "");
   const [phone, setPhone] = useState(store.phone ?? "");
   const [telegram, setTelegram] = useState(store.telegram ?? "");
+  const [location, setLocation] = useState(() => locationDraft(store));
   const [error, setError] = useState<FormError>(null);
 
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (where: { address: string | null; lat: number | null; lng: number | null }) =>
       updateMyStore({
         name: name.trim(),
         district: district.trim() || null,
         phone: phone.trim() || null,
         telegram: telegram.trim() || null,
+        ...where,
       }),
     onSuccess: (saved) => {
       onSaved(saved);
@@ -48,7 +51,9 @@ export function StoreEditDialog({
           e.preventDefault();
           setError(null);
           if (phone.trim() && !isUzPhone(phone)) { setError(localError("common.telefon_xato")); return; }
-          if (name.trim()) save.mutate();
+          const where = locationPatch(location);
+          if ("error" in where) { setError(localError(where.error as Parameters<typeof localError>[0])); return; }
+          if (name.trim()) save.mutate(where);
         }}
         className="space-y-4"
       >
@@ -58,6 +63,7 @@ export function StoreEditDialog({
           <Input themed label={t("common.telefon")} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
         <Input themed label="Telegram" value={telegram} onChange={(e) => setTelegram(e.target.value)} />
+        <StoreLocationFields value={location} onChange={setLocation} />
         {error && <p role="alert" className="text-sm text-red-500">{formErrorText(t, error)}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>{t("common.bekor")}</Button>

@@ -28,6 +28,10 @@ export interface AdminStore {
   district: string | null;
   phone: string | null;
   telegram: string | null;
+  /** Street address and map point (null until the shop sets them). */
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   logo_color: string | null;
   partner_tier: string;
   is_active: boolean;
@@ -41,6 +45,10 @@ export interface AdminStoreInput {
   district?: string | null;
   phone?: string | null;
   telegram?: string | null;
+  /** Street address and map point (null until the shop sets them). */
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   logo_color?: string | null;
   partner_tier?: AdminPartnerTier;
 }

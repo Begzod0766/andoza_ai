@@ -18,6 +18,7 @@ import { ModelFilterBar } from "./ModelFilterBar";
 import { ModelFormDialog } from "./ModelFormDialog";
 import { EMPTY_MODEL_FILTERS, filterModels } from "./modelFilters";
 import { WallpaperSection } from "./WallpaperSection";
+import { StoreLocationDialog } from "./StoreLocationDialog";
 import { requestError, type FormError } from "@/lib/formError";
 
 const TIER_STYLES: Record<string, string> = {
@@ -33,8 +34,11 @@ export function StoreProfile({
   onBack,
   onError,
   onDeleted,
+  onUpdated,
 }: {
   store: AdminStore;
+  /** The shop as saved after an edit here (the page shows the copy it was opened with). */
+  onUpdated?: (store: AdminStore) => void;
   onBack: () => void;
   onError: (msg: FormError) => void;
   onDeleted: () => void;
@@ -45,6 +49,7 @@ export function StoreProfile({
   const [showAddModel, setShowAddModel] = useState(false);
   const [editingModel, setEditingModel] = useState<AdminFurniture | null>(null);
   const [filters, setFilters] = useState(EMPTY_MODEL_FILTERS);
+  const [editingLocation, setEditingLocation] = useState(false);
 
   const { data: models = [] } = useQuery<AdminFurniture[]>({
     queryKey: ["admin", "furniture", "store", store.id],
@@ -103,12 +108,14 @@ export function StoreProfile({
               </span>
             )}
           </div>
-          {store.district && (
-            <div className="flex items-center gap-1.5 text-sm text-ink-muted">
-              <MapPin size={14} />
-              {store.district}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5 text-sm text-ink-muted">
+            <MapPin size={14} />
+            {[store.district, store.address].filter(Boolean).join(", ")}
+            {store.lat == null && <span className="text-xs">· {t("smeta.shop.no_point")}</span>}
+            <button type="button" onClick={() => setEditingLocation(true)} className="text-xs font-semibold text-accent hover:underline">
+              {t("seller.location.edit")}
+            </button>
+          </div>
           <div className="flex items-center gap-1.5 text-sm text-ink-muted">
             <Package size={14} />
             {t("dokon.store.models3d", { count: models.length })}
@@ -165,6 +172,9 @@ export function StoreProfile({
         fixedStoreId={store.id}
         onError={onError}
       />
+      {editingLocation && (
+        <StoreLocationDialog store={store} open={editingLocation} onOpenChange={setEditingLocation} onSaved={onUpdated} />
+      )}
       <ModelEditDialog
         model={editingModel}
         open={!!editingModel}

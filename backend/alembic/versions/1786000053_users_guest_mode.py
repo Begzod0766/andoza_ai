@@ -5,8 +5,8 @@ for the stale-guest cleanup, and `registered_at` — when a row became a real
 account. Every existing row is a registered account, so its `registered_at`
 is its `created_at`.
 
-Revision ID: 1786000052
-Revises: 1786000051
+Revision ID: 1786000053
+Revises: 1786000052
 Create Date: 2026-11-20 00:00:00.000000
 """
 from __future__ import annotations
@@ -16,8 +16,8 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "1786000052"
-down_revision: Union[str, None] = "1786000051"
+revision: str = "1786000053"
+down_revision: Union[str, None] = "1786000052"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -165,6 +165,8 @@ async def fill_ai_price_gaps(
                 category=ln.category,
                 material_id=ln.material_id,
                 store_name=ln.store_name,
+                store_id=ln.store_id,
+                image_url=ln.image_url,
                 is_approximate=True,
                 warning=f"AI taxminiy narx (tajribali usta bahosi): {note}".strip(": "),
                 needs_ai_price=False,

@@ -8,6 +8,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.store_location import StoreLocationIn
+
 # Degrees the studio turns a GLB so its front faces the room.
 ModelYaw = Literal[0, 90, 180, 270]
 
@@ -65,7 +67,7 @@ USTA_CATEGORIES = {
 }
 
 
-class StoreCreate(BaseModel):
+class StoreCreate(StoreLocationIn):
     name: str = Field(min_length=1, max_length=200)
     district: str | None = Field(default=None, max_length=100)
     phone: str | None = Field(default=None, max_length=20)
@@ -74,7 +76,7 @@ class StoreCreate(BaseModel):
     partner_tier: str = Field(default="standard")
 
 
-class StoreUpdate(BaseModel):
+class StoreUpdate(StoreLocationIn):
     """All fields optional — a PATCH only touches what's supplied."""
 
     name: str | None = Field(default=None, min_length=1, max_length=200)
@@ -94,6 +96,9 @@ class StoreAdminOut(BaseModel):
     district: str | None
     phone: str | None
     telegram: str | None
+    address: str | None = None
+    lat: float | None = None
+    lng: float | None = None
     logo_color: str | None
     partner_tier: str
     is_active: bool

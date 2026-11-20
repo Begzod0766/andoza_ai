@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, func, select
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Numeric, String, func, select
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -49,6 +49,11 @@ class Store(Base):
     district: Mapped[str | None] = mapped_column(String(100), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     telegram: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Where the shop is: a street address and a map point, shown on the estimate's shop
+    # cards and map. Empty for a shop until its owner or an admin enters them.
+    address: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    lat: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
+    lng: Mapped[float | None] = mapped_column(Numeric(9, 6), nullable=True)
     logo_color: Mapped[str | None] = mapped_column(
         String(7), nullable=True, comment="Hex colour code, e.g. #FF5733"
     )

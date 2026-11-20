@@ -104,7 +104,7 @@ mavjud moderatsiya `status` orqali o'tadi), `POST /reports` (App Store 1.2: kont
 - `registered_at: datetime | None` — haqiqiy akkaunt bo'lgan payt (oddiy ro'yxat yoki upgrade). Mavjud
   qatorlar uchun `created_at` bilan to'ldiriladi. Metrikalar "ro'yxatdan o'tganlar"ni shu bo'yicha sanaydi.
 
-Migratsiya: `alembic/versions/1786000052_users_guest_mode.py` (`down_revision = "1786000051"`).
+Migratsiya: `alembic/versions/1786000053_users_guest_mode.py` (`down_revision = "1786000052"`).
 `schemas/auth.py` `UserOut` ga `is_guest: bool = False`.
 
 ### `POST /api/v1/auth/guest`

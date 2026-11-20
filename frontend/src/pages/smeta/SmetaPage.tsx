@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { useParams, Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -10,6 +10,9 @@ import { useTranslation } from "react-i18next";
 import type { EstimateResponse } from "@/lib/api";
 import { SmetaAskDrawer } from "@/components/smeta/SmetaAskDrawer";
 import { CategorySection } from "@/components/smeta/CategorySection";
+import { ShopSection } from "@/components/smeta/ShopSection";
+import { LazyShopsMap } from "@/components/maps/lazyMaps";
+import { NO_SHOP_KEY, groupLinesByShop, mappableShops, shopSectionId } from "@/lib/smetaShops";
 import { SmetaSectionNav } from "@/components/smeta/SmetaSectionNav";
 import { activeSection } from "@/lib/smetaActiveSection";
 import { CostBreakdown } from "@/components/smeta/CostBreakdown";
@@ -139,6 +142,18 @@ export default function SmetaPage() {
   );
   const hasFurniture = furnitureTotal > 0;
   const groups = useMemo(() => groupEstimateLines(estimate?.lines ?? [], exclude), [estimate, exclude]);
+  // The same lines by shop (each shop's card, then the lines no shop sells). Shown by default
+  // once at least one line comes from a shop; the reader can switch to the sections view.
+  const shopGroups = useMemo(() => groupLinesByShop(estimate?.lines ?? [], estimate?.stores, exclude), [estimate, exclude]);
+  const hasShops = shopGroups.some((g) => g.key !== NO_SHOP_KEY);
+  const [layoutChoice, setLayoutChoice] = useState<"shop" | "section" | null>(null);
+  const layout = layoutChoice ?? (hasShops ? "shop" : "section");
+  const [foldedShops, setFoldedShops] = useState<Set<string>>(new Set());
+  const mapShops = useMemo(() => {
+    const listed = new Set(shopGroups.map((g) => g.store?.id).filter(Boolean));
+    return mappableShops((estimate?.stores ?? []).filter((s) => listed.has(s.id)));
+  }, [estimate, shopGroups]);
+  const shopsOffMap = shopGroups.some((g) => g.key !== NO_SHOP_KEY && !(g.store && mapShops.some((m) => m.id === g.store!.id)));
   // The server's own figures when everything counts; recomputed with its formula when a group is left out.
   const view = useMemo(
     () =>
@@ -250,6 +265,9 @@ export default function SmetaPage() {
       if (line) needed.add(groupKeyFor(line.category));
     }
     if (needed.size > 0) setFolded((prev) => new Set([...prev].filter((key) => !needed.has(key))));
+    const wanted = new Set(lineIds.map(Number));
+    const shopKeys = new Set(shopGroups.filter((g) => g.items.some((i) => wanted.has(i.index))).map((g) => g.key));
+    if (shopKeys.size > 0) setFoldedShops((prev) => new Set([...prev].filter((key) => !shopKeys.has(key))));
     setHighlightedLines(new Set(lineIds));
     setTimeout(() => setHighlightedLines(new Set()), 8000);
   }
@@ -263,13 +281,32 @@ export default function SmetaPage() {
     });
   }
 
-  const allFolded = groups.length > 0 && groups.every((g) => folded.has(g.key));
+  const allFolded =
+    layout === "shop"
+      ? shopGroups.length > 0 && shopGroups.every((g) => foldedShops.has(g.key))
+      : groups.length > 0 && groups.every((g) => folded.has(g.key));
+
+  function toggleShop(key: string) {
+    setFoldedShops((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  /** A map marker: show that shop's lines and bring them into view. */
+  function jumpToShop(storeId: string) {
+    setLayoutChoice("shop");
+    setFoldedShops((prev) => (prev.has(storeId) ? new Set([...prev].filter((k) => k !== storeId)) : prev));
+    requestAnimationFrame(() => document.getElementById(shopSectionId(storeId))?.scrollIntoView?.({ behavior: "smooth", block: "start" }));
+  }
 
   // The section being read (activeSection), worked out from where the sections are as the page scrolls.
   const [activeGroup, setActiveGroup] = useState<GroupKey | null>(null);
   const stickyBarRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (groups.length < 2) return;
+    if (groups.length < 2 || layout !== "section") return;
     let frame = 0;
     const update = () => {
       frame = 0;
@@ -289,7 +326,7 @@ export default function SmetaPage() {
       window.removeEventListener("resize", onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [groups]);
+  }, [groups, layout]);
 
   /** Opens a folded section and brings it under the sticky bar. */
   function jumpToGroup(key: GroupKey) {
@@ -315,7 +352,7 @@ export default function SmetaPage() {
             </button>
           </div>
           <div className="mx-auto max-w-3xl px-4 pb-2">
-            <SmetaSectionNav groups={groups} active={activeGroup} onPick={jumpToGroup} fmt={fmt} />
+            {layout === "section" && <SmetaSectionNav groups={groups} active={activeGroup} onPick={jumpToGroup} fmt={fmt} />}
           </div>
         </div>
       )}
@@ -510,6 +547,24 @@ export default function SmetaPage() {
               )}
             </section>
 
+            {/* The shops this estimate buys from, on a map: tap one to go to its lines. A shop
+                that has not set its point is left off (its card shows the district). */}
+            {mapShops.length > 0 && (
+              <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-panel">
+                <div className="px-4 pt-3 sm:flex sm:items-baseline sm:justify-between sm:gap-3 sm:px-5">
+                  <h2 className="text-sm font-semibold text-ink">{t("smeta.shop.map_title")}</h2>
+                  <p className="text-xs text-ink-muted">{t("smeta.shop.map_hint")}</p>
+                </div>
+                {/* isolate: Leaflet's panes carry z-index 400+, which would draw over the sticky total bar. */}
+                <div className="relative isolate z-0 mt-2">
+                  <Suspense fallback={<div className="h-56 w-full animate-pulse bg-card-soft sm:h-64" />}>
+                    <LazyShopsMap shops={mapShops} onPick={jumpToShop} label={t("smeta.shop.map_aria")} />
+                  </Suspense>
+                </div>
+                {shopsOffMap && <p className="px-4 py-2 text-xs text-ink-muted sm:px-5">{t("smeta.shop.map_missing")}</p>}
+              </section>
+            )}
+
             {marketNote && (
               <div
                 className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3 text-sm ${
@@ -530,19 +585,50 @@ export default function SmetaPage() {
             )}
             {marketError && <p className="text-sm text-red-600">{marketError}</p>}
 
-            {/* Line items, by group */}
+            {/* Line items, by shop or by section */}
             {groups.length > 0 && (
               <div className="space-y-3">
-                <div className="flex justify-end">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {hasShops ? (
+                    <div role="group" aria-label={t("smeta.shop.view_aria")} className="inline-flex rounded-full bg-card-soft p-0.5 text-xs font-semibold">
+                      {(["shop", "section"] as const).map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setLayoutChoice(v)}
+                          aria-pressed={layout === v}
+                          className={`rounded-full px-3 py-1.5 transition-colors ${
+                            layout === v ? "bg-gradient-to-br from-[#5B84F5] to-[#2F55D4] text-white shadow-glow" : "text-ink-muted hover:text-ink"
+                          }`}
+                        >
+                          {v === "shop" ? t("smeta.shop.view_shops") : t("smeta.shop.view_sections")}
+                        </button>
+                      ))}
+                    </div>
+                  ) : <span />}
                   <button
                     type="button"
-                    onClick={() => setFolded(allFolded ? new Set() : new Set(groups.map((g) => g.key)))}
+                    onClick={() =>
+                      layout === "shop"
+                        ? setFoldedShops(allFolded ? new Set() : new Set(shopGroups.map((g) => g.key)))
+                        : setFolded(allFolded ? new Set() : new Set(groups.map((g) => g.key)))
+                    }
                     className="text-xs font-semibold text-accent hover:underline"
                   >
                     {allFolded ? t("smeta.hammasini_yoyish") : t("smeta.hammasini_yigish")}
                   </button>
                 </div>
-                {groups.map((group) => (
+                {layout === "shop" && shopGroups.map((group) => (
+                  <ShopSection
+                    key={group.key}
+                    group={group}
+                    open={!foldedShops.has(group.key)}
+                    onToggle={() => toggleShop(group.key)}
+                    fmt={fmt}
+                    highlighted={highlightedLines}
+                  />
+                ))}
+                {layout === "section" && groups.map((group) => (
                   <CategorySection
                     key={group.key}
                     group={group}

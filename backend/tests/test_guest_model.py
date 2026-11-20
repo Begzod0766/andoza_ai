@@ -12,7 +12,7 @@ from app.main import app
 from app.models.user import User
 from app.schemas.auth import UserOut
 
-_MIGRATION = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "1786000052_users_guest_mode.py"
+_MIGRATION = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "1786000053_users_guest_mode.py"
 
 
 def _guest() -> User:
@@ -27,10 +27,10 @@ def _guest() -> User:
 
 
 def test_migration_chain():
-    spec = importlib.util.spec_from_file_location("m_1786000052", _MIGRATION)
+    spec = importlib.util.spec_from_file_location("m_1786000053", _MIGRATION)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
-    assert (m.revision, m.down_revision) == ("1786000052", "1786000051")
+    assert (m.revision, m.down_revision) == ("1786000053", "1786000052")
 
 
 def test_user_model_has_guest_columns():
@@ -75,7 +75,7 @@ def test_user_out_unflushed_user_is_not_a_guest():
 
 def test_downgrade_deletes_guests_before_dropping_the_flag(monkeypatch):
     # Otherwise every guest would come back as an identity-less "registered" user.
-    spec = importlib.util.spec_from_file_location("m_1786000052_down", _MIGRATION)
+    spec = importlib.util.spec_from_file_location("m_1786000053_down", _MIGRATION)
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     calls: list[tuple[str, str]] = []

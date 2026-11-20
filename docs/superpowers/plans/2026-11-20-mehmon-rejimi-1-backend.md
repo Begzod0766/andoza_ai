@@ -35,7 +35,7 @@
 ## File Structure
 
 - `backend/app/models/user.py` — + `is_guest`, `last_seen_at`, `registered_at`.
-- `backend/alembic/versions/1786000052_users_guest_mode.py` — the three columns, partial index, backfill `registered_at`.
+- `backend/alembic/versions/1786000053_users_guest_mode.py` — the three columns, partial index, backfill `registered_at`.
 - `backend/app/schemas/auth.py` — `UserOut.is_guest`, `LoginResponse.guest_merged_rooms`, `GuestCreateRequest`.
 - `backend/app/config.py` — guest settings.
 - `backend/app/core/security.py` — `create_refresh_token(..., expires_days)`.
@@ -53,15 +53,15 @@
 
 ### Task 1: Guest columns, migration, `/auth/me`
 
-**Files:** Modify `backend/app/models/user.py`, `backend/app/schemas/auth.py`; Create `backend/alembic/versions/1786000052_users_guest_mode.py`; Test `backend/tests/test_guest_model.py`
+**Files:** Modify `backend/app/models/user.py`, `backend/app/schemas/auth.py`; Create `backend/alembic/versions/1786000053_users_guest_mode.py`; Test `backend/tests/test_guest_model.py`
 
 **Interfaces:** Produces `User.is_guest: Mapped[bool]` (`default=False, server_default="false", nullable=False`), `User.last_seen_at: Mapped[datetime | None]`, `User.registered_at: Mapped[datetime | None]` (both `DateTime(timezone=True)`); `UserOut.is_guest: bool = False`.
 
 - [ ] Test:
 ```python
 def test_migration_chain():
-    m = importlib.import_module("alembic.versions.1786000052_users_guest_mode")  # or load by path
-    assert (m.revision, m.down_revision) == ("1786000052", "1786000051")
+    m = importlib.import_module("alembic.versions.1786000053_users_guest_mode")  # or load by path
+    assert (m.revision, m.down_revision) == ("1786000053", "1786000052")
 
 def test_user_out_carries_is_guest():
     u = User(id=uuid.uuid4(), is_guest=True, language="uz", is_admin=False, created_at=datetime.now(timezone.utc))
