@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createEstimate, previewEstimate, getEstimatePDF, getRoom } from "@/lib/api";
 import { intlLocale } from "@/i18n";
@@ -21,6 +21,7 @@ import { StudioMenu } from "@/components/studio/StudioMenu";
 import { MENU_ROW } from "@/components/studio/menuRow";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
+import { requestRegistration, useGuestGate } from "@/lib/guestGate";
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -120,6 +121,10 @@ export default function SmetaPage() {
   const [marketMode, setMarketMode] = useState(false);
   const [marketNote, setMarketNote] = useState<string | null>(null);
   const [marketError, setMarketError] = useState<string | null>(null);
+  // A guest of the app gets catalog/approximate prices only (no AI gap-fill, no market
+  // lookup — both paid); the page says so and offers to sign up.
+  const { gate } = useGuestGate();
+  const navigate = useNavigate();
 
   // Format a so'm amount in whichever currency the user picked — every price
   // in this page routes through this so the toggle stays in sync everywhere.
@@ -472,6 +477,19 @@ export default function SmetaPage() {
                       {t("smeta.shundan_taxminiy")}: ~{fmt(view!.approx)}
                     </p>
                   )}
+                  {estimate.prices_approximate_for_guest === true && (
+                    <p className="mt-1.5 text-sm text-ink-muted">
+                      {t("smeta.guestPricesNote")}{" "}
+                      <button
+                        type="button"
+                        // The server's flag is the authority here, so no guest check of our own.
+                        onClick={() => requestRegistration("market_prices", navigate)}
+                        className="font-semibold text-accent underline underline-offset-2 hover:text-brand-light"
+                      >
+                        {t("smeta.guestSignUp")}
+                      </button>
+                    </p>
+                  )}
                 </div>
 
                 {/* Currency toggle */}
@@ -671,7 +689,7 @@ export default function SmetaPage() {
                   {t("smeta.qayta_hisoblash")}
                 </button>
                 {estimate.market_prices_available && (
-                  <button onClick={() => marketMutation.mutate()} disabled={marketMutation.isPending} className={secondaryButton}>
+                  <button onClick={() => { if (!gate("market_prices")) marketMutation.mutate(); }} disabled={marketMutation.isPending} className={secondaryButton}>
                     {marketMutation.isPending ? t("smeta.bozor_qidirilmoqda") : t("smeta.bozor_yangilash")}
                   </button>
                 )}
