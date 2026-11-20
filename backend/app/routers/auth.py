@@ -180,6 +180,11 @@ async def get_guest_caller(
             user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         except Exception:  # noqa: BLE001 — see docstring
             logger.warning("guest_caller_lookup_failed")
+            # Leave the session usable for the sign-in itself.
+            try:
+                await db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
             return None
         if user is not None and user.is_active and user.is_guest is True:
             return user
@@ -304,16 +309,17 @@ async def verify_otp_endpoint(
     user = result.scalar_one_or_none()
     merged: MergeResult | None = None
     if user is None and guest is not None:
-        # A new phone: the guest becomes this account, rooms and all.
+        # A new phone: the guest becomes this account, rooms and all (None:
+        # a concurrent sign-up upgraded it first — make a fresh account).
         user = await upgrade_guest(db, guest, phone=body.phone)
-    elif user is None:
+    if user is None:
         user = User(phone=body.phone, registered_at=datetime.now(timezone.utc))
         db.add(user)
         await db.flush()
         # Same reason as register(): populate server defaults (created_at)
         # so the freshly-created user serialises into a complete LoginResponse.
         await db.refresh(user)
-    elif guest is not None and user.is_active:
+    elif guest is not None and user.is_active and user.id != guest.id:
         merged = await merge_guest_into(db, guest.id, user)
 
     logger.info("user_authenticated", user_id=str(user.id), phone=body.phone)
@@ -441,19 +447,22 @@ async def register(
             detail="Bu username allaqachon band.",
         )
 
+    password_hash = _hash_password(body.password)
+    user = None
     if guest is not None:
         # The guest becomes this account in place (same id, same rooms) and
-        # keeps the language it already has.
+        # keeps the language it already has. None: a concurrent sign-up
+        # upgraded it first, so this one gets an account of its own.
         user = await upgrade_guest(
             db, guest,
             username=body.username,
-            password_hash=_hash_password(body.password),
+            password_hash=password_hash,
             name=body.name,
         )
-    else:
+    if user is None:
         user = User(
             username=body.username,
-            password_hash=_hash_password(body.password),
+            password_hash=password_hash,
             name=body.name,
             language=body.language or "uz",
             registered_at=datetime.now(timezone.utc),
@@ -512,7 +521,8 @@ async def login_with_password(
             detail="Username yoki parol noto'g'ri.",
         )
 
-    merged = await merge_guest_into(db, guest.id, user) if guest is not None else None
+    # Not into an inactive account: the guest's rooms would be stranded there.
+    merged = await merge_guest_into(db, guest.id, user) if guest is not None and user.is_active else None
 
     logger.info("user_logged_in", user_id=str(user.id), username=body.username)
 
@@ -728,7 +738,7 @@ async def login_with_google(
         email = (claims.get("email") or "").strip()[:255] or None
         if guest is not None:
             user = await upgrade_guest(db, guest, google_sub=sub, email=email, name=name)
-        else:
+        if user is None:
             user = User(
                 google_sub=sub, email=email, name=name, language=body.language or "uz",
                 registered_at=datetime.now(timezone.utc),
@@ -895,7 +905,7 @@ async def login_with_apple(
         email = (claims.get("email") or "").strip()[:255] or None
         if guest is not None:
             user = await upgrade_guest(db, guest, apple_sub=sub, email=email, name=name)
-        else:
+        if user is None:
             user = User(
                 apple_sub=sub, email=email, name=name, language=body.language or "uz",
                 registered_at=datetime.now(timezone.utc),

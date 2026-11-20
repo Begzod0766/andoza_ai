@@ -58,27 +58,43 @@ class MergeResult:
     apartments: int
 
 
-async def upgrade_guest(db: AsyncSession, guest: User, **identity: str | None) -> User:
-    """Give *guest* a real identity in place: same id, same rooms."""
+async def _lock_guest(db: AsyncSession, guest_id: uuid.UUID) -> User | None:
+    """The row of *guest_id*, locked (FOR UPDATE) and read fresh from the
+    database — ``populate_existing`` so a copy already in the session (the
+    caller loaded it to find the guest) cannot hide a concurrent sign-up."""
+    return (
+        await db.execute(
+            select(User).where(User.id == guest_id).with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+
+
+async def upgrade_guest(db: AsyncSession, guest: User, **identity: str | None) -> User | None:
+    """Give *guest* a real identity in place: same id, same rooms. None when,
+    under the row lock, it is no longer a guest (a concurrent sign-up got
+    there first): the caller then signs up without a guest, and the first
+    account's identity is never overwritten."""
     unknown = set(identity) - set(_IDENTITY_FIELDS)
     if unknown:
         raise TypeError(f"upgrade_guest: not an identity field: {sorted(unknown)}")
+    row = await _lock_guest(db, guest.id)
+    if row is None or row.is_guest is not True:
+        return None
     for field, value in identity.items():
-        setattr(guest, field, value)
-    guest.is_guest = False
-    guest.registered_at = datetime.now(timezone.utc)
+        setattr(row, field, value)
+    row.is_guest = False
+    row.registered_at = datetime.now(timezone.utc)
     await db.flush()
     method = next(iter(identity), None)
-    logger.info("guest_upgraded", user_id=str(guest.id), method=method)
-    return guest
+    logger.info("guest_upgraded", user_id=str(row.id), method=method)
+    return row
 
 
 async def merge_guest_into(db: AsyncSession, guest_id: uuid.UUID, target: User) -> MergeResult | None:
     """Move everything guest *guest_id* owns to *target* and delete the guest.
     None (nothing done) when the row is gone, is no longer a guest, or is the target."""
-    guest = (
-        await db.execute(select(User).where(User.id == guest_id).with_for_update())
-    ).scalar_one_or_none()
+    guest = await _lock_guest(db, guest_id)
     if guest is None or guest.is_guest is not True or guest.id == target.id:
         return None
     to = target.id

@@ -378,3 +378,68 @@ def test_guest_delete_account_needs_no_password(monkeypatch):
     assert r.status_code == 204
     deleted.assert_awaited_once()
     assert deleted.await_args.args[1] is guest
+
+
+# --- upgrade lost the race (row no longer a guest under the lock) -------------
+
+@pytest.fixture
+def upgrade_lost(spies):
+    upgrade, merge = spies
+    upgrade.side_effect = None
+    upgrade.return_value = None
+    return upgrade, merge
+
+
+def test_register_falls_back_to_a_new_account_when_upgrade_lost(make_client, guest, upgrade_lost):
+    db = _FakeDb(guest)
+    r = make_client(db, guest).post("/api/v1/auth/register", json={"username": "ali2", "password": "secret1"})
+    assert r.status_code == 201, r.text
+    assert len(db.added) == 1 and db.added[0].username == "ali2"
+    assert r.json()["user"]["id"] == str(db.added[0].id) != str(guest.id)
+
+
+def test_otp_falls_back_to_a_new_account_when_upgrade_lost(make_client, guest, upgrade_lost, otp_ok):
+    db = _FakeDb(guest)
+    r = make_client(db, guest).post("/api/v1/auth/otp/verify", json={"phone": PHONE, "code": "1234"})
+    assert r.status_code == 200 and db.added[0].phone == PHONE
+    assert r.json()["user"]["id"] != str(guest.id)
+
+
+def test_google_falls_back_to_a_new_account_when_upgrade_lost(make_client, guest, upgrade_lost, google):
+    db = _FakeDb(guest)
+    r = make_client(db, guest).post("/api/v1/auth/google", json={"id_token": "t"})
+    assert r.status_code == 200 and db.added[0].google_sub == "g-1"
+
+
+def test_apple_falls_back_to_a_new_account_when_upgrade_lost(make_client, guest, upgrade_lost, apple):
+    db = _FakeDb(guest)
+    r = make_client(db, guest).post("/api/v1/auth/apple", json={"identity_token": "t"})
+    assert r.status_code == 200 and db.added[0].apple_sub == "a-1"
+
+
+# --- review fixes: inactive login target, DB error rollback --------------------
+
+def test_password_login_into_inactive_account_does_not_merge(make_client, guest, spies):
+    _, merge = spies
+    existing = _pw_user()
+    existing.is_active = False
+    make_client(_FakeDb(guest, existing), guest).post(
+        "/api/v1/auth/login", json={"username": "ali", "password": "secret1"}
+    )
+    assert not merge.await_count
+
+
+async def test_db_error_rolls_the_session_back():
+    class _Broken(_FakeDb):
+        rolled_back = False
+
+        async def execute(self, stmt):
+            raise RuntimeError("db down")
+
+        async def rollback(self):
+            self.rolled_back = True
+
+    g = _user(is_guest=True)
+    db = _Broken()
+    assert await auth_router.get_guest_caller(_request(), db, create_access_token(str(g.id))) is None
+    assert db.rolled_back is True
