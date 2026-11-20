@@ -20,7 +20,7 @@ kirmaydi. Kalitlarni hech qachon commit qilmang.
 | `ENVIRONMENT` | `development` | Muhit nomi (productionda ham hozir `development`). |
 | `API_DOCS_ENABLED` | `true` | `/docs`, `/redoc`, `/openapi.json`. Ochiq serverda `false` qiling. |
 | `CORS_ORIGINS_STR` | localhost portlari | Ruxsat etilgan originlar: vergul bilan yoki JSON ro'yxat. Capacitor originlari (`capacitor://localhost`, `http://localhost`) har doim qo'shiladi. |
-| `TRUST_PROXY_HEADERS` | `false` | `X-Forwarded-For` ga ishonish (OTP va mehmon limitlari uchun mijoz IP'si). |
+| `TRUST_PROXY_HEADERS` | `false` | `X-Forwarded-For` ning birinchi qiymatiga ishonish. **Prod'da `false` qoldiring**: mijoz IP'sini uvicorn `--proxy-headers` beradi; flag yoqilsa `X-Forwarded-For[0]` ni mijozning o'zi yozadi va OTP, login va mehmon per-IP limitlarini aylanib o'tadi. |
 | `GOOGLE_CLIENT_IDS` | prod web + iOS client ID'lari | "Google orqali kirish": qabul qilinadigan ID token `aud` qiymatlari (vergul bilan). Bo'sh = o'chiq (503). |
 | `APPLE_CLIENT_IDS` | `uz.andozaai.app` | "Apple orqali kirish": qabul qilinadigan identity token `aud` qiymatlari, ya'ni iOS bundle id (vergul bilan). Bo'sh = o'chiq (503). |
 | `SENTRY_DSN` | bo'sh | Xatolarni Sentry'ga yuborish. |
@@ -55,8 +55,7 @@ Spec: `docs/superpowers/specs/2026-11-20-mehmon-rejimi-design.md`.
 | `GUEST_CLEANUP_EMPTY_DAYS` | `14` | Xonasiz mehmon shuncha kun harakatsiz bo'lsa o'chiriladi (har kuni 04:00, Celery beat). |
 | `GUEST_CLEANUP_IDLE_DAYS` | `100` | Har qanday mehmon shuncha kun harakatsiz bo'lsa o'chiriladi. |
 
-**`GUEST_MODE_ENABLED=true` qilishdan oldin `TRUST_PROXY_HEADERS` `true` bo'lishi shart**: aks holda hamma so'rov proksi IP'sidan keladi va 30/soat limit barcha
-mehmonlarga birgalikda qo'llanadi. Proksi `X-Forwarded-For` ni o'rnatishini ham tekshiring.
+**Per-IP limit va mijoz IP'si.** `TRUST_PROXY_HEADERS` ni **`false` qoldiring**. Prod'da uvicorn `--proxy-headers --forwarded-allow-ips=${FORWARDED_ALLOW_IPS:-172.16.0.0/12}` bilan ishlaydi (`docker-compose.prod.yml`), shuning uchun `request.client.host` allaqachon nginx yuborgan haqiqiy mijoz IP'si. Flag yoqilsa `_get_client_ip` `X-Forwarded-For` ning birinchi qiymatini oladi — uni mijozning o'zi yozadi, va per-IP mehmon, OTP va login limitlarini aylanib o'tish mumkin bo'ladi. `GUEST_MODE_ENABLED=true` qilishdan oldin tekshiring: ikki xil tarmoqdan `/auth/guest` → ikki xil IP (masalan `guest_ip_rate:*` Redis kalitlari), proksi IP'si emas.
 
 ## AI va tashqi xizmatlar
 | O'zgaruvchi | Standart | Vazifasi |

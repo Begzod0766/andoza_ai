@@ -119,10 +119,11 @@ Migratsiya: `alembic/versions/1786000052_users_guest_mode.py` (`down_revision = 
 Limiter bor: `auth._enforce_rate_limit` (Redis, get-incr-expire). Uchta kalit:
 `guest_ip_rate:{ip}` — 30/soat (CGNAT: O'zbekiston mobil operatorlarida ko'p odam bitta IP'da, shuning uchun keng),
 `guest_install_rate:{install_id}` — 3/kun, `guest_global_daily` — 5000/kun. 429 bo'lsa ilova login ekraniga tushadi.
-**Diqqat:** `_get_client_ip` faqat `TRUST_PROXY_HEADERS=true` bo'lganda `X-Forwarded-For` ni o'qiydi (standart `false`).
-Prod `.env` da yoqilmagan bo'lsa, hamma so'rov proksi IP'sidan keladi va per-IP limit (30/soat) hamma mehmonlarga
-**birgalikda** qo'llanadi — 31-mehmondan keyin bir soat hech kim kira olmaydi. Shuning uchun bu flag'ni yoqishdan
-oldingi majburiy qadam (§5, 3-qadam).
+**Diqqat (2026-11-20 review bilan tuzatildi):** per-IP limit haqiqiy mijoz IP'sini talab qiladi. Prod'da uvicorn
+`--proxy-headers --forwarded-allow-ips=172.16.0.0/12` bilan ishlaydi, shuning uchun `request.client.host` allaqachon
+haqiqiy IP. `TRUST_PROXY_HEADERS` **o'chiq qoladi**: yoqilsa `_get_client_ip` `X-Forwarded-For[0]` ni oladi, uni mijoz
+o'zi yozadi va mehmon, OTP va login limitlarini aylanib o'tadi. Flag'ni yoqishdan oldingi majburiy qadam — haqiqiy IP
+kelayotganini tekshirish (§5, 3-qadam).
 
 ### `require_registered` va xato shakli
 `app/api/v1/deps.py`:
@@ -352,10 +353,11 @@ sanasi = `registered_at`. Loglar: `guest_created`, `guest_upgraded{method}`, `gu
    (GitHub ghcr image → VPS pull). `beat` konteyneri prod'da ishlayotganini tekshirish.
 2. **Veb PR:** `is_guest`, `guestGate.ts`, tugmalar, SmetaPage izohi, `smeta.guestPricesNote` (backend
    `smeta_locale.json` bilan bir xil). Deploy.
-3. **Darvoza (majburiy):** prod `.env` da `TRUST_PROXY_HEADERS=true` ekanini va `_get_client_ip` haqiqiy mijoz IP'sini
-   qaytarishini tasdiqlash (masalan ikki xil tarmoqdan `/auth/guest` → log'da ikki xil IP). Sabab: aks holda hamma
-   so'rov proksi IP'sidan keladi va per-IP limit barcha mehmonlarga birgalikda qo'llanadi (soatiga 30 ta mehmon butun
-   mamlakat uchun). Tasdiqlanmaguncha 4-qadamga o'tilmaydi.
+3. **Darvoza (majburiy):** prod'da `TRUST_PROXY_HEADERS` o'chiq ekanini va uvicorn `--proxy-headers` sozlamasi
+   (`docker-compose.prod.yml`, `FORWARDED_ALLOW_IPS`) `_get_client_ip` ga haqiqiy mijoz IP'sini berishini tasdiqlash
+   (masalan ikki xil tarmoqdan `/auth/guest` → ikki xil `guest_ip_rate:*` kaliti). Sabab: proksi IP'si kelsa per-IP limit
+   barcha mehmonlarga birgalikda qo'llanadi (soatiga 30 ta mehmon butun mamlakat uchun). Tasdiqlanmaguncha 4-qadamga
+   o'tilmaydi.
 4. Prod `.env` da `GUEST_MODE_ENABLED=true` (hali faqat yangi ilova chaqiradi).
 5. **Mobil PR:** `chore: 1.0.3+36 (mehmon rejimi)`; ikkala do'konga. Orqaga qaytarish: flag `false` → yangi ilova
    login ekraniga tushadi, mavjud mehmon tokenlari ishlashda davom etadi.
@@ -411,7 +413,7 @@ sanasi = `registered_at`. Loglar: `guest_created`, `guest_upgraded{method}`, `gu
    sovuq startda login ekrani + "Ro'yxatdan o'tmasdan davom etish"; aks holda jim mehmon. Akkaunt o'chirilgandan keyin ham shunday.
 7. Mehmon refresh tokeni 90 kun; tozalash: xonasiz 14 kun, xonali 100 kun harakatsiz.
 8. Rate limit: IP 30/soat, install 3/kun, global 5000/kun; kill-switch `GUEST_MODE_ENABLED`. Flag'ni yoqishdan oldin
-   prod `TRUST_PROXY_HEADERS` tekshiruvi — majburiy darvoza (§5).
+   haqiqiy mijoz IP'si tekshiruvi (`TRUST_PROXY_HEADERS` o'chiq, uvicorn `--proxy-headers`) — majburiy darvoza (§5).
 9. Yangi ustunlar `last_seen_at`, `registered_at`; mehmonga push yo'q; profilda "Chiqish" o'rniga "Mehmon ma'lumotlarini
    o'chirish"; mehmon sessiyasi o'lsa jim yangi mehmon.
 10. Faqat ilova; sayt login talab qilishda davom etadi.

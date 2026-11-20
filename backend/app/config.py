@@ -135,8 +135,11 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------------ #
     # Guest mode (spec 2026-11-20): POST /auth/guest opens a session with no
-    # sign-up. Off by default; TRUST_PROXY_HEADERS must be true before it is
-    # turned on, or the per-IP limit is shared by every guest.
+    # sign-up. Off by default. Leave TRUST_PROXY_HEADERS off: in production
+    # uvicorn's --proxy-headers already makes request.client.host the real
+    # client IP, while the flag would trust the client-written first
+    # X-Forwarded-For entry and let it dodge the per-IP limits. Before turning
+    # guests on, check that two networks give two IPs (docs/CONFIGURATION.md).
     # ------------------------------------------------------------------ #
     GUEST_MODE_ENABLED: bool = False
     GUEST_REFRESH_TOKEN_EXPIRE_DAYS: int = 90

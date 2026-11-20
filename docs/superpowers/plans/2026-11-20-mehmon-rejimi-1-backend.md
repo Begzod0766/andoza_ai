@@ -46,7 +46,7 @@
 - `backend/app/routers/estimate.py`, `backend/app/schemas/estimate.py`, `backend/app/services/smeta_text.py` — guest estimate + PDF note.
 - `backend/app/services/guest_account.py` — `upgrade_guest`, `merge_guest_into`, `MergeResult`.
 - `backend/app/tasks/maintenance.py`, `backend/celery_app.py` — cleanup task + first `beat_schedule`.
-- `docs/CONFIGURATION.md` — new env vars, `TRUST_PROXY_HEADERS` gate.
+- `docs/CONFIGURATION.md` — new env vars, the real-client-IP gate (`TRUST_PROXY_HEADERS` stays off).
 - Tests: `backend/tests/test_guest_model.py`, `test_auth_guest.py`, `test_guest_refresh.py`, `test_guest_gating.py`, `test_estimate_guest.py`, `test_guest_account.py`, `test_guest_upgrade.py`, `test_guest_cleanup.py`.
 
 ---
@@ -112,7 +112,7 @@ def test_web_gets_cookies_not_body_tokens(client, guest_on):
     r = client.post(URL, json={}); assert r.json()["access_token"] is None and "token" in r.cookies
 ```
 - [ ] Run `pytest tests/test_auth_guest.py` → 404 on the route.
-- [ ] Implement. Order inside the route: flag check (503 `"Mehmon rejimi hozircha yoqilmagan."`) → IP limit → install limit (only when `install_id`) → global limit → `User(is_guest=True, language=body.language or "uz", last_seen_at=now)` → flush/refresh → `logger.info("guest_created", user_id=...)` → `_guest_login_response`. Add the settings rows and a "`TRUST_PROXY_HEADERS` must be `true` before `GUEST_MODE_ENABLED=true`, otherwise the per-IP limit is shared by all guests" line to `docs/CONFIGURATION.md`.
+- [ ] Implement. Order inside the route: flag check (503 `"Mehmon rejimi hozircha yoqilmagan."`) → IP limit → install limit (only when `install_id`) → global limit → `User(is_guest=True, language=body.language or "uz", last_seen_at=now)` → flush/refresh → `logger.info("guest_created", user_id=...)` → `_guest_login_response`. Add the settings rows and a line to `docs/CONFIGURATION.md`: keep `TRUST_PROXY_HEADERS` off (it would trust the client-written `X-Forwarded-For[0]`), and before `GUEST_MODE_ENABLED=true` verify that uvicorn's `--proxy-headers` gives real client IPs. (Corrected after the 2026-11-20 review.)
 - [ ] Run → pass. Commit `feat(auth): POST /auth/guest`.
 
 ### Task 3: Refresh for guests
@@ -327,4 +327,4 @@ def test_beat_schedule():
 ## Release (after all tasks)
 
 - [ ] Deploy with `GUEST_MODE_ENABLED=false`; run `alembic upgrade head` as the deploy does; confirm the `beat` container is up.
-- [ ] Gate: confirm prod `TRUST_PROXY_HEADERS=true` in the backend container's env, and that the reverse proxy in front of it sets `X-Forwarded-For` (check its `proxy_set_header`). Otherwise every request has the proxy's IP and the 30/hour limit is shared by all guests. Only then set `GUEST_MODE_ENABLED=true`.
+- [ ] Gate: confirm prod `TRUST_PROXY_HEADERS` is OFF (on, it trusts the client-written first `X-Forwarded-For` entry and the per-IP guest/OTP/login limits can be dodged), and that uvicorn's `--proxy-headers --forwarded-allow-ips` (`docker-compose.prod.yml`) gives `_get_client_ip` the real client IP: `/auth/guest` from two networks → two different `guest_ip_rate:*` keys, not the proxy's IP. Otherwise the 30/hour limit is shared by all guests. Only then set `GUEST_MODE_ENABLED=true`.
