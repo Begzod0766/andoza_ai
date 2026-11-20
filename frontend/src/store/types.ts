@@ -88,7 +88,8 @@ export interface RoomGeometry {
 
 export type AppliedSurfaces = Record<string, string>
 
-export type ElectricalType = 'switch1' | 'switch2' | 'socket1' | 'socket2' | 'socket_media' | 'panel' | 'ac'
+/** `socket_power` is a cooker's 32 A outlet on a line of its own (2026-11-18). */
+export type ElectricalType = 'switch1' | 'switch2' | 'socket1' | 'socket2' | 'socket_media' | 'socket_power' | 'panel' | 'ac'
 
 export interface PlacedElectrical {
   id: string
@@ -135,6 +136,9 @@ export interface PlacedFurniture {
   rotation: number
   /** Uniform scale multiplier (1.0 = catalog default size). */
   scaleOverride?: number
+  /** A kitchen set cut to its wall (prod e2e 2026-11-18): its length along the wall, cm. Drawn stretched
+   *  along its width to this, and priced per running metre by it (backend smeta _kitchen_set_line). */
+  lengthCm?: number
   /** Per-material color tints (material name → hex). '*' = wildcard for all materials. */
   colorOverrides?: Record<string, string>
   /** Deleted/detached sub-object keys ("indexPath:name" from modelParts.ts) — pruned from the scene graph on load. */
@@ -193,7 +197,7 @@ export type FloorState = 'xom_beton' | 'styajka' | 'qoplama_bor' | null
 
 export type CeilingState = 'xom' | 'suvoq' | 'tayyor' | null
 
-export type WallCovering =
+export type WallCovering = (
   /** Raw plastered/concrete wall — how a room looks before any finishing. */
   | { kind: 'plaster' }
   | { kind: 'paint'; color: string }
@@ -207,7 +211,18 @@ export type WallCovering =
        *  on every covering written before wall tiles existed, all of which
        *  are papers. */
       finish?: 'tile'
+      /** Only read when `finish === 'tile'`: how high the tile goes, mm from the floor
+       *  (spec 2026-11-10). Absent, or not below the ceiling, means to the ceiling —
+       *  every wall tiled before this existed. */
+      tileHeightMm?: number
+      /** The paint above a tile that stops below the ceiling. Default white. */
+      aboveColor?: string
     }
+) & {
+  /** The stage it was put on in, when that was Suvoq or Shpaklovka (spec 2026-11-18): the 3D shows
+   *  it from that stage on. Absent: plaster belongs to Suvoq, anything else to Bo'yoq (stageView). */
+  stage?: 'suvoq' | 'shpaklovka'
+}
 
 export interface WallPanelSettings {
   enabled: boolean
@@ -228,7 +243,41 @@ export interface FloorTextureSettings {
   rotation: number
 }
 
+/** A kitchen backsplash (spec 2026-11-14): a tile or glass (skinali) panel on a wall, between the
+ * worktop and the wall cabinets. All in mm; `startMm` from the wall's own start, as a door's `position`. */
+export interface Backsplash {
+  id: string
+  wallId: string
+  material: 'tile' | 'skinali'
+  startMm: number
+  lengthMm: number
+  bottomMm: number
+  topMm: number
+  color: string
+}
+
 export interface DesignState {
+  /** A bathroom's extractor fan in the estimate: on unless exactly false (spec 2026-11-10). */
+  ventFan?: boolean
+  /** Taking the old plumbing out, in the estimate: off unless exactly true (2026-11-13). */
+  plumbingDemolition?: boolean
+  /** The pipes run in the wall, so it is chased: on unless exactly false (2026-11-13). */
+  pipesInWall?: boolean
+  /** A water heater in the estimate: off unless exactly true (2026-11-13). */
+  waterHeater?: boolean
+  /** A shower with no tray, draining through a floor drain: off unless exactly true (spec 2026-11-13). */
+  floorDrain?: boolean
+  /** The water inlet unit (meter, filter, reducer, check valve) in the estimate: off unless exactly true (2026-11-14). */
+  waterInlet?: boolean
+  /** The water layout (2026-11-18): 'collector' = a line from a collector at the riser to each point; else tees. */
+  waterScheme?: 'collector'
+  /** A bath's and a shower's screen, drawn and priced (2026-11-18): 'glass' or 'curtain'; anything else = none. */
+  bathScreen?: 'glass' | 'curtain'
+  showerScreen?: 'glass' | 'curtain'
+  /** An electric heated floor under the tile, in the estimate: off unless exactly true (2026-11-18). */
+  heatedFloor?: boolean
+  /** Kitchen backsplashes (spec 2026-11-14); absent = none. */
+  backsplashes?: Backsplash[]
   wallCoverings: { ALL: WallCovering } & Partial<Record<string, WallCovering>>
   floorType: FloorType
   /** Set once the user actually visits Pol and picks something (handleSetFloorType).
@@ -361,3 +410,53 @@ export interface RoomPayload {
    * paint/wallpaper/floor material pricing instead of starting blank. */
   surfaces?: Record<string, unknown> | null
 }
+
+/** What a plumbing point carries: the sewer, or cold or hot water. */
+export type PlumbingKind = 'drain' | 'cold' | 'hot'
+
+/**
+ * A drain or water point on a wall (spec 2026-11-08). `positionMm` is the distance along the wall from
+ * the corner where the walk round the room reaches it (lib/plumbingRuns `wallWalk`; in an A–D room
+ * that runs against `roomModel`'s direction on walls C and D), `heightMm` from the floor (0 for
+ * a floor trap). A point with `fixtureId` belongs to that placed fixture: it follows the fixture and
+ * goes with it. One without was added by hand.
+ */
+export interface PlumbingPoint {
+  id: string
+  kind: PlumbingKind
+  diameterMm?: 50 | 110 | 20
+  wallId: string
+  positionMm: number
+  heightMm: number
+  fixtureId?: string
+  /** A towel rail's point: worked out from the rail, never saved or moved on its own. */
+  railId?: string
+  /** A washing machine's point: worked out from the machine, never saved (spec 2026-11-13). */
+  washerId?: string
+}
+
+/** A washing machine standing against a wall (spec 2026-11-13): its centre, mm along the wall walk. */
+export interface Washer {
+  id: string
+  wallId: string
+  positionMm: number
+  /** A dishwasher (2026-11-16) or a kitchen sink (2026-11-18); absent = a washing machine, as every machine saved before. */
+  kind?: 'dishwasher' | 'kitchen_sink'
+  /** A dishwasher's width, mm; absent = 600. */
+  widthMm?: 600 | 450
+}
+
+/** A heated towel rail on a wall (spec 2026-11-10): 500 × 800 mm; `positionMm` is its centre along the
+ * wall walk, `heightMm` its bottom edge above the floor. */
+export interface TowelRail {
+  id: string
+  wallId: string
+  positionMm: number
+  heightMm: number
+  /** Heated by water (absent too, as every rail saved before 2026-11-14) or electric: no water points. */
+  kind?: 'water' | 'electric'
+  /** Width × height, mm (2026-11-15); absent = 500x800, as every rail saved before. */
+  size?: TowelRailSize
+}
+
+export type TowelRailSize = '500x500' | '500x600' | '500x800' | '600x800' | '600x1000'

@@ -11,6 +11,7 @@ import { RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
 import { wallAnchorOf, type WallAnchor } from "@/lib/newRoomFromWall";
 import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
+import { plumbingStageOn, DOCKED_PANEL_QUERY } from '@/lib/plumbingStageOn';
 import { useRoomStore } from "@/store/roomStore";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { useCompactStudio } from "@/lib/compactStudio";
@@ -44,7 +45,9 @@ import { roomExtents } from "@/lib/roomDims";
 import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
-import { RENO_STAGES, type PhaseKey } from "@/lib/phases";
+import { initialPhaseFor, initialViewStage, visibleStages, type PhaseKey } from "@/lib/phases";
+import { stageAfterPlacing } from "@/lib/stageView";
+import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
 import { computeAbsolutePositions } from "./three-d/helpers";
 import { PlacedLights } from "./three-d/LightingComponents";
@@ -67,12 +70,15 @@ import { DesignPanelDock } from "./three-d/DesignPanelDock";
 import { ThreeDOverlaySheets } from "./three-d/ThreeDOverlaySheets";
 import { useTranslation } from "react-i18next";
 import { RenderSheet } from "@/components/studio/RenderSheet";
+import { StageBanner } from "@/components/studio/StageBanner";
+import { MobileStagePicker } from "@/components/studio/MobileStagePicker";
 import { ViewStillSheet, viewStillFilename, type ViewStill } from "@/components/studio/ViewStillSheet";
 import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
-import { effectiveRoomType } from "@/lib/roomType";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
+import { isStudioTourDone } from "@/lib/studioTour";
+import { studioTourReady, useStudioTourWiring } from "./three-d/useStudioTourWiring";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -125,6 +131,10 @@ export interface StudioContext {
   /** The server's copy of this room is in the store (see StudioPage); edits
    *  made before then would be lost or would stop it loading. */
   roomReady?: boolean;
+  /** The Studio tour is on screen (StudioPage owns it); rings and selections are put away. */
+  studioTourActive?: boolean;
+  /** Tells StudioPage whether this is a live editing view the tour can run over. */
+  setStudioTourReady?: (ready: boolean) => void;
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -133,7 +143,7 @@ export type { PhaseKey } from "@/lib/phases"
 
 export default function ThreeDPage() {
   const { t } = useTranslation()
-  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false } = useOutletContext<StudioContext>();
+  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, setStudioTourReady } = useOutletContext<StudioContext>();
   const compact = useCompactStudio();
   const geometry = useRoomStore((s) => s.geometry);
   const designState = useRoomStore((s) => s.designState);
@@ -308,19 +318,46 @@ export default function ThreeDPage() {
   // needs doing (an already-plastered wall skips Suvoq, a puttied wall skips
   // Suvoq + Shpaklovka). Earlier stages then render as done via the existing
   // positional check-mark logic. The wizard's post-creation hand-off passes
-  // ?phase=suvoq so a brand-new room opens at the START of the phase flow
+  // its first stage (lib/phases newRoomStudioPath: Quvurlar in a bathroom or kitchen, else Suvoq)
+  // so a brand-new room opens at the START of the phase flow
   // (its walls are still bare plaster — nothing has been done to them yet).
-  // Falls back to the historical 'boyoq' default, which now only applies to
-  // REOPENING a room (projects list, tab switches, direct links).
+  // With no link it opens at the last stage, Mebel, on the finished room (spec 2026-11-18; it was
+  // Bo'yoq) — REOPENING a room (projects list, tab switches, direct links).
   const phaseParam = new URLSearchParams(location.search).get('phase')
-  const initialPhase: PhaseKey = isMebelTab
-    ? 'mebel'
-    : isChiroqTab
-      ? 'chiroq'
-      : RENO_STAGES.some((s) => s.key === phaseParam)
-        ? (phaseParam as PhaseKey)
-        : 'boyoq'
+  const openArgs = {
+    phaseParam,
+    roomKind: catalogRoomType(effectiveRoomType(room.room_type, room.name)),
+    tab: isMebelTab ? 'mebel' as const : isChiroqTab ? 'chiroq' as const : undefined,
+  }
+  const initialPhase: PhaseKey = initialPhaseFor(openArgs)
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
+  // The stage the 3D draws (lib/stageView, spec 2026-11-18) is separate from the panel's: only the
+  // stage list (and a ?phase= link) changes it. Every quick path — the radial ring, placing from it,
+  // the render cameras — goes back to the finished room, so a user repainting the wall beside the
+  // sofa never sees the sofa vanish. Set again whenever another room opens in this page.
+  const setViewStage = useRoomStore((s) => s.setViewStage);
+  const viewStage = useRoomStore((s) => s.viewStage);
+  /** The phone's stage list is open (MobileStagePicker). */
+  const [stageListOpen, setStageListOpen] = useState(false);
+  useEffect(() => {
+    setViewStage(initialViewStage(openArgs));
+    return () => setViewStage('full');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room.id]);
+  /** A stage picked in the stage list: the panel and the 3D both go to it. */
+  const pickStage = useCallback((phase: PhaseKey) => {
+    setActivePhase(phase);
+    setViewStage(phase);
+  }, [setViewStage]);
+  /** A quick path to a panel: the panel goes there, and the 3D stays at its stage, or goes forward to the
+   *  panel's own when that does not show its things yet (mobile QA 2026-11-19, #350: opening the Montaj
+   *  panel sent the view to the finished room). */
+  const openPhasePanel = useCallback((phase: PhaseKey) => {
+    setActivePhase(phase);
+    const s = useRoomStore.getState();
+    const kind = catalogRoomType(effectiveRoomType(s.roomType, s.name));
+    setViewStage(stageAfterPlacing(phase, s.viewStage, visibleStages(kind).map((st) => st.key)));
+  }, [setViewStage]);
   const [tapHintSeen, markTapHintSeen] = useTapHintSeen()
   // Mebelirovka: door/window editor sheet (reuses the room settings sheet)
   const [elementsSheetOpen, setElementsSheetOpen] = useState(false);
@@ -351,6 +388,10 @@ export default function ThreeDPage() {
     setCameraStation(leaving || station == null ? null : station);
     setCameraListOpen(false);
   }, [panorama, cameraStation]);
+  // The 360 panorama and the camera stations are what a render is made from: always the finished room.
+  useEffect(() => {
+    if (panorama || cameraStation != null) setViewStage('full');
+  }, [panorama, cameraStation, setViewStage]);
   // Wall tap → "Oyna" (radial menu) opens the same type/size/color chooser
   // RoomSettingsSheet's "+ Deraza" already uses, instead of dropping a
   // default-sized window immediately — holds where the wall was tapped so
@@ -388,6 +429,19 @@ export default function ThreeDPage() {
   // untouched (the toggle buttons themselves are hidden below lg).
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  // The design panel is docked from lg up; below it is a sheet that can be closed (lib/plumbingStageOn).
+  const [panelDocked, setPanelDocked] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(DOCKED_PANEL_QUERY).matches);
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' ? window.matchMedia?.(DOCKED_PANEL_QUERY) : undefined;
+    if (!mq) return;
+    const on = () => setPanelDocked(mq.matches);
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  useEffect(() => {
+    // Off at a camera station or the 360, which every render and saved frame is taken from (2026-11-18).
+    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked, panorama || cameraStation != null));
+  }, [activePhase, showPanel, panelDocked, panorama, cameraStation]);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
@@ -424,6 +478,19 @@ export default function ThreeDPage() {
   const clearOnSurfaceTap = useRef(clearAllSelections);
   clearOnSurfaceTap.current = clearAllSelections;
   useEffect(() => { if (radial) clearOnSurfaceTap.current(); }, [radial]);
+
+  // The Studio tour (StudioPage owns it) runs over the live editing view on a phone — lock or
+  // no lock — and finds nothing stranded on screen when it starts. TapHint says what its first
+  // step says, so it is folded in: hidden until the tour is done, and seen when it ends.
+  useStudioTourWiring({
+    active: studioTourActive,
+    ready: studioTourReady({ compact, panorama, cameraStation, planShown }),
+    setReady: setStudioTourReady,
+    onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
+    onEnd: markTapHintSeen,
+  });
+  const tapHintShown = shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })
+    && !studioTourActive && (!compact || isStudioTourDone());
 
   /**
    * Select a wall (or the floor) and, from a decorating phase, open the paint
@@ -488,7 +555,10 @@ export default function ThreeDPage() {
       // ceiling and would push through anything lower.
       heightMm,
     });
+    // The Montaj panel lists it; the 3D stays at the stage it was at, or goes forward to Montaj so the
+    // socket shows (mobile QA 2026-11-19, #345: it went to the finished room).
     setActivePhase('montaj');
+    setViewStage(stageAfterPlacing('montaj', useRoomStore.getState().viewStage, visibleStages(stageRoomKind).map((st) => st.key)));
   }
 
   /** The window the ring last made, so picking another style changes that one
@@ -552,9 +622,10 @@ export default function ThreeDPage() {
   function applyWallTileTo(
     wallId: string | undefined, size: TileSize, face: TileFace, allWalls = false,
   ) {
-    useRoomStore.getState().setWallCovering(
-      allWalls ? 'ALL' : resolveTargetWall(wallId ?? null), wallTileCovering(size, face),
-    );
+    const target = allWalls ? 'ALL' : resolveTargetWall(wallId ?? null);
+    const coverings = useRoomStore.getState().designState.wallCoverings;
+    // Tiled to a height already: the new tile keeps that height and the paint above it.
+    useRoomStore.getState().setWallCovering(target, wallTileCovering(size, face, coverings[target] ?? coverings.ALL));
   }
 
   /**
@@ -649,7 +720,7 @@ export default function ThreeDPage() {
       zMm: Math.round((clamp(point.z, halfD, D) + D / 2) * 1000),
       ...(t?.mount === 'wall' ? { wallId: 'A' as const } : {}),
     });
-    setActivePhase('chiroq');
+    openPhasePanel('chiroq');
   }
 
   const addSheetSection: 'wallpaper' | 'lyustra' | 'furniture' =
@@ -658,10 +729,10 @@ export default function ThreeDPage() {
   /** The corner arc's categories, read from the same sources the design panel
    *  uses. `openPanelAt` is its escape hatch: a category with more items than
    *  the arc holds ends in a button that opens the full panel instead. */
-  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel') => {
-    setActivePhase(phase);
+  const openPanelAt = useCallback((phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol' | 'montaj') => {
+    openPhasePanel(phase);
     setShowPanel(true);
-  }, [setActivePhase]);
+  }, [openPhasePanel]);
   const arcCategories = useArcCategories({ selectedWall, openPanelAt });
 
   // The same query key and scope the design panel's Oboy tab uses, so the ring
@@ -762,7 +833,10 @@ export default function ThreeDPage() {
   }, [toolMode, setSelectedPart]);
   useEffect(() => { setSelectedPart(null); }, [room.id, setSelectedPart]);
 
-  const activeIdx = RENO_STAGES.findIndex(s => s.key === activePhase);
+  // The room's stages: Quvurlar and Jihozlar only in a bathroom or kitchen (spec 2026-11-08, 2026-11-18).
+  const stageRoomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)));
+  const stages = visibleStages(stageRoomKind);
+  const activeIdx = stages.findIndex(s => s.key === activePhase);
 
   // Kept visible: the studio's responsive layout (collapsible edge rail,
   // bottom-sheet panel on tablet/mobile) is built around this stepper being
@@ -779,7 +853,8 @@ export default function ThreeDPage() {
           leftOpen={leftOpen}
           setLeftOpen={setLeftOpen}
           activeIdx={activeIdx}
-          setActivePhase={setActivePhase}
+          setActivePhase={pickStage}
+          stages={stages}
         />
       )}
 
@@ -883,13 +958,23 @@ export default function ThreeDPage() {
           className={`flex-1 min-w-0 min-h-0 relative isolate overflow-hidden ${(isMebelTab && mebelView === '2d') || (isChiroqTab && chiroqView === '2d') ? 'hidden' : ''}`}
           // The first tap on the view also closes the phone hint; it does not stop
           // the tap, so the surface's menu still opens.
-          onPointerDownCapture={() => { if (shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })) markTapHintSeen(); }}
+          data-tour="scene"
+          onPointerDownCapture={() => { if (tapHintShown) markTapHintSeen(); }}
         >
 
           {/* Below lg: once, how to reach the tools — tap a surface. The
               room/stage pill that sat at the top was removed at the user's
               request (2026-11-07). */}
-          {shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked }) && (
+          {/* The 3D at a stage (spec 2026-11-18): on a phone the stage pill (the desktop has the left
+              list), then what is not in yet and the way back to the finished room. */}
+          {/* z-30 like the tap hint, under every sheet; while the stage list is open it goes over the
+              3D's own floating buttons (drei <Html>, z 83) too. */}
+          <div className={`pointer-events-none absolute inset-x-3 top-16 flex flex-col items-start gap-2 lg:top-3 lg:items-center ${stageListOpen ? 'z-[90]' : 'z-30'}`}>
+            <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
+            <StageBanner />
+          </div>
+
+          {tapHintShown && (
             <div className="pointer-events-none absolute inset-x-3 bottom-24 z-30 md:hidden">
               <TapHint onDismiss={markTapHintSeen} />
             </div>
@@ -1005,6 +1090,8 @@ export default function ThreeDPage() {
               className="bottom-1 right-1"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
+              tourId="arc"
+              closed={studioTourActive}
             />
           </div>}
 
@@ -1159,8 +1246,11 @@ export default function ThreeDPage() {
         roomType={effectiveRoomType(room.room_type, room.name)}
         aiPin={aiPin}
         radial={radial}
+        // In Montaj a wall tap is for a socket or a switch (kitchen QA 2026-11-18 K6).
+        radialOpenOn={activePhase === "montaj" && radial?.surface === "wall" ? "elektr" : undefined}
         radialItems={(r) => buildRadialItems(r, {
-          setSelectedWall, setActivePhase, setShowPanel, createOpening,
+          roomType: effectiveRoomType(room.room_type, room.name),
+          setSelectedWall, setActivePhase: openPhasePanel, setShowPanel, createOpening,
           placeElectrical: placeElectricalAt,
           placeLight: placeLightAt,
           setCornice: (trim) => useRoomStore.getState().setDesignState({ cornice: trim }),

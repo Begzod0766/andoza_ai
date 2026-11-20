@@ -126,6 +126,17 @@ export function Faceplate({ type, w, h, isDragging }: {
     insert = <>{[-0.0335, 0, 0.0335].map((x) => <DataPort key={x} x={x} />)}</>;
   } else if (type === 'socket2') {
     insert = <>{[-0.0335, 0.0335].map((x) => <SocketDish key={x} x={x} />)}</>;
+  } else if (type === 'socket_power') {
+    // The cooker's 32 A outlet: one socket, with a red bar under it for its rating.
+    insert = (
+      <>
+        <SocketDish x={0} />
+        <mesh position={[0, -fieldH / 2 + 0.006, 0.0012]}>
+          <boxGeometry args={[0.024, 0.004, 0.002]} />
+          <Plastic color="#DC2626" />
+        </mesh>
+      </>
+    );
   } else {
     insert = <SocketDish x={0} />;
   }

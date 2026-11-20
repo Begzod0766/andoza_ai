@@ -126,6 +126,77 @@ _LABEL_HEADS = {
     "Shift": "shift",
     "Shift profili": "shift_profili",
     "LED lenta": "led_lenta",
+    "Santexnika": "santexnika",
+    # A shop's pipe: "Kanalizatsiya quvuri Ø50: <product>".
+    "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
+    "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
+    "Suv quvuri PPR Ø20": "pipe_water_20",
+    # Tile work (spec 2026-11-10): a shop's product follows the colon.
+    "Devor plitkasi": "wall_tile",
+    "Plitka yelimi": "tile_adhesive",
+    "Zatirka": "grout",
+    "Gidroizolyatsiya mastikasi": "wp_mastic",
+    "Gidroizolyatsiya lentasi": "wp_tape",
+    "Tortuvchi ventilyator": "fan",
+    "Tortuvchi ventilyator Ø100": "fan_100",
+    "Tortuvchi ventilyator Ø125": "fan_125",
+    "Tortuvchi ventilyator Ø150": "fan_150",
+    "Sochiq quritgich": "towel_rail",
+    # A fixture's own parts (2026-11-13): a shop's product follows the colon.
+    "Rakovina smesiteli": "mixer_sink",
+    "Oshxona smesiteli": "mixer_kitchen",
+    "Vanna va dush smesiteli": "mixer_bath",
+    "Dush smesiteli": "mixer_shower",
+    "Gigiyenik smesitel": "mixer_bidet",
+    "Rakovina sifoni": "trap_sink",
+    "Oshxona sifoni": "trap_kitchen",
+    "Vanna sifoni": "trap_bath",
+    "Dush poddoni sifoni": "trap_shower",
+    "Unitaz gofrasi": "toilet_gofra",
+    "Ulash shlangi (podvodka)": "hose",
+    "Installyatsiya (osma unitaz uchun)": "frame",
+    "Suv isitgich (boyler)": "heater",
+    "Kir yuvish mashinasi krani": "washer_tap",
+    "Kir yuvish mashinasi sifoni": "washer_trap",
+    "Idish yuvish mashinasi krani (uchlik bilan)": "dish_tap",
+    "Idish yuvish mashinasi sifoni (chiqishli)": "dish_trap",
+    "Idish yuvish mashinasi rozetkasi (IP44)": "dish_socket",
+    "UZO (difavtomat 30 mA)": "uzo",
+    "Revizion lyuk (plitka ostiga)": "hatch",
+    "Sanitariya silikoni": "silicone",
+    "Issiq pol mati (elektr)": "heated_mat",
+    "Issiq pol termoregulyatori": "heated_thermostat",
+    "Vanna shtorkasi (shisha)": "bath_glass",
+    "Dush to'sig'i (shisha)": "shower_glass",
+    "Parda va tayoqcha (vanna, dush)": "bath_curtain",
+    "Kollektor (sovuq suv)": "collector_cold",
+    "Kollektor (issiq suv)": "collector_hot",
+    "Pol trapi": "floor_drain",
+    "Fartuk plitkasi": "backsplash_tile",
+    "Skinali (shisha fartuk)": "skinali",
+    "Elektr sochiq quritgich": "el_towel_rail",
+    "Namga chidamli rozetka (IP44)": "socket_ip44",
+    # The ceiling's finish (2026-11-18): a shop's product follows the colon.
+    "Shift grunti": "shift_grunt",
+    "Shift bo'yog'i": "shift_paint",
+    "Namga chidamli shift bo'yog'i": "shift_paint_wet",
+    "Qiyalik styajkasi aralashmasi": "slope_mix",
+    "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
+    # The wall devices (2026-11-18)
+    "Rozetka (bitta)": "el_socket1",
+    "Rozetka (ikkitalik)": "el_socket2",
+    "Media rozetka (TV, internet)": "el_socket_media",
+    "Kuch rozetkasi (plita, 32 A)": "el_socket_power",
+    "Kalit (bitta)": "el_switch1",
+    "Kalit (ikkitalik)": "el_switch2",
+    "Elektr qutisi (shchit)": "el_panel",
+    "Avtomat 32 A (plita liniyasi)": "el_breaker_32",
+    "Suv hisoblagichi": "water_meter",
+    "Dag'al filtr": "water_filter",
+    "Bosim reduktori": "pressure_reducer",
+    "Teskari klapan": "check_valve",
+    "Namga chidamli gipsokarton (quti)": "frame_box_board",
+    "Quti profili (karkas)": "frame_box_profile",
 }
 
 # Labels the estimate writes in full, with no product name in them.
@@ -137,6 +208,136 @@ _WHOLE_LABELS = {
     "Elektr kabel": "kabel",
     "Elektr kabel (taxminiy)": "kabel_approx",
     "Bo'yoq (material tanlanmagan)": "boyoq_none",
+    "Kanalizatsiya quvuri Ø50": "pipe_drain_50",
+    "Kanalizatsiya quvuri Ø110": "pipe_drain_110",
+    "Suv quvuri PPR Ø20": "pipe_water_20",
+    "Fitinglar": "fittings",  # the set per point of estimates made before 2026-11-11
+    "PPR troynik Ø20": "fit_tee_20",
+    "PPR burchak Ø20": "fit_elbow_20",
+    "Suv rozetkasi Ø20": "fit_outlet_20",
+    "Sharli kran Ø20": "fit_valve_20",
+    "Kanalizatsiya troynigi Ø50": "fit_tee_50",
+    "Kanalizatsiya burchagi Ø50": "fit_elbow_50",
+    "Kanalizatsiya troynigi Ø110/50": "fit_tee_110_50",
+    "Kanalizatsiya burchagi Ø110": "fit_elbow_110",
+    "Devor plitkasi": "wall_tile",
+    "Pol plitkasi": "floor_tile",
+    "Plitka yelimi": "tile_adhesive",
+    "Zatirka": "grout",
+    "Ish: pol plitkasini terish": "work_floor_tile",
+    "Ish: devor plitkasini terish": "work_wall_tile",
+    "Gidroizolyatsiya mastikasi": "wp_mastic",
+    "Gidroizolyatsiya lentasi": "wp_tape",
+    "Ish: gidroizolyatsiya": "work_wp",
+    "Tortuvchi ventilyator": "fan",
+    "Tortuvchi ventilyator Ø100": "fan_100",
+    "Tortuvchi ventilyator Ø125": "fan_125",
+    "Tortuvchi ventilyator Ø150": "fan_150",
+    "Elektr kabel (ventilyator)": "fan_cable",
+    "Ish: ventilyatorni o'rnatish": "work_fan",
+    "Sochiq quritgich": "towel_rail",
+    "Ish: sochiq quritgichni o'rnatish": "work_towel_rail",
+    "Ish: nuqtani ulash": "work_point",
+    "Ish: vanna o'rnatish": "work_bathtub",
+    "Ish: rakovina o'rnatish": "work_sink",
+    "Ish: moyka o'rnatish": "work_kitchen_sink",
+    "Ish: unitaz o'rnatish": "work_toilet",
+    "Ish: dush o'rnatish": "work_shower",
+    "Ish: bide o'rnatish": "work_bidet",
+    "Rakovina smesiteli": "mixer_sink",
+    "Oshxona smesiteli": "mixer_kitchen",
+    "Vanna va dush smesiteli": "mixer_bath",
+    "Dush smesiteli": "mixer_shower",
+    "Gigiyenik smesitel": "mixer_bidet",
+    "Rakovina sifoni": "trap_sink",
+    "Oshxona sifoni": "trap_kitchen",
+    "Vanna sifoni": "trap_bath",
+    "Dush poddoni sifoni": "trap_shower",
+    "Unitaz gofrasi": "toilet_gofra",
+    "Ulash shlangi (podvodka)": "hose",
+    "Ish: smesitel o'rnatish": "work_mixer",
+    "Ish: eski santexnikani demontaj qilish": "work_demolish_fixtures",
+    "Ish: eski quvurlarni demontaj qilish": "work_demolish_pipes",
+    "Ish: shtroba (suv quvuri)": "work_chase_water",
+    "Ish: shtroba (kanalizatsiya Ø50)": "work_chase_drain",
+    "Installyatsiya (osma unitaz uchun)": "frame",
+    "Suv isitgich (boyler)": "heater",
+    "Ish: installyatsiya o'rnatish": "work_frame",
+    "Boyler ulash to'plami": "heater_kit",
+    "Elektr kabel (boyler)": "heater_cable",
+    "Ish: boyler o'rnatish": "work_heater",
+    "Kir yuvish mashinasi krani": "washer_tap",
+    "Kir yuvish mashinasi sifoni": "washer_trap",
+    "Idish yuvish mashinasi krani (uchlik bilan)": "dish_tap",
+    "Idish yuvish mashinasi sifoni (chiqishli)": "dish_trap",
+    "Idish yuvish mashinasi rozetkasi (IP44)": "dish_socket",
+    "UZO (difavtomat 30 mA)": "uzo",
+    "Potensiallarni tenglash qutisi (KUP) va kabel": "bonding_kit",
+    "Ish: potensiallarni tenglash": "work_bonding",
+    "Ish: quvurlarni bosim bilan sinash (opressovka)": "work_pressure_test",
+    "Revizion lyuk (plitka ostiga)": "hatch",
+    "Ish: revizion lyuk o'rnatish": "work_hatch",
+    "Sanitariya silikoni": "silicone",
+    "Issiq pol mati (elektr)": "heated_mat",
+    "Issiq pol termoregulyatori": "heated_thermostat",
+    "Vanna shtorkasi (shisha)": "bath_glass",
+    "Dush to'sig'i (shisha)": "shower_glass",
+    "Parda va tayoqcha (vanna, dush)": "bath_curtain",
+    "Kollektor (sovuq suv)": "collector_cold",
+    "Kollektor (issiq suv)": "collector_hot",
+    "Ish: kollektorni yig'ish": "work_collector",
+    "Ish: vanna shtorkasini o'rnatish": "work_bath_glass",
+    "Ish: dush shishasini o'rnatish": "work_shower_glass",
+    "Ish: parda tayoqchasini o'rnatish": "work_bath_curtain",
+    "Gofra quvur va datchik (issiq pol)": "heated_kit",
+    "Avtomat 16 A (issiq pol)": "heated_breaker",
+    "Elektr kabel (issiq pol)": "heated_cable",
+    "Ish: issiq pol matini yotqizish": "work_heated_mat",
+    "Ish: termoregulyatorni o'rnatish": "work_heated_thermostat",
+    "Elektr kabel (idish yuvish mashinasi)": "dish_cable",
+    "Ish: idish yuvish mashinasini ulash": "work_dish",
+    "Ish: idish yuvish mashinasi rozetkasini o'rnatish": "work_dish_socket",
+    "Ish: kir yuvish mashinasini ulash": "work_washer",
+    "Pol trapi": "floor_drain",
+    "Ish: trap o'rnatish": "work_floor_drain",
+    "Suv hisoblagichi": "water_meter",
+    "Dag'al filtr": "water_filter",
+    "Bosim reduktori": "pressure_reducer",
+    "Teskari klapan": "check_valve",
+    "Ish: suv kirish uzelini yig'ish": "work_water_inlet",
+    "Namga chidamli gipsokarton (quti)": "frame_box_board",
+    "Quti profili (karkas)": "frame_box_profile",
+    "Ish: gipsokarton quti yig'ish": "work_frame_box",
+    "Fartuk plitkasi": "backsplash_tile",
+    "Skinali (shisha fartuk)": "skinali",
+    "Ish: fartuk plitkasini terish": "work_backsplash_tile",
+    "Ish: skinali o'rnatish": "work_skinali",
+    "Elektr sochiq quritgich": "el_towel_rail",
+    "Namga chidamli rozetka (IP44)": "socket_ip44",
+    "Elektr kabel (sochiq quritgich)": "el_rail_cable",
+    "Ish: elektr sochiq quritgichni o'rnatish": "work_el_towel_rail",
+    "Qiyalik styajkasi aralashmasi": "slope_mix",
+    "Ish: dush zonasini trapga qiyalatish": "work_shower_slope",
+    "Kir yuvish mashinasi rozetkasi (IP44)": "washer_socket",
+    "Elektr kabel (kir yuvish mashinasi)": "washer_cable",
+    "Ish: kir yuvish mashinasi rozetkasini o'rnatish": "work_washer_socket",
+    "Rozetka (bitta)": "el_socket1",
+    "Rozetka (ikkitalik)": "el_socket2",
+    "Media rozetka (TV, internet)": "el_socket_media",
+    "Kuch rozetkasi (plita, 32 A)": "el_socket_power",
+    "Kalit (bitta)": "el_switch1",
+    "Kalit (ikkitalik)": "el_switch2",
+    "Elektr qutisi (shchit)": "el_panel",
+    "Avtomat 32 A (plita liniyasi)": "el_breaker_32",
+    "Elektr kabel 3×6 mm² (plita liniyasi)": "el_power_cable",
+    "Ish: elektr nuqtalarini o'rnatish": "work_el_points",
+    "Ish: elektr qutisini o'rnatish": "work_el_panel",
+    "Devor plitkasi (o'rtacha narx)": "wall_tile_avg",
+    "Pol plitkasi (o'rtacha narx)": "floor_tile_avg",
+    "Fartuk plitkasi (o'rtacha narx)": "backsplash_tile_avg",
+    "Shift bo'yog'i (material tanlanmagan)": "shift_paint_none",
+    "Namga chidamli shift bo'yog'i (material tanlanmagan)": "shift_paint_wet_none",
+    "Ish: shiftni bo'yash": "work_ceiling_paint",
 }
 
 # Uzbek light fixture names (smeta.py's LIGHT_TYPE_NAMES) -> the studio's light type.
@@ -165,11 +366,40 @@ def _localize_name(name: str, lang: str) -> str:
     return name
 
 
+# A plumbing fixture's own word in a shop name, by role (frontend/src/lib/fixtureName.ts).
+_FIXTURE_WORD = {
+    "bathtub": re.compile(r"\S*(?:ванна|vanna|bathtub)\S*", re.I),
+    "sink": re.compile(r"\S*(?:rakovina|umivalnik|moyka|раковин|умывальник|мойк|sink|washbasin)\S*", re.I),
+    "toilet": re.compile(r"\S*(?:unitaz|унитаз|toilet|\bwc\b)\S*", re.I),
+    "shower": re.compile(r"\S*(?:dush|душ|shower)\S*", re.I),
+    "bidet": re.compile(r"\S*(?:bide|биде|bidet)\S*", re.I),
+}
+
+
+def fixture_display_name(name: str, lang: str) -> str:
+    """A fixture's shop name (Uzbek: "Vanna 1") in *lang*: the fixture word becomes what the piece
+    is ("Bathtub 1", "Ванна 1"), the model kept. Uzbek, and a piece that is no fixture, unchanged."""
+    lang = _lang(lang)
+    if lang == DEFAULT_LANGUAGE:
+        return name
+    from app.services.ai_designer import infer_role  # ai_designer imports app.services.smeta
+
+    role = infer_role(None, name)
+    word = _FIXTURE_WORD.get(role)
+    if word is None:
+        return name
+    rest = re.sub(r"\s+", " ", word.sub("", name, count=1)).strip()
+    label = t(f"line.fixture_{role}", lang)
+    return f"{label} {rest}" if rest else label
+
+
 def localize_label(label: str, lang: str) -> str:
     if m := re.fullmatch(r"Suvoq \(gips\) (\S+) kg qop", label):
         return t("line.suvoq_bag", lang, kg=m[1])
     if m := re.fullmatch(r"Grunt \(asosiy qatlam\) (\S+) kg qop", label):
         return t("line.grunt_bag", lang, kg=m[1])
+    if m := re.fullmatch(r"Shift grunti \(asosiy qatlam\) (\S+) kg qop", label):
+        return t("line.shift_grunt_bag", lang, kg=m[1])
     if m := re.fullmatch(r"Shpatlyovka (\S+) kg qop", label):
         return t("line.putty_bag", lang, kg=m[1])
     if m := re.fullmatch(r"Plintus \((\S+) m dona\)", label):
@@ -179,6 +409,9 @@ def localize_label(label: str, lang: str) -> str:
     # "Oboy devor A" or "Oboy devor A: <product>": the wall's letter is a value, not a word.
     if m := re.fullmatch(r"Oboy devor (\S+?)(?:: (.+))?", label, flags=re.DOTALL):
         return t("line.oboy_devor", lang, wall=m[1]) + (f": {m[2]}" if m[2] is not None else "")
+    # A towel rail by its size (2026-11-15): "Sochiq quritgich (50×80)"; the size is a value.
+    if (m := re.fullmatch(r"(Sochiq quritgich|Elektr sochiq quritgich) \((\d+×\d+)\)", label)) and m[1] in _WHOLE_LABELS:
+        return f"{_localize_name(m[1], lang)} ({m[2]})"
     if label in _WHOLE_LABELS:
         return _localize_name(label, lang)
     # The head is everything before the first ": ", so "Shift profili: X" reads as "Shift profili".
@@ -186,7 +419,10 @@ def localize_label(label: str, lang: str) -> str:
     if colon > 0:
         head = label[:colon]
         if head in _LABEL_HEADS:
-            return f"{t(f'line.{_LABEL_HEADS[head]}', lang)}: {_localize_name(label[colon + 2:], lang)}"
+            name = label[colon + 2:]
+            if head == "Santexnika":  # a fixture reads by what it is: "Rakovina 3" -> "Sink 3"
+                return f"{t('line.santexnika', lang)}: {fixture_display_name(name, lang)}"
+            return f"{t(f'line.{_LABEL_HEADS[head]}', lang)}: {_localize_name(name, lang)}"
     return label
 
 
@@ -195,7 +431,7 @@ def localize_label(label: str, lang: str) -> str:
 # ---------------------------------------------------------------------------
 
 # Units counted in whole things, which take the plural of the quantity.
-_COUNTED_UNITS = {"qop", "dona", "rulon", "quti", "list", "komplekt"}
+_COUNTED_UNITS = {"qop", "dona", "rulon", "quti", "list", "komplekt", "nuqta"}
 _MEASURE_UNITS = {"litr": "litr", "m": "m", "m²": "m2", "m2": "m2", "kg": "kg"}
 
 
@@ -215,6 +451,10 @@ def localize_unit(unit: str, quantity: float, lang: str) -> str:
 _LETTER = r"[^\W\d_]"
 
 _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
+    # Waterproofing (spec 2026-11-10): "Pol 5.00 m² + devor tagi … + ho'l zona …".
+    (re.compile(r"\APol (?=\d)"), lambda lang: f"{t('formula.wp_floor', lang)} "),
+    (re.compile(r" \+ devor tagi "), lambda lang: f" + {t('formula.wp_base', lang)} "),
+    (re.compile(r" \+ ho'l zona "), lambda lang: f" + {t('formula.wp_wet', lang)} "),
     (re.compile(r"Joylashtirilgan sxema bo'yicha o'lchangan \((\S+) m, zaxira bilan\)"),
      lambda lang, m: t("formula.measured", lang, m=m)),
     (re.compile(r"\(teshiklar (\S+) m² polosaga ta'sir qilmaydi\)"),
@@ -225,6 +465,8 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
      lambda lang, m: t("formula.strip", lang, m=m)),
     (re.compile(r"\(yuqori/pastki karkas\)"),
      lambda lang: f"({t('formula.frame', lang)})"),
+    # A heated floor (2026-11-18): "4.50 m² − 1.67 m² (jihozlar ostida) = …".
+    (re.compile(r"\(jihozlar ostida\)"), lambda lang: f"({t('formula.under_fixtures', lang)})"),
     (re.compile(r"\((isrof|chiqindi|zaxira)\)"),
      lambda lang, word: f"({t(f'formula.{word}', lang)})"),
     # "Devor 0: ..." opens a wallpaper wall's working; "(devor 1, 3)" names the painted walls.
@@ -236,20 +478,39 @@ _FORMULA_PHRASES: list[tuple[re.Pattern[str], Callable[..., str]]] = [
      lambda lang: t("formula.perimeter", lang)),
     (re.compile(r" − eshiklar "),
      lambda lang: f" − {t('formula.doors', lang)} "),
+    # The pipe scheme (spec 2026-11-11): "Magistral 6.00 m + tik 1.20 m = …".
+    (re.compile(r"\AMagistral (?=\d)"), lambda lang: f"{t('formula.trunk', lang)} "),
+    (re.compile(r" \+ tik bo'laklar (?=\d)"), lambda lang: f" + {t('formula.branch_pieces', lang)} "),
+    # A drain chase (2026-11-13): "Tik bo'laklar 1.20 m × 60 000 so'm".
+    (re.compile(r"\ATik bo'laklar (?=\d)"), lambda lang: f"{t('formula.branch_pieces_head', lang)} "),
+    (re.compile(r" \+ tik (?=\d)"), lambda lang: f" + {t('formula.branch_pipes', lang)} "),  # estimates saved on 2026-11-11
+    # A fan's sizing (2026-11-14): "13.5 m³ × 6 = 81 m³/soat → Ø100".
+    (re.compile(r"(?<=\d) m³/soat"), lambda lang: f" {t('formula.m3h', lang)}"),
+    (re.compile(r"(?<=\d) m³(?=\s|\Z)"), lambda lang: f" {t('formula.m3', lang)}"),
     (re.compile(r" so'm\Z"),
      lambda lang: f" {t('formula.som', lang)}"),
+    # A price per running metre (kitchen re-check 2026-11-19 R4): "10 000 000 so'm ÷ 4.00 m = 2 500 000 so'm/m × …".
+    (re.compile(r" so'm/m(?= )"), lambda lang: f" {t('formula.som', lang)}/{t('unit.m', lang)}"),
+    (re.compile(r" so'm(?= ÷ )"), lambda lang: f" {t('formula.som', lang)}"),
 ]
 
 # Things counted in whole units: the word takes the plural of the number before it.
 _FORMULA_COUNTED = {
     "qop": "unit.qop", "dona": "unit.dona", "rulon": "unit.rulon", "quti": "unit.quti",
-    "list": "unit.list", "polosa": "formula.polosa", "qatlam": "formula.qatlam", "nuqta": "formula.nuqta",
+    "list": "unit.list", "komplekt": "unit.komplekt", "polosa": "formula.polosa", "qatlam": "formula.qatlam", "nuqta": "formula.nuqta",
+    # What a fitting's count is made of (spec 2026-11-11).
+    "tarmoq": "formula.tarmoq", "stoyak": "formula.stoyak", "burchak": "formula.burchak", "uch": "formula.uch", "unitaz": "formula.unitaz", "liniya": "formula.liniya", "ulanish": "formula.ulanish",
+    "xona burchagi": "formula.xona_burchagi", "magistral uchi": "formula.magistral_uchi",
+    # What a fixture part's count is made of (2026-11-13).
+    "rakovina": "formula.rakovina", "moyka": "formula.moyka", "vanna": "formula.vanna", "dush": "formula.dush", "bide": "formula.bide", "smesitel": "formula.smesitel", "mashina": "formula.mashina",
+    # Paint bought in whole cans (2026-11-18).
+    "banka": "formula.banka",
 }
 
 # A unit right after a number. Longer units first, so "m²/litr" is never read as "m²".
 _FORMULA_UNIT = re.compile(
-    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|polosa|qatlam|nuqta|litr|m²|kg|m)"
-    r"(?=\Z|[\s);,])"
+    r"([0-9]+(?:\.[0-9]+)?) (kg/m²|m²/litr|m²/quti|m²/list|qop|dona|rulon|quti|list|komplekt|polosa|qatlam|nuqta|xona burchagi|magistral uchi|tarmoq|stoyak|burchak|uch|unitaz|liniya|ulanish|rakovina|moyka|vanna|dush|bide|smesitel|mashina|banka|litr|m²|kg|m)"
+    r"(?=\Z|[\s);,:])"
 )
 
 

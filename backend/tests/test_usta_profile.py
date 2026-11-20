@@ -180,7 +180,7 @@ class TestModeration:
 
     def test_the_pending_queue_lists_craftsmen_too(self, client):
         usta = _usta(_user(), "pending")
-        _as(_user(is_admin=True), [_R(many=[]), _R(many=[]), _R(many=[usta])])
+        _as(_user(is_admin=True), [_R(many=[]), _R(many=[]), _R(many=[usta]), _R(many=[])])
         body = client.get("/api/v1/admin/moderation/pending").json()
         assert [u["id"] for u in body["ustalar"]] == [str(usta.id)]
         assert body["ustalar"][0]["status"] == "pending"

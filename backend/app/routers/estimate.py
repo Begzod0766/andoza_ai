@@ -36,10 +36,12 @@ from __future__ import annotations
 import dataclasses
 import functools
 import io
+import re
 import uuid
 from pathlib import Path
 from datetime import date, datetime, timezone
 from typing import Any
+from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
 import structlog
@@ -212,6 +214,10 @@ async def _load_norms(db: Any) -> dict[str, Norm]:
     Loading all rows is intentional — the table is small and new keys are
     picked up automatically without code changes.
     """
+    # The prices an admin set over the norm files (spec 2026-11-15), re-read at most every 30 s.
+    from app.services.norm_overrides import refresh
+
+    await refresh(db)
     result = await db.execute(select(Norm))
     return {n.material_key: n for n in result.scalars().all()}
 
@@ -522,6 +528,18 @@ async def list_estimates(
 # GET /rooms/{room_id}/estimate.pdf  +  GET /rooms/{room_id}/estimate/pdf
 # ---------------------------------------------------------------------------
 
+
+def _pdf_content_disposition(room_name: str, day: date) -> str:
+    """`Content-Disposition` for the estimate PDF. HTTP headers are latin-1, so a Cyrillic room
+    name ("Ванная", the app's ru default) used to make the response a 500. The plain `filename`
+    keeps only the name's ASCII letters; `filename*` (RFC 5987) carries the whole name."""
+    words = re.sub(r"\s+", "_", (room_name or "").strip())
+    ascii_name = re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9_-]", "", words)).strip("_")
+    plain = f"smeta_{ascii_name}_{day}.pdf" if ascii_name else f"smeta_{day}.pdf"
+    full = f"smeta_{words}_{day}.pdf" if words else plain
+    return f'attachment; filename="{plain}"; filename*=UTF-8\'\'{quote(full, safe="")}'
+
+
 async def _generate_estimate_pdf(
     room_id: uuid.UUID,
     current_user: CurrentUser,
@@ -546,11 +564,10 @@ async def _generate_estimate_pdf(
 
     pdf_bytes = _build_pdf(room, computed, lang=lang)
 
-    filename = f"smeta_{room.name.replace(' ', '_')}_{date.today()}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _pdf_content_disposition(room.name, date.today())},
     )
 
 
@@ -691,6 +708,19 @@ def _pdf_language(request: Request, user: Any) -> str:
     return saved if saved in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
 
 
+# The lines table: item, working, quantity, unit, unit price, total. They add up to the 17 cm between
+# the margins. The unit column holds the longest unit word in any language («комплектов»): narrower,
+# it ran over the quantity beside it. Sized for the server's font (DejaVu), wider than a Mac's.
+_PDF_COL_WIDTHS = [5.0 * cm, 3.5 * cm, 1.5 * cm, 2.4 * cm, 2.3 * cm, 2.3 * cm]
+
+
+def _fmt_qty(n: int | float) -> str:
+    """A quantity as the estimate has it: up to two decimals, none when it is whole (29.92, 2.9, 13)."""
+    whole, _, frac = f"{float(n):,.2f}".partition(".")
+    frac = frac.rstrip("0")
+    return whole.replace(",", " ") + (f".{frac}" if frac else "")
+
+
 def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) -> bytes:
     """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes."""
     buf = io.BytesIO()
@@ -809,8 +839,7 @@ def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, s
         story.append(summary_tbl)
         story.append(Spacer(1, 0.2 * cm))
 
-    # Widths add up to the 17 cm between the margins (they used to be 18.8 and ran over).
-    col_widths = [5.2 * cm, 4.4 * cm, 1.5 * cm, 1.3 * cm, 2.3 * cm, 2.3 * cm]
+    col_widths = _PDF_COL_WIDTHS
 
     def _header_row() -> list[str]:
         return [tx("col_item"), tx("col_formula"), tx("col_qty"), tx("col_unit"),
@@ -836,7 +865,7 @@ def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, s
         return [
             name,
             Paragraph(f"<font size='7'>{xml_escape(localize_formula(ln.formula, lang))}</font>", normal),
-            _fmt_num(ln.qty),
+            _fmt_qty(ln.qty),
             localize_unit(ln.unit, ln.qty, lang),
             _fmt_num(ln.unit_price_uzs),
             prefix + _fmt_num(ln.subtotal_uzs),

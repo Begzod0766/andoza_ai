@@ -1,0 +1,17 @@
+{
+  "_doc": "A tray-less shower's sloped zone (spec 2026-11-14): frontend lib/floorDrain showerZoneSize and backend app/services/floor_drain shower_zone_size must both give `expected` (metres); the area is the sum of w × d, 2 decimals.",
+  "sizes": [
+    {"name": "catalog footprint", "footprint_w": 90, "footprint_d": 90, "scale": null, "expected": [0.9, 0.9]},
+    {"name": "oblong", "footprint_w": 120, "footprint_d": 80, "scale": null, "expected": [1.2, 0.8]},
+    {"name": "scaled", "footprint_w": 100, "footprint_d": 80, "scale": 1.5, "expected": [1.5, 1.2]},
+    {"name": "no footprint", "footprint_w": null, "footprint_d": null, "scale": null, "expected": [0.9, 0.9]},
+    {"name": "one side missing", "footprint_w": 120, "footprint_d": null, "scale": null, "expected": [1.2, 0.9]},
+    {"name": "bad scale", "footprint_w": 100, "footprint_d": 100, "scale": -2, "expected": [1.0, 1.0]},
+    {"name": "zero footprint", "footprint_w": 0, "footprint_d": 0, "scale": null, "expected": [0.9, 0.9]}
+  ],
+  "areas": [
+    {"zones": [[0.9, 0.9]], "expected": 0.81},
+    {"zones": [[0.9, 0.9], [1.2, 1.0]], "expected": 2.01},
+    {"zones": [], "expected": 0}
+  ]
+}

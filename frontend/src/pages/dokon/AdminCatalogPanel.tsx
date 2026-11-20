@@ -10,14 +10,16 @@ import { StoreProfile } from "./admin/StoreProfile";
 import { ModerationQueue } from "./admin/ModerationQueue";
 import { AdminOrders } from "./admin/AdminOrders";
 import { ProductsTab } from "./admin/ProductsTab";
+import { NormsTab } from "./admin/NormsTab";
 import { type FormError, formErrorText } from "@/lib/formError";
 
-type Tab = "orders" | "products" | "stores" | "moderation";
+type Tab = "orders" | "products" | "stores" | "moderation" | "norms";
 const TABS: Array<{ id: Tab; labelKey: TKey }> = [
   { id: "orders", labelKey: "dokon.admin.tabs.orders" },
   { id: "products", labelKey: "dokon.admin.tabs.products" },
   { id: "stores", labelKey: "dokon.admin.tabs.stores" },
   { id: "moderation", labelKey: "dokon.admin.tabs.moderation" },
+  { id: "norms", labelKey: "dokon.admin.tabs.norms" },
 ];
 const isTab = (v: string | null): v is Tab => TABS.some((t) => t.id === v);
 
@@ -77,7 +79,7 @@ export default function AdminCatalogPanel() {
             >
               {t(item.labelKey)}
               {badges[item.id] && (
-                <span className={cn("rounded-full px-1.5 text-[11px] font-bold", selected ? "bg-card/20" : "bg-orange-500/15 text-orange-600")}>
+                <span className={cn("rounded-full px-1.5 text-[11px] font-bold", selected ? "bg-card/20" : "bg-warn/15 text-ink")}>
                   {badges[item.id]}
                 </span>
               )}
@@ -106,6 +108,7 @@ export default function AdminCatalogPanel() {
           <CatalogOverview onError={setError} onSelectStore={setSelectedStore} />
         ))}
         {tab === "moderation" && <ModerationQueue onError={setError} />}
+        {tab === "norms" && <NormsTab onError={setError} />}
       </div>
     </div>
   );

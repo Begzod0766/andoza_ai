@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { riserToSave } from "@/lib/plumbingRuns";
 import { createAutosave, roomContentChanged } from "@/lib/autosave";
 import { formatDecimal } from '@/lib/utils'
 import { defaultApartmentName, defaultRoomName } from '@/lib/defaultNames';
@@ -21,6 +22,8 @@ import { hasAbcdWalls } from "@/lib/roomDims";
 import { effectiveRoomType } from "@/lib/roomType";
 import { useRestoreUserModels } from "@/hooks/useRestoreUserModels";
 import { WebOnly } from "@/lib/embedded";
+import { redoRoom, undoRoom } from "@/lib/roomHistory";
+import { UndoRedoButtons } from "@/components/studio/UndoRedoButtons";
 import { useCompactStudio } from "@/lib/compactStudio";
 import { MENU_ICON, MENU_ROW } from "@/components/studio/menuRow";
 import { UnsavedChangesGuard } from "@/components/studio/UnsavedChangesGuard";
@@ -29,6 +32,11 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { StudioMenu } from "@/components/studio/StudioMenu";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 import { DiscardDesignMenuItem } from "@/components/studio/DiscardDesignMenuItem";
+import { StudioTour, isTourTargetShown } from "@/components/studio/StudioTour";
+import {
+  STUDIO_TOUR_STEPS, isStudioTourDone, markStudioTourDone, presentSteps, shouldStartStudioTour,
+  type StudioTourTarget,
+} from "@/lib/studioTour";
 
 // Read live at navigation time (not from the last render): a save marks the
 // store clean and may navigate in the same tick.
@@ -66,7 +74,9 @@ export default function StudioPage() {
   // DesignPanel) so uploaded models reappear on reload without opening panels
   useRestoreUserModels();
   const isDirty = useRoomStore((s) => s.isDirty);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'deleted'>('idle');
+  /** The room this page opened was deleted elsewhere (2026-11-19): nothing more is saved, and it is never made again. */
+  const deletedRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // The header used to be measured, to place the drawers that opened beneath
@@ -94,6 +104,46 @@ export default function StudioPage() {
   const sharePopoverRef = useRef<HTMLDivElement>(null);
   const shareCloseButtonRef = useRef<HTMLButtonElement>(null);
   const sharePopoverWasOpenRef = useRef(false);
+
+  // The Studio tour (StudioTour). The 3D view says when it is a live editing view on a phone
+  // (setStudioTourReady); the first such view starts the tour, and "?" in the header replays it.
+  // It opens only with at least one target on screen, so a tour that showed nothing is never
+  // remembered as seen.
+  const [tourReady, setStudioTourReady] = useState(false);
+  const [tourSteps, setTourSteps] = useState<StudioTourTarget[] | null>(null);
+  // Once the tour has been on screen it never starts on its own again here: with a storage that
+  // will not keep "done", it would reopen the moment Skip closed it.
+  const tourShownRef = useRef(false);
+  // "?" pressed away from the live 3D view (a camera, the 2D plan, the smeta): the tour opens as
+  // soon as that view is back. For this visit only.
+  const [tourReplayPending, setTourReplayPending] = useState(false);
+  const openTour = () => {
+    const steps = presentSteps(STUDIO_TOUR_STEPS, isTourTargetShown);
+    if (steps.length === 0) return;
+    tourShownRef.current = true;
+    setMenuOpen(false);
+    setSharePopoverOpen(false);
+    setTourSteps(steps);
+  };
+  const tourOpen = tourSteps !== null;
+  useEffect(() => {
+    if (tourOpen || !tourReady) return;
+    if (tourReplayPending) {
+      setTourReplayPending(false);
+      openTour();
+      return;
+    }
+    if (!tourShownRef.current && shouldStartStudioTour({ done: isStudioTourDone(), compact, editingView: tourReady })) openTour();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- openTour reads only setters and the DOM
+  }, [compact, tourReady, tourOpen, tourReplayPending]);
+  const onTourHelp = () => {
+    if (tourReady) openTour();
+    else setTourReplayPending(true);
+  };
+  const finishTour = () => {
+    markStudioTourDone();
+    setTourSteps(null);
+  };
 
   // "Ulashish" (Share) — a room-level action like Save, hence living in the
   // kebab menu rather than a new 3D-view-specific toolbar button. A small
@@ -205,11 +255,11 @@ export default function StudioPage() {
       const key = e.key.toLowerCase();
       if (key === 'z') {
         e.preventDefault();
-        if (e.shiftKey) useRoomStore.temporal.getState().redo();
-        else useRoomStore.temporal.getState().undo();
+        if (e.shiftKey) redoRoom();
+        else undoRoom();
       } else if (key === 'y') {
         e.preventDefault();
-        useRoomStore.temporal.getState().redo();
+        redoRoom();
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -239,6 +289,7 @@ export default function StudioPage() {
     // writing it to this URL's room would overwrite that room with the other's design.
     const held = useRoomStore.getState().roomId;
     if (roomId && held && held !== roomId) return false;
+    if (deletedRef.current) return true;
     setSaveStatus('saving');
     try {
       const s = useRoomStore.getState();
@@ -251,6 +302,12 @@ export default function StudioPage() {
         designState: s.designState,
         furniture: s.furniture,
         electricals: s.electricals,
+        plumbing: s.plumbing,
+        towelRails: s.towelRails,
+        washers: s.washers,
+        // Where the pipes run to, so the estimate measures from the same place: the riser the user
+        // set (marked `manual`), else the door corner (lib/plumbingRuns riserToSave).
+        plumbingRiser: riserToSave(s.geometry, s.plumbingRiser),
         lights: s.lights,
         layoutPos: s.layoutPos,
       };
@@ -275,6 +332,11 @@ export default function StudioPage() {
           useRoomStore.getState().markSaved();
           setSaveStatus('saved');
           loadedAtRef.current = saved.updated_at ?? loadedAtRef.current;
+          // The fetched room is the saved one now. Leaving for the estimate (its own page)
+          // unmounts the studio, and the room stays fresh in the cache for minutes: coming
+          // back read the copy fetched when the studio opened, loaded it over the store and
+          // the next autosave wrote it back, losing every edit saved in between.
+          queryClient.setQueryData(["room", roomId], saved);
           // The nav-tab price badge previews room.state as of the last save
           // — without this it'd keep showing the pre-save number for up to
           // its 30s staleTime after a save the user just watched succeed.
@@ -286,6 +348,13 @@ export default function StudioPage() {
           // failure — a refused value, the network — used to fall through
           // too, and each autosave retry could make a copy of the room.
           if (!(err instanceof ApiError && err.status === 404)) throw err;
+          // A room this page opened from the server and the server no longer has was deleted elsewhere
+          // (2026-11-19): it used to be made again, with a new id, without a word. Said so, and left deleted.
+          if (loadedAtRef.current != null) {
+            deletedRef.current = true;
+            setSaveStatus('deleted');
+            return true;
+          }
         }
       }
 
@@ -494,6 +563,8 @@ export default function StudioPage() {
       // loadRoom last: authoritative ids + geometry (with door/window elements)
       // from the API override whatever the state blob carried.
       useRoomStore.getState().loadRoom(apiRoom);
+      // Saved before plumbing existed: the fixtures get their points (and the autosave writes them).
+      if (state && !("plumbing" in state)) useRoomStore.getState().seedFixturePoints();
       loadedAtRef.current = apiRoom.updated_at ?? null;
       if (useRoomStore.getState().userFurniture.length === 0 && keepUserFurniture.length > 0) {
         useRoomStore.setState({ userFurniture: keepUserFurniture });
@@ -512,6 +583,7 @@ export default function StudioPage() {
     if (apiRoom.updated_at && apiRoom.updated_at === loadedAtRef.current) return;
     loadDraftState(state);
     useRoomStore.getState().loadRoom(apiRoom);
+    if (!("plumbing" in state)) useRoomStore.getState().seedFixturePoints();
     loadedAtRef.current = apiRoom.updated_at ?? null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiRoom]);
@@ -601,12 +673,19 @@ export default function StudioPage() {
               its own (see the autosave above), and this only says how that is
               going — nothing at all when it is simply saved. */}
           <div className="flex items-center gap-2 flex-shrink-0 relative">
+            {/* A phone has no Ctrl+Z (mobile QA 2026-11-11 #1). */}
+            <div data-tour="undo" className="flex-shrink-0">
+              <UndoRedoButtons />
+            </div>
             <div className="flex items-center gap-1.5 text-xs font-semibold" aria-live="polite">
               {saveStatus === 'saving' && (
                 <span className="text-ink-muted">{t('studio.page.saqlanmoqda')}</span>
               )}
               {saveStatus === 'saved' && (
                 <span className="text-emerald-600">✓ {t('studio.page.saqlandi')}</span>
+              )}
+              {saveStatus === 'deleted' && (
+                <span role="alert" className="text-red-600">{t('studio.page.ochirilgan')}</span>
               )}
               {saveStatus === 'error' && (
                 <>
@@ -620,8 +699,22 @@ export default function StudioPage() {
                 </>
               )}
             </div>
+            {/* The tour again. On every phone view, so the row never shifts; away from the
+                live 3D view the tour waits for it (onTourHelp). */}
+            {compact && (
+              <button
+                type="button"
+                data-tour="help"
+                onClick={onTourHelp}
+                aria-label={t('studio.tour.help_btn')}
+                title={t('studio.tour.help_btn')}
+                className="w-10 h-10 rounded-full bg-card-soft text-ink-muted flex items-center justify-center text-[17px] font-bold hover:bg-line transition-colors"
+              >
+                ?
+              </button>
+            )}
             <div className="relative">
-              <StudioMenu ref={menuButtonRef} open={menuOpen} onOpenChange={setMenuOpen}>
+              <StudioMenu ref={menuButtonRef} tourId="menu" open={menuOpen} onOpenChange={setMenuOpen}>
                 <div ref={setMenuSlotEl} />
                 {/* The way to the sizes on a phone, where the header's size line is hidden. */}
                 <button
@@ -762,9 +855,11 @@ export default function StudioPage() {
             </div>
           }
         >
-          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId }} />
+          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId, studioTourActive: tourOpen, setStudioTourReady }} />
         </Suspense>
       </main>
+
+      {tourSteps && <StudioTour steps={tourSteps} onFinish={finishTour} />}
     </div>
   );
 }

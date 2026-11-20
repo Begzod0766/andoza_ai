@@ -32,9 +32,12 @@ const MAX_GLB_MB = 50;
 export function SellerModelFormDialog({
   open,
   onOpenChange,
+  onAddWallpaper,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called (after the dialog closes) when the seller says they meant to add a wallpaper. */
+  onAddWallpaper?: () => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -115,6 +118,18 @@ export function SellerModelFormDialog({
       description={t("dokon.model.seller_desc")}
       themed
     >
+      {onAddWallpaper && (
+        <p className="mb-3 rounded-xl bg-card-soft px-3 py-2 text-xs text-ink-muted">
+          {t("seller.wallpapers.model_hint")}{" "}
+          <button
+            type="button"
+            className="font-bold text-accent underline"
+            onClick={() => { reset(); onOpenChange(false); onAddWallpaper(); }}
+          >
+            {t("seller.wallpapers.model_add")}
+          </button>
+        </p>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();

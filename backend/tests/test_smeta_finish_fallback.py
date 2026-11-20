@@ -59,7 +59,6 @@ def lines_of(r, category, **kw):
 @pytest.mark.parametrize(("floor_type", "category", "chosen"), [
     ("laminate", "laminat", LAMINAT),
     ("parquet", "laminat", PARKET),   # parquet is laid and priced like laminate
-    ("tile", "plitka", PLITKA),
 ])
 def test_a_floor_type_without_a_product_is_priced_from_the_median_shop_product(floor_type, category, chosen):
     r = room({"floorType": floor_type, "floorConfigured": True})
@@ -69,6 +68,13 @@ def test_a_floor_type_without_a_product_is_priced_from_the_median_shop_product(f
     assert floor.is_approximate
     assert "tanlanmagan" in floor.warning
     assert floor.store_name == STORE.name
+
+
+def test_a_tile_floor_of_no_size_is_priced_from_the_median_tile_but_names_none():
+    # 2026-11-18: the median of every tile is no tile the user chose (test_smeta_bathroom_e2e).
+    [floor] = lines_of(room({"floorType": "tile", "floorConfigured": True}), "plitka")
+    assert floor.label == "Pol plitkasi (o'rtacha narx)" and floor.store_name is None
+    assert floor.unit_price_uzs == PLITKA.price_uzs and floor.is_approximate and "tanlanmagan" in floor.warning
 
 
 def test_that_floor_gets_its_skirting_too():

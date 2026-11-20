@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import { hourOfDay } from '@/lib/sunPosition'
 import type { RoomStore } from '../roomStoreTypes'
+import type { ViewStage } from '@/lib/stageView'
 
 export interface UiSlice {
   /**
@@ -15,10 +16,17 @@ export interface UiSlice {
   highQuality3d: boolean
   /** Room's position in the apartment floor plan (metres); null = not placed */
   layoutPos: { x: number; z: number } | null
+  /**
+   * The renovation stage the 3D draws the room at (spec 2026-11-18, lib/stageView): set by picking a
+   * stage in the stage list, back to 'full' (the finished room) by every quick edit and by the render
+   * cameras. View state only: never saved, never an undo step.
+   */
+  viewStage: ViewStage
 
   setSunHour(hour: number): void
   setHighQuality3d(v: boolean): void
   setLayoutPos(pos: { x: number; z: number } | null): void
+  setViewStage(stage: ViewStage): void
 }
 
 export const createUiSlice: StateCreator<
@@ -36,6 +44,7 @@ export const createUiSlice: StateCreator<
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(pointer:fine)').matches,
   layoutPos: null,
+  viewStage: 'full',
 
   setSunHour(hour) {
     set({ sunHour: hour })
@@ -47,5 +56,9 @@ export const createUiSlice: StateCreator<
 
   setLayoutPos(pos) {
     set({ layoutPos: pos })
+  },
+
+  setViewStage(stage) {
+    set({ viewStage: stage })
   },
 })

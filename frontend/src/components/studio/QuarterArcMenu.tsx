@@ -39,6 +39,8 @@ export interface ArcItem {
    *  Mebel. Tapping the category again comes back out. */
   items?: ArcItem[]
   onSelect: () => void
+  /** The pick hands over to a panel (it opens one): the menu closes, or it stays over the panel. */
+  closesMenu?: boolean
 }
 
 export interface ArcCategory {
@@ -71,6 +73,8 @@ export function QuarterArcMenu({
   label,
   className = '',
   onOpenChange,
+  tourId,
+  closed = false,
 }: {
   categories: ArcCategory[]
   /** Accessible name for the group of corner buttons. */
@@ -80,6 +84,10 @@ export function QuarterArcMenu({
   /** Fires as the menu opens and closes, so the page can clear whatever the
    *  fanned-out ring would otherwise land on top of. */
   onOpenChange?: (open: boolean) => void
+  /** The Studio tour's target id for the corner button (StudioTour). */
+  tourId?: string
+  /** While true the menu is folded away (the Studio tour runs over it). */
+  closed?: boolean
 }) {
   const { t } = useTranslation()
   const buttonLabel = label ?? t('studio.arc.add')
@@ -125,6 +133,8 @@ export function QuarterArcMenu({
     setTrail([])
     setOffset({ inner: 0, outer: 0 })
   }
+
+  useEffect(() => { if (closed) closeAll() }, [closed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { onOpenChange?.(open) }, [open, onOpenChange])
 
@@ -238,6 +248,7 @@ export function QuarterArcMenu({
       return
     }
     item.onSelect()
+    if (item.closesMenu) closeAll()
   }
 
   function renderOuterButton(item: ArcItem, pos: { dx: number; dy: number }, opacity: number, i: number, slotKey: number | string) {
@@ -314,6 +325,21 @@ export function QuarterArcMenu({
         className={`absolute z-30 pointer-events-none ${className}`}
         style={{ width: ANCHOR, height: ANCHOR }}
       >
+        {/* What the studio tour spotlights: the small arc's footprint. The
+            anchor box itself is an empty 40px square in the corner. */}
+        {tourId && (
+          <div
+            data-tour={tourId}
+            aria-hidden="true"
+            className="absolute pointer-events-none"
+            style={{
+              right: 0,
+              bottom: 0,
+              width: ANCHOR / 2 + COMPACT_RADIUS + COMPACT_ITEM / 2,
+              height: ANCHOR / 2 + COMPACT_RADIUS + COMPACT_ITEM / 2,
+            }}
+          />
+        )}
         {/* Outer ring — the active category's own things. Rendered first so
             the category buttons paint over it where the rings crowd. */}
         {open && outerRing.slots

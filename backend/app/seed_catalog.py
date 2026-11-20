@@ -264,14 +264,12 @@ USTALAR = [
 ]
 
 # ---------------------------------------------------------------------------
-# Deterministic image URLs. Materials use picsum keyed by a slug of name_uz;
-# ustalar use pravatar keyed by phone. Both load reliably over HTTPS.
+# Deterministic image URLs. Materials use picsum keyed by a slug of name_uz.
+# Ustalar get no avatar: stock faces did not match the names, so the apps
+# show the name's initial until the usta uploads a photo.
 # ---------------------------------------------------------------------------
 for _m in MATERIALS:
     _m["image_url"] = f"https://picsum.photos/seed/{_slugify(_m['name_uz'])}/600/400"
-
-for _u in USTALAR:
-    _u["avatar_url"] = f"https://i.pravatar.cc/300?u={_u['phone']}"
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +287,7 @@ _OTHER_FACTORS = [0.92, 1.12, 1.22]
 async def seed() -> None:
     stores_inserted = stores_skipped = 0
     materials_inserted = materials_skipped = materials_backfilled = 0
-    ustalar_inserted = ustalar_skipped = ustalar_backfilled = 0
+    ustalar_inserted = ustalar_skipped = 0
     offers_inserted = offers_skipped = 0
 
     async with AsyncSessionLocal() as session:
@@ -351,10 +349,6 @@ async def seed() -> None:
                 )
             )
             if existing is not None:
-                # Backfill avatar_url on a previously-seeded row.
-                if existing.avatar_url is None:
-                    existing.avatar_url = row["avatar_url"]
-                    ustalar_backfilled += 1
                 ustalar_skipped += 1
                 continue
             session.add(Usta(is_active=True, **row))
@@ -405,7 +399,6 @@ async def seed() -> None:
     )
     print(
         f"  Ustalar   : inserted {ustalar_inserted}, skipped {ustalar_skipped}"
-        f" (avatar_url backfilled {ustalar_backfilled})"
     )
     print(f"  Offers    : inserted {offers_inserted}, skipped {offers_skipped}")
 

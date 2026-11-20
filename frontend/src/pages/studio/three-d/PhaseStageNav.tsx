@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
-import { RENO_STAGES, type PhaseKey } from "@/lib/phases";
+import { RENO_STAGES, visibleStages, type PhaseKey } from "@/lib/phases";
 
 /**
  * Renovation-phase navigation: the desktop-only collapsible left phase-stepper
@@ -15,12 +15,14 @@ import { RENO_STAGES, type PhaseKey } from "@/lib/phases";
  */
 export function PhaseStageNav({
   leftOpen, setLeftOpen,
-  activeIdx, setActivePhase,
+  activeIdx, setActivePhase, stages = visibleStages(undefined),
 }: {
   leftOpen: boolean;
   setLeftOpen: Dispatch<SetStateAction<boolean>>;
   activeIdx: number;
   setActivePhase: (phase: PhaseKey) => void;
+  /** The room's stages (lib/phases' visibleStages): "Santexnika" only in a bathroom or kitchen. */
+  stages?: typeof RENO_STAGES;
 }) {
   const { t } = useTranslation();
   return (
@@ -45,7 +47,7 @@ export function PhaseStageNav({
         }}
       >
         <p className="text-[9px] font-bold text-ink-muted uppercase tracking-widest px-4 mb-2">{t('studio.three_d.bosqichlar')}</p>
-        {RENO_STAGES.map((stage, i) => {
+        {stages.map((stage, i) => {
           const status = i < activeIdx ? 'done' : i === activeIdx ? 'current' : 'pending';
           return (
             <button

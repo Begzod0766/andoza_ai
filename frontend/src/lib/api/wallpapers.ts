@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import type { ModerationStatus } from "./seller";
 
 // ---------- Wallpapers (shared oboy library) ----------
 
@@ -29,6 +30,9 @@ export interface Wallpaper {
   content_type: string;
   size_bytes: number;
   created_at: string;
+  /** Only "approved" rows show in the public library. */
+  status: ModerationStatus;
+  moderation_note: string | null;
 }
 
 /** Every wallpaper anyone has uploaded. The library is global and permanent. */
@@ -53,6 +57,23 @@ export async function listWallpapers(params: { store_id?: string; kind?: string 
     all.push(...batch);
     // A short page is the last one. The guard stops a runaway loop if the
     // server ever ignores per_page and keeps returning full pages.
+    if (batch.length < PER_PAGE || page >= 50) break;
+  }
+  return all;
+}
+
+/** Admins only: the library across every moderation status (the public list shows approved only). */
+export async function listAllWallpapers(params: { store_id?: string; kind?: string } = {}): Promise<Wallpaper[]> {
+  const PER_PAGE = 100;
+  const base = Object.fromEntries(
+    Object.entries(params).filter(([, v]) => v !== undefined),
+  ) as Record<string, string>;
+
+  const all: Wallpaper[] = [];
+  for (let page = 1; ; page += 1) {
+    const query = new URLSearchParams({ ...base, page: String(page), per_page: String(PER_PAGE) }).toString();
+    const batch = await apiClient<Wallpaper[]>(`/wallpapers/all?${query}`);
+    all.push(...batch);
     if (batch.length < PER_PAGE || page >= 50) break;
   }
   return all;

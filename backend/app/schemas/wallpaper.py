@@ -40,4 +40,6 @@ class WallpaperOut(BaseModel):
     url: str
     content_type: str
     size_bytes: int
+    status: str
+    moderation_note: str | None
     created_at: datetime

@@ -1,5 +1,6 @@
 import { getRooms, RoomChangedError, updateRoom, type CatalogFurniture, type Room } from '@/lib/api'
-import type { DesignState, PlacedFurniture, PlacedLight, RoomGeometry } from '@/store/roomStore'
+import type { DesignState, PlacedFurniture, PlacedLight, PlumbingPoint, RoomGeometry } from '@/store/roomStore'
+import { withFixturePoints } from '@/lib/plumbingPoints'
 import { apiGeometryToStoreGeometry, roomScopedElementId } from '@/lib/apiRoomGeometry'
 import { siblingDesignState } from '@/lib/siblingRoomView'
 import { effectiveRoomType, isRoomType } from '@/lib/roomType'
@@ -133,7 +134,12 @@ export async function applyToOtherRooms(args: {
       const { designState, furniture, lights, applied } = designRoomState(
         savedDesign(room), layout, plan, parts, catalog, target.roomType, ceilingMmOf(room),
       )
-      const state = { ...(isObject(room.state) ? room.state : {}), designState, furniture, lights }
+      const saved = isObject(room.state) ? room.state : {}
+      // The fixtures the design took away take their points with them; the new ones bring theirs.
+      const plumbing = withFixturePoints(
+        Array.isArray(saved.plumbing) ? (saved.plumbing as PlumbingPoint[]) : [], furniture, catalog, target.geometry,
+      )
+      const state = { ...saved, designState, furniture, lights, ...((plumbing.length > 0 || 'plumbing' in saved) && { plumbing }) }
       const dropped = applied.dropped.map((d) => d.name)
       return [{ room, state, guard: room.updated_at, ...(dropped.length > 0 && { dropped }) }]
     } catch {

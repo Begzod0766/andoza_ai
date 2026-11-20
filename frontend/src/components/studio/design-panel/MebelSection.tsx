@@ -1,5 +1,8 @@
 import * as React from "react";
 import { formatDecimal } from "@/lib/utils";
+
+/** A card's size to the centimetre, no trailing zeros: 0.36700000000000005 read as noise (kitchen QA 2026-11-18 K8). */
+const cardSize = (m: number) => formatDecimal(m, 2).replace(/[.,]?0+$/, "");
 import { useTranslation } from "react-i18next";
 import { intlLocale } from "@/i18n";
 import { nanoid } from "nanoid";
@@ -15,10 +18,14 @@ import { useGLTF } from "@react-three/drei";
 import { applyMaterialToGlb, listGlbMaterials } from "@/lib/modelConverter";
 import type { GlbMaterialInfo } from "@/lib/modelConverter";
 import { nextFurnitureSpot } from "@/features/studio/nextFurnitureSpot";
+import { FurnitureFitWarnings } from "./FurnitureFitWarnings";
 import { deleteUserModel, getStores, updateUserModel } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { StoreContactLinks } from "@/components/studio/StoreContactLinks";
 import { ShopInquiryDialog } from "@/components/studio/ShopInquiryDialog";
+import { fitsCatalogRoom } from '@/lib/furnitureRoomFit';
+import { catalogRoomType, effectiveRoomType } from '@/lib/roomType';
+import { inferRole, ROLE_GROUP } from '@/lib/furnitureRole';
 
 /**
  * One row of the material editor. Accepts image drops so a texture can be
@@ -159,7 +166,7 @@ function ModelCard({ entry, count, busy, onPlace, onOpenTexEditor, onRemove, onF
         <p className="text-[11px] font-semibold text-ink leading-tight line-clamp-2">
           {isOver ? t('studio.mebel.apply_texture') : entry.name}
         </p>
-        <p className="text-[10px] text-ink-muted mt-0.5">{entry.sizeM.w}×{entry.sizeM.d} m</p>
+        <p className="text-[10px] text-ink-muted mt-0.5">{cardSize(entry.sizeM.w)}×{cardSize(entry.sizeM.d)} m</p>
         {entry.isShop && (
           <p className="text-[10px] text-ink-muted mt-0.5 truncate" title={entry.storeName ?? undefined}>
             <Store size={11} className="mr-1 inline -mt-0.5" aria-hidden="true" />{entry.storeName ?? t('studio.mebel.no_shop')}
@@ -285,12 +292,14 @@ export function MebelSection() {
   const setUserFurniturePlacement = useRoomStore((s) => s.setUserFurniturePlacement);
   const setUserFurniturePrice = useRoomStore((s) => s.setUserFurniturePrice);
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture);
+  // The room's kind, so a bathroom offers no office desks (spec 2026-11-08, as #207 did for the arc menu).
+  const roomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)));
   // Public shop details, to put a call / Telegram shortcut on each shop's models.
   const { data: shops = [] } = useQuery({ queryKey: ['stores'], queryFn: getStores, staleTime: 5 * 60_000 });
   const shopById = new Map(shops.map((st) => [st.id, st]));
 
   const [colorEditorId, setColorEditorId] = React.useState<string | null>(null);
-  const [furnitureCat, setFurnitureCat] = React.useState<FurnitureCategory | 'barchasi' | 'mening'>('barchasi');
+  const [furnitureCat, setFurnitureCat] = React.useState<FurnitureCategory | 'barchasi' | 'mening' | 'santexnika'>('barchasi');
 
   // ── Manual texturing of imported models (per material channel) ──────
   const texInputRef = React.useRef<HTMLInputElement>(null);
@@ -377,7 +386,7 @@ export function MebelSection() {
     ...userFurniture.map(e => ({ ...e, isUser: true as const, isShop: false as const })),
     // Do'kon-managed 3D models (admin catalog) — footprint-derived w×d, no
     // recategorize/price editing here (that lives in the admin panel).
-    ...catalogFurniture.map(f => ({
+    ...catalogFurniture.filter((f) => !roomKind || fitsCatalogRoom(f, roomKind)).map(f => ({
       id: f.id,
       name: f.name_uz,
       emoji: '🏪',
@@ -394,15 +403,17 @@ export function MebelSection() {
     })),
   ]
 
-  const catChips: Array<{ key: FurnitureCategory | 'barchasi' | 'mening'; label: string }> = [
+  const catChips: Array<{ key: FurnitureCategory | 'barchasi' | 'mening' | 'santexnika'; label: string }> = [
     { key: 'barchasi', label: t('studio.mebel.all') },
     ...Object.entries(CATEGORY_LABELS).map(([k, v]) => ({ key: k as FurnitureCategory, label: t(v) })),
+    { key: 'santexnika', label: t('studio.mebel.santexnika') },
     { key: 'mening', label: t('studio.mebel.mine') },
   ]
 
   const filteredEntries = allCatalogEntries.filter((e) => {
     if (furnitureCat === 'barchasi') return true
     if (furnitureCat === 'mening') return e.isUser
+    if (furnitureCat === 'santexnika') return ROLE_GROUP[inferRole(e.category ?? null, e.name)] === 'plumbing'
     // Uploads made before categories existed have none — file them under Boshqa
     if (e.isUser || e.isShop) return (e.category ?? 'boshqa') === furnitureCat
     return (e as FurnitureCatalogEntry).category === furnitureCat
@@ -411,6 +422,7 @@ export function MebelSection() {
   return (
     <section className="relative rounded-xl">
       <h3 className="text-sm font-semibold text-ink mb-2">{t('studio.mebel.models')}</h3>
+      <FurnitureFitWarnings />
 
       {/* Category chips */}
       <div className="flex gap-1.5 flex-wrap mb-3">
@@ -570,7 +582,8 @@ export function MebelSection() {
             const shopSizeM = shopEntry
               ? { w: (shopEntry.footprint_w ?? 0) / 100, d: (shopEntry.footprint_d ?? 0) / 100 }
               : null;
-            const actualW = formatDecimal((entry?.sizeM.w ?? shopSizeM?.w ?? 0) * so, 2);
+            // A kitchen set cut to its wall shows the length it was cut to (2026-11-18).
+            const actualW = formatDecimal(f.lengthCm && f.lengthCm > 0 ? f.lengthCm / 100 : (entry?.sizeM.w ?? shopSizeM?.w ?? 0) * so, 2);
             const actualD = formatDecimal((entry?.sizeM.d ?? shopSizeM?.d ?? 0) * so, 2);
             return (
               <div key={f.id} className="border border-line rounded-lg overflow-hidden mb-1">

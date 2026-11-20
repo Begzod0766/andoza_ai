@@ -38,7 +38,7 @@ describe('admin material lists match the backend', () => {
     const keys = backend('app/services/smeta_keys.py')
     const dict = block(keys, /KEY_PACK_UNIT: dict\[str, str \| None\] = \{/, '}')
     const backendPairs = Object.fromEntries(
-      [...dict.matchAll(/"([a-z_]+)":\s*(None|"([a-z0-9]+)")/g)].map((m) => [m[1], m[3] ?? null]),
+      [...dict.matchAll(/"([a-z0-9_]+)":\s*(None|"([a-z0-9]+)")/g)].map((m) => [m[1], m[3] ?? null]),
     )
     const frontPairs = Object.fromEntries(
       SMETA_KEYS.filter((k) => !k.id.startsWith('light:')).map((k) => [k.id, k.packUnit]),

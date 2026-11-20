@@ -74,6 +74,19 @@ fi
 # survive whatever bash the server happens to ship.
 SEED_FAILURES=""
 
+# Removes all but the newest KEEP_IMAGES (default 4) tags of the backend and frontend images,
+# never the IMAGE_TAG just deployed. Tested by deploy/tests/test_prune_old_images.sh.
+prune_old_images() {
+  local keep="${KEEP_IMAGES:-4}" repo tag
+  for repo in "ghcr.io/${IMAGE_OWNER}/andoza_ai-backend" "ghcr.io/${IMAGE_OWNER}/andoza_ai-frontend"; do
+    docker images "$repo" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +"$((keep + 1))" | cut -f2 |
+      while IFS= read -r tag; do
+        if [ -z "$tag" ] || [ "$tag" = "$IMAGE_TAG" ]; then continue; fi
+        docker image rm "$repo:$tag" >/dev/null 2>&1 || echo "   kept $repo:$tag (in use)"
+      done
+  done
+}
+
 run_seed() {
   # run_seed <module> <human label>
   local module="$1" label="$2" rc=0
@@ -122,6 +135,17 @@ docker compose -f "$COMPOSE_FILE" exec -T redis sh -c "redis-cli --scan --patter
 
 echo "==> Pruning dangling images"
 docker image prune -f
+
+# Every deploy pulls a new backend (1-2 GB) and frontend image tagged by its commit; `image prune`
+# only takes untagged ones, so on 2026-11-15 228 old tags filled 63 GB. Keep the newest
+# KEEP_IMAGES of each (the deployed one always), enough to roll back by hand; the registry keeps
+# them all. Never fatal: a tag still in use is simply skipped.
+if [ -n "$IMAGE_TAG" ] && [ -n "${IMAGE_OWNER:-}" ]; then
+  echo "==> Removing old andoza_ai images (keeping the newest ${KEEP_IMAGES:-4})"
+  prune_old_images || echo "!! removing old images failed (non-fatal)"
+  # Build cache older than a week (images are built on GitHub; this only gathers from hand builds).
+  docker builder prune -f --filter "until=168h" >/dev/null 2>&1 || true
+fi
 
 echo "==> Deployed. Running containers:"
 docker compose -f "$COMPOSE_FILE" ps

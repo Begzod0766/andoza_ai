@@ -38,8 +38,13 @@ function renderPanel() {
   return render(<QueryClientProvider client={qc}><FeedbackProvider><MebelSection /></FeedbackProvider></QueryClientProvider>)
 }
 
+// The room store is module-level: a room type one test set (a bathroom) would
+// otherwise filter the next test's models out of sight, whatever the order.
+const initialRoom = useRoomStore.getState()
+
 beforeEach(() => {
   getStores.mockReset()
+  useRoomStore.setState(initialRoom, true)
   useRoomStore.getState().setCatalogFurniture([])
 })
 
@@ -93,5 +98,51 @@ describe('Mebel panel — shop contact on a model card', () => {
     // The only file input left is the one for skinning a model with an image.
     const fileInputs = [...container.querySelectorAll<HTMLInputElement>('input[type=file]')]
     expect(fileInputs.every((i) => i.accept === 'image/*')).toBe(true)
+  })
+})
+
+describe('Mebel panel follows the room type (spec 2026-11-08)', () => {
+  const rows = [
+    model({ id: 'vanna', name_uz: 'Vanna 1', category: 'boshqa', room_type: 'hammom' }),
+    model({ id: 'desk', name_uz: 'Стол Nord', category: 'stol', room_type: null }),
+    model({ id: 'sofa', name_uz: 'Divan 1', category: 'divan', room_type: 'mehmonxona' }),
+  ]
+
+  it("a bathroom's \"All\" list shows only what suits a bathroom", async () => {
+    getStores.mockResolvedValue([])
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    useRoomStore.getState().setCatalogFurniture(rows as never)
+    renderPanel()
+    expect(await screen.findByText('Vanna 1')).toBeInTheDocument()
+    expect(screen.queryByText('Стол Nord')).toBeNull()
+    expect(screen.queryByText('Divan 1')).toBeNull()
+  })
+
+  it('the "Santexnika" chip shows only plumbing fixtures', async () => {
+    getStores.mockResolvedValue([])
+    useRoomStore.setState({ roomType: null, name: 'Xona' })
+    useRoomStore.getState().setCatalogFurniture(rows as never)
+    renderPanel()
+    screen.getByRole('button', { name: 'Santexnika' }).click()
+    await waitFor(() => expect(screen.queryByText('Divan 1')).toBeNull())
+    expect(screen.getByText('Vanna 1')).toBeInTheDocument()
+  })
+
+  it('a room of no type lists everything, as before', async () => {
+    getStores.mockResolvedValue([])
+    useRoomStore.setState({ roomType: null, name: 'Xona' })
+    useRoomStore.getState().setCatalogFurniture(rows as never)
+    renderPanel()
+    expect(await screen.findByText('Divan 1')).toBeInTheDocument()
+    expect(screen.getByText('Стол Nord')).toBeInTheDocument()
+  })
+})
+
+describe('Mebel panel — a card\'s size (kitchen QA 2026-11-18 K8)', () => {
+  it('reads in metres to the centimetre, not float noise', async () => {
+    getStores.mockResolvedValue([])
+    useRoomStore.getState().setCatalogFurniture([model({ footprint_w: 36.700000000000005, footprint_d: 400 })])
+    renderPanel()
+    expect(await screen.findByText('0.37×4 m')).toBeInTheDocument()
   })
 })

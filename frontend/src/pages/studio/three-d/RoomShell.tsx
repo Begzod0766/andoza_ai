@@ -27,11 +27,12 @@ import { doorwayNiches, shownNiches } from "@/lib/doorwayNiches";
 import { rendersAsAbcdRectangle } from "@/lib/borrowedOpenings";
 import { drawsOpeningLining, hiddenByCamera } from "@/lib/flatOpenings";
 import { rectangleFrame } from "@/lib/roomOutline";
+import { effectiveRoomType } from "@/lib/roomType";
 import { buildCeilingParts } from "@/lib/ceilingDesigns";
 import { floorSlabColorFor } from "@/lib/floorGeometry";
 import { surfaceFinish } from "@/lib/surfaceFinish";
 import { Wall, WindowFrames, DoorFrames, Baseboard, Cornice, WindowFrameItem, DoorFrameItem, TrimRun, type FrameWallDef } from "./WallComponents";
-import { resolveTrim } from "@/lib/trimProfiles";
+import { resolveTrim, roomSkirting } from "@/lib/trimProfiles";
 import { CeilingLights } from "./LightingComponents";
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { useWallFocusStore } from "@/store/wallFocusStore";
@@ -281,8 +282,9 @@ function NWallRoomShell({
   // A read-only room (a sibling) never subscribes, so a chip hover re-renders only the edited one.
   const hoveredWall = useWallFocusStore((st) => (onWallClick ? st.hovered : null));
   // Skirting: undefined means the user never touched it, which still renders
-  // the default board; only an explicit null takes it off.
-  const trim = designState.skirting === null ? null : resolveTrim(designState.skirting, 'skirting')
+  // the default board (none in a tiled bathroom); only an explicit null takes it off.
+  const bathroom = useRoomStore((s) => !readOnly && effectiveRoomType(s.roomType, s.name) === 'hammom')
+  const trim = roomSkirting(designState, bathroom)
   // Cornice: opt-in, and this shell always draws the plain slab at H (a
   // scanned room is rendered open-topped), so the junction is simply H.
   const cornice = designState.cornice ? resolveTrim(designState.cornice, 'cornice') : null
@@ -964,9 +966,11 @@ export const RoomScene = memo(function RoomScene({
   const holdSkirting = bindHoldDelete({ label: i18n.t('studio.radial.plintus'), onDelete: () => setDesignState({ skirting: null }) })
   const holdCornice = bindHoldDelete({ label: i18n.t('studio.radial.karniz'), onDelete: () => setDesignState({ cornice: null }) })
 
+  // A tiled bathroom has no board until the user puts one on (roomSkirting).
+  const bathroom = useRoomStore((s) => !readOnly && effectiveRoomType(s.roomType, s.name) === 'hammom')
   const skirting = useMemo(
-    () => (designState.skirting === null ? null : resolveTrim(designState.skirting, 'skirting')),
-    [designState.skirting],
+    () => roomSkirting(designState, bathroom),
+    [designState.skirting, designState.floorType, bathroom],
   )
   // Cornice: only an explicit choice puts one in the scene.
   const cornice = useMemo(

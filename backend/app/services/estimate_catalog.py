@@ -10,6 +10,7 @@ no I/O) is handed a plain dict.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any, Iterable
 
@@ -20,14 +21,31 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.models.furniture import Furniture
 from app.models.material import Material
 from app.models.wallpaper import Wallpaper
-from app.services.smeta import WallpaperRoll, furniture_catalog_key, wallpaper_catalog_key
+from app.services.smeta import WallpaperRoll, _price_per, furniture_catalog_key, wallpaper_catalog_key
 
 log = structlog.get_logger(__name__)
+
+
+# The estimate keys sold and priced by the piece (app.services.smeta_keys KEY_SALE_UNIT).
+_PIECE_KEYS = frozenset({
+    "ventilyator", "sochiq_quritgich", "sochiq_quritgich_el", "rozetka_ip44", "styajka",
+    # A fixture's own parts (2026-11-13); listed here, not imported: smeta_keys imports smeta.
+    "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
+    "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
+    "installyatsiya", "boyler", "kran_kir", "sifon_kir", "kran_idish", "sifon_idish", "uzo", "lyuk", "silikon", "trap_pol", "termoregulyator", "shtorka_vanna", "dush_shisha", "parda_hammom", "kollektor",
+    "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam",
+    # The wall devices and the cooker line's breaker (2026-11-18).
+    "rozetka", "rozetka_2", "rozetka_media", "rozetka_kuch", "vyklyuchatel", "vyklyuchatel_2", "shchit", "avtomat_32",
+})
 
 
 def unit_cost(material: Material) -> float:
     """What a product costs per unit of what it holds, so a 30 kg bag and a 25 kg bag
     compare fairly. A product without a pack size compares by its own price."""
+    # Something bought by the piece (a fan, a towel rail) is priced by the piece in the estimate
+    # whatever pack its row names: divided by a pack, a dearer one looked the cheapest.
+    if material.smeta_key in _PIECE_KEYS:
+        return float(material.price_uzs)
     pack = float(material.pack_qty) if material.pack_qty else 0.0
     return material.price_uzs / pack if pack > 0 else float(material.price_uzs)
 
@@ -51,20 +69,82 @@ FINISH_UNITS: dict[str, set[str]] = {
 }
 
 
+# "60х120см", "600x600 мм", "60×60": two sizes with a cross between them (Latin x, Cyrillic х, ×).
+_TILE_SIZE = re.compile(r"(?<![\d.,])(\d{2,4})\s*[xх×*]\s*(\d{2,4})(?![\d.,])\s*(мм|mm|см|cm|sm)?", re.I)
+
+
+def tile_size_mm(name: str) -> tuple[int, int] | None:
+    """A tile's size off its name, in millimetres, the short side first; None when the name gives
+    none. In centimetres when it says so, or when no unit is given and both sides are under 200."""
+    m = _TILE_SIZE.search(name or "")
+    if m is None:
+        return None
+    a, b, unit = int(m[1]), int(m[2]), (m[3] or "").lower()
+    if unit in ("см", "cm", "sm") or (not unit and a < 200 and b < 200):
+        a, b = a * 10, b * 10
+    return (min(a, b), max(a, b))
+
+
+def tile_size_key(size: tuple[int, int]) -> str:
+    """The ``catalog`` key of the median shop tile of *size* (short side first, mm)."""
+    return f"finish:plitka:{size[0]}x{size[1]}"
+
+
+# An enamel (alkyd, ПФ-115) is for metal and wood, not a wall, though shops file it as paint (kitchen QA
+# 2026-11-18 K9): never the stand-in wall paint. The studio's paint list leaves them out too (lib/wallPaint).
+_ENAMEL = re.compile(r"enamel|emal|эмал|alkyd|алкид|пф-?\s?115|pf-?\s?115", re.I)
+
+
 def pick_median_finishes(materials: Iterable[Material]) -> dict[str, Material]:
     """{"finish:<category>": the median-priced active product of that finish}, the stand-in
     price for a finish nobody picked a product for (the line says so). Products compare by
-    unit cost; with an even count the lower of the two middle ones is kept."""
+    unit cost; with an even count the lower of the two middle ones is kept. Tiles are also
+    grouped by the size their name gives (``tile_size_key``), so a tile chosen by size in the
+    studio is priced, and named, from the shop's tiles of that size (2026-11-18)."""
     groups: dict[str, list[Material]] = {}
     for m in materials:
         units = FINISH_UNITS.get(str(m.category))
         if not units or str(m.unit) not in units or not m.is_active:
             continue
+        if m.category == "boyoq" and _ENAMEL.search(m.name_uz or ""):
+            continue
         groups.setdefault(f"finish:{m.category}", []).append(m)
+        size = tile_size_mm(m.name_uz) if m.category == "plitka" else None
+        if size is not None:
+            groups.setdefault(tile_size_key(size), []).append(m)
     return {
         key: sorted(items, key=unit_cost)[(len(items) - 1) // 2]
         for key, items in groups.items()
     }
+
+
+# A shop's plumbing pipe, told apart by its name (shops do not tag pipes with a smeta_key): the
+# estimate's "pipe:<kind>" lines (app.services.smeta._plumbing_lines).
+_PIPE_NAMES: dict[str, re.Pattern[str]] = {
+    # Drains: the size not followed by another digit (Ø500 is not Ø50), and not a PPR water pipe.
+    "pipe:drain_110": re.compile(r"^(?!.*(?:PPR|ППР)).*(?:(?:Ø|ф|d)\s*110(?!\d)|\b110\s*(?:мм|mm)\b)", re.I),
+    "pipe:drain_50": re.compile(r"^(?!.*(?:PPR|ППР)).*(?:(?:Ø|ф|d)\s*50(?!\d)|\b50\s*(?:мм|mm)\b)", re.I),
+    # Water: a PPR pipe whose DIAMETER is 20 ("PN 20" is its pressure rating, not its size).
+    "pipe:water_20": re.compile(r"^(?=.*(?:PPR|ППР)).*(?:(?:Ø|ф|d)\s*20(?!\d)|\b20\s*(?:мм|mm)\b)", re.I),
+}
+
+
+def pick_pipes(materials: Iterable[Material]) -> dict[str, Material]:
+    """{"pipe:<kind>": the cheapest active santexnika pipe of that kind per metre}. A product
+    whose metre price cannot be told (no metre unit, no pack length) is left out."""
+    best: dict[str, tuple[int, Material]] = {}
+    for m in materials:
+        if not m.is_active or str(m.category) != "santexnika":
+            continue
+        per_m = _price_per(m, "m")
+        if not per_m:
+            continue
+        for key, pattern in _PIPE_NAMES.items():
+            if pattern.search(m.name_uz or ""):
+                if key not in best or per_m < best[key][0]:
+                    best[key] = (per_m, m)
+                break
+    return {key: m for key, (_, m) in best.items()}
 
 
 async def _shop_wallpapers(db: Any) -> dict[str, WallpaperRoll]:
@@ -77,6 +157,9 @@ async def _shop_wallpapers(db: Any) -> dict[str, WallpaperRoll]:
             .options(selectinload(Wallpaper.store))
             .where(
                 Wallpaper.kind == "oboy",
+                # Only a not-yet-approved oboy is left out: a rejected (hidden) one still
+                # prices rooms that were saved with it.
+                Wallpaper.status != "pending",
                 Wallpaper.price_uzs.is_not(None),
                 Wallpaper.width_cm.is_not(None),
                 Wallpaper.total_length_m.is_not(None),
@@ -144,12 +227,13 @@ async def load_estimate_catalog(db: Any, room: Any = None) -> dict[str, Any]:
             .options(selectinload(Material.store))
             .where(
                 Material.is_active.is_(True),
-                or_(Material.smeta_key.is_not(None), Material.category.in_(list(FINISH_UNITS))),
+                or_(Material.smeta_key.is_not(None), Material.category.in_([*FINISH_UNITS, "santexnika"])),
             )
         )
         rows = result.scalars().all()
         return {
-            **pick_cheapest(rows), **pick_median_finishes(rows), **await _shop_wallpapers(db), **furniture,
+            **pick_cheapest(rows), **pick_median_finishes(rows), **pick_pipes(rows),
+            **await _shop_wallpapers(db), **furniture,
         }
     except Exception as exc:
         log.warning("estimate_catalog.load_failed", error=str(exc))

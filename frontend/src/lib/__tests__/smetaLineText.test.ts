@@ -126,3 +126,257 @@ describe("estimate formulas (QA re-check R10)", () => {
     expect(localizeFormula("Something new from the server", en)).toBe("Something new from the server");
   });
 });
+
+describe('plumbing lines (spec 2026-11-08)', () => {
+  it('translates the fixtures, pipes, fittings and work', () => {
+    expect(localizeLabel('Santexnika: Vanna Roca 170', ru)).toBe('Сантехника: Ванна Roca 170')
+    expect(localizeLabel('Kanalizatsiya quvuri Ø50', en)).toBe('Drain pipe Ø50')
+    expect(localizeLabel('Kanalizatsiya quvuri Ø110: Valtec', ru)).toBe('Канализационная труба Ø110: Valtec')
+    expect(localizeLabel('Suv quvuri PPR Ø20', en)).toBe('PPR water pipe Ø20')
+    expect(localizeLabel('Fitinglar', ru)).toBe('Фитинги')
+    expect(localizeLabel('Ish: nuqtani ulash', en)).toBe('Work: connecting a point')
+    expect(localizeLabel("Ish: unitaz o'rnatish", ru)).toBe('Работа: установка унитаза')
+  })
+
+  it('counts points and fitting sets in the reader\'s language', () => {
+    expect(localizeUnit('nuqta', 5, ru)).toBe('точек')
+    expect(localizeUnit('nuqta', 1, en)).toBe('point')
+    expect(localizeFormula('8 nuqta × 1 komplekt', en)).toBe('8 points × 1 set')
+  })
+
+  it('reads the pipe scheme\'s fittings and their working (spec 2026-11-11)', () => {
+    const labels: Array<[string, string, string]> = [
+      ['PPR troynik Ø20', 'Тройник PPR Ø20', 'PPR tee Ø20'],
+      ['PPR burchak Ø20', 'Угол PPR Ø20', 'PPR elbow Ø20'],
+      ['Suv rozetkasi Ø20', 'Водорозетка Ø20', 'Wall outlet Ø20'],
+      ['Sharli kran Ø20', 'Шаровой кран Ø20', 'Ball valve Ø20'],
+      ['Kanalizatsiya troynigi Ø50', 'Канализационный тройник Ø50', 'Drain tee Ø50'],
+      ['Kanalizatsiya burchagi Ø50', 'Канализационный отвод Ø50', 'Drain elbow Ø50'],
+      ['Kanalizatsiya troynigi Ø110/50', 'Канализационный тройник Ø110/50', 'Drain tee Ø110/50'],
+      ['Kanalizatsiya burchagi Ø110', 'Канализационный отвод Ø110', 'Drain elbow Ø110'],
+    ]
+    for (const [label, r, e] of labels) {
+      expect(localizeLabel(label, ru)).toBe(r)
+      expect(localizeLabel(label, en)).toBe(e)
+      expect(localizeLabel(label, uz)).toBe(label)
+    }
+    const formulas: Array<[string, string, string]> = [
+      ['Magistral 6.00 m + tik 1.20 m = 7.20 m × 1.15 = 8.28 m', 'Магистраль 6.00 м + отводы 1.20 м = 7.20 м × 1.15 = 8.28 м', 'Trunk 6.00 m + branches 1.20 m = 7.20 m × 1.15 = 8.28 m'],
+      ['5 tarmoq + 1 stoyak = 6 dona', '5 отводов + 1 стояк = 6 шт.', '5 branches + 1 riser = 6 pcs'],
+      ['2 burchak + 1 uch = 3 dona', '2 угла + 1 конец = 3 шт.', '2 corners + 1 end = 3 pcs'],
+      ['1 unitaz + 2 burchak = 3 dona', '1 унитаз + 2 угла = 3 шт.', '1 toilet + 2 corners = 3 pcs'],
+      ['2 liniya', '2 линии', '2 lines'],
+      ['3 ulanish', '3 врезки', '3 joins'],
+      ['1 tarmoq', '1 отвод', '1 branch'],
+      // The spec's own words (review minor 2, 2026-11-11); the shorter ones above stay for estimates saved before.
+      ["Magistral 6.00 m + tik bo'laklar 1.20 m = 7.20 m × 1.15 = 8.28 m", 'Магистраль 6.00 м + отводы 1.20 м = 7.20 м × 1.15 = 8.28 м', 'Trunk 6.00 m + branches 1.20 m = 7.20 m × 1.15 = 8.28 m'],
+      ['2 xona burchagi + 1 magistral uchi = 3 dona', '2 угла комнаты + 1 конец магистрали = 3 шт.', '2 room corners + 1 trunk end = 3 pcs'],
+      ['5 xona burchagi', '5 углов комнаты', '5 room corners'],
+      ['1 unitaz + 1 xona burchagi = 2 dona', '1 унитаз + 1 угол комнаты = 2 шт.', '1 toilet + 1 room corner = 2 pcs'],
+      ['2 magistral uchi', '2 конца магистрали', '2 trunk ends'],
+    ]
+    for (const [formula, r, e] of formulas) {
+      expect(localizeFormula(formula, ru)).toBe(r)
+      expect(localizeFormula(formula, en)).toBe(e)
+      expect(localizeFormula(formula, uz)).toBe(formula)
+    }
+  })
+})
+
+describe('plumbing formula and warning (prod check 2026-11-09)', () => {
+  it('a count before a colon is translated', () => {
+    expect(localizeFormula('3 nuqta: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m', en)).toBe('3 points: 3.4 + 4.05 + 3.25 m × 1.15 = 12.3 m')
+  })
+  it('the pipe price warning is translated', () => {
+    expect(localizeWarning("Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi.", en))
+      .toBe('Approximate price — the shop has no such pipe, an average price was used.')
+  })
+})
+
+describe('plumbing fixture names in the estimate (mobile QA 2026-11-09 #5)', () => {
+  it('the fixture reads by its role in en and ru, as it is in uz', () => {
+    expect(localizeLabel('Santexnika: Rakovina 3', en)).toBe('Plumbing: Sink 3')
+    expect(localizeLabel('Santexnika: Rakovina 3', ru)).toBe('Сантехника: Раковина 3')
+    expect(localizeLabel('Santexnika: Rakovina 3', uz)).toBe('Santexnika: Rakovina 3')
+  })
+})
+
+describe('the fittings warning (review minor 2026-11-09)', () => {
+  it('is translated', () => {
+    expect(localizeWarning("Narx taxminiy — fitinglar uchun o'rtacha narx olindi.", en)).toBe('Approximate price — an average price is used for the fittings.')
+  })
+})
+
+describe('tile work lines (spec 2026-11-10)', () => {
+  it('translates the labels, with and without a shop product', () => {
+    expect(localizeLabel('Devor plitkasi', en)).toBe('Wall tile')
+    expect(localizeLabel('Devor plitkasi: Kafel 30x60', ru)).toBe('Настенная плитка: Kafel 30x60')
+    expect(localizeLabel('Plitka yelimi', ru)).toBe('Плиточный клей')
+    expect(localizeLabel('Plitka yelimi: Ceresit CM 11', en)).toBe('Tile adhesive: Ceresit CM 11')
+    expect(localizeLabel('Zatirka', en)).toBe('Grout')
+    expect(localizeLabel('Ish: pol plitkasini terish', en)).toBe('Work: laying floor tile')
+    expect(localizeLabel('Ish: devor plitkasini terish', ru)).toBe('Работа: укладка настенной плитки')
+  })
+  it('translates the warnings and the formula', () => {
+    expect(localizeWarning("Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi.", en)).toBe('Approximate price — the shop has no tile, an average price was used.')
+    expect(localizeWarning("Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi.", en)).toBe('Approximate price — the shop has no such product, an average price was used.')
+    expect(localizeFormula('25.00 m² × 5 kg/m² = 125.0 kg → 5 qop (25 kg)', en)).toBe('25.00 m² × 5 kg/m² = 125.0 kg → 5 bags (25 kg)')
+    expect(localizeFormula('24.30 m² × 1.10 (chiqindi) = 26.73 m² (devor A, B)', en)).toBe('24.30 m² × 1.10 (waste) = 26.73 m² (walls A, B)')
+  })
+})
+
+describe('waterproofing lines (spec 2026-11-10)', () => {
+  it('translates the labels', () => {
+    expect(localizeLabel('Gidroizolyatsiya mastikasi', en)).toBe('Waterproofing mastic')
+    expect(localizeLabel('Gidroizolyatsiya mastikasi: Ceresit CL 51', ru)).toBe('Гидроизоляционная мастика: Ceresit CL 51')
+    expect(localizeLabel('Gidroizolyatsiya lentasi', ru)).toBe('Гидроизоляционная лента')
+    expect(localizeLabel('Ish: gidroizolyatsiya', en)).toBe('Work: waterproofing')
+  })
+  it('translates the working: floor, foot of the walls, wet zone', () => {
+    const f = "Pol 5.00 m² + devor tagi 1.66 m² + ho'l zona 3.68 m² = 10.34 m² × 1.5 kg/m² = 15.5 kg"
+    expect(localizeFormula(f, en)).toBe('Floor 5.00 m² + foot of the walls 1.66 m² + wet zone 3.68 m² = 10.34 m² × 1.5 kg/m² = 15.5 kg')
+    expect(localizeFormula(f, ru)).toBe('Пол 5.00 м² + низ стен 1.66 м² + мокрая зона 3.68 м² = 10.34 м² × 1.5 кг/м² = 15.5 кг')
+    expect(localizeFormula(f, uz)).toBe(f)
+  })
+})
+
+// A fixture's own parts (2026-11-13), as smeta.py writes them; the PDF reads them the same (smeta_text.py).
+describe('fixture parts', () => {
+  it('each part reads in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Rakovina smesiteli: Grohe Eurosmart', en)).toBe('Basin mixer: Grohe Eurosmart')
+    expect(localizeLabel('Rakovina smesiteli', ru)).toBe('Смеситель для раковины')
+    expect(localizeLabel('Vanna va dush smesiteli', en)).toBe('Bath and shower mixer')
+    expect(localizeLabel('Dush poddoni sifoni', ru)).toBe('Сифон для душевого поддона')
+    expect(localizeLabel('Unitaz gofrasi', en)).toBe('Toilet pan connector')
+    expect(localizeLabel('Ulash shlangi (podvodka)', ru)).toBe('Гибкая подводка')
+    expect(localizeLabel("Ish: smesitel o'rnatish", en)).toBe('Work: fitting a mixer')
+  })
+  it.each([
+    ["2 rakovina + 1 bide = 3 dona × 60 000 so'm", '2 раковины + 1 биде = 3 шт. × 60 000 сум', '2 sinks + 1 bidet = 3 pcs × 60 000 UZS'],
+    ["1 vanna + 1 dush = 2 dona × 650 000 so'm", '1 ванна + 1 душ = 2 шт. × 650 000 сум', '1 bathtub + 1 shower = 2 pcs × 650 000 UZS'],
+    ["3 smesitel × 100 000 so'm", '3 смесителя × 100 000 сум', '3 mixers × 100 000 UZS'],
+    // A kitchen sink's parts (mobile QA #338 3): counted by the sink, not a basin.
+    ["1 moyka = 1 dona × 450 000 so'm", '1 мойка = 1 шт. × 450 000 сум', '1 sink = 1 pc × 450 000 UZS'],
+    // A kitchen set priced per running metre (kitchen re-check 2026-11-19 R4).
+    ["10 000 000 so'm ÷ 4.00 m = 2 500 000 so'm/m × 3.42 m", '10 000 000 сум ÷ 4.00 м = 2 500 000 сум/м × 3.42 м', '10 000 000 UZS ÷ 4.00 m = 2 500 000 UZS/m × 3.42 m'],
+  ])('%s', (formula, ruText, enText) => {
+    expect(localizeFormula(formula, ru)).toBe(ruText)
+    expect(localizeFormula(formula, en)).toBe(enText)
+  })
+})
+
+// Old plumbing out and wall chasing (2026-11-13); the PDF reads them the same (smeta_text.py).
+describe('demolition and chasing', () => {
+  it('the lines read in Russian and English', () => {
+    expect(localizeLabel('Ish: eski santexnikani demontaj qilish', en)).toBe('Work: removing the old fixtures')
+    expect(localizeLabel('Ish: eski quvurlarni demontaj qilish', ru)).toBe('Работа: демонтаж старых труб')
+    expect(localizeLabel('Ish: shtroba (suv quvuri)', en)).toBe('Work: wall chasing (water pipe)')
+    expect(localizeLabel('Ish: shtroba (kanalizatsiya Ø50)', ru)).toBe('Работа: штробление (канализация Ø50)')
+  })
+  it.each([
+    ["1 vanna × 200 000 + 1 rakovina × 80 000 + 1 unitaz × 100 000 = 380 000 so'm",
+      '1 ванна × 200 000 + 1 раковина × 80 000 + 1 унитаз × 100 000 = 380 000 сум',
+      '1 bathtub × 200 000 + 1 sink × 80 000 + 1 toilet × 100 000 = 380 000 UZS'],
+    ["Tik bo'laklar 1.20 m × 60 000 so'm", 'Отводы 1.20 м × 60 000 сум', 'Branches 1.20 m × 60 000 UZS'],
+  ])('%s', (formula, ruText, enText) => {
+    expect(localizeFormula(formula, ru)).toBe(ruText)
+    expect(localizeFormula(formula, en)).toBe(enText)
+  })
+})
+
+// A wall-hung toilet's frame and a water heater (2026-11-13).
+describe('frame and water heater', () => {
+  it('the lines read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Installyatsiya (osma unitaz uchun): Geberit Duofix', en)).toBe('Installation frame (wall-hung toilet): Geberit Duofix')
+    expect(localizeLabel("Ish: installyatsiya o'rnatish", ru)).toBe('Работа: монтаж инсталляции')
+    expect(localizeLabel('Suv isitgich (boyler): Ariston ABS 80', ru)).toBe('Водонагреватель (бойлер): Ariston ABS 80')
+    expect(localizeLabel("Boyler ulash to'plami", en)).toBe('Water heater connection kit')
+    expect(localizeLabel('Elektr kabel (boyler)', en)).toBe('Electric cable (water heater)')
+    expect(localizeLabel("Ish: boyler o'rnatish", ru)).toBe('Работа: установка бойлера')
+  })
+})
+
+// A washing machine (spec 2026-11-13).
+describe('washing machine lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Kir yuvish mashinasi krani: Vieir', en)).toBe('Washing machine valve: Vieir')
+    expect(localizeLabel('Kir yuvish mashinasi sifoni', ru)).toBe('Сифон для стиральной машины')
+    expect(localizeLabel('Ish: kir yuvish mashinasini ulash', en)).toBe('Work: connecting the washing machine')
+    expect(localizeFormula("2 mashina = 2 dona × 60 000 so'm", ru)).toBe('2 машины = 2 шт. × 60 000 сум')
+  })
+})
+
+// A floor drain (spec 2026-11-13).
+describe('floor drain lines', () => {
+  it('read in Russian and English', () => {
+    expect(localizeLabel('Pol trapi: Трап кафель 300 мм', en)).toBe('Floor drain: Трап кафель 300 мм')
+    expect(localizeLabel("Ish: trap o'rnatish", ru)).toBe('Работа: установка трапа')
+  })
+})
+
+// The water inlet unit (2026-11-14).
+describe('water inlet lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Suv hisoblagichi: Valtec', ru)).toBe('Счётчик воды: Valtec')
+    expect(localizeLabel("Dag'al filtr", en)).toBe('Coarse water filter')
+    expect(localizeLabel('Bosim reduktori', ru)).toBe('Редуктор давления')
+    expect(localizeLabel('Teskari klapan', en)).toBe('Check valve')
+    expect(localizeLabel("Ish: suv kirish uzelini yig'ish", ru)).toBe('Работа: сборка узла ввода воды')
+    expect(localizeFormula("2 liniya = 2 dona × 180 000 so'm", ru)).toBe('2 линии = 2 шт. × 180 000 сум')
+  })
+})
+
+// The drywall box around a wall-hung toilet's frame (2026-11-14).
+describe('frame box lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Namga chidamli gipsokarton (quti): Knauf GKLV', ru)).toBe('Влагостойкий гипсокартон (короб): Knauf GKLV')
+    expect(localizeLabel('Quti profili (karkas)', en)).toBe('Box profile (frame)')
+    expect(localizeLabel("Ish: gipsokarton quti yig'ish", ru)).toBe('Работа: сборка короба из гипсокартона')
+    expect(localizeFormula('2 unitaz × 6 m = 12 m', ru)).toBe('2 унитаза × 6 м = 12 м')
+  })
+})
+
+// A kitchen backsplash (spec 2026-11-14).
+describe('backsplash lines', () => {
+  it('read in Russian and English, a shop product kept', () => {
+    expect(localizeLabel('Fartuk plitkasi: Kerama 10x10', ru)).toBe('Плитка фартука: Kerama 10x10')
+    expect(localizeLabel('Skinali (shisha fartuk)', en)).toBe('Skinali (glass backsplash)')
+    expect(localizeLabel('Ish: fartuk plitkasini terish', ru)).toBe('Работа: укладка плитки фартука')
+    expect(localizeLabel("Ish: skinali o'rnatish", en)).toBe('Work: fitting the skinali')
+  })
+})
+
+// An electric towel rail (2026-11-14).
+describe('electric towel rail lines', () => {
+  it('read in Russian and English', () => {
+    expect(localizeLabel('Elektr sochiq quritgich: Terminus', ru)).toBe('Электрический полотенцесушитель: Terminus')
+    expect(localizeLabel('Namga chidamli rozetka (IP44)', en)).toBe('Moisture-proof socket (IP44)')
+    expect(localizeLabel('Elektr kabel (sochiq quritgich)', ru)).toBe('Электрокабель (полотенцесушитель)')
+    expect(localizeLabel("Ish: elektr sochiq quritgichni o'rnatish", en)).toBe('Work: fitting the electric towel rail')
+  })
+})
+
+describe("a towel rail by its size (2026-11-15)", () => {
+  it("reads the name and keeps the size", () => {
+    expect(localizeLabel("Sochiq quritgich (60×100)", en)).toBe("Heated towel rail (60×100)");
+    expect(localizeLabel("Elektr sochiq quritgich (50×80)", ru)).toBe("Электрический полотенцесушитель (50×80)");
+    expect(localizeLabel("Sochiq quritgich (50×50)", uz)).toBe("Sochiq quritgich (50×50)");
+  });
+});
+
+describe("estimate text from the 2026-11-18 bathroom test", () => {
+  it("names an unpicked tile by the average price and the ceiling's finish", () => {
+    expect(localizeLabel("Devor plitkasi (o'rtacha narx)", ru)).toBe("Настенная плитка (средняя цена)");
+    expect(localizeLabel("Pol plitkasi (o'rtacha narx)", en)).toBe("Floor tile (average price)");
+    expect(localizeLabel("Shift grunti (asosiy qatlam) 5 kg qop", ru)).toBe("Грунтовка потолка (базовый слой), мешок 5 кг");
+    expect(localizeLabel("Namga chidamli shift bo'yog'i: Polisan 2,5 л", en)).toBe("Moisture-resistant ceiling paint: Polisan 2,5 л");
+    expect(localizeLabel("Ish: shiftni bo'yash", ru)).toBe("Работа: покраска потолка");
+  });
+
+  it("translates the heated floor's and a paint can's working", () => {
+    expect(localizeFormula("4.50 m² − 1.67 m² (jihozlar ostida) = 2.83 m² → 2.5 m²", ru))
+      .toBe("4.50 м² − 1.67 м² (под приборами) = 2.83 м² → 2.5 м²");
+    expect(localizeFormula("6.8 m² × 2 qatlam ÷ 9.0 m²/litr = 1.5 litr → 1 banka (2.5 litr) = 2.5 litr", ru))
+      .toBe("6.8 м² × 2 слоя ÷ 9.0 м²/л = 1.5 л → 1 банка (2.5 л) = 2.5 л");
+  });
+});

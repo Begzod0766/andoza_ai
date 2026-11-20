@@ -23,6 +23,8 @@ import { Panel } from '@/components/ui/Panel'
 import type { TFunction } from 'i18next'
 import { RoomTypePicker } from '@/components/studio/RoomTypePicker'
 import { guessRoomType } from '@/lib/roomType'
+import { newRoomStudioPath } from '@/lib/phases'
+import { sizeForType } from '@/lib/roomTypeSize'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -577,7 +579,7 @@ function Step5({ roomId, geometry, ceilingHeight, saving, saveFailed, onRetrySav
         <Button
           size="lg"
           className="w-full"
-          onClick={() => roomId && navigate(`/studio/${roomId}/ichkarida?phase=suvoq`)}
+          onClick={() => roomId && navigate(newRoomStudioPath(roomId, useRoomStore.getState().roomType))}
           disabled={!roomId}
         >
           {t('wizard.bezashni_boshlash')}
@@ -641,6 +643,8 @@ export default function WizardPage() {
   // confirming it saves the room and goes straight into its 3D view instead
   // of stepping through geometry.walls.length wall-review screens + results.
   const isFromDraw = searchParams.get('from') === 'draw'
+  // A drawn or LiDAR-scanned room is handed over in the store; every other way in starts a new room.
+  const isHandoff = isFromDraw || searchParams.get('from') === 'scan'
 
   const [step, setStep] = React.useState(0)
   const [dir, setDir] = React.useState(1)
@@ -679,6 +683,16 @@ export default function WizardPage() {
       // plaster. A wizard draft's designState is never user-chosen either (the
       // wizard has no design controls; autosave just snapshots whatever the
       // store held), so resetting it on every new-room entry loses nothing.
+      // Not handed a drawn or scanned room: the store still holds the LAST room's walls, furniture
+      // and the rest from localStorage (only roomId is not persisted), and they became the "new"
+      // room — a 6-wall living room with a 7.4 m wall A offered for a bathroom. Start from a new
+      // room; a draft past the first step is offered back below (resume or start over).
+      if (!isHandoff) {
+        const { userFurniture } = useRoomStore.getState()
+        resetRoom()
+        useRoomStore.setState({ userFurniture })
+        if (draftId) setDraftId(draftId)
+      }
       resetDesignState()
       useRoomStore.getState().setRoomType(null)
       if (draftId) {
@@ -725,6 +739,31 @@ export default function WizardPage() {
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ceilingHeight, geometry, step, designState, draftId, draftLoaded, roomType])
+
+  // In a rectangle the opposite walls are equal: setting A sets C, and B sets D, while the
+  // opposite wall still matches (a C the user set apart stays as it is).
+  function setWallLengthLinked(wallId: string, mm: number) {
+    const ws = useRoomStore.getState().geometry.walls
+    const opposite = ws.length === 4 && ws.map((w) => w.id).join('') === 'ABCD'
+      ? ({ A: 'C', B: 'D' } as Record<string, string>)[wallId]
+      : undefined
+    const self = ws.find((w) => w.id === wallId)
+    const other = opposite ? ws.find((w) => w.id === opposite) : undefined
+    setWallLength(wallId, mm)
+    if (self && other && other.length === self.length) setWallLength(other.id, mm)
+  }
+
+  // A new room starts at its type's usual size (2026-11-15): picking "Hammom" on the untouched room
+  // makes it 2.5 × 2 m. A drawn or scanned room, or walls the user already set, are left alone.
+  const lastType = React.useRef(roomType)
+  React.useEffect(() => {
+    const prev = lastType.current
+    lastType.current = roomType
+    if (isHandoff || prev === roomType) return
+    const next = sizeForType(useRoomStore.getState().geometry, prev ?? null, roomType ?? null)
+    if (next) for (const [id, mm] of Object.entries(next)) setWallLength(id, mm)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomType])
 
   // Keep first-wall lookup for the "link to A" feature in WallStep
   const wallA = geometry.walls.find((w) => w.id === 'A') ?? geometry.walls[0]!
@@ -807,10 +846,14 @@ export default function WizardPage() {
         existingApartmentId ??
         createdApartmentIdRef.current ??
         (createdApartmentIdRef.current = (await createApartment({ name: t('wizard.mening_xonadonim') })).id)
-      const roomName = t('wizard.xona')
-      const room_type = useRoomStore.getState().roomType ?? guessRoomType(roomName) ?? undefined
+      const picked = useRoomStore.getState().roomType
+      // Named by its type when one is picked (kitchen QA 2026-11-18 K10: a kitchen was saved as "Комната").
+      const roomName = picked ? t(`rooms.type.${picked}` as 'rooms.type.mehmonxona') : t('wizard.xona')
+      const room_type = picked ?? guessRoomType(roomName) ?? undefined
       const room = await createRoom(aptId, { name: roomName, room_type, ...roomDimensions() })
       setRoomId(room.id)
+      // The studio opens on this store: its autosave wrote the store's default name over the room's (R2).
+      useRoomStore.setState({ name: roomName })
       // Draft fulfilled — clean up
       if (draftId) {
         try { await deleteDraftRoom(draftId) } catch { /* ignore */ }
@@ -879,7 +922,7 @@ export default function WizardPage() {
     if (step === 0 && isFromDraw) {
       void handleSave().then((id) => {
         void persistLayoutPos()
-        if (id) navigate(`/studio/${id}/ichkarida?phase=suvoq`)
+        if (id) navigate(newRoomStudioPath(id, useRoomStore.getState().roomType))
       })
       return
     }
@@ -998,7 +1041,7 @@ export default function WizardPage() {
                   wall={walls[step - 1] ?? walls[0]}
                   wallA={wallA}
                   ceilingHeight={ceilingHeight}
-                  onLengthChange={setWallLength}
+                  onLengthChange={setWallLengthLinked}
                   onAddElement={addElement}
                   onRemoveElement={removeElement}
                   onMoveElement={(wallId, elId, mm) => updateElement(wallId, elId, { position: mm })}

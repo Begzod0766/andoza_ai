@@ -178,6 +178,28 @@ describe('tapping a wall', () => {
     expect(calls).toContainEqual(['electrical', 'A', 'socket1', 300])
   })
 
+  it('in a kitchen, puts a socket over the worktop and offers the cooker and hood outlets', () => {
+    const { calls, deps } = harness()
+    const elektr = buildRadialItems(WALL!, { ...deps, roomType: 'oshxona' } as never).find((i) => i.key === 'elektr')!
+    const pick = (key: string) => elektr.children!.find((c) => c.key === key)!.onSelect()
+    pick('el:socket1')
+    pick('el:socket2')
+    pick('el:socket1:hood')
+    pick('el:socket_power')
+    expect(calls).toEqual([
+      ['electrical', 'A', 'socket1', 1100],
+      ['electrical', 'A', 'socket2', 1100],
+      ['electrical', 'A', 'socket1', 2000],
+      ['electrical', 'A', 'socket_power', 150],
+    ])
+  })
+
+  it('offers no cooker outlet outside a kitchen', () => {
+    const { deps } = harness()
+    const elektr = buildRadialItems(WALL!, { ...deps, roomType: 'mehmonxona' } as never).find((i) => i.key === 'elektr')!
+    expect(elektr.children!.map((c) => c.key)).not.toContain('el:socket_power')
+  })
+
   it('draws each fitting, rather than one socket icon seven times', () => {
     const { deps } = harness()
     const elektr = buildRadialItems(WALL!, deps as never).find((i) => i.key === 'elektr')!
@@ -272,10 +294,21 @@ describe('tapping the ceiling', () => {
 })
 
 describe('tapping the floor', () => {
-  it('offers the two materials a floor is, and nothing else', () => {
+  it('offers the two materials a floor is, then the Pol panel (mobile QA 2026-11-18 #5)', () => {
+    // "Narsa" and "Rang" stay out (the user's call); the panel is where the heated floor and the
+    // shop's floor are, and a phone had no other way to it from the floor.
     const { deps } = harness()
     expect(buildRadialItems(FLOOR!, deps as never).map((i) => i.key))
-      .toEqual(['parket', 'kafel'])
+      .toEqual(['parket', 'kafel', 'floor:panel'])
+  })
+
+  it('the panel button opens the Pol panel and closes the ring', () => {
+    const { calls, deps } = harness()
+    const panel = buildRadialItems(FLOOR!, deps as never).find((i) => i.key === 'floor:panel')!
+    expect(panel.closesMenu).toBe(true)
+    expect(panel.label).toBe(i18n.t('studio.radial.panel_pol'))
+    panel.onSelect()
+    expect(calls).toEqual([['phase', 'pol'], ['panel', true]])
   })
 
   it('lays the picked parquet pattern with the pattern\'s own numbers', () => {

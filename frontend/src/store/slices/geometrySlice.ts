@@ -1,6 +1,10 @@
 import type { StateCreator } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { RoomGeometry, WallElement } from '../types'
+import type { PlacedElectrical, PlacedFurniture, PlacedLight, RoomGeometry, TowelRail, Washer, WallElement, DesignState } from '../types'
+import { withFixturePoints } from '@/lib/plumbingPoints'
+import { keepRails } from '@/lib/towelRail'
+import { keepWashers } from '@/lib/washer'
+import { roomRiser } from '@/lib/plumbingRuns'
 import { defaultGeometry, resizeWall } from '../utils/geometryHelpers'
 import type { RoomStore } from '../roomStoreTypes'
 
@@ -15,6 +19,25 @@ export interface GeometrySlice {
   updateElement(wallId: string, elementId: string, patch: Partial<Omit<WallElement, 'id'>>): void
   swapElements(wallId: string): void
   swapAdjacentElements(wallId: string, id1: string, id2: string): void
+  /**
+   * A new shape for the room (a flat-view resize or cut), with the content it moved, in one step;
+   * a fixture's plumbing points are measured again from the new walls.
+   */
+  applyRoomShape(geometry: RoomGeometry, extra?: { furniture?: PlacedFurniture[]; lights?: PlacedLight[]; electricals?: PlacedElectrical[]; designState?: DesignState }): void
+}
+
+/** The rails and machines a new room shape keeps: the rails kept clear of the openings, the machines
+ * of the openings, the rails and the riser. */
+function kept(state: RoomStore, geometry: RoomGeometry): { towelRails: TowelRail[]; washers: Washer[] } {
+  const towelRails = keepRails(state.towelRails, geometry)
+  return { towelRails, washers: keepWashers(state.washers, geometry, towelRails, roomRiser(geometry, state.plumbingRiser)) }
+}
+
+/** A change to a wall's openings, with the towel rails and machines kept clear of them: a door or
+ * window that comes onto a rail moves the rail to the nearest free place (and it is one undo step
+ * with the door). */
+function withRails<T extends { geometry: RoomGeometry }>(state: RoomStore, next: T): T & { towelRails: TowelRail[]; washers: Washer[] } {
+  return { ...next, ...kept(state, next.geometry) }
 }
 
 export const createGeometrySlice: StateCreator<
@@ -31,15 +54,29 @@ export const createGeometrySlice: StateCreator<
   },
 
   setWallLength(wallId, length) {
+    set((state) => {
+      const geometry = resizeWall(state.geometry, wallId, length)
+      // A point is measured from its wall's start, which moves when the room is resized.
+      return {
+        isDirty: true, geometry, ...kept(state, geometry),
+        plumbing: withFixturePoints(state.plumbing, state.furniture, state.catalogFurniture, geometry),
+      }
+    })
+  },
+
+  applyRoomShape(geometry, extra) {
     set((state) => ({
+      ...(extra ?? {}),
+      geometry,
+      plumbing: withFixturePoints(state.plumbing, extra?.furniture ?? state.furniture, state.catalogFurniture, geometry),
+      ...kept(state, geometry),
       isDirty: true,
-      geometry: resizeWall(state.geometry, wallId, length),
     }))
   },
 
   addElement(wallId, element) {
     const newElement: WallElement = { ...element, id: nanoid() }
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).
@@ -69,7 +106,7 @@ export const createGeometrySlice: StateCreator<
   },
 
   updateElement(wallId, elementId, patch) {
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).
@@ -84,7 +121,7 @@ export const createGeometrySlice: StateCreator<
   },
 
   swapElements(wallId) {
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).
@@ -99,7 +136,7 @@ export const createGeometrySlice: StateCreator<
   },
 
   swapAdjacentElements(wallId, id1, id2) {
-    set((state) => ({
+    set((state) => withRails(state, {
       isDirty: true,
       geometry: {
         // Spread first — keeps `vertices` (see setWallLength above).

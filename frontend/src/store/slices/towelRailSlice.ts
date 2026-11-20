@@ -1,0 +1,105 @@
+import type { StateCreator } from 'zustand'
+import { nanoid } from 'nanoid'
+import type { TowelRail, TowelRailSize } from '../types'
+import type { RoomStore } from '../roomStoreTypes'
+import { roomRiser } from '@/lib/plumbingRuns'
+import { nearestFree, placeTowelRail, railHalf, TOWEL_RAIL_HEIGHT_MM, type WallTaken } from '@/lib/towelRail'
+import { machineHalf } from '@/lib/washer'
+import { riserBoxTaken } from '@/lib/bathroomBoxes'
+import { effectiveRoomType } from '@/lib/roomType'
+
+const wetRoom = (s: { roomType: string | null; name: string }) => {
+  const t = effectiveRoomType(s.roomType, s.name)
+  return t === 'hammom' || t === 'oshxona'
+}
+import { useRoomStore } from '../roomStore'
+
+/** Heated towel rails hung on the walls (spec 2026-11-10); mirrors plumbingSlice. */
+export interface TowelRailSlice {
+  towelRails: TowelRail[]
+
+  /** Hangs a new rail beside the riser (lib/towelRail placeTowelRail). False when no wall can take one. */
+  addTowelRail(): boolean
+  /** Slides a rail along its wall, to the free place nearest `positionMm`. */
+  moveTowelRail(id: string, positionMm: number): void
+  removeTowelRail(id: string): void
+  /** Heated by water or electric (2026-11-14). */
+  setTowelRailKind(id: string, kind: 'water' | 'electric'): void
+  /** Its size (2026-11-15): moved to the nearest free place for the new width; false (unchanged) when its wall has none. */
+  setTowelRailSize(id: string, size: TowelRailSize): boolean
+  /** A rail is being dragged: its moves until `endTowelRailDrag` make one undo step. */
+  beginTowelRailDrag(): void
+  endTowelRailDrag(): void
+}
+
+/** The rails as they were when the drag in progress began. */
+let dragStart: TowelRail[] | null = null
+
+/** What a rail keeps clear of on the walls: the washing machines (2026-11-14) and the riser box (2026-11-18). */
+function machines(state: RoomStore): WallTaken[] {
+  return [
+    ...state.washers.map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: machineHalf(m) })),
+    // Only where the box is built: a bathroom or a kitchen (as BathroomBoxes3D draws it).
+    ...(wetRoom(state) ? riserBoxTaken(state.geometry, roomRiser(state.geometry, state.plumbingRiser)) : []),
+  ]
+}
+
+export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlice> = (set, get) => ({
+  towelRails: [],
+
+  addTowelRail() {
+    const { geometry } = get()
+    const at = placeTowelRail(geometry, roomRiser(geometry, get().plumbingRiser), machines(get()))
+    if (!at) return false
+    set((state) => ({ towelRails: [...state.towelRails, { id: nanoid(), ...at, heightMm: TOWEL_RAIL_HEIGHT_MM }], isDirty: true }))
+    return true
+  },
+
+  moveTowelRail(id, positionMm) {
+    set((state) => {
+      const rail = state.towelRails.find((r) => r.id === id)
+      // Mid-drag the rail keeps to the stretch of wall it is on: it does not jump a door.
+      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined, machines(state), railHalf(rail))
+      if (!rail || at == null || at === rail.positionMm) return state
+      return { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }
+    })
+  },
+
+  setTowelRailKind(id, kind) {
+    set((state) => (state.towelRails.some((r) => r.id === id)
+      ? { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, kind } : r)), isDirty: true }
+      : state))
+  },
+
+  setTowelRailSize(id, size) {
+    const state = get()
+    const rail = state.towelRails.find((r) => r.id === id)
+    if (!rail) return false
+    const next = { ...rail, size }
+    const at = nearestFree(state.geometry, rail.wallId, rail.positionMm, undefined, machines(state), railHalf(next))
+    if (at == null) return false
+    set((s) => ({ towelRails: s.towelRails.map((r) => (r.id === id ? { ...next, positionMm: at } : r)), isDirty: true }))
+    return true
+  },
+
+  removeTowelRail(id) {
+    set((state) => ({ towelRails: state.towelRails.filter((r) => r.id !== id), isDirty: true }))
+  },
+
+  beginTowelRailDrag() {
+    dragStart = get().towelRails
+    useRoomStore.temporal.getState().pause()
+  },
+
+  endTowelRailDrag() {
+    const temporal = useRoomStore.temporal.getState()
+    const start = dragStart
+    dragStart = null
+    if (!start) { temporal.resume(); return }
+    const final = get().towelRails
+    // Back to where the drag began unrecorded, then to where it ended recorded: one step.
+    set({ towelRails: start })
+    temporal.resume()
+    if (final !== start) set({ towelRails: final, isDirty: true })
+  },
+})

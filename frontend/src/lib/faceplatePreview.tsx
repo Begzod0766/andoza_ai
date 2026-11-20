@@ -64,6 +64,15 @@ export function FaceplatePreview({ type, className }: {
     )
   } else if (type === 'socket2') {
     inner = <><Dish cx={50 - 17} cy={50} r={12} /><Dish cx={50 + 17} cy={50} r={12} /></>
+  } else if (type === 'socket_power') {
+    // The cooker's 32 A outlet: one socket and its rating in red, so it is not taken for an
+    // ordinary one.
+    inner = (
+      <>
+        <Dish cx={50} cy={47} r={14} />
+        <text x="50" y={y + h - 5} textAnchor="middle" fontSize="8" fontWeight="700" fontFamily="sans-serif" fill="#DC2626">32A</text>
+      </>
+    )
   } else if (type === 'socket_media') {
     inner = (
       <>

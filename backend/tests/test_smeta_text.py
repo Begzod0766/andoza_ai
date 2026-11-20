@@ -173,3 +173,11 @@ class TestSameVocabularyAsTheWebPage:
                 f"backend/app/services/smeta_locale.json is out of date for {lang}: run "
                 "`python -m app.services.smeta_text ../frontend/src/i18n/locales` from backend/"
             )
+
+
+def test_a_kitchen_set_per_metre_formula_reads_in_russian_and_english():
+    """Kitchen re-check 2026-11-19 R4: "so'm" was left in Uzbek mid-formula."""
+    from app.services.smeta_text import localize_formula
+    f = "10 000 000 so'm ÷ 4.00 m = 2 500 000 so'm/m × 3.42 m"
+    assert localize_formula(f, "ru") == "10 000 000 сум ÷ 4.00 м = 2 500 000 сум/м × 3.42 м"
+    assert localize_formula(f, "en") == "10 000 000 UZS ÷ 4.00 m = 2 500 000 UZS/m × 3.42 m"

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { uploadRoomThumbnail } from "@/lib/api";
+import { useRoomStore } from "@/store/roomStore";
 import { slugifyFileName } from "./helpers";
 
 declare global {
@@ -25,6 +26,8 @@ declare global {
  * error mid-navigation, and the next capture just replaces it.
  */
 function captureAndUpload(canvas: HTMLCanvasElement, roomId: string) {
+  // Only the finished room is the card's picture (spec 2026-11-18): a room left at a stage keeps its last one.
+  if (useRoomStore.getState().viewStage !== 'full') return;
   canvas.toBlob((blob) => {
     if (!blob) return;
     uploadRoomThumbnail(roomId, blob).catch(() => {});

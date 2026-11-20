@@ -13,8 +13,48 @@ KEY_PACK_UNIT: dict[str, str | None] = {
     "suvoq": "kg", "grunt": "kg", "shpatlyovka": "kg",
     "plintus": "m", "gipsokarton": "m2", "profil": "m", "led_lenta": "m",
     "galtel": "m",
+    # Tile work and waterproofing (spec 2026-11-10)
+    "plitka_yelimi": "kg", "zatirka": "kg", "gidro_mastika": "kg", "gidro_lenta": "m",
+    # A kitchen backsplash in glass (spec 2026-11-14), priced by the square metre
+    "skinali": "m2",
     "kabel": None,  # sold per metre: no pack
+    # A bathroom's extras (spec 2026-11-10): sold by the piece, no pack
+    "ventilyator": None, "sochiq_quritgich": None,
+    # An electric towel rail and its moisture-proof socket (2026-11-14), sold by the piece
+    "sochiq_quritgich_el": None, "rozetka_ip44": None,
+    # A bag of screed mix for sloping a tray-less shower to its drain (2026-11-14), sold by the piece
+    "styajka": None,
+    # A fixture's own parts (2026-11-13): its mixer, trap and hoses, sold by the piece
+    "smesitel_rakovina": None, "smesitel_oshxona": None, "smesitel_vanna": None, "smesitel_dush": None,
+    "smesitel_bide": None, "sifon_rakovina": None, "sifon_oshxona": None, "sifon_vanna": None,
+    "sifon_dush": None, "gofra_unitaz": None, "podvodka": None,
+    # A wall-hung toilet's frame and a water heater (2026-11-13), sold by the piece
+    "installyatsiya": None, "boyler": None,
+    # A washing machine's tap and trap (2026-11-13), sold by the piece
+    "kran_kir": None, "sifon_kir": None,
+    # A dishwasher's tap with a tee and its outlet trap (2026-11-16), sold by the piece
+    "kran_idish": None, "sifon_idish": None,
+    # An RCD, a tile-in revision hatch, sanitary silicone (2026-11-16), sold by the piece
+    "uzo": None, "lyuk": None, "silikon": None,
+    # A floor drain for a shower with no tray (2026-11-13), sold by the piece
+    "trap_pol": None,
+    # The water inlet unit (2026-11-14), sold by the piece
+    "hisoblagich_suv": None, "filtr_suv": None, "reduktor": None, "klapan_teskari": None,
+    # The drywall box around a wall-hung toilet frame (2026-11-14): a moisture-resistant sheet, by the piece
+    "gipsokarton_nam": None,
+    # An electric heated floor (2026-11-18): the mat by the square metre, its thermostat by the piece
+    "issiq_pol": "m2", "termoregulyator": None,
+    # A bath's glass screen, a shower's glass, a curtain with its rod (2026-11-18), sold by the piece
+    "shtorka_vanna": None, "dush_shisha": None, "parda_hammom": None,
+    # A water collector (2026-11-18), sold by the piece
+    "kollektor": None,
+    # The wall devices of every room, the cooker line's breaker (2026-11-18), sold by the piece;
+    # the cooker line's 3×6 mm² cable, sold per metre
+    "rozetka": None, "rozetka_2": None, "rozetka_media": None, "rozetka_kuch": None, "vyklyuchatel": None, "vyklyuchatel_2": None, "shchit": None, "avtomat_32": None, "kabel_kuch": None,
 }
+# The sale unit a key with no pack must have.
+_PER_METRE = ("kabel", "kabel_kuch")
+KEY_SALE_UNIT: dict[str, str] = {**{k: "m" for k in _PER_METRE}, **{k: "dona" for k, pack in KEY_PACK_UNIT.items() if pack is None and k not in _PER_METRE}}
 
 LIGHT_KEYS: frozenset[str] = frozenset(f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS)
 ALL_SMETA_KEYS: frozenset[str] = frozenset(KEY_PACK_UNIT) | LIGHT_KEYS
@@ -30,8 +70,10 @@ def smeta_key_problem(key: str | None, unit: str, pack_qty: float | None,
     if key in LIGHT_KEYS:
         return None if unit == "dona" else "chiroq dona bilan sotilishi kerak"
     need = KEY_PACK_UNIT[key]
-    if need is None:  # kabel
-        return None if unit == "m" else "kabel metrlab (m) sotilishi kerak"
+    if need is None:
+        if key == "kabel":
+            return None if unit == "m" else "kabel metrlab (m) sotilishi kerak"
+        return None if unit == KEY_SALE_UNIT[key] else "bu mahsulot donalab sotilishi kerak"
     # A pack only counts for the engine when the product is sold by the pack.
     if unit == need or (pack_qty is not None and pack_unit == need and unit in _SOLD_BY_PACK_UNITS):
         return None

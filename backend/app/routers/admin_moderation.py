@@ -17,9 +17,11 @@ from app.api.v1.deps import AdminUser, DbSession
 from app.models.furniture import Furniture
 from app.models.store import Store
 from app.models.usta import Usta
+from app.models.wallpaper import Wallpaper
 from app.routers.admin_catalog import _invalidate_after_commit
-from app.routers.seller import _out as _furniture_out
-from app.schemas.seller import PendingFurnitureOut, PendingOut, PendingStoreOut, RejectIn
+from app.routers.seller import _HIDDEN_BY_SHOP, _out as _furniture_out
+from app.routers.wallpapers import _out as _wallpaper_out
+from app.schemas.seller import PendingFurnitureOut, PendingOut, PendingStoreOut, PendingWallpaperOut, RejectIn
 from app.schemas.usta_profile import PendingUstaOut
 
 logger = structlog.get_logger(__name__)
@@ -39,6 +41,10 @@ async def pending(request: Request, admin: AdminUser, db: DbSession) -> PendingO
     ustalar = (await db.execute(
         select(Usta).where(Usta.status == "pending").order_by(Usta.created_at)
     )).scalars().all()
+    wallpapers = (await db.execute(
+        select(Wallpaper).options(selectinload(Wallpaper.store))
+        .where(Wallpaper.status == "pending").order_by(Wallpaper.created_at)
+    )).scalars().all()
     return PendingOut(
         stores=[PendingStoreOut.model_validate(s, from_attributes=True) for s in stores],
         ustalar=[PendingUstaOut.model_validate(u, from_attributes=True) for u in ustalar],
@@ -50,6 +56,7 @@ async def pending(request: Request, admin: AdminUser, db: DbSession) -> PendingO
             )
             for f in models
         ],
+        wallpapers=[PendingWallpaperOut(**_wallpaper_out(w, request).model_dump()) for w in wallpapers],
     )
 
 
@@ -74,10 +81,29 @@ async def _model(db: DbSession, furniture_id: uuid_module.UUID) -> Furniture:
     return f
 
 
-def _decide(row, approved: bool, note: str | None) -> None:
+async def _wallpaper(db: DbSession, wallpaper_id: uuid_module.UUID) -> Wallpaper:
+    w = (await db.execute(select(Wallpaper).where(Wallpaper.id == wallpaper_id))).scalar_one_or_none()
+    if w is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Oboy topilmadi")
+    return w
+
+
+def _must_be_pending(w: Wallpaper) -> None:
+    """Only a wallpaper awaiting review can be decided; a shop-hidden or already
+    approved one is changed through the admin wallpaper endpoints instead."""
+    if w.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bu oboy tekshiruvni kutmayapti")
+
+
+def _decide_status(row, approved: bool, note: str | None) -> None:
+    """The decision itself, for rows that have no ``is_active`` (wallpapers)."""
     row.status = "approved" if approved else "rejected"
-    row.is_active = approved
     row.moderation_note = None if approved else note
+
+
+def _decide(row, approved: bool, note: str | None) -> None:
+    _decide_status(row, approved, note)
+    row.is_active = approved
 
 
 @router.post("/stores/{store_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
@@ -115,6 +141,27 @@ async def reject_furniture(furniture_id: uuid_module.UUID, body: RejectIn, admin
     await db.flush()
     _invalidate_after_commit(db, "furniture:")
     logger.info("model_rejected", id=str(furniture_id), admin_id=str(admin.id))
+
+
+@router.post("/wallpapers/{wallpaper_id}/approve", status_code=status.HTTP_204_NO_CONTENT)
+async def approve_wallpaper(wallpaper_id: uuid_module.UUID, admin: AdminUser, db: DbSession) -> None:
+    w = await _wallpaper(db, wallpaper_id)
+    _must_be_pending(w)
+    _decide_status(w, True, None)
+    await db.flush()
+    logger.info("wallpaper_approved", id=str(wallpaper_id), admin_id=str(admin.id))
+
+
+@router.post("/wallpapers/{wallpaper_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
+async def reject_wallpaper(wallpaper_id: uuid_module.UUID, body: RejectIn, admin: AdminUser, db: DbSession) -> None:
+    w = await _wallpaper(db, wallpaper_id)
+    _must_be_pending(w)
+    note = body.note.strip()
+    if note == _HIDDEN_BY_SHOP:  # reserved: it marks a shop's own removal
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Bu sabab matnini ishlatib bo'lmaydi")
+    _decide_status(w, False, note)
+    await db.flush()
+    logger.info("wallpaper_rejected", id=str(wallpaper_id), admin_id=str(admin.id))
 
 
 @router.post("/ustalar/{usta_id}/approve", status_code=status.HTTP_204_NO_CONTENT)

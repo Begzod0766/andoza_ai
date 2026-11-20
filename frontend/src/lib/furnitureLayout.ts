@@ -25,7 +25,7 @@ import { chairCount, clearanceZones, groupCandidates, type Piece, type Placed } 
 import { ROLE_GROUP, WARDROBE_NAME, type FurnitureRole, type GroupId } from './furnitureRole'
 import { doorEntries, walkable, type Pt } from './walkway'
 
-const ORDER: GroupId[] = ['lounge', 'dining', 'sleep', 'work', 'storage', 'extra']
+const ORDER: GroupId[] = ['lounge', 'dining', 'sleep', 'work', 'storage', 'plumbing', 'extra']
 /** How many of the main group's walkable arrangements are tried, each with the rest of the room. */
 const PRIMARY_TRIES = 12
 /**

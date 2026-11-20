@@ -5,10 +5,10 @@ const on = "bg-brand text-white ring-brand/40";
 const off = "bg-card/95 text-accent ring-line";
 
 /** The cameras button at the canvas's bottom-left; its name shows beside the icon from md up. */
-export function CameraButton({ active, expanded, onClick }: { active: boolean; expanded: boolean; onClick: () => void }) {
+export function CameraButton({ active, expanded, onClick, tourId }: { active: boolean; expanded: boolean; onClick: () => void; tourId?: string }) {
   const { t } = useTranslation();
   return (
-    <button onClick={onClick} title={t("studio.three_d.kameralar")} aria-label={t("studio.three_d.kameralar")}
+    <button onClick={onClick} data-tour={tourId} title={t("studio.three_d.kameralar")} aria-label={t("studio.three_d.kameralar")}
       aria-expanded={expanded} className={`${round} ${active ? on : off}`}>
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -24,11 +24,11 @@ export function CameraButton({ active, expanded, onClick }: { active: boolean; e
  * The lock: while it is on, taps and holds in the 3D view open nothing, so the room can be
  * turned without a menu popping up. From md up it says so in words ("Tahrirlash: yopiq").
  */
-export function LockButton({ locked, onClick, className = "" }: { locked: boolean; onClick: () => void; className?: string }) {
+export function LockButton({ locked, onClick, className = "", tourId }: { locked: boolean; onClick: () => void; className?: string; tourId?: string }) {
   const { t } = useTranslation();
   const action = locked ? t("studio.three_d.tahrirlashni_yoqish") : t("studio.three_d.tahrirlashni_qulflash");
   return (
-    <button onClick={onClick} title={action} aria-label={action} aria-pressed={locked} className={`${round} ${locked ? on : off} ${className}`}>
+    <button onClick={onClick} data-tour={tourId} title={action} aria-label={action} aria-pressed={locked} className={`${round} ${locked ? on : off} ${className}`}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="5" y="11" width="14" height="9" rx="2" />

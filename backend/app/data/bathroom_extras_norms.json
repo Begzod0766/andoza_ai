@@ -1,0 +1,71 @@
+{
+  "_doc": "Prices for a bathroom's towel rail (water-heated, or electric with its IP44 socket and cable: 2026-11-14), a washing machine's IP44 socket (2026-11-14) and extractor fan when the shop has no tagged product (spec 2026-11-10). UZS. Starting values, the owner's to correct. By size (2026-11-15): the 500x800 prices are the old single ones. The wall devices of every room (sockets, switches, the media and cooker outlets, the panel), the cooker line's breaker and cable and the fitting work (2026-11-18): under \"electrics\".",
+  "towel_rail_uzs": 650000,
+  "work_towel_rail_uzs": 200000,
+  "fan_uzs": 180000,
+  "work_fan_uzs": 100000,
+  "fan_cable_m": 3,
+  "el_towel_rail_uzs": 900000,
+  "socket_ip44_uzs": 70000,
+  "el_rail_cable_m": 3,
+  "work_el_towel_rail_uzs": 150000,
+  "washer_cable_m": 3,
+  "work_washer_socket_uzs": 50000,
+  "fan_uzs_by_size": {
+    "100": 180000,
+    "125": 260000,
+    "150": 380000
+  },
+  "fan_air_changes": 6,
+  "towel_rail_uzs_by_size": {
+    "500x500": 450000,
+    "500x600": 520000,
+    "500x800": 650000,
+    "600x800": 750000,
+    "600x1000": 900000
+  },
+  "el_towel_rail_uzs_by_size": {
+    "500x500": 650000,
+    "500x600": 750000,
+    "500x800": 900000,
+    "600x800": 1050000,
+    "600x1000": 1250000
+  },
+  "heated_floor": {
+    "mat_m2_uzs": 180000,
+    "mat_step_m2": 0.5,
+    "mat_min_m2": 1,
+    "thermostat_uzs": 350000,
+    "kit_uzs": 60000,
+    "breaker_uzs": 80000,
+    "cable_m": 5,
+    "work_mat_m2_uzs": 50000,
+    "work_thermostat_uzs": 100000,
+    "toilet_w_cm": 40,
+    "toilet_d_cm": 65,
+    "bidet_w_cm": 40,
+    "bidet_d_cm": 55
+  },
+  "screens": {
+    "bath_glass_uzs": 1200000,
+    "work_bath_glass_uzs": 150000,
+    "shower_glass_uzs": 2000000,
+    "work_shower_glass_uzs": 300000,
+    "curtain_uzs": 150000,
+    "work_curtain_uzs": 50000
+  },
+  "electrics": {
+    "socket1_uzs": 35000,
+    "socket2_uzs": 65000,
+    "socket_media_uzs": 150000,
+    "socket_power_uzs": 120000,
+    "switch1_uzs": 30000,
+    "switch2_uzs": 45000,
+    "panel_uzs": 350000,
+    "breaker_32_uzs": 80000,
+    "power_cable_m_uzs": 25000,
+    "power_cable_m": 10,
+    "work_point_uzs": 40000,
+    "work_panel_uzs": 300000
+  }
+}

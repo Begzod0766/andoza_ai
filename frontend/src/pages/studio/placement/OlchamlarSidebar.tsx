@@ -115,7 +115,7 @@ export function OlchamlarSidebar({ electricals, wireLengths }: {
 
         return (
           <div className="flex-1 overflow-y-auto flex flex-col">
-            <WireGroup title={t('studio.placement.olchamlar.rozetka_simlari')} items={sockets} total={socketTotal} color="bg-orange-50 text-orange-800"/>
+            <WireGroup title={t('studio.placement.olchamlar.rozetka_simlari')} items={sockets} total={socketTotal} color="bg-orange-tint text-orange-cta"/>
             <WireGroup title={t('studio.placement.olchamlar.kalit_simlari')} items={switches} total={switchTotal} color="bg-yellow-50 text-yellow-800"/>
             {sockets.length === 0 && switches.length === 0 && (
               <p className="text-xs text-gray-400 text-center py-6 px-3">{t('studio.placement.olchamlar.rozetka_yoki_kalit_yoq')}</p>

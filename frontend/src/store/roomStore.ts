@@ -9,6 +9,7 @@ import type {
   DesignState,
   FloorType,
   PlacedElectrical,
+  PlumbingPoint, TowelRail, Washer,
   PlacedFurniture,
   PlacedLight,
   RoomGeometry,
@@ -21,6 +22,10 @@ import { createGeometrySlice } from './slices/geometrySlice'
 import { createDesignSlice } from './slices/designSlice'
 import { createFurnitureSlice } from './slices/furnitureSlice'
 import { createElectricalSlice } from './slices/electricalSlice'
+import { createPlumbingSlice } from './slices/plumbingSlice'
+import { createTowelRailSlice } from './slices/towelRailSlice'
+import { createWasherSlice } from './slices/washerSlice'
+import type { RiserAt } from '@/lib/plumbingRuns'
 import { createLightSlice } from './slices/lightSlice'
 import { createUiSlice } from './slices/uiSlice'
 import { createLifecycleSlice } from './slices/lifecycleSlice'
@@ -41,6 +46,8 @@ export type {
   FloorTextureSettings,
   FloorType,
   PlacedElectrical,
+  PlumbingPoint,
+  PlumbingKind,
   PlacedFurniture,
   PlacedLight,
   RoomGeometry,
@@ -82,6 +89,10 @@ export interface RoomTemporalState {
   surfaces: AppliedSurfaces
   furniture: PlacedFurniture[]
   electricals: PlacedElectrical[]
+  plumbing: PlumbingPoint[]
+  towelRails: TowelRail[]
+  washers: Washer[]
+  plumbingRiser: RiserAt | null
   lights: PlacedLight[]
   layoutPos: { x: number; z: number } | null
   ceilingHeight: number
@@ -94,6 +105,10 @@ function partializeTemporal(state: RoomStore): RoomTemporalState {
     surfaces: state.surfaces,
     furniture: state.furniture,
     electricals: state.electricals,
+    plumbing: state.plumbing,
+    towelRails: state.towelRails,
+    washers: state.washers,
+    plumbingRiser: state.plumbingRiser,
     lights: state.lights,
     layoutPos: state.layoutPos,
     ceilingHeight: state.ceilingHeight,
@@ -138,6 +153,9 @@ export const useRoomStore = create<RoomStore>()(
         ...createDesignSlice(...a),
         ...createFurnitureSlice(...a),
         ...createElectricalSlice(...a),
+        ...createPlumbingSlice(...a),
+        ...createTowelRailSlice(...a),
+        ...createWasherSlice(...a),
         ...createLightSlice(...a),
         ...createUiSlice(...a),
         ...createLifecycleSlice(...a),
@@ -174,6 +192,10 @@ export const useRoomStore = create<RoomStore>()(
         roomType: state.roomId ? null : state.roomType,
         furniture: state.furniture,
         electricals: state.electricals,
+        plumbing: state.plumbing,
+        towelRails: state.towelRails,
+        washers: state.washers,
+        plumbingRiser: state.plumbingRiser,
         lights: state.lights,
         highQuality3d: state.highQuality3d,
         // Persist metadata but clear modelPath (blob URLs don't survive refresh)

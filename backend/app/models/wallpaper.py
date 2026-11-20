@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Numeric,
@@ -17,6 +18,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.store import MODERATION_STATUSES
 
 
 class Wallpaper(Base):
@@ -38,6 +40,10 @@ class Wallpaper(Base):
     # global: uniqueness is on (sha256, kind), not sha256 alone.
     __table_args__ = (
         UniqueConstraint("sha256", "kind", name="uq_wallpapers_sha256_kind"),
+        CheckConstraint(
+            "status IN (%s)" % ", ".join(f"'{t}'" for t in MODERATION_STATUSES),
+            name="ck_wallpapers_status",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -113,6 +119,19 @@ class Wallpaper(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        index=True,
+        default="approved",
+        server_default="approved",
+        comment="pending | approved | rejected. A shop owner's oboy starts pending "
+                "until an admin approves it; only approved ones are in the public "
+                "library. See MODERATION_STATUSES.",
+    )
+    moderation_note: Mapped[str | None] = mapped_column(
+        String(300), nullable=True, comment="Why an admin rejected it, shown to the shop owner"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

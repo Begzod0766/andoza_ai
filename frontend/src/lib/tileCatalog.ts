@@ -1,4 +1,5 @@
 import type { TKey } from '@/i18n'
+import type { WallCovering } from '@/store/types'
 
 /**
  * What a tiled floor is chosen by: the tile's size, and its face.
@@ -91,8 +92,14 @@ export function wallTileUrl(size: TileSize, face: TileFace): string {
  * image is cut to the tile's proportions — so it is 1: the tile is already
  * the right shape, and anything else would squash it.
  */
-export function wallTileCovering(size: TileSize, face: TileFace) {
+export function wallTileCovering(size: TileSize, face: TileFace, previous?: WallCovering) {
+  // Another tile on a wall already tiled to a height is the same tiled wall: the height and the
+  // paint above it stay. Anything else (paint, paper, tile to the ceiling) gets tile to the ceiling.
+  const kept = previous && previous.kind === 'texture' && previous.finish === 'tile' && previous.tileHeightMm
+    ? { tileHeightMm: previous.tileHeightMm, ...(previous.aboveColor && { aboveColor: previous.aboveColor }) }
+    : {}
   return {
+    ...kept,
     kind: 'texture' as const,
     url: wallTileUrl(size, face),
     // The face keeps its own colours; multiplied by the tile grey a white

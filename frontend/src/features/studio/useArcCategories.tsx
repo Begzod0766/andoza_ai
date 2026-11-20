@@ -16,10 +16,11 @@
  * room's own Saqlash persists them.
  */
 import { useMemo } from 'react'
+import { fixtureDisplayName } from "@/lib/fixtureName";
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
-import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store } from 'lucide-react'
+import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets, SlidersHorizontal, Plug } from 'lucide-react'
 import { FurnitureSymbol, LightSymbol } from '@/lib/catalogIcons'
 import { useRoomStore } from '@/store/roomStore'
 import { listWallpapers, type Wallpaper as WallpaperEntry } from '@/lib/api'
@@ -36,13 +37,15 @@ import { resolveTargetWall } from '@/components/studio/design-panel/shared'
 import type { ArcCategory, ArcItem } from '@/components/studio/QuarterArcMenu'
 import { fitsCatalogRoom } from '@/lib/furnitureRoomFit'
 import { catalogRoomType, effectiveRoomType } from '@/lib/roomType'
+import { visibleStages } from '@/lib/phases'
+import { inferRole, ROLE_GROUP } from '@/lib/furnitureRole'
 
 export interface ArcCategoriesDeps {
   /** Which wall a picked wallpaper lands on — the viewport's current pick,
    *  same as the design panel uses, falling back to every wall. */
   selectedWall: string | null
   /** Opens the full panel for a category the arc can only show a slice of. */
-  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel') => void
+  openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol' | 'montaj') => void
 }
 
 /** The catalog room each furniture ring stands for. */
@@ -239,21 +242,52 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         ],
         // Nothing uploaded yet: the panel is where you add one, so send them
         // there rather than showing an arc with nothing on it.
-        emptyItem: { key: 'mebel:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('mebel') },
+        emptyItem: { key: 'mebel:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('mebel') },
       },
+      // Bathrooms and kitchens: the fixtures (Jihozlar) and "add a point", which is Quvurlar's
+      // (spec 2026-11-08, split 2026-11-18).
+      ...(visibleStages(roomKind).some((st) => st.key === 'jihozlar') ? [{
+        key: 'jihozlar',
+        label: t('studio.lib.stage.jihozlar'),
+        icon: <Droplets size={19} strokeWidth={1.8} />,
+        items: [
+          ...catalogFurniture
+            .filter((f) => ROLE_GROUP[inferRole(f.category, f.name_uz)] === 'plumbing' && (!roomKind || fitsCatalogRoom(f, roomKind)))
+            .map((f) => ({
+              key: `sx:${f.id}`,
+              label: fixtureDisplayName(f.name_uz, t),
+              icon: <Store size={19} strokeWidth={1.8} />,
+              imageUrl: f.thumbnail_url ?? undefined,
+              onSelect: () => placeFurniture({
+                id: nanoid(),
+                furniture_id: f.id,
+                ...nextFurnitureSpot({
+                  name: f.name_uz, category: f.category,
+                  sizeM: { w: (f.footprint_w ?? 0) / 100, d: (f.footprint_d ?? 0) / 100 },
+                  heightM: f.height_cm ? f.height_cm / 100 : undefined,
+                }),
+              }),
+            })),
+          // The Jihozlar panel (machines, towel rail, boiler, screens, warnings): on a phone the arc is
+          // the only way to it, and only Quvurlar had a door after the split (QA 2026-11-18).
+          { key: 'sx:panel', label: t('studio.radial.panel_jihozlar'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('jihozlar') },
+          { key: 'sx:add', label: t('studio.santexnika.add'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('quvurlar') },
+        ],
+      }] : []),
       {
         key: 'rang',
         label: t('studio.radial.rang'),
         icon: <Wallpaper size={19} strokeWidth={1.8} />,
-        items: papers,
-        emptyItem: { key: 'rang:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('boyoq') },
+        // The paint panel last (mobile QA 2026-11-19, #350): the shop's wall paints are there, and a phone had no way to them.
+        items: [...papers, { key: 'rang:panel', label: t('studio.radial.panel_boyoq'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('boyoq') }],
+        emptyItem: { key: 'rang:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('boyoq') },
       },
       {
         key: 'chiroq',
         label: t('studio.shared.chiroq'),
         icon: <Lightbulb size={19} strokeWidth={1.8} />,
         items: fixtures,
-        emptyItem: { key: 'chiroq:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, onSelect: () => openPanelAt('chiroq') },
+        emptyItem: { key: 'chiroq:none', label: t('studio.radial.panel'), icon: <Plus size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('chiroq') },
       },
       {
         key: 'pol',
@@ -293,6 +327,18 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
             })),
             onSelect: () => {},
           },
+          // The Pol panel: the heated floor and the full floor choices live there (QA 2026-11-18).
+          { key: 'pol:panel', label: t('studio.radial.panel_pol'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('pol') },
+        ],
+      },
+      {
+        // The Montaj panel (mobile QA 2026-11-19, #345): the list of the sockets and switches put on. A
+        // phone had no way to it; they are put on from the wall's ring, so this is the panel only.
+        key: 'montaj',
+        label: t('studio.lib.stage.montaj'),
+        icon: <Plug size={19} strokeWidth={1.8} />,
+        items: [
+          { key: 'montaj:panel', label: t('studio.radial.panel_montaj'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('montaj') },
         ],
       },
       {

@@ -542,7 +542,7 @@ def test_validate_plan_ignores_old_zone():
 
 
 def test_prompt_lists_roles():
-    assert len(ad.FURNITURE_ROLES) == 14
+    assert len(ad.FURNITURE_ROLES) == 19  # 14 furniture + 5 plumbing (2026-11-08)
     for role in ad.FURNITURE_ROLES:
         assert role in ad._SYSTEM
 
@@ -1097,3 +1097,35 @@ async def test_design_plan_style_none_with_image():
 def test_the_summary_is_asked_to_name_the_furniture_by_name_and_never_by_label():
     assert "mebelni nomi bilan" in ad._SYSTEM
     assert "F1" in ad._SYSTEM and "yozmang" in ad._SYSTEM
+
+
+
+@pytest.mark.parametrize("name, role", [
+    ("Vanna 1", "bathtub"), ("Ванна акриловая", "bathtub"), ("Bathtub", "bathtub"),
+    ("Rakovina 3", "sink"), ("Раковина", "sink"), ("Umivalnik", "sink"),
+    ("Unitaz", "toilet"), ("Унитаз", "toilet"),
+    ("Dush 2", "shower"), ("Душевая кабина", "shower"),
+    ("Bide", "bidet"), ("Биде", "bidet"),
+])
+def test_plumbing_fixture_roles_match_the_frontend(name, role):
+    assert ad.infer_role("boshqa", name) == role
+
+
+def test_a_bathroom_cabinet_is_not_a_bathtub():
+    assert ad.infer_role("shkaf", "Шкаф для ванной комнаты") != "bathtub"
+    assert ad.infer_role("shkaf", "Vanna shkafi") != "bathtub"
+    assert ad.infer_role("boshqa", "Dushanba stoli") != "shower"
+
+
+@pytest.mark.parametrize("name", [
+    "Тумба под раковину", "Шкаф под раковину", "Rakovina tumbasi", "Sink cabinet", "Vanna pardasi", "Vanna gilamchasi",
+    "Vanna uchun oyna", "Dush boshi", "Unitaz qopqog'i", "Ёршик для унитаза", "Toilet paper holder", "Зеркало для раковины",
+])
+def test_plumbing_accessories_and_cabinets_are_not_fixtures(name):
+    assert ad.infer_role("boshqa", name) not in {"bathtub", "sink", "toilet", "shower", "bidet"}
+
+
+def test_a_kitchen_sink_by_its_usual_names_is_a_sink():
+    assert ad.infer_role("boshqa", "Мойка кухонная") == "sink"
+    assert ad.infer_role("boshqa", "Oshxona moykasi") == "sink"
+    assert ad.infer_role("boshqa", "Dush kabina 90x90") == "shower"

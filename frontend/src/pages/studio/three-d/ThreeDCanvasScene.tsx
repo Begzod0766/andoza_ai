@@ -1,4 +1,6 @@
 import i18n from "@/i18n";
+import { useRoomStages } from "@/features/studio/useStageView";
+import { drawnAt, stagedDesignState, type ItemStage } from "@/lib/stageView";
 import { formatDecimal } from "@/lib/utils";
 import { Suspense, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { updateRoom } from "@/lib/api";
@@ -49,6 +51,15 @@ import { QiblaMarker } from "./QiblaMarker";
 import { RoomScanReference, type ScanSwapRequest } from "./RoomScanOverlay";
 import { DraggableLightModels } from "./LightingComponents";
 import { DraggableElectricalModels } from "./ElectricalComponents";
+import { PlumbingPoints3D } from "./PlumbingPoints3D";
+import { TowelRails3D } from "./TowelRails3D";
+import { Backsplashes3D } from "./Backsplashes3D";
+import { Riser3D } from "./Riser3D";
+import { Washers3D } from "./Washers3D";
+import { VentFan3D } from "./VentFan3D";
+import { BathroomBoxes3D } from "./BathroomBoxes3D";
+import { ShowerScreens3D } from "./ShowerScreens3D";
+import { FloorDrains3D } from "./FloorDrains3D";
 import { AddRoomButtons, SiblingRooms, OpeningLayer, ActiveRoomFocusButton } from "./SiblingRoomLayout";
 import { RealismEffects, SceneLighting, MoonriseSky, SUN_INTENSITY } from "./SceneEnvironment";
 import { MOONRISE_FOG_COLOR, STUDIO_TONE_MAPPING_EXPOSURE } from "@/lib/moonriseSky";
@@ -277,6 +288,18 @@ export function ThreeDCanvasScene({
   );
   const shellGeometry = flatPlan.active.shell;
   /**
+   * The stage the 3D draws (spec 2026-11-18, lib/stageView): the surfaces as they are at that stage,
+   * and only the layers of that stage and the ones before it. Hidden layers are unmounted, not
+   * `visible={false}`, which three's raycaster would still hit. 'full' is the design untouched.
+   */
+  const viewStage = useRoomStore((s) => s.viewStage);
+  const roomStages = useRoomStages();
+  const drawn = (item: ItemStage) => drawnAt(item, viewStage, roomStages);
+  const stagedDesign = useMemo(
+    () => stagedDesignState(designState, viewStage, roomStages),
+    [designState, viewStage, roomStages],
+  );
+  /**
    * The camera's framing, moved onto what is being looked at: the focused
    * room, or the whole flat when nothing is focused — so the orbit pivots on
    * that, not on whichever room happens to be open (lib/focusFraming).
@@ -384,7 +407,7 @@ export function ThreeDCanvasScene({
   const persistMove = async (id: string, dx: number, dz: number, newGeometry?: RoomGeometry, extra?: CutExtras): Promise<boolean> => {
     const abs = computeAbsolutePositions(aptRooms ?? [], room.id, W, D);
     if (id === room.id) {
-      if (newGeometry) useRoomStore.setState({ geometry: newGeometry, ...(extra ?? {}), isDirty: true });
+      if (newGeometry) useRoomStore.getState().applyRoomShape(newGeometry, extra);
       // The flat is drawn around the open room, so moving it re-anchors
       // everything else; the camera moves with them, so the picture holds.
       const from = activeLayoutPos ?? abs.get(room.id) ?? { x: 0, z: 0 };
@@ -896,7 +919,7 @@ export function ThreeDCanvasScene({
           room={room}
           geometry={shellGeometry}
           topView={topView}
-          designState={designState}
+          designState={stagedDesign}
           showContactShadows={showContactShadows}
           composerActive={useComposer}
           highQuality={highQuality3d}
@@ -1002,7 +1025,16 @@ export function ThreeDCanvasScene({
           onReplace={setScanSwap}
         />
         <QiblaMarker W={W} D={D} visible={showQibla} />
-        <DraggableElectricalModels controlsRef={controlsRef} W={W} D={D} hiddenWalls={behind} />
+        {drawn('montaj') && <DraggableElectricalModels controlsRef={controlsRef} W={W} D={D} hiddenWalls={behind} />}
+        <PlumbingPoints3D controlsRef={controlsRef} hiddenWalls={behind} />
+        {drawn('jihozlar') && <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} />}
+        {drawn('boyoq') && <Backsplashes3D hiddenWalls={behind} />}
+        <Riser3D controlsRef={controlsRef} hiddenWalls={behind} />
+        {drawn('jihozlar') && <Washers3D controlsRef={controlsRef} hiddenWalls={behind} />}
+        {drawn('jihozlar') && <VentFan3D hiddenWalls={behind} />}
+        <BathroomBoxes3D hiddenWalls={behind} />
+        {drawn('jihozlar') && <ShowerScreens3D />}
+        <FloorDrains3D />
         <OpeningLayer
           geometry={ownOpeningGeometry}
           W={W}
@@ -1030,7 +1062,7 @@ export function ThreeDCanvasScene({
             </>
           )}
         </WallsBehindCamera>
-        <DraggableLightModels controlsRef={controlsRef} roomW={W} roomD={D} roomH={H} toolMode={toolMode} lightsOn={lightsOn} highQuality={highQuality3d} selectedId={selectedLightId} onSelect={selectLight} />
+        {drawn('chiroq') && <DraggableLightModels controlsRef={controlsRef} roomW={W} roomD={D} roomH={H} toolMode={toolMode} lightsOn={lightsOn} highQuality={highQuality3d} selectedId={selectedLightId} onSelect={selectLight} />}
 
         <RealismEffects enabled={useComposer} />
 

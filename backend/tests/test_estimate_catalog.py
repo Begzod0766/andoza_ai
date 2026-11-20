@@ -262,8 +262,20 @@ class TestSeedData:
 
     def test_every_estimate_line_has_at_least_one_product(self):
         keys = {r["smeta_key"] for r in self.ROWS}
-        # galtel has no seed product: the admin adds it
-        assert set(seed.KEY_PACK_UNIT) - {"galtel"} <= keys
+        # galtel has no seed product: the admin adds it. Nor do the tile-work keys (spec 2026-11-10):
+        # their lines fall back to tile_norms.json until a shop tags a product.
+        # Nor do the bathroom extras (bathroom_extras_norms.json).
+        # Nor do a fixture's own parts (2026-11-13): plumbing_norms.json "part_uzs" until tagged.
+        admin_added = {"galtel", "plitka_yelimi", "zatirka", "gidro_mastika", "gidro_lenta", "ventilyator", "sochiq_quritgich",
+                       "smesitel_rakovina", "smesitel_oshxona", "smesitel_vanna", "smesitel_dush", "smesitel_bide",
+                       "sifon_rakovina", "sifon_oshxona", "sifon_vanna", "sifon_dush", "gofra_unitaz", "podvodka",
+                       "installyatsiya", "boyler", "kran_kir", "sifon_kir", "kran_idish", "sifon_idish", "uzo", "lyuk", "silikon", "trap_pol",
+                       "hisoblagich_suv", "filtr_suv", "reduktor", "klapan_teskari", "gipsokarton_nam", "skinali",
+                       "sochiq_quritgich_el", "rozetka_ip44", "styajka", "issiq_pol", "termoregulyator", "shtorka_vanna", "dush_shisha", "parda_hammom", "kollektor",
+                       # The wall devices (2026-11-18): bathroom_extras_norms.json "electrics" until tagged.
+                       "rozetka", "rozetka_2", "rozetka_media", "rozetka_kuch", "vyklyuchatel", "vyklyuchatel_2", "shchit",
+                       "avtomat_32", "kabel_kuch"}
+        assert set(seed.KEY_PACK_UNIT) - admin_added <= keys
         assert {f"light:{t}" for t in LIGHT_CATALOG_PRICES_UZS} <= keys
 
 
@@ -330,3 +342,59 @@ class TestSeeder:
     async def test_a_missing_store_is_skipped_not_fatal(self):
         result = await seed._apply(_FakeSession([], []))
         assert result["inserted"] == 0 and result["skipped_store"] == len(seed.PRODUCTS) + len(seed.ADOPT)
+
+
+def test_a_piece_product_is_compared_by_its_own_price_whatever_pack_it_names():
+    """Review minor M7: a towel rail entered as "2 per pack" looked half the price and won as the
+    cheapest, then was charged at its full price per rail."""
+    from types import SimpleNamespace
+
+    from app.services.estimate_catalog import pick_cheapest
+
+    def rail(name, price, pack_qty=None):
+        return SimpleNamespace(name_uz=name, smeta_key="sochiq_quritgich", is_active=True, unit="dona", price_uzs=price,
+                               pack_qty=pack_qty, pack_unit="dona" if pack_qty else None)
+
+    best = pick_cheapest([rail("dear, said to be a pair", 900_000, 2), rail("cheap", 600_000)])
+    assert best["sochiq_quritgich"].name_uz == "cheap"
+    fans = [SimpleNamespace(name_uz=n, smeta_key="ventilyator", is_active=True, unit="dona", price_uzs=p, pack_qty=q, pack_unit=None)
+            for n, p, q in (("a", 200_000, 4), ("b", 150_000, None))]
+    assert pick_cheapest(fans)["ventilyator"].name_uz == "b"
+    # A bag is still compared by the kilogram.
+    bags = [SimpleNamespace(name_uz=n, smeta_key="suvoq", is_active=True, unit="qop", price_uzs=p, pack_qty=q, pack_unit="kg")
+            for n, p, q in (("30 kg", 60_000, 30), ("25 kg", 55_000, 25))]
+    assert pick_cheapest(bags)["suvoq"].name_uz == "30 kg"
+
+
+def test_the_piece_keys_are_the_ones_the_key_list_says_are_sold_by_the_piece():
+    from app.services.estimate_catalog import _PIECE_KEYS
+    from app.services.smeta_keys import KEY_SALE_UNIT
+
+    assert _PIECE_KEYS == {k for k, unit in KEY_SALE_UNIT.items() if unit == "dona"}
+
+
+class TestShopWallpaperModeration:
+    async def test_pending_is_not_in_the_catalog_but_rejected_still_is(self):
+        db = AsyncMock()
+        materials = MagicMock(scalars=lambda: MagicMock(all=lambda: []))
+        wallpapers = MagicMock(scalars=lambda: MagicMock(all=lambda: []))
+        db.execute = AsyncMock(side_effect=[materials, wallpapers])
+        await ec.load_estimate_catalog(db)
+        sql = str(db.execute.call_args_list[1].args[0].compile(compile_kwargs={"literal_binds": True}))
+        # only pending is excluded: a rejected (hidden) oboy still prices rooms already saved with it
+        assert "wallpapers.status != 'pending'" in sql
+        assert "rejected" not in sql
+
+
+def test_an_enamel_is_not_the_stand_in_wall_paint():
+    """Kitchen QA 2026-11-18 K9: the shop files Inoria alkyd enamels (for metal and wood) as paint; the
+    median wall paint must not be one of them."""
+    from app.services.estimate_catalog import pick_median_finishes
+
+    def paint(name, price):
+        return SimpleNamespace(id=uuid.uuid4(), name_uz=name, unit="litr", price_uzs=price, pack_qty=None, pack_unit=None,
+                               smeta_key=None, is_active=True, store=STORE, category="boyoq")
+    rows = [paint("Inoria MATT ALKYD ENAMEL (инория ) 3,75 LT", 36_000), paint("Inoria LUX ALKYD ENAMEL PORLOQ 2,5 LT", 38_000),
+            paint("Эмаль ПФ-115 белая", 39_000), paint("Tikkurila Euro 3 Oq", 45_000), paint("Dulux Mos Sariq", 42_000)]
+    got = pick_median_finishes(rows)["finish:boyoq"]
+    assert got.name_uz in ("Tikkurila Euro 3 Oq", "Dulux Mos Sariq")

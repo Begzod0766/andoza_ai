@@ -9,12 +9,14 @@ and reach the public catalog only once an admin approves them (see
 """
 from __future__ import annotations
 
+import hashlib
 import uuid as uuid_module
 from typing import get_args
 
 import structlog
 from fastapi import APIRouter, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.i18n import translate_detail
@@ -28,13 +30,16 @@ from app.services.model_optimize_queue import enqueue_optimize_after_commit
 from app.models.furniture import Furniture
 from app.models.order import Order
 from app.models.store import Store
+from app.models.wallpaper import Wallpaper
 from app.routers.admin_catalog import (
     _delete_files_after_commit,
     _invalidate_after_commit,
 )
+from app.routers.wallpapers import _EXT_BY_TYPE, _out as _wallpaper_out, read_wallpaper_image
 from app.schemas.order import OrderStatusUpdate, SellerOrderOut
 from app.services.order_status import SELLER_CAN_CANCEL, change_status
 from app.services.push import notify
+from app.schemas.wallpaper import WallpaperOut
 from app.schemas.seller import (
     FURNITURE_CATEGORIES,
     PLACEMENTS,
@@ -58,6 +63,12 @@ _MAX_THUMB_BYTES = 5 * 1024 * 1024
 # A seller's queue of unreviewed models is capped, so one account cannot bury
 # the moderators in uploads.
 _MAX_PENDING_MODELS = 20
+# The same for a shop's wallpapers awaiting review.
+_MAX_PENDING_WALLPAPERS = 50
+# The moderation note of an approved oboy its shop removed. Such a row stays so
+# rooms priced with it keep working, which is why the seller cannot delete it,
+# swap its image or send it back to review (see _is_hidden_by_shop).
+_HIDDEN_BY_SHOP = "Do'kon olib tashladi"
 _THUMB_EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 # What the first bytes of each accepted image must look like (a model is
 # checked whole, by is_glb_with_meshes). The browser's filename and
@@ -383,6 +394,192 @@ async def delete_furniture(furniture_id: uuid_module.UUID, current_user: Current
     _invalidate_after_commit(db, "furniture:")
     _delete_files_after_commit(db, keys, "seller_model_file_delete_failed")
     logger.info("seller_model_deleted", id=str(furniture_id), user_id=str(current_user.id))
+
+
+# ── The shop's wallpapers ────────────────────────────────────────────────────
+
+
+async def _own_wallpaper(db: DbSession, user, wallpaper_id: uuid_module.UUID) -> tuple[Store, Wallpaper]:
+    """The wallpaper, only if it belongs to the caller's (approved) shop. Someone
+    else's id and a missing one answer the same 404, so ids cannot be probed."""
+    store = await _require_approved_store(db, user)
+    w = (await db.execute(select(Wallpaper).where(Wallpaper.id == wallpaper_id))).scalar_one_or_none()
+    if w is None or w.store_id != store.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Oboy topilmadi")
+    w.store = store  # set directly: _out reads it and a lazy load would fail here
+    return store, w
+
+
+async def _require_free_image(db: DbSession, store: Store, digest: str, *, except_id: uuid_module.UUID | None = None) -> None:
+    """One image per (sha256, kind): 409 if an oboy with these bytes exists. The
+    answer says whether it is the caller's own, but a foreign row is never touched."""
+    query = select(Wallpaper).where(Wallpaper.sha256 == digest, Wallpaper.kind == "oboy")
+    if except_id is not None:
+        query = query.where(Wallpaper.id != except_id)
+    found = (await db.execute(query)).scalars().first()
+    if found is None:
+        return
+    if found.store_id == store.id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bu oboy ro'yxatingizda bor, uni tahrirlang")
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bu rasm kutubxonada allaqachon bor")
+
+
+async def _require_pending_room(db: DbSession, store: Store) -> None:
+    pending = (await db.execute(
+        select(func.count()).select_from(Wallpaper).where(Wallpaper.store_id == store.id, Wallpaper.status == "pending")
+    )).scalar_one()
+    if pending >= _MAX_PENDING_WALLPAPERS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Tekshiruvni kutayotgan oboylar juda ko'p (50)",
+        )
+
+
+async def _store_wallpaper_image(file: UploadFile, data: bytes) -> tuple[str, str]:
+    """Put the image in storage; returns (storage_key, content_type)."""
+    content_type = file.content_type or "image/jpeg"
+    key = f"wallpapers/{uuid_module.uuid4()}.{_EXT_BY_TYPE.get(content_type, 'jpg')}"
+    try:
+        stored_url = await upload_file(data, key, content_type=content_type)
+    except Exception as exc:
+        logger.error("seller_wallpaper_upload_failed", key=key, error=str(exc))
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Rasmni saqlab bo'lmadi") from exc
+    return (stored_url if stored_url.startswith("http") else key), content_type
+
+
+def _is_hidden_by_shop(w: Wallpaper) -> bool:
+    return w.status == "rejected" and w.moderation_note == _HIDDEN_BY_SHOP
+
+
+async def _flush_new_image(db: DbSession) -> None:
+    """Flush, turning a lost race on the (sha256, kind) unique index (two uploads
+    of the same bytes at once) into the same 409 as the lookup before it."""
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bu rasm kutubxonada allaqachon bor") from exc
+
+
+def _clean_wallpaper_name(name: str) -> str:
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="name bo'sh bo'lmasligi kerak")
+    return name
+
+
+@router.get("/wallpapers", response_model=list[WallpaperOut], summary="The caller's own wallpapers, every status")
+async def list_wallpapers(request: Request, current_user: CurrentUser, db: DbSession) -> list[WallpaperOut]:
+    store = await _require_store(db, current_user)
+    rows = (await db.execute(
+        select(Wallpaper).where(Wallpaper.store_id == store.id).order_by(Wallpaper.created_at.desc())
+    )).scalars().all()
+    for w in rows:
+        w.store = store
+    return [_wallpaper_out(w, request) for w in rows]
+
+
+@router.post(
+    "/wallpapers",
+    response_model=WallpaperOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a roll wallpaper to the caller's shop; it waits for an admin",
+)
+async def create_wallpaper(
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+    file: UploadFile,
+    name: str = Form(..., min_length=1, max_length=120),
+    price_uzs: int = Form(..., gt=0),
+    width_cm: float = Form(..., ge=30, le=150),
+    total_length_m: float = Form(..., ge=1, le=50),
+) -> WallpaperOut:
+    store = await _require_approved_store(db, current_user)
+    name = _clean_wallpaper_name(name)
+    data = await read_wallpaper_image(file)
+    digest = hashlib.sha256(data).hexdigest()
+    await _require_free_image(db, store, digest)
+    await _require_pending_room(db, store)
+    key, content_type = await _store_wallpaper_image(file, data)
+
+    w = Wallpaper(
+        name=name, kind="oboy", store_id=store.id, price_uzs=price_uzs, width_cm=width_cm,
+        total_length_m=total_length_m, storage_key=key, content_type=content_type,
+        size_bytes=len(data), sha256=digest, uploaded_by=current_user.id, status="pending",
+    )
+    w.store = store
+    db.add(w)
+    await _flush_new_image(db)
+    await db.refresh(w, attribute_names=["created_at"])
+    logger.info("seller_wallpaper_added", id=str(w.id), store_id=str(store.id), user_id=str(current_user.id))
+    return _wallpaper_out(w, request)
+
+
+@router.patch("/wallpapers/{wallpaper_id}", response_model=WallpaperOut, summary="Edit one of the caller's wallpapers")
+async def update_wallpaper(
+    wallpaper_id: uuid_module.UUID,
+    request: Request,
+    current_user: CurrentUser,
+    db: DbSession,
+    file: UploadFile | None = None,
+    name: str | None = Form(default=None, min_length=1, max_length=120),
+    price_uzs: int | None = Form(default=None, gt=0),
+    width_cm: float | None = Form(default=None, ge=30, le=150),
+    total_length_m: float | None = Form(default=None, ge=1, le=50),
+) -> WallpaperOut:
+    store, w = await _own_wallpaper(db, current_user, wallpaper_id)
+    hidden = _is_hidden_by_shop(w)
+    if file is not None and (w.status == "approved" or hidden):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Tasdiqlangan oboyning rasmini almashtirib bo'lmaydi")
+    if name is not None:
+        name = _clean_wallpaper_name(name)
+
+    new_image: tuple[bytes, str, str] | None = None
+    if file is not None:
+        data = await read_wallpaper_image(file)
+        digest = hashlib.sha256(data).hexdigest()
+        await _require_free_image(db, store, digest, except_id=w.id)
+        new_image = (data, digest, file.content_type or "image/jpeg")
+
+    # An edit to a rejected oboy sends it back for review, so it takes a place in the queue.
+    # (A row the shop hid was approved before, so editing it just shows it again.)
+    resubmit = w.status == "rejected" and not hidden
+    if resubmit:
+        await _require_pending_room(db, store)
+
+    if new_image is not None:
+        data, digest, _ = new_image
+        w.storage_key, w.content_type = await _store_wallpaper_image(file, data)
+        w.sha256, w.size_bytes = digest, len(data)
+    for field, value in (("name", name), ("price_uzs", price_uzs), ("width_cm", width_cm), ("total_length_m", total_length_m)):
+        if value is not None:
+            setattr(w, field, value)
+    if resubmit:
+        w.status, w.moderation_note = "pending", None
+    elif hidden:
+        w.status, w.moderation_note = "approved", None
+    if new_image is not None:
+        await _flush_new_image(db)
+    else:
+        await db.flush()
+    logger.info("seller_wallpaper_updated", id=str(w.id), user_id=str(current_user.id))
+    return _wallpaper_out(w, request)
+
+
+@router.delete("/wallpapers/{wallpaper_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove one of the caller's wallpapers")
+async def delete_wallpaper(wallpaper_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> None:
+    _, w = await _own_wallpaper(db, current_user, wallpaper_id)
+    if _is_hidden_by_shop(w):
+        return  # already removed by the shop; the row stays for the rooms priced with it
+    if w.status == "approved":
+        # Old rooms priced with it keep working, so the row stays; it just leaves the library.
+        w.status, w.moderation_note = "rejected", _HIDDEN_BY_SHOP
+        await db.flush()
+    else:
+        await db.delete(w)
+        await db.flush()
+    logger.info("seller_wallpaper_removed", id=str(wallpaper_id), user_id=str(current_user.id))
 
 
 # ── Orders for the caller's shop ─────────────────────────────────────────────

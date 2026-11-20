@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
-import { HoldDeleteButton, holdMenuSide, useHoldToDelete } from './useHoldToDelete'
+import { HoldDeleteButton, holdMenuSide, resetHoldToDelete, useHoldToDelete } from './useHoldToDelete'
 import { HOLD_DELETE_MS } from '@/lib/holdToDelete'
 
 /**
@@ -37,6 +37,10 @@ function pointer(type: string, init: { clientX?: number; clientY?: number; point
   Object.defineProperty(e, 'pointerId', { value: init.pointerId ?? 1 })
   return e
 }
+
+// The menu's state outlives each render: a test that leaves it open (any
+// that only holds) must not hand it to the next one, whatever the order.
+beforeEach(() => { resetHoldToDelete() })
 
 /** Arms a hold the way a mesh does, then renders the button it puts up. */
 function Harness({ onDelete, onMove }: { onDelete: () => void; onMove?: () => void }) {

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { withStageTag } from "@/lib/stageView";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +20,8 @@ import { WallSection } from "./design-panel/WallSection";
 import { FloorSection } from "./design-panel/FloorSection";
 import { MebelSection } from "./design-panel/MebelSection";
 import { SuvoqSection } from "./design-panel/SuvoqSection";
+import { SantexnikaSection } from "./design-panel/SantexnikaSection";
+import { effectiveRoomType } from "@/lib/roomType";
 import { MontajSection } from "./design-panel/MontajSection";
 
 export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedLightId, onLightChange, armedLightType, onArmLight, planMode }: {
@@ -76,7 +79,9 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
     }, 600);
   }
 
-  function applyWallCovering(covering: WallCovering) {
+  // A covering put on in Suvoq or Shpaklovka says so: the 3D shows it from that stage on (lib/stageView).
+  function applyWallCovering(given: WallCovering) {
+    const covering = withStageTag(given, phase);
     setWallCovering(targetWall, covering);
     const updated = {
       wallCoverings: { ...designState.wallCoverings, [targetWall]: covering },
@@ -89,7 +94,8 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
    * `ALL` target (the store clears per-wall overrides for ALL, so nothing
    * left over can mask it via resolveWallCovering's per-wall-first fallback)
    * and syncs the same cleared shape to the API. */
-  function applyAllWallsCovering(covering: WallCovering) {
+  function applyAllWallsCovering(given: WallCovering) {
+    const covering = withStageTag(given, phase);
     setWallCovering("ALL", covering);
     syncToApi({ ...designState, wallCoverings: { ALL: covering } });
   }
@@ -311,7 +317,7 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
     // height, which used to leave a large empty gap below the color swatches
     // whenever the active phase's content was short. Still scrolls (overflow
     // -y-auto + max-h-full) if content ever grows past the viewport.
-    <aside className="w-full lg:w-72 lg:shrink-0 lg:self-start bg-card border-l border-line overflow-y-auto lg:max-h-full">
+    <aside className="w-full lg:w-72 lg:shrink-0 lg:self-start bg-card overflow-y-auto lg:max-h-full">
       {/* Mounted at the root so every phase's upload button can reach it */}
       <input
         ref={textureFileRef}
@@ -335,7 +341,8 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
             applyWallpaper={applyWallpaper}
           />
         )}
-        {phase === 'pol' && <FloorSection onSetFloorType={handleSetFloorType} />}
+        {phase === 'pol' && <FloorSection onSetFloorType={handleSetFloorType}
+          heatable={['hammom', 'oshxona'].includes(effectiveRoomType(room.room_type, room.name) ?? '')} />}
         {phase === 'mebel' && <MebelSection />}
         {phase === 'chiroq' && (
           <LightPanel selectedId={selectedLightId} onSelect={onLightChange}
@@ -356,6 +363,9 @@ export function DesignPanel({ room, phase, selectedWall, onWallChange, selectedL
           />
         )}
         {phase === 'montaj' && <MontajSection />}
+        {(phase === 'quvurlar' || phase === 'jihozlar') && (
+          <SantexnikaSection key={phase} part={phase} bathroom={effectiveRoomType(room.room_type, room.name) === 'hammom'} />
+        )}
 
         {mutation.isPending && (
           <p className="text-xs text-ink-muted animate-pulse">{t("common.saqlash")}...</p>

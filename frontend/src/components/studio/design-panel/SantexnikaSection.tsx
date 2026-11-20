@@ -1,0 +1,472 @@
+import { useState } from "react";
+import { nanoid } from "nanoid";
+import { useTranslation } from "react-i18next";
+import { useRoomStore } from "@/store/roomStore";
+import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
+import { inferRole } from "@/lib/furnitureRole";
+import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
+import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
+import { ShopPickList } from "./ShopPickList";
+import { PlumbingFixtures } from "./PlumbingFixtures";
+import { useWallItemClashes } from "@/features/studio/wallItemClashes";
+import { useBoilerHomeless, useFixtureClearances, useFixtureOverlaps, useHatchBlockers } from "@/features/studio/fixtureClearance";
+import type { TowelRailSize } from "@/store/types";
+import { DISHWASHER_WIDTHS, isDishwasher, isKitchenSink, machineSize, withWasherPoints } from "@/lib/washer";
+import { effectiveRoomType } from "@/lib/roomType";
+import { wallNumber } from "@/lib/wallLabel";
+import { formatDecimal } from "@/lib/utils";
+import { fixtureDisplayName } from "@/lib/fixtureName";
+import { FurnitureFitWarnings } from "./FurnitureFitWarnings";
+import { PIPE_COLOUR } from "@/lib/pipeScheme";
+import { screenChoice, screenedBaths, screenedShowers } from "@/lib/showerScreens";
+
+const KINDS: PlumbingKind[] = ["drain", "cold", "hot"];
+
+/**
+ * The two plumbing stages (spec 2026-11-08, split 2026-11-18), shown in a bathroom or kitchen only.
+ * Quvurlar, before the plaster: the drain and water points (the fixtures' own and any added by
+ * hand), the riser, the pipe runs and the switches the estimate prices them by, summed up.
+ * Jihozlar, after the floor: the fixtures and their clearance, towel rails, machines, the water
+ * heater, the bath and shower screens and the fan. One component, so both read the same store.
+ */
+export function SantexnikaSection({ part, bathroom = false }: {
+  /** Which of the two stages this is. */
+  part: "quvurlar" | "jihozlar";
+  /** The room is a bathroom: the towel rail and the extractor fan are offered (spec 2026-11-10). */
+  bathroom?: boolean;
+}) {
+  const { t } = useTranslation();
+  const pipes = part === "quvurlar";
+  const ventFan = useRoomStore((s) => s.designState.ventFan);
+  const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
+  const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
+  const collector = useRoomStore((s) => s.designState.waterScheme === "collector");
+  const waterHeater = useRoomStore((s) => s.designState.waterHeater);
+  const floorDrain = useRoomStore((s) => s.designState.floorDrain);
+  const waterInlet = useRoomStore((s) => s.designState.waterInlet);
+  const bathScreen = useRoomStore((s) => screenChoice(s.designState.bathScreen));
+  const showerScreen = useRoomStore((s) => screenChoice(s.designState.showerScreen));
+  const setDesignState = useRoomStore((s) => s.setDesignState);
+  const towelRails = useRoomStore((s) => s.towelRails);
+  const addTowelRail = useRoomStore((s) => s.addTowelRail);
+  const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
+  const setTowelRailKind = useRoomStore((s) => s.setTowelRailKind);
+  const setTowelRailSize = useRoomStore((s) => s.setTowelRailSize);
+  /** Machines and rails touching a piece of furniture (2026-11-15): a warning on their row. */
+  const clashes = useWallItemClashes();
+  const clearances = useFixtureClearances();
+  const hatchBlocked = useHatchBlockers();
+  const overlapping = useFixtureOverlaps();
+  const boilerHomeless = useBoilerHomeless();
+  const clashNote = (id: string) => clashes[id] && (
+    <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
+  );
+  /** The last size picked did not fit on its rail's wall. */
+  const [noSizeRoom, setNoSizeRoom] = useState(false);
+  const washers = useRoomStore((s) => s.washers);
+  const addWasher = useRoomStore((s) => s.addWasher);
+  const removeWasher = useRoomStore((s) => s.removeWasher);
+  /** The last "add a washing machine" found no place for one. */
+  const [noWasherRoom, setNoWasherRoom] = useState(false);
+  // A dishwasher (2026-11-16): offered in a kitchen, listed and removable in any room.
+  const kitchen = useRoomStore((s) => effectiveRoomType(s.roomType, s.name) === "oshxona");
+  const addDishwasher = useRoomStore((s) => s.addDishwasher);
+  const setWasherWidth = useRoomStore((s) => s.setWasherWidth);
+  const [noDishRoom, setNoDishRoom] = useState(false);
+  const [noDishWidth, setNoDishWidth] = useState(false);
+  const dishwashers = washers.filter(isDishwasher);
+  // A kitchen sink (kitchen QA 2026-11-18 K1): the catalog sells none, so a kitchen adds one here.
+  const sinks = washers.filter(isKitchenSink);
+  const addKitchenSink = useRoomStore((s) => s.addKitchenSink);
+  const [noSinkRoom, setNoSinkRoom] = useState(false);
+  const washingMachines = washers.filter((m) => !isDishwasher(m) && !isKitchenSink(m));
+  /** The last "add a rail" found no wall with room for one. */
+  const [noRailRoom, setNoRailRoom] = useState(false);
+  const furniture = useRoomStore((s) => s.furniture);
+  const catalog = useRoomStore((s) => s.catalogFurniture);
+  const plumbing = useRoomStore((s) => s.plumbing);
+  const geometry = useRoomStore((s) => s.geometry);
+  const addPlumbing = useRoomStore((s) => s.addPlumbing);
+  const removePlumbing = useRoomStore((s) => s.removePlumbing);
+  const plumbingRiser = useRoomStore((s) => s.plumbingRiser);
+  const setPlumbingRiser = useRoomStore((s) => s.setPlumbingRiser);
+  /** The distance being typed, until it is committed (blur or Enter); null shows the riser's own. */
+  const [riserDraft, setRiserDraft] = useState<string | null>(null);
+  const showPipeRuns = useRoomStore((s) => s.showPipeRuns);
+  const setShowPipeRuns = useRoomStore((s) => s.setShowPipeRuns);
+  // The runs stay drawn until the box is unticked, also after the panel closes: on a phone the open
+  // panel covers half the 3D (mobile QA 2026-11-09 #3, the user's call).
+  const [kind, setKind] = useState<PlumbingKind>("drain");
+  const [wallId, setWallId] = useState(geometry.walls[0]?.id ?? "A");
+  const [heightCm, setHeightCm] = useState("50");
+  /** Where along the wall a hand point goes (kitchen QA 2026-11-18 K5); empty = the wall's middle. */
+  const [posCm, setPosCm] = useState("");
+
+  const byId = new Map(catalog.map((c) => [c.id, c]));
+  // A floor drain is offered only with a shower in the room (spec 2026-11-13).
+  const hasShower = furniture.some((f) => {
+    const row = byId.get(f.furniture_id);
+    return inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? f.furniture_id) === "shower";
+  });
+  // A rail's two points are worked out from it, never saved: shown and summed with the rest.
+  // A washing machine's two likewise (spec 2026-11-13).
+  const points = withWasherPoints(withRailPoints(plumbing, towelRails, geometry), washers, geometry);
+  const riser = roomRiser(geometry, plumbingRiser);
+  const sum = plumbingSummary(geometry, points, riser, collector);
+  /** Sets the riser by hand, kept on its wall (roomRiser clamps it). */
+  const placeRiser = (wallId: string, positionMm: number) =>
+    setPlumbingRiser(roomRiser(geometry, { wallId, positionMm }));
+  function commitRiserDraft() {
+    if (riserDraft == null) return;
+    const cm = Number(riserDraft.replace(",", "."));
+    setRiserDraft(null);
+    if (Number.isFinite(cm)) placeRiser(riser.wallId, Math.round(cm * 10));
+  }
+  const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
+
+  // The room's walls can change under an open panel (another room, a resize): the picker keeps to them.
+  const pickedWall = geometry.walls.some((w) => w.id === wallId) ? wallId : (geometry.walls[0]?.id ?? "A");
+
+  function add() {
+    // Read the walls as they are now, not as they were when the panel last drew.
+    const walls = useRoomStore.getState().geometry.walls;
+    const target = walls.some((w) => w.id === wallId) ? wallId : (walls[0]?.id ?? "A");
+    const wall = walls.find((w) => w.id === target);
+    const cm = Number(heightCm.replace(",", "."));
+    const lengthMm = wall?.length ?? 0;
+    const along = posCm.trim() === "" ? NaN : Number(posCm.replace(",", "."));
+    addPlumbing({
+      id: nanoid(), kind, wallId: target, heightMm: Number.isFinite(cm) ? Math.max(0, Math.round(cm * 10)) : 0,
+      positionMm: Number.isFinite(along) ? Math.min(lengthMm, Math.max(0, Math.round(along * 10))) : Math.round(lengthMm / 2),
+      diameterMm: kind === "drain" ? 50 : 20,
+    });
+  }
+
+  const field = "w-full rounded-lg border border-line bg-card px-2 py-1.5 text-[12px] text-ink";
+  // A kitchen's sink (K1), in both stages: its points come with it in Quvurlar, it is fitted in Jihozlar.
+  const sinkBlock = (kitchen || sinks.length > 0) && (
+    <div className="space-y-1.5">
+      <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.sink")}</span>
+      {sinks.length > 0 && (
+        <ul className="space-y-1">
+          {sinks.map((m) => (
+            <li key={m.id} aria-label={`${t("studio.santexnika.sink")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+              <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+              <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                {t("studio.santexnika.remove")}
+              </button>
+              {clashNote(m.id)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {kitchen && (
+        <button type="button" onClick={() => setNoSinkRoom(!addKitchenSink())}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+          {t("studio.santexnika.sink_add")}
+        </button>
+      )}
+      {noSinkRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.sink_no_room")}</p>}
+    </div>
+  );
+  return (
+    <section className="space-y-4">
+      <div>
+        <h3 className="mb-1 text-sm font-semibold text-ink">{t(pipes ? "studio.lib.stage.quvurlar" : "studio.lib.stage.jihozlar")}</h3>
+        <p className="text-[11px] leading-snug text-ink-muted">{t(pipes ? "studio.santexnika.hint_quvurlar" : kitchen ? "studio.santexnika.hint_jihozlar_kitchen" : "studio.santexnika.hint_jihozlar")}</p>
+      </div>
+
+      {pipes ? (<>
+      {/* The fixtures first (QA 2026-11-18 #5): the points below are theirs. A kitchen's catalog has
+          none (kitchen QA 2026-11-18 K1): its sink is added below instead, so the picker is left out. */}
+      <PlumbingFixtures optional={kitchen} />
+      {sinkBlock}
+      <div>
+        <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.points")}</span>
+        <ul className="space-y-1">
+          {points.map((p) => (
+            <li key={p.id} aria-label={`${t(`studio.santexnika.${p.kind}`)}, ${where(p)}`}
+              className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+              <span className="flex items-center gap-2 text-[12px] text-ink">
+                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: PIPE_COLOUR[p.kind] }} />
+                {t(`studio.santexnika.${p.kind}`)} · {where(p)}
+                {p.fixtureId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.own")})</span>}
+                {p.railId && <span className="text-[10px] text-ink-muted">({t("studio.santexnika.rail_own")})</span>}
+                {p.washerId && <span className="text-[10px] text-ink-muted">({t(sinks.some((d) => d.id === p.washerId) ? "studio.santexnika.sink_own" : dishwashers.some((d) => d.id === p.washerId) ? "studio.santexnika.dish_own" : "studio.santexnika.washer_own")})</span>}
+              </span>
+              {!p.fixtureId && !p.railId && !p.washerId && (
+                <button type="button" onClick={() => removePlumbing(p.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                  {t("studio.santexnika.remove")}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* The kind has a row to itself: in a third of the panel «Канализация» was cut short (mobile QA 2026-11-11 #7). */}
+      <div className="grid grid-cols-2 gap-2">
+        <label className="col-span-2 text-[10px] text-ink-muted">{t("studio.santexnika.kind")}
+          <select aria-label={t("studio.santexnika.kind")} value={kind} onChange={(e) => setKind(e.target.value as PlumbingKind)} className={field}>
+            {KINDS.map((k) => <option key={k} value={k}>{t(`studio.santexnika.${k}`)}</option>)}
+          </select>
+        </label>
+        <label className="text-[10px] text-ink-muted">{t("studio.santexnika.wall")}
+          <select aria-label={t("studio.santexnika.wall")} value={pickedWall} onChange={(e) => setWallId(e.target.value)} className={field}>
+            {geometry.walls.map((w) => <option key={w.id} value={w.id}>{wallNumber(w.id)}</option>)}
+          </select>
+        </label>
+        <label className="text-[10px] text-ink-muted">{t("studio.santexnika.height")}
+          <input aria-label={t("studio.santexnika.height")} inputMode="decimal" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} className={field}
+            // On a phone the keyboard came up over the field (mobile QA 2026-11-09 #4).
+            onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
+        </label>
+        <label className="col-span-2 text-[10px] text-ink-muted">{t("studio.santexnika.point_pos")}
+          <input aria-label={t("studio.santexnika.point_pos")} inputMode="decimal" value={posCm} onChange={(e) => setPosCm(e.target.value)} className={field}
+            placeholder={String(Math.round((geometry.walls.find((w) => w.id === pickedWall)?.length ?? 0) / 20))}
+            onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
+        </label>
+      </div>
+      <button type="button" onClick={add} className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+        {t("studio.santexnika.add")}
+      </button>
+
+
+      {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
+      <div className="space-y-1.5">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.riser")}</span>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_wall")}
+            <select aria-label={t("studio.santexnika.riser_wall")} value={riser.wallId} className={field}
+              onChange={(e) => placeRiser(e.target.value, riser.positionMm)}>
+              {geometry.walls.map((w) => <option key={w.id} value={w.id}>{wallNumber(w.id)}</option>)}
+            </select>
+          </label>
+          <label className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_pos")}
+            <input aria-label={t("studio.santexnika.riser_pos")} inputMode="decimal" className={field}
+              value={riserDraft ?? String(Math.round(riser.positionMm / 10))}
+              onChange={(e) => setRiserDraft(e.target.value)} onBlur={commitRiserDraft}
+              onKeyDown={(e) => { if (e.key === "Enter") commitRiserDraft(); }}
+              onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })} />
+          </label>
+        </div>
+        <button type="button" disabled={!plumbingRiser} onClick={() => { setRiserDraft(null); setPlumbingRiser(null); }}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink">
+          {t("studio.santexnika.riser_auto")}
+        </button>
+        <p className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_hint")}</p>
+      </div>
+
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={showPipeRuns} onChange={(e) => setShowPipeRuns(e.target.checked)} />
+        {t("studio.santexnika.pipes")}
+      </label>
+
+      {/* For the estimate (2026-11-13): the old plumbing taken out (off unless ticked), the walls
+          chased for the pipes (on unless unticked). smeta.py reads exactly true / exactly false. */}
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={plumbingDemolition === true} onChange={(e) => setDesignState({ plumbingDemolition: e.target.checked })} />
+        {t("studio.santexnika.demolition")}
+      </label>
+      {/* Tees until a collector is picked (2026-11-18): the estimate reads only an exact "collector". */}
+      <label className="flex items-center justify-between gap-2 text-[12px] text-ink">
+        {t("studio.santexnika.water_scheme")}
+        <select aria-label={t("studio.santexnika.water_scheme")} value={collector ? "collector" : ""} className={`${field} w-auto`}
+          onChange={(e) => setDesignState({ waterScheme: e.target.value === "collector" ? "collector" : undefined })}>
+          <option value="">{t("studio.santexnika.water_scheme_tee")}</option>
+          <option value="collector">{t("studio.santexnika.water_scheme_collector")}</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        <input type="checkbox" checked={pipesInWall !== false} onChange={(e) => setDesignState({ pipesInWall: e.target.checked })} />
+        {t("studio.santexnika.in_wall")}
+      </label>
+      {hasShower && (
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          {/* Off unless ticked: the estimate reads only an exact true (smeta.py _fixture_part_lines). */}
+          <input type="checkbox" checked={floorDrain === true} onChange={(e) => setDesignState({ floorDrain: e.target.checked })} />
+          {t("studio.santexnika.floor_drain")}
+        </label>
+      )}
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_inlet_lines). */}
+        <input type="checkbox" checked={waterInlet === true} onChange={(e) => setDesignState({ waterInlet: e.target.checked })} />
+        {t("studio.santexnika.water_inlet")}
+      </label>
+
+      <p className="text-[11px] font-medium text-ink">
+        {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
+      </p>
+      </>) : (<>
+      {sinkBlock}
+      <PlumbingFixtures optional={kitchen}>
+        {/* A fixture out of the room or in the door's swing (2026-11-18): a warning only. */}
+        <FurnitureFitWarnings />
+        {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
+        {clearances.map((c) => (
+          <p key={c.id} role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.clearance", { name: fixtureDisplayName(c.name, t), free: c.freeCm, need: c.needCm })}
+          </p>
+        ))}
+        {/* Pieces standing in each other (mobile QA 2026-11-18): the room has no floor for both. A warning only. */}
+        {overlapping.map(([a, b]) => (
+          <p key={`${a}|${b}`} role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.overlap", { a: fixtureDisplayName(a, t), b: fixtureDisplayName(b, t) })}
+          </p>
+        ))}
+        {/* The riser box's hatch must stay reachable (2026-11-18): a warning only. */}
+        {hatchBlocked.length > 0 && (
+          <p role="alert" className="mt-1.5 text-[11px] text-red-500">
+            {t("studio.santexnika.hatch_blocked", { names: hatchBlocked.map((n) => fixtureDisplayName(n, t)).join(", ") })}
+          </p>
+        )}
+      </PlumbingFixtures>
+
+      {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}
+      {(bathroom || towelRails.length > 0) && (
+        <div className="space-y-1.5">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.rail")}</span>
+          {towelRails.length > 0 && (
+            <ul className="space-y-1">
+              {towelRails.map((r) => (
+                <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <span className="text-[12px] text-ink">{t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}</span>
+                  {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
+                  <span className="flex gap-1">
+                    {(["water", "electric"] as const).map((k) => {
+                      const on = (isElectricRail(r) ? "electric" : "water") === k;
+                      return (
+                        <button key={k} type="button" aria-pressed={on} onClick={() => !on && setTowelRailKind(r.id, k)}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${on ? "border-brand bg-brand text-white" : "border-line text-ink hover:border-brand/50"}`}>
+                          {t(k === "water" ? "studio.santexnika.rail_water" : "studio.santexnika.rail_electric")}
+                        </button>
+                      );
+                    })}
+                  </span>
+                  {/* Its size (2026-11-15): the 3D ladder, its points' spacing and its norm price. */}
+                  <select aria-label={t("studio.santexnika.rail_size")} value={r.size ?? "500x800"}
+                    onChange={(e) => setNoSizeRoom(!setTowelRailSize(r.id, e.target.value as TowelRailSize))}
+                    className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">
+                    {RAIL_SIZES.map((s) => {
+                      const { w, h } = railSize({ ...r, size: s });
+                      return <option key={s} value={s}>{t("studio.santexnika.rail_size_option", { w: w / 10, h: h / 10 })}</option>;
+                    })}
+                  </select>
+                  <button type="button" onClick={() => removeTowelRail(r.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                    {t("studio.santexnika.remove")}
+                  </button>
+                  {clashNote(r.id)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {bathroom && (
+            <button type="button" onClick={() => setNoRailRoom(!addTowelRail())}
+              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+              {t("studio.santexnika.rail_add")}
+            </button>
+          )}
+          {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
+          {noSizeRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_size_no_room")}</p>}
+          {/* A shop product of the user's own for each kind of rail in the room (2026-11-15). */}
+          {towelRails.some((r) => !isElectricRail(r)) && <ShopPickList smetaKey="sochiq_quritgich" title={t("studio.santexnika.rail_shop")} />}
+          {towelRails.some(isElectricRail) && <ShopPickList smetaKey="sochiq_quritgich_el" title={t("studio.santexnika.rail_shop_el")} />}
+        </div>
+      )}
+
+      {/* A washing machine (spec 2026-11-13), in a bathroom or a kitchen: the panel shows only there. */}
+      <div className="space-y-1.5">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.washer")}</span>
+        {washingMachines.length > 0 && (
+          <ul className="space-y-1">
+            {washingMachines.map((m) => (
+              <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+                <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                  {t("studio.santexnika.remove")}
+                </button>
+                {clashNote(m.id)}
+              </li>
+            ))}
+          </ul>
+        )}
+        <button type="button" onClick={() => setNoWasherRoom(!addWasher())}
+          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+          {t("studio.santexnika.washer_add")}
+        </button>
+        {noWasherRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.washer_no_room")}</p>}
+      </div>
+
+      {/* A dishwasher (2026-11-16): added in a kitchen; one already standing is listed in any room. */}
+      {(kitchen || dishwashers.length > 0) && (
+        <div className="space-y-1.5">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.dish")}</span>
+          {dishwashers.length > 0 && (
+            <ul className="space-y-1">
+              {dishwashers.map((m) => (
+                <li key={m.id} aria-label={`${t("studio.santexnika.dish")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
+                  <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+                  <select aria-label={t("studio.santexnika.dish_width")} value={machineSize(m).w}
+                    onChange={(e) => setNoDishWidth(!setWasherWidth(m.id, Number(e.target.value) as 600 | 450))}
+                    className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">
+                    {DISHWASHER_WIDTHS.map((w) => <option key={w} value={w}>{t("studio.santexnika.dish_width_option", { cm: w / 10 })}</option>)}
+                  </select>
+                  <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
+                    {t("studio.santexnika.remove")}
+                  </button>
+                  {clashNote(m.id)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {kitchen && (
+            <button type="button" onClick={() => setNoDishRoom(!addDishwasher())}
+              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+              {t("studio.santexnika.dish_add")}
+            </button>
+          )}
+          {noDishRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.dish_no_room")}</p>}
+          {noDishWidth && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.dish_width_no_room")}</p>}
+        </div>
+      )}
+
+      <label className="flex items-center gap-2 text-[12px] text-ink">
+        {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_heater_lines). */}
+        <input type="checkbox" checked={waterHeater === true} onChange={(e) => setDesignState({ waterHeater: e.target.checked })} />
+        {t("studio.santexnika.water_heater")}
+      </label>
+      {/* No wall takes the heater (2026-11-18): it is priced but cannot be drawn, so say so. */}
+      {boilerHomeless && (
+        <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.boiler_homeless")}</p>
+      )}
+      {/* A bath's and a shower's screen (2026-11-18): none until picked; a cabin or a shower panel has its own glass. */}
+      {([
+        ["bathScreen", "screen_bath", bathScreen, screenedBaths(furniture, catalog).length > 0],
+        ["showerScreen", "screen_shower", showerScreen, screenedShowers(furniture, catalog).length > 0],
+      ] as const).map(([key, label, value, shown]) => shown && (
+        <label key={key} className="flex items-center justify-between gap-2 text-[12px] text-ink">
+          {t(`studio.santexnika.${label}`)}
+          <select aria-label={t(`studio.santexnika.${label}`)} value={value ?? ""} className={`${field} w-auto`}
+            onChange={(e) => setDesignState({ [key]: screenChoice(e.target.value) ?? undefined })}>
+            <option value="">{t("studio.santexnika.screen_none")}</option>
+            <option value="glass">{t("studio.santexnika.screen_glass")}</option>
+            <option value="curtain">{t("studio.santexnika.screen_curtain")}</option>
+          </select>
+        </label>
+      ))}
+
+      {bathroom && (
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          {/* On unless switched off: the estimate reads only an exact false (smeta.py _fan_lines). */}
+          <input type="checkbox" checked={ventFan !== false} onChange={(e) => setDesignState({ ventFan: e.target.checked })} />
+          {t("studio.santexnika.fan")}
+        </label>
+      )}
+      </>)}
+    </section>
+  );
+}

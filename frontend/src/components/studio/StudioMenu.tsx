@@ -5,6 +5,8 @@ interface StudioMenuProps {
   open: boolean
   onOpenChange(open: boolean): void
   children: ReactNode
+  /** The Studio tour's target id for the button (StudioTour). */
+  tourId?: string
 }
 
 /**
@@ -13,7 +15,7 @@ interface StudioMenuProps {
  * The forwarded ref is the button, which the share popover returns focus to.
  */
 export const StudioMenu = forwardRef<HTMLButtonElement | null, StudioMenuProps>(function StudioMenu(
-  { open, onOpenChange, children },
+  { open, onOpenChange, children, tourId },
   ref,
 ) {
   const { t } = useTranslation()
@@ -49,6 +51,7 @@ export const StudioMenu = forwardRef<HTMLButtonElement | null, StudioMenuProps>(
       <button
         ref={buttonRef}
         type="button"
+        data-tour={tourId}
         onClick={() => onOpenChange(!open)}
         aria-label={t('studio.menu.more')}
         aria-haspopup="menu"

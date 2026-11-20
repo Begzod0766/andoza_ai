@@ -46,7 +46,7 @@ const variantStyles: Record<ToastVariant, string> = {
   success:
     'bg-green-50 border border-green-200 shadow-card',
   warning:
-    'bg-orange-50 border border-orange-200 shadow-card',
+    'bg-orange-tint border border-orange/30 shadow-card',
   error:
     'bg-red-50 border border-red-200 shadow-card',
 }
@@ -61,14 +61,14 @@ const variantIconMap: Record<ToastVariant, string> = {
 const variantIconColor: Record<ToastVariant, string> = {
   default: 'text-neutral-600',
   success: 'text-green-600',
-  warning: 'text-orange-600',
+  warning: 'text-orange-cta',
   error: 'text-red-600',
 }
 
 const variantTitleColor: Record<ToastVariant, string> = {
   default: 'text-neutral-900',
   success: 'text-green-900',
-  warning: 'text-orange-900',
+  warning: 'text-orange-cta',
   error: 'text-red-900',
 }
 

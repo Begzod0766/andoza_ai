@@ -134,6 +134,10 @@ FURNITURE_FALLBACK_PRICE_UZS: int = 2_000_000
 
 # On a floor, wallpaper or paint line priced from the median shop product because the
 # user (or the AI designer / a ready-made style) chose the finish but not a product.
+TILE_NORM_NOTE = "Narx taxminiy — do'konda bu mahsulot topilmadi, o'rtacha narx olindi."
+WALL_TILE_NORM_NOTE = "Narx taxminiy — do'konda plitka topilmadi, o'rtacha narx olindi."
+EXTRAS_NORM_NOTE = "Narx taxminiy — do'konda bu jihoz topilmadi, o'rtacha narx olindi."
+FAN_CABLE_NOTE = "Kabel uzunligi taxminiy — ventilyator eng yaqin chiroq liniyasiga ulanadi deb olindi."
 FINISH_STAND_IN_NOTE = (
     "Mahsulot tanlanmagan — do'kondagi o'rtacha narx olindi. "
     "Aniq narx uchun o'zingiz mahsulot tanlang."
@@ -196,7 +200,7 @@ NON_WALL_SURFACE_KEYS: frozenset[str] = frozenset({"floor", "ceiling"})
 # estimate's own lines (the ceiling's board, profile, strip, cornice). It prices that line in
 # place of the shop's cheapest product, and, the price being the user's own pick, exactly.
 PICKED_PRODUCT_PREFIX = "smeta:"
-PICKABLE_SMETA_KEYS: frozenset[str] = frozenset({"gipsokarton", "profil", "led_lenta", "galtel"})
+PICKABLE_SMETA_KEYS: frozenset[str] = frozenset({"gipsokarton", "profil", "led_lenta", "galtel", "sochiq_quritgich", "sochiq_quritgich_el"})
 
 
 def _is_wall_surface_key(key: str) -> bool:
@@ -378,7 +382,7 @@ def _design_state(room: "Room") -> dict:
     silently priced nothing for every real room, regardless of how correct
     the per-wall math below was.
     """
-    state: dict = room.state or {}
+    state: dict = getattr(room, "state", None) or {}
     design_state = state.get("designState")
     if isinstance(design_state, dict):
         return design_state
@@ -586,10 +590,14 @@ def _grunt_line(
 
 
 def _putty_line(
-    room: "Room", norms_map: "dict[str, Norm]", material: "Material | None" = None
-) -> ComputedLine:
-    """Shpatlyovka (putty) — required until a room reaches 'shpaklovka'."""
-    net_wall = _float(room.net_wall_area)
+    room: "Room", norms_map: "dict[str, Norm]", material: "Material | None" = None,
+    tiled_m2: float = 0.0,
+) -> ComputedLine | None:
+    """Shpatlyovka (putty) — required until a room reaches 'shpaklovka'. Not under tile: tile is
+    laid on plaster and primer, so *tiled_m2* of the walls is left out; None when nothing is left."""
+    net_wall = _float(room.net_wall_area) - tiled_m2
+    if net_wall < 0.05:
+        return None
     putty_norm = norms_map.get("shpatlyovka")
     putty_params = putty_norm.params if putty_norm and putty_norm.params else {}
     putty_rate = float(putty_params.get("rate_kg_m2", PUTTY_RATE_KG_M2))
@@ -619,6 +627,26 @@ def _putty_line(
         warning=putty_warning,
         **(_shop(material) if shop else {}),
     )
+
+
+def _backsplash_over_paint(room: "Room") -> dict[str, float]:
+    """Per wall, the m² of its backsplashes (tile or skinali) above its tile band, if it has one: wall
+    the paint is not bought for (kitchen QA 2026-11-18 K11). Inside a tile band the tile already covers it."""
+    from app.services.backsplash import backsplash_pieces, studio_walls, valid_backsplashes
+
+    saved = valid_backsplashes(_design_state(room).get("backsplashes"))
+    if not saved:
+        return {}
+    walls = studio_walls(room)
+    ceiling_mm = _to_metres(_float(room.ceiling_h, 2.7)) * 1000
+    bands = {key: _tile_band_m(covering, ceiling_mm / 1000) * 1000 for key, _, covering, _ in _tiled_walls(room)}
+    out: dict[str, float] = {}
+    for b in saved:
+        band = bands.get(b["wallId"], 0.0)
+        area = sum((x1 - x0) * max(0.0, y1 - max(y0, band)) for x0, x1, y0, y1 in backsplash_pieces(b, walls, ceiling_mm)) / 1e6
+        if area > 0:
+            out[b["wallId"]] = out.get(b["wallId"], 0.0) + area
+    return out
 
 
 def _painted_wall_areas(
@@ -658,6 +686,8 @@ def _painted_wall_areas(
     # material_id -> [area_m2, wall_ids] — a plain dict preserves insertion
     # order (first-seen material first), which keeps output deterministic.
     groups: dict[str | None, list] = {}
+    # The wall a backsplash covers is not painted (K11).
+    splash = _backsplash_over_paint(room)
     for wall in walls_data:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
@@ -681,11 +711,22 @@ def _painted_wall_areas(
             * _to_metres(float(el.get("height", 0) or 0))
             for el in elements
         )
-        net_area = max(0.0, gross_area - openings_area)
+        net_area = max(0.0, gross_area - openings_area - splash.get(wall_key, 0.0))
 
         mat_id = wall_surfaces_map.get(wall_key) or wall_surfaces_map.get("ALL")
         group = groups.setdefault(mat_id, [0.0, []])
         group[0] += net_area
+        group[1].append(wall_key)
+
+    # A wall tiled to a height is painted above it (spec 2026-11-10): that part joins the wall's
+    # own paint product when it has one, else the paint nobody picked a product for.
+    for wall_key, area in _tile_above_areas(room):
+        area = max(0.0, area - splash.get(wall_key, 0.0))
+        mat_id = wall_surfaces_map.get(wall_key) or wall_surfaces_map.get("ALL")
+        material = materials_map.get(mat_id) if mat_id else None
+        key = mat_id if material is not None and material.category == "boyoq" else None
+        group = groups.setdefault(key, [0.0, []])
+        group[0] += area
         group[1].append(wall_key)
 
     return [(mat_id, area, wall_ids) for mat_id, (area, wall_ids) in groups.items()]
@@ -716,7 +757,7 @@ def _texture_wall_areas(room: "Room") -> list[tuple[str, float, list[str]]]:
     for wall in walls_data:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
-        if not isinstance(covering, dict) or covering.get("kind") != "texture":
+        if not isinstance(covering, dict) or covering.get("kind") != "texture" or _is_tile(covering):
             continue
         url = covering.get("url")
         if not url:
@@ -740,6 +781,392 @@ def _texture_wall_areas(room: "Room") -> list[tuple[str, float, list[str]]]:
         group[1].append(wall_key)
 
     return [(url, area, wall_ids) for url, (area, wall_ids) in groups.items()]
+
+
+# ---------------------------------------------------------------------------
+# Wall tile (spec 2026-11-10)
+# ---------------------------------------------------------------------------
+
+def _is_tile(covering: object) -> bool:
+    """A wall tile covering: the studio stores it as a ``texture`` with ``finish: "tile"``."""
+    return isinstance(covering, dict) and covering.get("kind") == "texture" and covering.get("finish") == "tile"
+
+
+TILE_BAND_MIN_M = 0.3
+
+
+def _tile_band_m(covering: dict, ceiling_h_m: float) -> float:
+    """How high the tile goes on its wall, metres from the floor: the covering's ``tileHeightMm``
+    (never under 30 cm, never past the ceiling), or the ceiling when it has none."""
+    mm = covering.get("tileHeightMm")
+    if isinstance(mm, (int, float)) and not isinstance(mm, bool) and mm > 0:
+        return min(ceiling_h_m, max(TILE_BAND_MIN_M, mm / 1000))
+    return ceiling_h_m
+
+
+def _opening_span_m(element: dict) -> tuple[float, float, float]:
+    """An opening's width and its bottom and top above the floor, metres."""
+    width = _to_metres(float(element.get("width", 0) or 0))
+    bottom = max(0.0, _to_metres(float(element.get("sill_height", 0) or 0)))
+    return width, bottom, bottom + _to_metres(float(element.get("height", 0) or 0))
+
+
+def _band_opening_m2(element: dict, band_m: float) -> float:
+    """The part of an opening between the floor and ``band_m``: what a tile band loses to it."""
+    width, bottom, top = _opening_span_m(element)
+    return width * max(0.0, min(top, band_m) - bottom)
+
+
+def _tiled_walls(room: "Room") -> list[tuple[str, dict, dict, float]]:
+    """(wall id, wall, covering, length m) of every wall whose covering (its own, else ALL) is tile."""
+    geometry: dict = room.geometry or {}
+    wall_coverings: dict = _design_state(room).get("wallCoverings", {})
+    out = []
+    for wall in geometry.get("walls", []) or []:
+        wall_key = str(wall.get("id", ""))
+        covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
+        length = _to_metres(float(wall.get("length", 0) or 0))
+        if _is_tile(covering) and length > 0:
+            out.append((wall_key, wall, covering, length))
+    return out
+
+
+def _tile_wall_areas(room: "Room") -> list[tuple[str, float]]:
+    """(wall id, net m² of tile) per tiled wall: its length by the tile band, less the part of
+    each door and window inside the band."""
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    out = []
+    for wall_key, wall, covering, length in _tiled_walls(room):
+        band = _tile_band_m(covering, ceiling_h_m)
+        openings = sum(_band_opening_m2(el, band) for el in wall.get("elements", []) or [] if isinstance(el, dict))
+        out.append((wall_key, max(0.0, length * band - openings)))
+    return out
+
+
+def _tile_above_areas(room: "Room") -> list[tuple[str, float]]:
+    """(wall id, m²) of each tiled wall ABOVE its tile band, the part that is painted; walls tiled
+    to the ceiling are left out."""
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    out = []
+    for wall_key, wall, covering, length in _tiled_walls(room):
+        band = _tile_band_m(covering, ceiling_h_m)
+        if band >= ceiling_h_m - 1e-9:
+            continue
+        above = 0.0
+        for el in wall.get("elements", []) or []:
+            if isinstance(el, dict):
+                width, bottom, top = _opening_span_m(el)
+                above += width * max(0.0, min(top, ceiling_h_m) - max(bottom, band))
+        out.append((wall_key, max(0.0, length * (ceiling_h_m - band) - above)))
+    return out
+
+
+_WALL_TILE_URL_SIZE = re.compile(r"-(\d+)x(\d+)\.\w+$")
+
+
+def _covering_tile_size(covering: object) -> tuple[int, int] | None:
+    """The size of a wall's tile (mm, short side first), off the studio's baked tile image
+    ("/wall/tile/marble-white-600x300.jpg", see frontend wallTileUrl); None when it gives none."""
+    url = covering.get("url") if isinstance(covering, dict) else None
+    m = _WALL_TILE_URL_SIZE.search(str(url or ""))
+    if m is None:
+        return None
+    a, b = int(m[1]), int(m[2])
+    return (min(a, b), max(a, b))
+
+
+def _floor_tile_size(room: "Room") -> tuple[int, int] | None:
+    """The size of a tile floor's tile (mm, short side first), from its laying pattern's plank."""
+    pattern = _design_state(room).get("floorPattern")
+    settings = pattern.get("settings") if isinstance(pattern, dict) else None
+    if not isinstance(settings, dict):
+        return None
+    a, b = _float(settings.get("plankLengthCm")) * 10, _float(settings.get("plankWidthCm")) * 10
+    if a <= 0 or b <= 0:
+        return None
+    return (int(round(min(a, b))), int(round(max(a, b))))
+
+
+def _tile_stand_in(catalog: dict, sizes: list) -> tuple["Material | None", bool]:
+    """The shop tile a tile nobody picked a product for is priced from, and whether the line may
+    name it (2026-11-18): the median shop tile of the one size chosen, when there is one, else the
+    median of all the shop's tiles, which is no product the user chose and is not named."""
+    from app.services.estimate_catalog import tile_size_key
+
+    if sizes and len(set(sizes)) == 1 and sizes[0] is not None:
+        shop = catalog.get(tile_size_key(sizes[0]))
+        if _price_per(shop, "m2"):
+            return shop, True
+    return catalog.get("finish:plitka"), False
+
+
+def _wall_tile_line(area_m2: float, wall_ids: list[str], catalog: dict, sizes: list | None = None) -> ComputedLine:
+    """The wall tile to buy: the tiled area plus waste, at the shop's median tile price of the
+    walls' tile size (nobody picks a tile product for a wall yet), else of every tile, else a norm
+    price. Approximate either way; only a tile of the chosen size is named."""
+    from app.services.tile_work import load_tile_norms
+
+    shop, named = _tile_stand_in(catalog, sizes or [])
+    shop_price = _price_per(shop, "m2")
+    price = shop_price or int(load_tile_norms()["wall_tile_m2_uzs"])
+    qty = _round2(area_m2 * TILE_WASTE)
+    walls = f" (devor {', '.join(wall_ids)})" if wall_ids else ""
+    label = "Devor plitkasi"
+    if shop_price:
+        label = f"Devor plitkasi: {shop.name_uz}" if named else "Devor plitkasi (o'rtacha narx)"
+    return _make_line(
+        label=label,
+        formula=f"{area_m2:.2f} m² × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²{walls}",
+        qty=qty, unit="m²", price_uzs=price, category="plitka_devor",
+        is_approximate=True,
+        warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
+        **(_shop(shop) if shop_price and named else {}),
+    )
+
+
+def _floor_tile_area_m2(room: "Room", floor_mat: "Material | None", floor_already_done: bool) -> float:
+    """The floor area laid in tile now: a picked tile product, or the studio's tile floor with no
+    product behind it. Nothing for a floor already finished."""
+    if floor_already_done:
+        return 0.0
+    if floor_mat is not None:
+        is_tile = str(getattr(floor_mat, "category", "")) == "plitka"
+    else:
+        ds = _design_state(room)
+        is_tile = ds.get("floorConfigured") is True and ds.get("floorType") == "tile"
+    return _floor_covering_area_m2(room) if is_tile else 0.0
+
+
+def _packed_line(*, label: str, area_m2: float, kg_m2: float, norm_pack_kg: float, norm_pack_uzs: int,
+                 unit: str, shop: "Material | None") -> ComputedLine:
+    """A material bought in whole packs for an area: the shop's tagged product in its own pack, else
+    the norm pack at the norm price, marked approximate."""
+    kg = area_m2 * kg_m2
+    bag = _bag_from_shop(shop)
+    pack_kg, price = bag if bag else (norm_pack_kg, norm_pack_uzs)
+    packs = max(1, math.ceil(kg / pack_kg - 1e-9))
+    return _make_line(
+        label=f"{label}: {shop.name_uz}" if bag else label,
+        formula=f"{area_m2:.2f} m² × {kg_m2:g} kg/m² = {kg:.1f} kg → {packs} {unit} ({pack_kg:g} kg)",
+        qty=packs, unit=unit, price_uzs=int(price), category="plitka_ish",
+        is_approximate=not bag, warning=None if bag else TILE_NORM_NOTE,
+        **(_shop(shop) if bag else {}),
+    )
+
+
+def _tile_work_lines(floor_m2: float, wall_m2: float, catalog: dict, backsplash_m2: float = 0.0) -> list[ComputedLine]:
+    """What laying tile takes besides the tile: adhesive and grout for the whole tiled area (a tile
+    backsplash's too, spec 2026-11-14), and the tiler's work, the floor and the walls at their own
+    rates (spec 2026-11-10); a backsplash's laying is its own line (``_backsplash_lines``)."""
+    from app.services.tile_work import load_tile_norms
+
+    area = floor_m2 + wall_m2 + backsplash_m2
+    if area <= 0:
+        return []
+    n = load_tile_norms()
+    lines = [
+        _packed_line(label="Plitka yelimi", area_m2=area, kg_m2=n["adhesive_kg_m2"], norm_pack_kg=n["adhesive_bag_kg"],
+                     norm_pack_uzs=n["adhesive_bag_uzs"], unit="qop", shop=catalog.get("plitka_yelimi")),
+        _packed_line(label="Zatirka", area_m2=area, kg_m2=n["grout_kg_m2"], norm_pack_kg=n["grout_pack_kg"],
+                     norm_pack_uzs=n["grout_pack_uzs"], unit="dona", shop=catalog.get("zatirka")),
+    ]
+    for label, m2, price in (
+        ("Ish: pol plitkasini terish", floor_m2, n["work_floor_m2_uzs"]),
+        ("Ish: devor plitkasini terish", wall_m2, n["work_wall_m2_uzs"]),
+    ):
+        if m2 > 0:
+            qty = _round2(m2)
+            lines.append(_make_line(
+                label=label, formula=f"{qty:.2f} m² × {int(price):,} so'm".replace(",", " "),
+                qty=qty, unit="m²", price_uzs=int(price), category="plitka_ish",
+            ))
+    return lines
+
+
+def _backsplash_lines(room: "Room", catalog: dict) -> tuple[list[ComputedLine], float, dict[str, float]]:
+    """A kitchen backsplash (spec 2026-11-14), in any room that has one: the tile ones' tile (plus
+    waste) and laying, the skinali ones' glass and fitting, by the square metre of what is left of
+    each once the doors and windows are cut out. Also the tile backsplashes' area (for the adhesive
+    and grout) and, per wall, the part of each backsplash inside that wall's tile band (not tiled twice)."""
+    from app.services.backsplash import backsplash_area_m2, backsplash_pieces, studio_walls, valid_backsplashes
+    from app.services.tile_work import load_tile_norms
+
+    saved = valid_backsplashes(_design_state(room).get("backsplashes"))
+    if not saved:
+        return [], 0.0, {}
+    walls = studio_walls(room)
+    ceiling_h_m = _to_metres(_float(room.ceiling_h, 2.7))
+    ceiling_mm = ceiling_h_m * 1000
+    bands = {key: _tile_band_m(covering, ceiling_h_m) * 1000 for key, _, covering, _ in _tiled_walls(room)}
+    by_material: dict[str, list[tuple[float, list]]] = {"tile": [], "skinali": []}
+    cover: dict[str, float] = {}
+    for b in saved:
+        pieces = backsplash_pieces(b, walls, ceiling_mm)
+        area = backsplash_area_m2(pieces)
+        if area <= 0:
+            continue
+        by_material[b["material"]].append((area, pieces))
+        band = bands.get(b["wallId"])
+        if band:
+            cover[b["wallId"]] = cover.get(b["wallId"], 0.0) + sum(
+                (x1 - x0) * max(0.0, min(y1, band) - y0) for x0, x1, y0, y1 in pieces) / 1e6
+
+    def expr(items: list[tuple[float, list]]) -> tuple[float, str]:
+        total = sum(a for a, _ in items)
+        if len(items) == 1 and len(items[0][1]) == 1:
+            x0, x1, y0, y1 = items[0][1][0]
+            return total, f"{(x1 - x0) / 1000:.2f} m × {(y1 - y0) / 1000:.2f} m = {total:.2f} m²"
+        if len(items) == 1:
+            return total, f"{total:.2f} m²"
+        return total, " + ".join(f"{a:.2f}" for a, _ in items) + f" = {total:.2f} m²"
+
+    n = load_tile_norms()
+    fmt = lambda v: f"{int(v):,}".replace(",", " ")  # noqa: E731
+    lines: list[ComputedLine] = []
+    tile_m2 = 0.0
+    if by_material["tile"]:
+        tile_m2, text = expr(by_material["tile"])
+        shop = catalog.get("finish:plitka")
+        shop_price = _price_per(shop, "m2")
+        qty = _round2(tile_m2 * TILE_WASTE)
+        lines.append(_make_line(
+            label="Fartuk plitkasi (o'rtacha narx)" if shop_price else "Fartuk plitkasi",
+            formula=f"{text} × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²", qty=qty, unit="m²",
+            price_uzs=shop_price or int(n["wall_tile_m2_uzs"]), category="fartuk", is_approximate=True,
+            warning=FINISH_STAND_IN_NOTE if shop_price else WALL_TILE_NORM_NOTE,
+        ))
+        work = int(n["work_backsplash_m2_uzs"])
+        lines.append(_make_line(
+            label="Ish: fartuk plitkasini terish", formula=f"{_round2(tile_m2):.2f} m² × {fmt(work)} so'm",
+            qty=_round2(tile_m2), unit="m²", price_uzs=work, category="fartuk",
+        ))
+    if by_material["skinali"]:
+        glass_m2, text = expr(by_material["skinali"])
+        shop = catalog.get("skinali")
+        shop_price = _price_per(shop, "m2")
+        qty = _round2(glass_m2)
+        lines.append(_make_line(
+            label=f"Skinali (shisha fartuk): {shop.name_uz}" if shop_price else "Skinali (shisha fartuk)",
+            formula=text, qty=qty, unit="m²", price_uzs=shop_price or int(n["skinali_m2_uzs"]), category="fartuk",
+            is_approximate=not shop_price, warning=None if shop_price else EXTRAS_NORM_NOTE, **(_shop(shop) if shop_price else {}),
+        ))
+        work = int(n["work_skinali_m2_uzs"])
+        lines.append(_make_line(
+            label="Ish: skinali o'rnatish", formula=f"{qty:.2f} m² × {fmt(work)} so'm",
+            qty=qty, unit="m²", price_uzs=work, category="fartuk",
+        ))
+    return lines, tile_m2, cover
+
+
+def _is_kitchen(room: "Room") -> bool:
+    """As _is_bathroom, for a kitchen."""
+    from app.services.room_type import guess_room_type
+
+    room_type = getattr(room, "room_type", None)
+    if room_type:
+        return room_type == "oshxona"
+    return guess_room_type(str(getattr(room, "name", "") or "")) == "oshxona"
+
+
+def _is_bathroom(room: "Room") -> bool:
+    """The room's own type, or, with none set, what its name reads as (as the studio guesses it)."""
+    from app.services.room_type import guess_room_type
+
+    room_type = getattr(room, "room_type", None)
+    if room_type:
+        return room_type == "hammom"
+    return guess_room_type(str(getattr(room, "name", "") or "")) == "hammom"
+
+
+# A usual bathtub and shower tray, cm (width, depth): what a catalog row with no footprint is read as.
+_WET_FOOTPRINT_CM = {"bathtub": (170, 70), "shower": (90, 90)}
+
+
+def _wet_fixtures(room: "Room", catalog: dict) -> list[dict]:
+    """The placed bathtubs and showers, as app.services.waterproofing takes them: where each
+    stands and its footprint (the shop row's, a usual one of its kind when it has none)."""
+    out = []
+    for item in (room.state or {}).get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        role = _fixture_role(fid, row, {fid: str(item["name"])} if item.get("name") else {})
+        if role not in _WET_FOOTPRINT_CM:
+            continue
+        k = _float(item.get("scaleOverride")) or 1
+        w_cm, d_cm = _WET_FOOTPRINT_CM[role]
+        out.append({
+            "x": item.get("x"), "y": item.get("y"), "rotation": item.get("rotation"),
+            "w": (_float(getattr(row, "footprint_w", None)) or w_cm) / 100 * k,
+            "d": (_float(getattr(row, "footprint_d", None)) or d_cm) / 100 * k,
+        })
+    return out
+
+
+def _waterproofing_lines(room: "Room", catalog: "dict | None" = None, floor_already_done: bool = False) -> list[ComputedLine]:
+    """A bathroom's waterproofing (spec 2026-11-10): mastic and tape for the floor, the foot of the
+    walls and the walls round the bathtub and shower, and the work. Nothing for any other room, and
+    nothing once the floor is finished: the seal lies under the floor finish and was laid before it."""
+    if floor_already_done or not _is_bathroom(room):
+        return []
+    from app.services.tile_work import load_tile_norms
+    from app.services.waterproofing import waterproof_areas
+
+    catalog = catalog or {}
+    n = load_tile_norms()
+    a = waterproof_areas(_plumbing_geometry(room), _wet_fixtures(room, catalog), _floor_covering_area_m2(room), _door_widths_m(room))
+    if a["total"] <= 0:
+        return []
+    kg = a["total"] * n["mastic_kg_m2"]
+    working = (
+        f"Pol {a['floor']:.2f} m² + devor tagi {a['base']:.2f} m² + ho'l zona {a['wet']:.2f} m² "
+        f"= {a['total']:.2f} m² × {n['mastic_kg_m2']:g} kg/m² = {kg:.1f} kg"
+    )
+    mastic = catalog.get("gidro_mastika")
+    bag = _bag_from_shop(mastic)
+    per_kg = None if bag else _price_per(mastic, "kg")
+    if bag:
+        packs = max(1, math.ceil(kg / bag[0] - 1e-9))
+        mastic_line = _make_line(
+            label=f"Gidroizolyatsiya mastikasi: {mastic.name_uz}", formula=f"{working} → {packs} dona ({bag[0]:g} kg)",
+            qty=packs, unit="dona", price_uzs=bag[1], category="plitka_ish", **_shop(mastic),
+        )
+    else:
+        mastic_line = _make_line(
+            label=f"Gidroizolyatsiya mastikasi: {mastic.name_uz}" if per_kg else "Gidroizolyatsiya mastikasi",
+            formula=working, qty=math.ceil(kg - 1e-9), unit="kg",
+            price_uzs=per_kg or int(n["mastic_kg_uzs"]), category="plitka_ish",
+            is_approximate=not per_kg, warning=None if per_kg else TILE_NORM_NOTE,
+            **(_shop(mastic) if per_kg else {}),
+        )
+    tape = catalog.get("gidro_lenta")
+    roll_m = _pack_of(tape, "m") if str(getattr(tape, "unit", "")) in _SOLD_BY_PACK_UNITS else None
+    tape_price = _price_per(tape, "m")
+    metres = math.ceil(a["tape_m"] - 1e-9)
+    if roll_m:
+        # A roll is bought whole, not by the metre.
+        rolls = max(1, math.ceil(a["tape_m"] / roll_m - 1e-9))
+        tape_line = _make_line(
+            label=f"Gidroizolyatsiya lentasi: {tape.name_uz}", formula=f"{a['tape_m']:.2f} m ÷ {roll_m:g} m → {rolls} rulon",
+            qty=rolls, unit="rulon", price_uzs=int(tape.price_uzs), category="plitka_ish", **_shop(tape),
+        )
+    else:
+        tape_line = _make_line(
+            label=f"Gidroizolyatsiya lentasi: {tape.name_uz}" if tape_price else "Gidroizolyatsiya lentasi",
+            formula=f"{a['tape_m']:.2f} m → {metres} m", qty=metres, unit="m",
+            price_uzs=tape_price or int(n["tape_m_uzs"]), category="plitka_ish",
+            is_approximate=not tape_price, warning=None if tape_price else TILE_NORM_NOTE,
+            **(_shop(tape) if tape_price else {}),
+        )
+    work_price = int(n["work_waterproof_m2_uzs"])
+    work_line = _make_line(
+        label="Ish: gidroizolyatsiya", formula=f"{a['total']:.2f} m² × {work_price:,} so'm".replace(",", " "),
+        qty=a["total"], unit="m²", price_uzs=work_price, category="plitka_ish",
+    )
+    return [mastic_line, tape_line, work_line]
 
 
 @dataclass
@@ -789,7 +1216,7 @@ def _shop_wallpaper_lines(room: "Room", catalog: "dict | None") -> tuple[list[Co
     for wall in geometry.get("walls", []) or []:
         wall_key = str(wall.get("id", ""))
         covering = wall_coverings.get(wall_key) or wall_coverings.get("ALL")
-        if not isinstance(covering, dict) or covering.get("kind") != "texture":
+        if not isinstance(covering, dict) or covering.get("kind") != "texture" or _is_tile(covering):
             continue
         url = covering.get("url") or ""
         roll = _shop_wallpaper(catalog, url)
@@ -846,6 +1273,32 @@ def _texture_line(url: str, area_m2: float, wall_ids: list[str]) -> ComputedLine
     )
 
 
+# "2,5 л", "0,75 LT", "10L": the can a paint is sold in, as its name gives it.
+_PAINT_CAN = re.compile(r"(?<![\d.,])(\d+(?:[.,]\d+)?)\s*(?:л|l|lt|litr|литр)(?![^\W\d_])", re.I)
+
+
+def _paint_can_l(material: object) -> float | None:
+    """The litres in one can of *material*: its pack, else what its name says; None if neither."""
+    pack = _pack_of(material, "litr")  # type: ignore[arg-type]
+    if pack:
+        return pack
+    m = _PAINT_CAN.search(str(getattr(material, "name_uz", "") or ""))
+    can = float(m[1].replace(",", ".")) if m else 0.0
+    return can if can > 0 else None
+
+
+def _paint_litres(material: object, need_l: float) -> tuple[float, str]:
+    """The litres of paint to buy for *need_l* and the working after "=": whole cans of the size
+    the product is sold in (2026-11-18), else whole litres."""
+    can = _paint_can_l(material)
+    if can is None:
+        liters = math.ceil(need_l - 1e-9)
+        return liters, f"{liters} litr"
+    cans = max(1, math.ceil(need_l / can - 1e-9))
+    liters = _round2(cans * can)
+    return liters, f"{need_l:.1f} litr → {cans} banka ({can:g} litr) = {liters:g} litr"
+
+
 class _PaintMaterialLike:
     """Duck-typed stand-in for Material when a painted wall resolves to no
     real boyoq row anywhere — not even a same-room fallback. Lets
@@ -867,6 +1320,8 @@ def _paint_only_line(
     *,
     is_approximate: bool = False,
     warning: str | None = None,
+    label_head: str = "Bo'yoq",
+    category: str = "boyoq",
 ) -> ComputedLine:
     """Bo'yoq (paint) finish coat only — always required regardless of stage.
 
@@ -887,19 +1342,17 @@ def _paint_only_line(
         norm_note = APPROXIMATE_NORM_NOTE
         warning = f"{warning} {norm_note}" if warning else norm_note
 
-    liters = math.ceil(net_wall_m2 * coats / coverage)
     wall_note = f" (devor {', '.join(wall_ids)})" if wall_ids else ""
+    working = f"{net_wall_m2:.1f} m²{wall_note} × {coats} qatlam ÷ {coverage:.1f} m²/litr"
+    liters, can_working = _paint_litres(material, net_wall_m2 * coats / coverage)
     has_id = getattr(material, "id", None) is not None
     return _make_line(
-        label=f"Bo'yoq: {material.name_uz}",
-        formula=(
-            f"{net_wall_m2:.1f} m²{wall_note} × {coats} qatlam "
-            f"÷ {coverage:.1f} m²/litr = {liters} litr"
-        ),
+        label=f"{label_head}: {material.name_uz}",
+        formula=f"{working} = {can_working}",
         qty=liters,
         unit="litr",
         price_uzs=material.price_uzs,
-        category="boyoq",
+        category=category,
         material_id=str(material.id) if has_id else None,
         store_name=_store_name(material) if has_id else None,
         is_approximate=is_approximate,
@@ -1093,9 +1546,23 @@ def _laminate_lines(
         store_name=_store_name(material),
     ))
 
-    lines.append(_plinth_line(room, norms_map, plinth_material))
+    lines.extend(_skirting_lines(room, norms_map, plinth_material, tile_floor=False))
 
     return lines
+
+
+def _skirting_lines(
+    room: "Room", norms_map: "dict[str, Norm]", material: "Material | None", *, tile_floor: bool,
+) -> list[ComputedLine]:
+    """The floor's skirting board, when the room has one (2026-11-18): designState.skirting null
+    is one the user took off, an object one they put on; never touched, every room has the
+    studio's default board except a bathroom with a tile floor, which is tiled to the floor."""
+    ds = _design_state(room)
+    if "skirting" in ds and ds["skirting"] is None:
+        return []
+    if not isinstance(ds.get("skirting"), dict) and tile_floor and _is_bathroom(room):
+        return []
+    return [_plinth_line(room, norms_map, material)]
 
 
 def _plinth_line(
@@ -1162,6 +1629,20 @@ _DESIGNED_FLOORS: dict[str, tuple[str, tuple[str, ...]]] = {
 }
 
 
+def _norm_floor_tile_line(room: "Room") -> ComputedLine:
+    """A tile floor when no shop sells tile: the tile at the norm price, approximate, so that the
+    estimate does not list the laying work with nothing to lay."""
+    from app.services.tile_work import load_tile_norms
+
+    area = _floor_covering_area_m2(room)
+    qty = math.ceil(area * TILE_WASTE * 100) / 100.0
+    return _make_line(
+        label="Pol plitkasi", formula=f"{area:.2f} m² × {TILE_WASTE:.2f} (chiqindi) = {qty:.2f} m²",
+        qty=qty, unit="m²", price_uzs=int(load_tile_norms()["wall_tile_m2_uzs"]), category="plitka",
+        is_approximate=True, warning=WALL_TILE_NORM_NOTE,
+    )
+
+
 def _designed_floor_lines(
     room: "Room", norms_map: "dict[str, Norm]", catalog: "dict[str, Material]",
 ) -> list[ComputedLine]:
@@ -1176,9 +1657,14 @@ def _designed_floor_lines(
     if laid is None:
         return []
     kind, keys = laid
-    stand_in = next((catalog[k] for k in keys if catalog.get(k) is not None), None)
+    named = True
+    if kind == "plitka":
+        stand_in, named = _tile_stand_in(catalog, [_floor_tile_size(room)])
+    else:
+        stand_in = next((catalog[k] for k in keys if catalog.get(k) is not None), None)
     if stand_in is None:
-        return [_plinth_line(room, norms_map, catalog.get("plintus"))]
+        plinth = _skirting_lines(room, norms_map, catalog.get("plintus"), tile_floor=kind == "plitka")
+        return [_norm_floor_tile_line(room), *plinth] if kind == "plitka" else plinth
     if kind == "plitka":
         lines = _tile_lines(room, stand_in, norms_map, catalog.get("plintus"))
     else:
@@ -1186,7 +1672,10 @@ def _designed_floor_lines(
         lines = _laminate_lines(room, stand_in, norm, norms_map, catalog.get("plintus"))
     lines[0].is_approximate = True
     lines[0].warning = FINISH_STAND_IN_NOTE
-    if lines[0].store_name is None:
+    if not named:
+        # The median of every tile in the shops: no one tile of them is what the user chose.
+        lines[0].label, lines[0].material_id, lines[0].store_name = "Pol plitkasi (o'rtacha narx)", None, None
+    elif lines[0].store_name is None:
         lines[0].store_name = _store_name(stand_in)
     return lines
 
@@ -1262,13 +1751,101 @@ def _tile_lines(
         material_id=str(material.id),
         store_name=_store_name(material),
     )
-    return [tile_line, _plinth_line(room, norms_map, plinth_material)]
+    return [tile_line, *_skirting_lines(room, norms_map, plinth_material, tile_floor=True)]
 
 
 def furniture_catalog_key(furniture_id: str) -> str:
     """The ``catalog`` key of the shop Furniture row whose id is *furniture_id* (see
     app.services.estimate_catalog.load_furniture_catalog)."""
     return f"furniture:{furniture_id}"
+
+
+PLUMBING_ROLES = ("bathtub", "sink", "toilet", "shower", "bidet")
+# "Ish: <fixture> o'rnatish": the fixture's plain Uzbek name.
+FIXTURE_WORK_NAMES = {"bathtub": "vanna", "sink": "rakovina", "toilet": "unitaz", "shower": "dush", "bidet": "bide"}
+
+
+def _work_names(kitchen: bool) -> dict[str, str]:
+    """The fixtures' plain names; a kitchen's sink is a "moyka", not a basin (kitchen re-check 2026-11-19 R3)."""
+    return {**FIXTURE_WORK_NAMES, "sink": "moyka"} if kitchen else FIXTURE_WORK_NAMES
+PLUMBING_RESERVE = 1.15
+# A fixture's own parts (2026-11-13), by kind of fixture: (shop key, how many per fixture). A shower
+# cabin or panel comes with its mixer; a kitchen sink takes the kitchen mixer and trap.
+FIXTURE_PARTS: dict[str, tuple[tuple[str, int], ...]] = {
+    "sink": (("smesitel_rakovina", 1), ("sifon_rakovina", 1), ("podvodka", 2)),
+    "kitchen_sink": (("smesitel_oshxona", 1), ("sifon_oshxona", 1), ("podvodka", 2)),
+    "bathtub": (("smesitel_vanna", 1), ("sifon_vanna", 1)),
+    "shower": (("smesitel_dush", 1), ("sifon_dush", 1)),
+    "shower_own_mixer": (("sifon_dush", 1),),
+    "toilet": (("gofra_unitaz", 1), ("podvodka", 1)),
+    # Hangs on a frame, which holds the cistern, the pan connector and the hose.
+    "toilet_wall_hung": (("installyatsiya", 1),),
+    "bidet": (("smesitel_bide", 1), ("sifon_rakovina", 1), ("podvodka", 2)),
+}
+# The word a fixture is counted by in a part's formula ("2 rakovina + 1 bide = 3 dona ...").
+FIXTURE_PART_WORDS = {
+    "sink": "rakovina", "kitchen_sink": "moyka", "bathtub": "vanna", "shower": "dush",
+    "shower_own_mixer": "dush", "toilet": "unitaz", "toilet_wall_hung": "unitaz", "bidet": "bide",
+}
+FIXTURE_PART_LABELS = {
+    "smesitel_rakovina": "Rakovina smesiteli", "smesitel_oshxona": "Oshxona smesiteli",
+    "smesitel_vanna": "Vanna va dush smesiteli", "smesitel_dush": "Dush smesiteli", "smesitel_bide": "Gigiyenik smesitel",
+    "sifon_rakovina": "Rakovina sifoni", "sifon_oshxona": "Oshxona sifoni", "sifon_vanna": "Vanna sifoni",
+    "sifon_dush": "Dush poddoni sifoni", "gofra_unitaz": "Unitaz gofrasi", "podvodka": "Ulash shlangi (podvodka)",
+    "installyatsiya": "Installyatsiya (osma unitaz uchun)",
+    "trap_pol": "Pol trapi",
+}
+# A toilet that hangs on the wall (on a frame).
+_WALL_HUNG = re.compile(r"osma|подвес|wall[- ]?hung|installyats|инсталляц", re.I)
+# A shower sold with its own mixer: a cabin or a shower panel.
+_OWN_MIXER = re.compile(r"kabin|кабин|cabin|panel|панел", re.I)
+# A shower sold with its own glass, so it takes no screen (2026-11-18): a cabin, a panel, or a set named so.
+_OWN_GLASS = re.compile(r"kabin|кабин|cabin|panel|панел|shishali|стекл|glass", re.I)
+# A bath sold with its own glass screen (2026-11-18: the catalog's, named "(shishali)"); narrower than a
+# shower's, as a "vanna paneli" is a bath's front panel (frontend lib/showerScreens bathHasOwnGlass).
+_BATH_OWN_GLASS = re.compile(r"shishali|стекл|glass", re.I)
+PIPE_LABELS = {
+    "drain_50": "Kanalizatsiya quvuri Ø50",
+    "drain_110": "Kanalizatsiya quvuri Ø110",
+    "water_20": "Suv quvuri PPR Ø20",
+}
+PLUMBING_NORM_WARNING = "Narx taxminiy — do'konda bu quvur topilmadi, o'rtacha narx olindi."
+
+
+def _fixture_role(furniture_id: str, row: object, names: dict[str, str]) -> str | None:
+    """The plumbing role of a placed piece (bathtub, sink, ...), or None for anything else. Read
+    from its name the same way the studio reads it (lib/furnitureRole.ts)."""
+    from app.services.ai_designer import infer_role  # ai_designer imports this module
+
+    name = (getattr(row, "name_uz", None) if row is not None else None) or names.get(furniture_id) or furniture_id
+    role = infer_role(getattr(row, "category", None) if row is not None else None, str(name))
+    return role if role in PLUMBING_ROLES else None
+
+
+def _kitchen_set_line(item: dict, row: object) -> "ComputedLine | None":
+    """A kitchen set's line, or None for any other piece (prod e2e 2026-11-18). A kitchen set is made
+    to measure and sold by the running metre: the catalog price over the catalog length, times the
+    length the studio fitted to the wall (the placed piece's ``lengthCm``; its whole length without one)."""
+    from app.services.ai_designer import infer_role  # ai_designer imports this module
+
+    if row is None or not getattr(row, "is_active", False):
+        return None
+    if infer_role(getattr(row, "category", None), str(getattr(row, "name_uz", "") or "")) != "kitchen_set":
+        return None
+    price = getattr(row, "price_uzs", None)
+    catalog_m = (_float(getattr(row, "footprint_w", None)) or 0) / 100
+    if not price or price <= 0 or catalog_m <= 0:
+        return None
+    k = _float(item.get("scaleOverride")) or 1
+    fitted_cm = _float(item.get("lengthCm"))
+    fitted_m = round((fitted_cm / 100) if fitted_cm and fitted_cm > 0 else catalog_m * k, 2)
+    per_m = round(int(price) / catalog_m)
+    fmt = lambda n: f"{n:,}".replace(",", " ")  # noqa: E731
+    return _make_line(
+        label=f"Jihoz: {row.name_uz}",
+        formula=f"{fmt(int(price))} so'm ÷ {catalog_m:.2f} m = {fmt(per_m)} so'm/m × {fitted_m:.2f} m",
+        qty=fitted_m, unit="m", price_uzs=per_m, category="jihoz", store_name=_store_name(row),
+    )
 
 
 def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
@@ -1299,11 +1876,16 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
     counts: dict[str, int] = {}
     names: dict[str, str] = {}
     snapshot_prices: dict[str, int] = {}
+    lines: list[ComputedLine] = []
     for item in placed:
         if not isinstance(item, dict):
             continue
         fid = item.get("furniture_id")
         if not fid:
+            continue
+        kitchen = _kitchen_set_line(item, (catalog or {}).get(furniture_catalog_key(fid)))
+        if kitchen is not None:
+            lines.append(kitchen)
             continue
         counts[fid] = counts.get(fid, 0) + 1
         name = item.get("name")
@@ -1313,11 +1895,12 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
         if isinstance(snap, (int, float)) and snap > 0 and fid not in snapshot_prices:
             snapshot_prices[fid] = int(snap)
 
-    lines: list[ComputedLine] = []
     for furniture_id, qty in sorted(counts.items()):
         row = (catalog or {}).get(furniture_catalog_key(furniture_id))
         if row is not None and not getattr(row, "is_active", False):
             row = None
+        if _fixture_role(furniture_id, row, names) is not None:
+            continue  # listed under "santexnika" by _plumbing_lines
         row_price = getattr(row, "price_uzs", None) if row is not None else None
         price = (
             (int(row_price) if row_price and row_price > 0 else None)
@@ -1344,6 +1927,901 @@ def _furniture_lines(room: "Room", catalog: "dict | None" = None) -> list[Comput
             ),
         ))
     return lines
+
+
+_OPENING_GAP_MM = 400
+
+
+def _resolve_element_positions(elements: list[dict], wall_len_mm: float) -> list[dict]:
+    """Where the studio draws each opening of a wall (frontend lib/wallPositions resolveElementPositions):
+    an opening with no place of its own (``positionAuto``, or a legacy one at 0) is laid out around the
+    others. Positions are the left edge in mm from the wall's start. Keep in step with the studio."""
+    def auto(e: dict) -> bool:
+        flag = e.get("positionAuto")
+        return flag is True or (flag is None and _float(e.get("position")) <= 0)
+
+    n = len(elements)
+    if n == 0:
+        return elements
+    js_round = lambda v: math.floor(v + 0.5)  # noqa: E731
+    width = lambda e: _float(e.get("width"))  # noqa: E731
+    if n == 1:
+        e = elements[0]
+        return [{**e, "position": max(0, js_round((wall_len_mm - width(e)) / 2))}] if auto(e) else elements
+    if n == 2:
+        a = [auto(e) for e in elements]
+        if not a[0] and not a[1]:
+            return elements
+        if a[0] != a[1]:
+            fixed, free = (elements[1], elements[0]) if a[0] else (elements[0], elements[1])
+            left = _float(fixed.get("position"))
+            right = wall_len_mm - (left + width(fixed))
+            centre = left + width(fixed) + right / 2 if right >= left else left / 2
+            pos = max(0, min(wall_len_mm - width(free), js_round(centre - width(free) / 2)))
+            return [{**e, "position": pos} if e is free else e for e in elements]
+        start = max(0, js_round((wall_len_mm - (width(elements[0]) + _OPENING_GAP_MM + width(elements[1]))) / 2))
+        return [{**elements[0], "position": start}, {**elements[1], "position": start + width(elements[0]) + _OPENING_GAP_MM}]
+    return [{**e, "position": js_round(wall_len_mm / (n + 1) * (i + 1) - width(e) / 2)} if auto(e) else e
+            for i, e in enumerate(elements)]
+
+
+def _plumbing_geometry(room: "Room") -> dict:
+    """The room's walls with lengths in metres: the room's own geometry, else the studio's saved
+    one (in mm), turned into the row's form."""
+    geometry = getattr(room, "geometry", None)
+    if isinstance(geometry, dict) and geometry.get("walls"):
+        return geometry
+    state_geometry = (room.state or {}).get("geometry")
+    if isinstance(state_geometry, dict) and state_geometry.get("walls"):
+        def element(e: dict, length_mm: float) -> dict:
+            # The studio keeps an opening's left edge in mm from the wall's start and its width in mm;
+            # the row keeps the 0–1 fraction of its middle and the width in metres (lib/wallPositions).
+            width = _float(e.get("width"))
+            if length_mm <= 0:
+                return {**e, "width": width / 1000}
+            return {**e, "position": (_float(e.get("position")) + width / 2) / length_mm, "width": width / 1000}
+
+        # An opening with no place of its own is placed first, where the studio draws it (review minor 1).
+        out = {**state_geometry, "walls": [
+            {**w, "length": _float(w.get("length")) / 1000,
+             "elements": [element(e, _float(w.get("length"))) for e in _resolve_element_positions(
+                 [e for e in w.get("elements") or [] if isinstance(e, dict)], _float(w.get("length")))]}
+            for w in state_geometry["walls"] if isinstance(w, dict)
+        ]}
+        # The corners are in mm too: left as they were, a polygon wall read 1000 times too long.
+        verts = state_geometry.get("vertices")
+        if isinstance(verts, list):
+            out["vertices"] = [
+                [_float(v[0]) / 1000, _float(v[1]) / 1000] for v in verts if isinstance(v, (list, tuple)) and len(v) >= 2
+            ]
+        return out
+    return {"walls": []}
+
+
+def _round2(x: float) -> float:
+    """To two decimals the way the studio does (JS Math.round(x * 100) / 100): a half goes up."""
+    return math.floor(x * 100 + 0.5) / 100
+
+
+PLUMBING_FITTINGS_WARNING = "Narx taxminiy — fitinglar uchun o'rtacha narx olindi."
+
+
+def _saved_riser(state: dict, geometry: dict) -> tuple[str, float] | None:
+    """The riser the studio saved with the room (``plumbingRiser``: it knows which corner is nearest
+    the door), when it is on a wall the room still has."""
+    saved = state.get("plumbingRiser")
+    if not isinstance(saved, dict):
+        return None
+    ids = {str(w.get("id")) for w in geometry.get("walls") or [] if isinstance(w, dict)}
+    if str(saved.get("wallId")) not in ids:
+        return None
+    return (str(saved["wallId"]), _float(saved.get("positionMm")))
+
+
+def _derived_points(room: "Room", catalog: dict, names: dict[str, str]) -> list[dict]:
+    """A room saved before plumbing existed (no ``plumbing`` key): its fixtures' points, worked out
+    as the studio works them out (app.services.plumbing.fixture_points), so its estimate has the
+    pipes without the room being opened first. The studio saves the same points when it is opened."""
+    from app.services.plumbing import fixture_points
+
+    geometry = _plumbing_geometry(room)
+    out: list[dict] = []
+    for item in (room.state or {}).get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        role = _fixture_role(fid, row, {**names, **({fid: str(item["name"])} if item.get("name") else {})})
+        if role is None:
+            continue
+        depth = (_float(getattr(row, "footprint_d", None)) or 60) / 100 * (_float(item.get("scaleOverride")) or 1)
+        out.extend(fixture_points(item, role, depth, geometry))
+    return out
+
+
+# The fittings counted from the pipe scheme, in the order they are listed (spec 2026-11-11).
+PLUMBING_FITTING_LABELS = {
+    "tee_20": "PPR troynik Ø20",
+    "elbow_20": "PPR burchak Ø20",
+    "outlet_20": "Suv rozetkasi Ø20",
+    "valve_20": "Sharli kran Ø20",
+    "tee_50": "Kanalizatsiya troynigi Ø50",
+    "elbow_50": "Kanalizatsiya burchagi Ø50",
+    "tee_110_50": "Kanalizatsiya troynigi Ø110/50",
+    "elbow_110": "Kanalizatsiya burchagi Ø110",
+}
+
+
+def _fitting_formula(key: str, why: dict, count: int) -> str:
+    """Where a fitting's count comes from, in the words smeta_text translates: only the parts that are
+    not zero, and "= n dona" when there are two (review minors 2 and 3)."""
+    def terms(*parts: tuple[int, str]) -> str:
+        shown = [f"{n} {word}" for n, word in parts if n]
+        return " + ".join(shown) + (f" = {count} dona" if len(shown) > 1 else "")
+
+    if key == "tee_20":
+        return terms((why["branches"], "tarmoq"), (why["riser"], "stoyak"))
+    if key in ("elbow_20", "elbow_50"):
+        return terms((why["corners"], "xona burchagi"), (why["ends"], "magistral uchi"))
+    if key == "elbow_110":
+        return terms((why["toilets"], "unitaz"), (why["corners"], "xona burchagi"))
+    return {
+        "outlet_20": f"{why.get('points', 0)} nuqta", "valve_20": f"{why.get('lines', 0)} liniya",
+        "tee_50": f"{why.get('branches', 0)} tarmoq", "tee_110_50": f"{why.get('joins', 0)} ulanish",
+    }[key]
+
+
+def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
+    """The "santexnika" section: each fixture placed (priced like furniture), the pipes of the room's
+    pipe scheme (spec 2026-11-11: a trunk per pipe kind along the walls and a branch to each point,
+    ×1.15 reserve), the fittings counted from that scheme by type, and the plumber's work per point
+    and per fixture. A shop pipe product under "pipe:<kind>" prices its line; otherwise the norm
+    does, flagged approximate."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+    from app.services.pipe_scheme import pipe_scheme, sound_point
+    from app.services.plumbing import load_plumbing_norms, riser_spot
+    from app.services.towel_rail import is_electric, rail_points, valid_rails
+    from app.services.washer import is_dishwasher, is_kitchen_sink, valid_washers, washer_points
+
+    catalog = catalog or {}
+    state: dict = room.state or {}
+    norms = load_plumbing_norms()
+    lines: list[ComputedLine] = []
+    # Heated towel rails hung on the walls (spec 2026-11-10): not furniture, a list of their own.
+    geometry = _plumbing_geometry(room)
+    rails = valid_rails(state.get("towelRails"), geometry)
+    # Heated by water or electric (2026-11-14): an electric one has no water points, and lines of its own.
+    electric_rails = [r for r in rails if is_electric(r)]
+    rails = [r for r in rails if not is_electric(r)]
+    # Washing machines (spec 2026-11-13): a list of their own too; the machine itself is not priced.
+    washers = valid_washers(state.get("washers"), geometry)
+    # A dishwasher (2026-11-16) is one of them, priced by lines of its own; its points are the same kind.
+    dishwashers = [m for m in washers if is_dishwasher(m)]
+    # A kitchen sink (kitchen QA 2026-11-18): on a wall like them, priced as a kitchen's sink fixture.
+    kitchen_sinks = [m for m in washers if is_kitchen_sink(m)]
+    machines = [m for m in washers if not is_dishwasher(m) and not is_kitchen_sink(m)]
+
+    # Fixtures, one line per distinct piece; and how many of each role for the work lines.
+    counts: dict[str, int] = {}
+    names: dict[str, str] = {}
+    snapshots: dict[str, int] = {}
+    for item in state.get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        counts[fid] = counts.get(fid, 0) + 1
+        if item.get("name") and fid not in names:
+            names[fid] = str(item["name"])
+        snap = item.get("unitPriceUzs")
+        if isinstance(snap, (int, float)) and snap > 0 and fid not in snapshots:
+            snapshots[fid] = int(snap)
+    roles: dict[str, int] = {}
+    # The same fixtures by the parts they need (FIXTURE_PARTS).
+    part_kinds: dict[str, int] = {}
+    # The showers a screen can be put on: not those sold with their own glass.
+    screen_showers = 0
+    screen_baths = 0
+    kitchen = _is_kitchen(room)
+    for fid, qty in sorted(counts.items()):
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        role = _fixture_role(fid, row, names)
+        if role is None:
+            continue
+        roles[role] = roles.get(role, 0) + qty
+        kind = _part_kind(role, (getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid, kitchen)
+        part_kinds[kind] = part_kinds.get(kind, 0) + qty
+        if role == "bathtub" and not _BATH_OWN_GLASS.search((getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid):
+            screen_baths += qty
+        if role == "shower" and not _OWN_GLASS.search((getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid):
+            screen_showers += qty
+        row_price = getattr(row, "price_uzs", None) if row is not None else None
+        price = (int(row_price) if row_price and row_price > 0 else None) or snapshots.get(fid) or FURNITURE_CATALOG_PRICES_UZS.get(fid)
+        approx = price is None
+        price = price or FURNITURE_FALLBACK_PRICE_UZS
+        label = (getattr(row, "name_uz", None) if row is not None else None) or names.get(fid) or fid
+        lines.append(_make_line(
+            label=f"Santexnika: {label}",
+            formula=f"{qty} dona × {price:,} so'm".replace(",", " "),
+            qty=qty, unit="dona", price_uzs=price, category="santexnika",
+            store_name=_store_name(row) if row is not None else None,
+            is_approximate=approx,
+            warning="Narx taxminiy — bu jihoz uchun aniq narx bazada yo'q." if approx else None,
+        ))
+
+    if kitchen_sinks:
+        # Its mixer, trap and hoses, and the work to fit it; the sink itself is the kitchen set's.
+        roles["sink"] = roles.get("sink", 0) + len(kitchen_sinks)
+        part_kinds["kitchen_sink"] = part_kinds.get("kitchen_sink", 0) + len(kitchen_sinks)
+
+    floor_drain = _design_state(room).get("floorDrain") is True
+    lines.extend(_fixture_part_lines(part_kinds, catalog, norms, floor_drain))
+    if machines:
+        n = len(machines)
+        for key, label in (("kran_kir", "Kir yuvish mashinasi krani"), ("sifon_kir", "Kir yuvish mashinasi sifoni")):
+            lines.append(_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", qty=n, why=f"{n} mashina"))
+    if dishwashers:
+        n = len(dishwashers)
+        for key, label in (("kran_idish", "Idish yuvish mashinasi krani (uchlik bilan)"), ("sifon_idish", "Idish yuvish mashinasi sifoni (chiqishli)")):
+            lines.append(_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", qty=n, why=f"{n} mashina"))
+
+    if rails:
+        lines.extend(_rail_lines("Sochiq quritgich", rails, catalog.get("sochiq_quritgich"), load_bathroom_extras_norms()["towel_rail_uzs_by_size"]))
+
+    # Pipes, from the points saved with the room.
+    # A fixture's point whose fixture is gone (a design replaced it) belongs to nothing: not priced.
+    placed_ids = {item.get("id") for item in state.get("furniture") or [] if isinstance(item, dict)}
+    saved_points = state.get("plumbing") if "plumbing" in state else _derived_points(room, catalog, names)
+    points = [
+        p for p in saved_points or []
+        if isinstance(p, dict) and p.get("wallId") and not p.get("railId") and not p.get("washerId")
+        and (not p.get("fixtureId") or p.get("fixtureId") in placed_ids)
+    ]
+    # A rail's two points are never saved: they are worked out from the rail, as the studio does.
+    points += rail_points(rails, geometry)
+    # So are a washing machine's (lib/washer.ts).
+    points += washer_points(washers, geometry)
+    if points:
+        riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
+        # One scheme for the room (spec 2026-11-11): a trunk per pipe kind and a branch to each point.
+        collector = _design_state(room).get("waterScheme") == "collector"
+        scheme = pipe_scheme(geometry, riser, points, collector)
+        for kind in ("drain_50", "drain_110", "water_20"):
+            pipe = scheme["pipes"][kind]
+            mm = pipe["trunkMm"] + pipe["branchMm"]
+            if mm <= 0:
+                continue
+            metres = _round2(mm / 1000 * PLUMBING_RESERVE)
+            shop = catalog.get(f"pipe:{kind}")
+            shop_price = _price_per(shop, "m")
+            price = shop_price or int(norms["pipe_m_uzs"][kind])
+            lines.append(_make_line(
+                label=f"{PIPE_LABELS[kind]}: {shop.name_uz}" if shop_price else PIPE_LABELS[kind],
+                formula=(f"Magistral {pipe['trunkMm'] / 1000:.2f} m + tik bo'laklar {pipe['branchMm'] / 1000:.2f} m"
+                         f" = {mm / 1000:.2f} m × {PLUMBING_RESERVE} = {metres:.2f} m"),
+                qty=metres, unit="m", price_uzs=price, category="santexnika",
+                is_approximate=not shop_price,
+                warning=None if shop_price else PLUMBING_NORM_WARNING,
+                **(_shop(shop) if shop_price else {}),
+            ))
+        for key, label in PLUMBING_FITTING_LABELS.items():
+            count = scheme["fittings"][key]
+            if count <= 0:
+                continue
+            lines.append(_make_line(
+                label=label, formula=_fitting_formula(key, scheme["why"][key], count), qty=count, unit="dona",
+                price_uzs=int(norms["fitting_uzs"][key]), category="santexnika",
+                is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
+            ))
+        lines.extend(_collector_lines(scheme["collectors"], catalog, norms))
+        if _design_state(room).get("pipesInWall") is not False:
+            lines.extend(_chase_lines(scheme["pipes"], norms))
+        # The plumber connects the points the scheme can read; one with no height or place is not priced.
+        n = sum(1 for p in points if sound_point(p))
+    if points and n:
+        lines.append(_make_line(
+            label="Ish: nuqtani ulash",
+            formula=f"{n} nuqta × {int(norms['work_point_uzs']):,} so'm".replace(",", " "),
+            qty=n, unit="nuqta", price_uzs=int(norms["work_point_uzs"]), category="santexnika",
+        ))
+
+    for role in PLUMBING_ROLES:
+        if role not in roles:
+            continue
+        price = int(norms["work_fixture_uzs"][role])
+        lines.append(_make_line(
+            label=f"Ish: {_work_names(kitchen)[role]} o'rnatish",
+            formula=f"{roles[role]} dona × {price:,} so'm".replace(",", " "),
+            qty=roles[role], unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if _design_state(room).get("plumbingDemolition") is True and roles:
+        lines.extend(_demolition_lines(roles, norms, kitchen))
+    mixers = sum(n for kind, n in part_kinds.items() if any(k.startswith("smesitel_") for k, _ in FIXTURE_PARTS[kind]))
+    if mixers:
+        price = int(norms["work_mixer_uzs"])
+        lines.append(_make_line(
+            label="Ish: smesitel o'rnatish",
+            formula=f"{mixers} smesitel × {price:,} so'm".replace(",", " "),
+            qty=mixers, unit="dona", price_uzs=price, category="santexnika",
+        ))
+    frames = part_kinds.get("toilet_wall_hung", 0)
+    if frames:
+        price = int(norms["work_frame_uzs"])
+        lines.append(_make_line(
+            label="Ish: installyatsiya o'rnatish",
+            formula=f"{frames} dona × {price:,} so'm".replace(",", " "),
+            qty=frames, unit="dona", price_uzs=price, category="santexnika",
+        ))
+        lines.extend(_frame_box_lines(frames, catalog, norms))
+    showers = part_kinds.get("shower", 0) + part_kinds.get("shower_own_mixer", 0)
+    if floor_drain and showers:
+        price = int(norms["work_floor_drain_uzs"])
+        lines.append(_make_line(
+            label="Ish: trap o'rnatish",
+            formula=f"{showers} dona × {price:,} so'm".replace(",", " "),
+            qty=showers, unit="dona", price_uzs=price, category="santexnika",
+        ))
+        lines.extend(_shower_slope_lines(_shower_zones(state, catalog, names), catalog, norms))
+    if machines:
+        price = int(norms["work_washer_uzs"])
+        lines.append(_make_line(
+            label="Ish: kir yuvish mashinasini ulash",
+            formula=f"{len(machines)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(machines), unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if dishwashers:
+        price = int(norms["work_dishwasher_uzs"])
+        lines.append(_make_line(
+            label="Ish: idish yuvish mashinasini ulash",
+            formula=f"{len(dishwashers)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(dishwashers), unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if _design_state(room).get("waterHeater") is True:
+        lines.extend(_water_heater_lines(catalog, norms))
+    if _design_state(room).get("waterInlet") is True:
+        # Cold always comes in; hot too when a point takes it and no water heater makes it in the flat.
+        hot = any(p.get("kind") == "hot" for p in points) and _design_state(room).get("waterHeater") is not True
+        lines.extend(_water_inlet_lines(2 if hot else 1, catalog, norms))
+    if rails:
+        price = int(load_bathroom_extras_norms()["work_towel_rail_uzs"])
+        lines.append(_make_line(
+            label="Ish: sochiq quritgichni o'rnatish",
+            formula=f"{len(rails)} dona × {price:,} so'm".replace(",", " "),
+            qty=len(rails), unit="dona", price_uzs=price, category="santexnika",
+        ))
+    if electric_rails:
+        lines.extend(_electric_rail_lines(electric_rails, catalog))
+    if machines:
+        lines.extend(_washer_socket_lines(len(machines), catalog))
+    if dishwashers:
+        lines.extend(_washer_socket_lines(len(dishwashers), catalog, "idish"))
+    lines.extend(_screen_lines(_design_state(room), screen_baths, screen_showers, catalog))
+    if points:
+        lines.extend(_safety_lines(_is_bathroom(room), roles, catalog, norms, kitchen))
+    return lines
+
+
+def _rail_lines(label: str, rails: list[dict], shop: "Material | None", by_size: dict) -> list[ComputedLine]:
+    """The rails themselves (2026-11-15): a shop product (the user's pick, else the cheapest tagged)
+    prices them all in one line, whatever their size; with none, one line per size at its norm."""
+    from app.services.towel_rail import RAIL_SIZES, rail_size
+
+    if shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0:
+        return [_piece_line(label, shop, 0, "santexnika", qty=len(rails))]
+    counts: dict[str, int] = {}
+    for r in rails:
+        counts[rail_size(r)] = counts.get(rail_size(r), 0) + 1
+    return [
+        _piece_line("{} ({}×{})".format(label, *(int(v) // 10 for v in size.split("x"))), None, int(by_size[size]), "santexnika", qty=counts[size])
+        for size in RAIL_SIZES if size in counts
+    ]
+
+
+def _electric_rail_lines(rails: list[dict], catalog: dict) -> list[ComputedLine]:
+    """The electric towel rails (2026-11-14): the rails (the user's pick or a shop's under
+    "sochiq_quritgich_el", else each size's norm, 2026-11-15), a moisture-proof IP44 socket for it ("rozetka_ip44"), a short cable to the nearest
+    socket circuit (the shop's "kabel" per metre, else the default price) and the work."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    e = load_bathroom_extras_norms()
+    n = len(rails)
+    cable = catalog.get("kabel")
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or ELEC_CABLE_PRICE_UZS
+    metres = n * int(e["el_rail_cable_m"])
+    work = int(e["work_el_towel_rail_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        *_rail_lines("Elektr sochiq quritgich", rails, catalog.get("sochiq_quritgich_el"), e["el_towel_rail_uzs_by_size"]),
+        _piece_line("Namga chidamli rozetka (IP44)", catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]), "santexnika", qty=n),
+        _make_line(label="Elektr kabel (sochiq quritgich)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
+        _make_line(label="Ish: elektr sochiq quritgichni o'rnatish", formula=f"{n} dona × {fmt(work)} so'm", qty=n, unit="dona",
+                   price_uzs=work, category="santexnika"),
+    ]
+
+
+def _safety_lines(bathroom: bool, roles: dict[str, int], catalog: dict, norms: dict, kitchen: bool = False) -> list[ComputedLine]:
+    """What every plumbing renovation has but the estimate lacked (2026-11-16), in a room with plumbing
+    points: an RCD for the wet zone, the pressure test of the pipes before they are closed up, and
+    sanitary silicone (a tube per two fixtures, at least one); in a bathroom also the equipotential
+    bonding (box, cable, work) and a tile-in revision hatch for the riser shaft."""
+    n = norms["safety"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    out = [_piece_line("UZO (difavtomat 30 mA)", catalog.get("uzo"), int(n["uzo_uzs"]), "santexnika")]
+    if bathroom:
+        kit, bond = int(n["bonding_kit_uzs"]), int(n["work_bonding_uzs"])
+        out += [
+            _make_line(label="Potensiallarni tenglash qutisi (KUP) va kabel", formula=f"1 komplekt × {fmt(kit)} so'm", qty=1, unit="komplekt",
+                       price_uzs=kit, category="santexnika", is_approximate=True, warning=EXTRAS_NORM_NOTE),
+            _make_line(label="Ish: potensiallarni tenglash", formula=f"1 komplekt × {fmt(bond)} so'm", qty=1, unit="komplekt",
+                       price_uzs=bond, category="santexnika"),
+        ]
+    test = int(n["work_pressure_test_uzs"])
+    out.append(_make_line(label="Ish: quvurlarni bosim bilan sinash (opressovka)", formula=f"1 komplekt × {fmt(test)} so'm", qty=1,
+                          unit="komplekt", price_uzs=test, category="santexnika"))
+    if bathroom:
+        hatch_work = int(n["work_hatch_uzs"])
+        out += [
+            _piece_line("Revizion lyuk (plitka ostiga)", catalog.get("lyuk"), int(n["hatch_uzs"]), "santexnika"),
+            _make_line(label="Ish: revizion lyuk o'rnatish", formula=f"1 dona × {fmt(hatch_work)} so'm", qty=1, unit="dona",
+                       price_uzs=hatch_work, category="santexnika"),
+        ]
+    parts = [(role, roles[role]) for role in ("bathtub", "shower", "sink", "toilet", "bidet") if roles.get(role)]
+    fixtures = sum(c for _, c in parts)
+    per = int(n["fixtures_per_silicone"])
+    tubes = max(1, math.ceil(fixtures / per))
+    why = (" + ".join(f"{c} {_work_names(kitchen)[r]}" for r, c in parts) + f" = {fixtures} ÷ {per} →") if parts else None
+    line = _piece_line("Sanitariya silikoni", catalog.get("silikon"), int(n["silicone_uzs"]), "santexnika", qty=tubes, why=why)
+    if why:
+        line.formula = line.formula.replace(f"{why} = ", f"{why} ", 1)
+    out.append(line)
+    return out
+
+
+# What stands on the floor for good, so no heating mat goes under it (2026-11-18): plumbing on the
+# floor and the furniture with no legs. A sink hangs on the wall; a chair or table stands on legs.
+_FIXED_ON_FLOOR = ("bathtub", "shower", "toilet", "bidet", "wardrobe", "shelf", "tv_unit")
+
+
+def _fixed_footprint_m2(room: "Room", catalog: dict, default_cm: dict[str, tuple[float, float]]) -> float:
+    """The floor under the pieces in _FIXED_ON_FLOOR: each one's shop footprint (× its scale), a usual
+    one of its kind when it has none; a piece of furniture with no footprint takes nothing."""
+    from app.services.ai_designer import infer_role
+
+    usual = {**_WET_FOOTPRINT_CM, **default_cm}
+    total = 0.0
+    for item in (room.state or {}).get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        name = (getattr(row, "name_uz", None) if row is not None else None) or item.get("name") or fid
+        role = infer_role(getattr(row, "category", None) if row is not None else None, str(name))
+        if role not in _FIXED_ON_FLOOR:
+            continue
+        w_cm, d_cm = usual.get(role, (0, 0))
+        w = _float(getattr(row, "footprint_w", None)) or w_cm
+        d = _float(getattr(row, "footprint_d", None)) or d_cm
+        k = _float(item.get("scaleOverride")) or 1
+        total += w / 100 * k * d / 100 * k
+    return total
+
+
+def _heated_floor_lines(room: "Room", catalog: dict, floor_already_done: bool = False) -> list[ComputedLine]:
+    """An electric heated floor (2026-11-18), when the user ticked it, in a bathroom or a kitchen whose
+    floor is still to be laid: a mat on the free floor (the floor less what stands on it for good),
+    the whole mats it comes in at most that size; its thermostat, the sensor's conduit, a breaker,
+    the cable to the panel and the work. Nothing when the free floor is under the smallest mat."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    if _design_state(room).get("heatedFloor") is not True:
+        return []
+    if not (_is_bathroom(room) or _is_kitchen(room)) or floor_already_done:
+        return []
+    n = load_bathroom_extras_norms()["heated_floor"]
+    floor = _floor_covering_area_m2(room)
+    usual = {r: (float(n[f"{r}_w_cm"]), float(n[f"{r}_d_cm"])) for r in ("toilet", "bidet")}
+    taken = _fixed_footprint_m2(room, catalog, usual)
+    free = max(0.0, floor - taken)
+    step = float(n["mat_step_m2"])
+    mat_m2 = round(math.floor(free / step + 1e-9) * step, 2)
+    if mat_m2 < float(n["mat_min_m2"]):
+        return []
+    fmt = lambda v: f"{int(v):,}".replace(",", " ")  # noqa: E731
+    text = f"{floor:.2f} m² − {taken:.2f} m² (jihozlar ostida) = {free:.2f} m² → {mat_m2:g} m²" if taken > 0 \
+        else f"{floor:.2f} m² → {mat_m2:g} m²"
+    shop = catalog.get("issiq_pol")
+    shop_price = _price_per(shop, "m2")
+    cable = catalog.get("kabel")
+    cable_price = _price_per(cable, "m")
+    per_m = cable_price or ELEC_CABLE_PRICE_UZS
+    metres = int(n["cable_m"])
+    kit, breaker = int(n["kit_uzs"]), int(n["breaker_uzs"])
+    work_mat, work_thermo = int(n["work_mat_m2_uzs"]), int(n["work_thermostat_uzs"])
+    cat = "issiq_pol"
+    return [
+        _make_line(label=f"Issiq pol mati (elektr): {shop.name_uz}" if shop_price else "Issiq pol mati (elektr)",
+                   formula=text, qty=mat_m2, unit="m²", price_uzs=shop_price or int(n["mat_m2_uzs"]), category=cat,
+                   is_approximate=not shop_price, warning=None if shop_price else EXTRAS_NORM_NOTE, **(_shop(shop) if shop_price else {})),
+        _piece_line("Issiq pol termoregulyatori", catalog.get("termoregulyator"), int(n["thermostat_uzs"]), cat),
+        _make_line(label="Gofra quvur va datchik (issiq pol)", formula=f"1 komplekt × {fmt(kit)} so'm", qty=1, unit="komplekt",
+                   price_uzs=kit, category=cat, is_approximate=True, warning=EXTRAS_NORM_NOTE),
+        _make_line(label="Avtomat 16 A (issiq pol)", formula=f"1 dona × {fmt(breaker)} so'm", qty=1, unit="dona",
+                   price_uzs=breaker, category=cat, is_approximate=True, warning=EXTRAS_NORM_NOTE),
+        _make_line(label="Elektr kabel (issiq pol)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category=cat, is_approximate=True, **(_shop(cable) if cable_price else {})),
+        _make_line(label="Ish: issiq pol matini yotqizish", formula=f"{mat_m2:g} m² × {fmt(work_mat)} so'm", qty=mat_m2, unit="m²",
+                   price_uzs=work_mat, category=cat),
+        _make_line(label="Ish: termoregulyatorni o'rnatish", formula=f"1 dona × {fmt(work_thermo)} so'm", qty=1, unit="dona",
+                   price_uzs=work_thermo, category=cat),
+    ]
+
+
+def _collector_lines(collectors: dict, catalog: dict, norms: dict) -> list[ComputedLine]:
+    """The collector scheme's collectors (2026-11-18): one per water kind, its body and an outlet (with its
+    valve) per point it feeds, or a shop's tagged collector; and the work of fitting each."""
+    n = norms["collector"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    out: list[ComputedLine] = []
+    shop = catalog.get("kollektor")
+    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    for kind, word in (("cold", "sovuq"), ("hot", "issiq")):
+        outlets = int(collectors.get(kind) or 0)
+        if not outlets:
+            continue
+        label = f"Kollektor ({word} suv)"
+        if priced:
+            out.append(_make_line(label=f"{label}: {shop.name_uz}", formula=f"1 dona × {fmt(int(shop.price_uzs))} so'm ({outlets} chiqish kerak)",
+                                  qty=1, unit="dona", price_uzs=int(shop.price_uzs), category="santexnika", **_shop(shop)))
+            continue
+        base, each = int(n["base_uzs"]), int(n["outlet_uzs"])
+        price = base + outlets * each
+        out.append(_make_line(label=label, formula=f"{fmt(base)} so'm + {outlets} chiqish × {fmt(each)} so'm = {fmt(price)} so'm",
+                              qty=1, unit="dona", price_uzs=price, category="santexnika", is_approximate=True, warning=PLUMBING_NORM_WARNING))
+    if out:
+        work = int(n["work_uzs"])
+        out.append(_make_line(label="Ish: kollektorni yig'ish", formula=f"{len(out)} dona × {fmt(work)} so'm", qty=len(out), unit="dona",
+                              price_uzs=work, category="santexnika"))
+    return out
+
+
+def _screen_lines(ds: dict, baths: int, showers: int, catalog: dict) -> list[ComputedLine]:
+    """A bath's and a shower's screen (2026-11-18), the user's pick: an 80 cm glass panel on each bath, a
+    glass wall on each shower that is not a cabin or a panel (``showers`` counts only those), or a curtain
+    with its rod on each, with their fitting. Nothing unless picked, or with no such fixture."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    n = load_bathroom_extras_norms()["screens"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    bath, shower = ds.get("bathScreen"), ds.get("showerScreen")
+    out: list[ComputedLine] = []
+    for pick, count, label, key, price, work_label, work in (
+        (bath, baths, "Vanna shtorkasi (shisha)", "shtorka_vanna", "bath_glass_uzs", "Ish: vanna shtorkasini o'rnatish", "work_bath_glass_uzs"),
+        (shower, showers, "Dush to'sig'i (shisha)", "dush_shisha", "shower_glass_uzs", "Ish: dush shishasini o'rnatish", "work_shower_glass_uzs"),
+    ):
+        if pick == "glass" and count:
+            w = int(n[work])
+            out += [_piece_line(label, catalog.get(key), int(n[price]), "santexnika", qty=count),
+                    _make_line(label=work_label, formula=f"{count} dona × {fmt(w)} so'm", qty=count, unit="dona", price_uzs=w, category="santexnika")]
+    parts = [(c, word) for pick, c, word in ((bath, baths, "vanna"), (shower, showers, "dush")) if pick == "curtain" and c]
+    if parts:
+        total = sum(c for c, _ in parts)
+        why = " + ".join(f"{c} {word}" for c, word in parts) + f" = {total}" if len(parts) > 1 else None
+        line = _piece_line("Parda va tayoqcha (vanna, dush)", catalog.get("parda_hammom"), int(n["curtain_uzs"]), "santexnika", qty=total, why=why)
+        if why:
+            line.formula = line.formula.replace(f"{why} = {total} dona", f"{why} dona", 1)
+        w = int(n["work_curtain_uzs"])
+        out += [line, _make_line(label="Ish: parda tayoqchasini o'rnatish", formula=f"{total} dona × {fmt(w)} so'm", qty=total, unit="dona",
+                                 price_uzs=w, category="santexnika")]
+    return out
+
+
+_SOCKET_LABELS = {
+    "kir": ("Kir yuvish mashinasi rozetkasi (IP44)", "Elektr kabel (kir yuvish mashinasi)", "Ish: kir yuvish mashinasi rozetkasini o'rnatish"),
+    "idish": ("Idish yuvish mashinasi rozetkasi (IP44)", "Elektr kabel (idish yuvish mashinasi)", "Ish: idish yuvish mashinasi rozetkasini o'rnatish"),
+}
+
+
+def _washer_socket_lines(n: int, catalog: dict, machine: str = "kir") -> list[ComputedLine]:
+    """``n`` washing machines' sockets (2026-11-14): a moisture-proof IP44 socket each (a shop's under
+    "rozetka_ip44", else the norm), a short cable to the nearest socket circuit (the shop's "kabel" per
+    metre, else the default price) and the work. Always with the machine: no switch."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    e = load_bathroom_extras_norms()
+    cable = catalog.get("kabel")
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or ELEC_CABLE_PRICE_UZS
+    metres = n * int(e["washer_cable_m"])
+    work = int(e["work_washer_socket_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    socket, cable_label, work_label = _SOCKET_LABELS[machine]  # a dishwasher's (2026-11-16) by the same norms
+    return [
+        _piece_line(socket, catalog.get("rozetka_ip44"), int(e["socket_ip44_uzs"]),
+                    "santexnika", qty=n, why=f"{n} mashina"),
+        _make_line(label=cable_label, formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
+        _make_line(label=work_label, formula=f"{n} dona × {fmt(work)} so'm", qty=n,
+                   unit="dona", price_uzs=work, category="santexnika"),
+    ]
+
+
+def _shower_zones(state: dict, catalog: dict, names: dict[str, str]) -> list[tuple[float, float]]:
+    """Each placed shower's zone (w, d) in metres, as the studio's lib/floorDrain showerZones."""
+    from app.services.floor_drain import shower_zone_size
+
+    out = []
+    for item in state.get("furniture") or []:
+        fid = item.get("furniture_id") if isinstance(item, dict) else None
+        if not fid:
+            continue
+        row = catalog.get(furniture_catalog_key(fid))
+        if row is not None and not getattr(row, "is_active", False):
+            row = None
+        if _fixture_role(fid, row, names) != "shower":
+            continue
+        out.append(shower_zone_size(getattr(row, "footprint_w", None), getattr(row, "footprint_d", None), item.get("scaleOverride")))
+    return out
+
+
+def _shower_slope_lines(zones: list[tuple[float, float]], catalog: dict, norms: dict) -> list[ComputedLine]:
+    """Sloping each tray-less shower's zone to its floor drain (2026-11-14): the screed mix by the
+    bag (a shop's under "styajka", else the norm) and the work by the m²."""
+    from app.services.floor_drain import shower_zones_area_m2
+
+    if not zones:
+        return []
+    n = norms["floor_slope"]
+    area = shower_zones_area_m2(zones)
+    kg = area * float(n["mix_kg_m2"])
+    bags = max(1, math.ceil(round(kg / float(n["bag_kg"]), 6)))
+    shop = catalog.get("styajka")
+    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    bag_price = int(shop.price_uzs) if priced else int(n["bag_uzs"])
+    work = int(n["work_m2_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    sides = (f"{zones[0][0]:.2f} m × {zones[0][1]:.2f} m" if len(zones) == 1
+             else " + ".join(f"{w * d:.2f}" for w, d in zones))
+    return [
+        _make_line(
+            label="Qiyalik styajkasi aralashmasi: " + shop.name_uz if priced else "Qiyalik styajkasi aralashmasi",
+            formula=f"{area:.2f} m² × {n['mix_kg_m2']:g} kg = {kg:.1f} kg ÷ {n['bag_kg']:g} kg → {bags} qop",
+            qty=bags, unit="qop", price_uzs=bag_price, category="santexnika",
+            is_approximate=not priced, warning=None if priced else EXTRAS_NORM_NOTE, **(_shop(shop) if priced else {}),
+        ),
+        _make_line(
+            label="Ish: dush zonasini trapga qiyalatish",
+            formula=f"{sides} = {area:.2f} m² × {fmt(work)} so'm",
+            qty=area, unit="m²", price_uzs=work, category="santexnika",
+        ),
+    ]
+
+
+def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: str, qty: int = 1, why: str | None = None) -> ComputedLine:
+    """Something bought by the piece: the shop's tagged product (sold by the piece), else the norm
+    price, marked approximate. ``why`` opens the formula with what the count is made of."""
+    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    price = int(shop.price_uzs) if priced else int(norm_uzs)
+    return _make_line(
+        label=f"{label}: {shop.name_uz}" if priced else label,
+        formula=(f"{why} = " if why else "") + f"{qty} dona × {price:,} so'm".replace(",", " "),
+        qty=qty, unit="dona", price_uzs=price, category=category,
+        is_approximate=not priced, warning=None if priced else EXTRAS_NORM_NOTE,
+        **(_shop(shop) if priced else {}),
+    )
+
+
+def _chase_lines(pipes: dict, norms: dict) -> list[ComputedLine]:
+    """Chasing the walls for the new pipes (2026-11-13), when they run in the wall (``pipesInWall``,
+    on unless exactly false): the water trunk and its branches, and the Ø50 drain's branches. The
+    drain trunk and the Ø110 way run in the floor. Making the chase good again is in the price."""
+    price = norms["work_chase_m_uzs"]
+    water, drain = pipes["water_20"], pipes["drain_50"]
+    out: list[ComputedLine] = []
+    w_mm = water["trunkMm"] + water["branchMm"]
+    if w_mm > 0:
+        p = int(price["water_20"])
+        out.append(_make_line(
+            label="Ish: shtroba (suv quvuri)",
+            formula=(f"Magistral {water['trunkMm'] / 1000:.2f} m + tik bo'laklar {water['branchMm'] / 1000:.2f} m"
+                     f" = {w_mm / 1000:.2f} m × {p:,} so'm").replace(",", " "),
+            qty=_round2(w_mm / 1000), unit="m", price_uzs=p, category="santexnika",
+        ))
+    if drain["branchMm"] > 0:
+        p = int(price["drain_50"])
+        out.append(_make_line(
+            label="Ish: shtroba (kanalizatsiya Ø50)",
+            formula=f"Tik bo'laklar {drain['branchMm'] / 1000:.2f} m × {p:,} so'm".replace(",", " "),
+            qty=_round2(drain["branchMm"] / 1000), unit="m", price_uzs=p, category="santexnika",
+        ))
+    return out
+
+
+def _demolition_lines(roles: dict[str, int], norms: dict, kitchen: bool = False) -> list[ComputedLine]:
+    """Taking the old plumbing out (2026-11-13), when the user switched it on (``plumbingDemolition``
+    exactly true): as many old fixtures as the room has new ones, each at its kind's price, and the
+    old pipes once."""
+    prices = norms["work_demolition_fixture_uzs"]
+    parts = [(role, roles[role], int(prices[role])) for role in ("bathtub", "shower", "sink", "toilet", "bidet") if roles.get(role)]
+    total = sum(n * p for _, n, p in parts)
+    pipes = int(norms["work_demolition_pipes_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        _make_line(
+            label="Ish: eski santexnikani demontaj qilish",
+            formula=" + ".join(f"{n} {_work_names(kitchen)[r]} × {fmt(p)}" for r, n, p in parts) + f" = {fmt(total)} so'm",
+            qty=1, unit="komplekt", price_uzs=total, category="santexnika",
+        ),
+        _make_line(
+            label="Ish: eski quvurlarni demontaj qilish", formula=f"1 komplekt × {fmt(pipes)} so'm",
+            qty=1, unit="komplekt", price_uzs=pipes, category="santexnika",
+        ),
+    ]
+
+
+def _water_heater_lines(catalog: dict, norms: dict) -> list[ComputedLine]:
+    """A water heater (2026-11-13), when the user switched it on (``waterHeater`` exactly true): the
+    heater (a shop's under "boyler", else the norm), its connection kit (a safety valve and two hoses),
+    a cable to the nearest socket circuit, and the work. It stands by the riser: the pipes are as before."""
+    n = norms["water_heater"]
+    cable = catalog.get("kabel")
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or ELEC_CABLE_PRICE_UZS
+    metres = int(n["cable_m"])
+    kit, work = int(n["kit_uzs"]), int(n["work_uzs"])
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    return [
+        _piece_line("Suv isitgich (boyler)", catalog.get("boyler"), int(n["heater_uzs"]), "santexnika"),
+        _make_line(label="Boyler ulash to'plami", formula=f"1 komplekt × {fmt(kit)} so'm", qty=1, unit="komplekt",
+                   price_uzs=kit, category="santexnika", is_approximate=True, warning=EXTRAS_NORM_NOTE),
+        _make_line(label="Elektr kabel (boyler)", formula=f"{metres} m × {fmt(per_m)} so'm", qty=metres, unit="m",
+                   price_uzs=per_m, category="santexnika", is_approximate=True, **(_shop(cable) if shop_price else {})),
+        _make_line(label="Ish: boyler o'rnatish", formula=f"1 dona × {fmt(work)} so'm", qty=1, unit="dona",
+                   price_uzs=work, category="santexnika"),
+    ]
+
+
+def _frame_box_lines(frames: int, catalog: dict, norms: dict) -> list[ComputedLine]:
+    """The drywall box closing in each wall-hung toilet's frame (2026-11-14): one moisture-resistant
+    sheet (a shop's under "gipsokarton_nam", else the norm), its profile (the shop's "profil" by the
+    metre, else the ceiling's profile price) and the work. A frame is never left open: no switch."""
+    n = norms["frame_box"]
+    why = f"{frames} unitaz"
+    metres = frames * int(n["profile_m"])
+    profile = catalog.get("profil")
+    per_m = _price_per(profile, "m")
+    work = int(n["work_uzs"])
+    return [
+        _piece_line("Namga chidamli gipsokarton (quti)", catalog.get("gipsokarton_nam"), int(norms["part_uzs"]["gipsokarton_nam"]),
+                    "santexnika", frames, why),
+        _make_line(
+            label=f"Quti profili (karkas): {profile.name_uz}" if per_m else "Quti profili (karkas)",
+            formula=f"{why} × {int(n['profile_m'])} m = {metres} m", qty=metres, unit="m",
+            price_uzs=per_m or PROFILE_PRICE_PER_M_UZS, category="santexnika",
+            is_approximate=not per_m, warning=None if per_m else EXTRAS_NORM_NOTE, **(_shop(profile) if per_m else {}),
+        ),
+        _make_line(
+            label="Ish: gipsokarton quti yig'ish",
+            formula=f"{why} = {frames} dona × {work:,} so'm".replace(",", " "),
+            qty=frames, unit="dona", price_uzs=work, category="santexnika",
+        ),
+    ]
+
+
+WATER_INLET_PARTS = (
+    ("hisoblagich_suv", "Suv hisoblagichi"), ("filtr_suv", "Dag'al filtr"),
+    ("reduktor", "Bosim reduktori"), ("klapan_teskari", "Teskari klapan"),
+)
+
+
+def _water_inlet_lines(inlets: int, catalog: dict, norms: dict) -> list[ComputedLine]:
+    """The water inlet unit (2026-11-14), when the user switched it on (``waterInlet`` exactly true):
+    on each of ``inlets`` incoming lines a meter, a coarse filter, a pressure reducer and a check
+    valve (a shop's under the part's key, else the norm), and the work of putting it together. The
+    shut-off valve is already the scheme's "Sharli kran Ø20"."""
+    why = f"{inlets} liniya"
+    out = [_piece_line(label, catalog.get(key), int(norms["part_uzs"][key]), "santexnika", inlets, why)
+           for key, label in WATER_INLET_PARTS]
+    price = int(norms["work_water_inlet_uzs"])
+    out.append(_make_line(
+        label="Ish: suv kirish uzelini yig'ish",
+        formula=f"{why} = {inlets} dona × {price:,} so'm".replace(",", " "),
+        qty=inlets, unit="dona", price_uzs=price, category="santexnika",
+    ))
+    return out
+
+
+def _part_kind(role: str, name: str, kitchen: bool) -> str:
+    """The FIXTURE_PARTS entry a fixture of ``role`` named ``name`` takes."""
+    if role == "sink" and kitchen:
+        return "kitchen_sink"
+    if role == "shower" and _OWN_MIXER.search(name):
+        return "shower_own_mixer"
+    if role == "toilet" and _WALL_HUNG.search(name):
+        return "toilet_wall_hung"
+    return role
+
+
+def _fixture_part_lines(part_kinds: dict[str, int], catalog: dict, norms: dict, floor_drain: bool = False) -> list[ComputedLine]:
+    """Each fixture's own mixer, trap and hoses (2026-11-13), one line per part, by the piece: a shop
+    product tagged with the part's key, else the norm (approximate). A part none needs is not listed."""
+    need: dict[str, int] = {}
+    why: dict[str, dict[str, int]] = {}
+    for kind in FIXTURE_PARTS:  # in this order, so a formula reads the same however the room was built
+        n = part_kinds.get(kind, 0)
+        if not n:
+            continue
+        for key, per in FIXTURE_PARTS[kind]:
+            need[key] = need.get(key, 0) + per * n
+            words = why.setdefault(key, {})
+            word = FIXTURE_PART_WORDS[kind]
+            words[word] = words.get(word, 0) + n
+    if floor_drain and need.get("sifon_dush"):
+        # A shower with no tray (spec 2026-11-13): it drains through the floor, not a tray's trap.
+        need["trap_pol"] = need.pop("sifon_dush")
+        why["trap_pol"] = why.pop("sifon_dush")
+    return [
+        _piece_line(FIXTURE_PART_LABELS[key], catalog.get(key), int(norms["part_uzs"][key]), "santexnika",
+                    qty=need[key], why=" + ".join(f"{n} {w}" for w, n in why[key].items()))
+        for key in FIXTURE_PART_LABELS if need.get(key)
+    ]
+
+
+def fan_size(room: "Room", n: dict) -> tuple[int, str | None]:
+    """The fan's size (Ø mm) for the room's air (2026-11-14): volume × ``fan_air_changes`` an hour;
+    Ø100 up to 100 m³/h, Ø125 up to 180, else Ø150. With no floor area, Ø100 and no working."""
+    area = _float(getattr(room, "floor_area", None))
+    if area <= 0:
+        return 100, None
+    height = _float(getattr(room, "ceiling_h", None)) or 2.7
+    volume = area * height
+    changes = int(n["fan_air_changes"])
+    air = volume * changes
+    size = 100 if air <= 100 else 125 if air <= 180 else 150
+    return size, f"{area:.2f} m² × {height:.2f} m = {volume:.1f} m³ × {changes} = {air:.0f} m³/soat → Ø{size}"
+
+
+def _fan_line(room: "Room", shop: "Material | None", n: dict) -> ComputedLine:
+    """The fan, named by its size; the shop's tagged fan prices it, else the size's norm."""
+    size, why = fan_size(room, n)
+    return _piece_line(f"Tortuvchi ventilyator Ø{size}", shop, int(n["fan_uzs_by_size"][str(size)]), "ventilyatsiya", why=why)
+
+
+def _fan_lines(room: "Room", catalog: "dict | None", norms_map: "dict[str, Norm]") -> list[ComputedLine]:
+    """A bathroom's extractor fan (spec 2026-11-10): the fan, a fixed length of cable to the nearest
+    light circuit, and the work. In every bathroom unless the user switched it off (``ventFan`` is
+    exactly False). Its own category, not "elektr": that one switches on the wiring notice."""
+    if not _is_bathroom(room) or _design_state(room).get("ventFan") is False:
+        return []
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    catalog = catalog or {}
+    n = load_bathroom_extras_norms()
+    cable = catalog.get("kabel")
+    elec_norm = norms_map.get("elektr_kabel")
+    params = elec_norm.params if elec_norm and elec_norm.params else {}
+    shop_price = _price_per(cable, "m")
+    per_m = shop_price or int(params.get("price_per_m_uzs", ELEC_CABLE_PRICE_UZS))
+    metres = int(n["fan_cable_m"])
+    work = int(n["work_fan_uzs"])
+    return [
+        _fan_line(room, catalog.get("ventilyator"), n),
+        _make_line(
+            label="Elektr kabel (ventilyator)", formula=f"{metres} m × {per_m:,} so'm".replace(",", " "),
+            qty=metres, unit="m", price_uzs=per_m, category="ventilyatsiya",
+            is_approximate=True, warning=FAN_CABLE_NOTE, **(_shop(cable) if shop_price else {}),
+        ),
+        _make_line(
+            label="Ish: ventilyatorni o'rnatish", formula=f"1 dona × {work:,} so'm".replace(",", " "),
+            qty=1, unit="dona", price_uzs=work, category="ventilyatsiya",
+        ),
+    ]
 
 
 def _light_lines(room: "Room", catalog: "dict[str, Material] | None" = None) -> list[ComputedLine]:
@@ -1394,6 +2872,69 @@ def _light_lines(room: "Room", catalog: "dict[str, Material] | None" = None) -> 
             ),
             **(_shop(shop_mat) if shop_price else {}),
         ))
+    return lines
+
+
+# The wall devices the studio places (frontend ElectricalType), in the order the estimate lists them:
+# (type, label, the shop's smeta key, the norm in bathroom_extras_norms.json "electrics"). The air
+# conditioner is not here: a split unit is bought and fitted by its own trade.
+_ELECTRICAL_DEVICES: tuple[tuple[str, str, str, str], ...] = (
+    ("socket1", "Rozetka (bitta)", "rozetka", "socket1_uzs"),
+    ("socket2", "Rozetka (ikkitalik)", "rozetka_2", "socket2_uzs"),
+    ("socket_media", "Media rozetka (TV, internet)", "rozetka_media", "socket_media_uzs"),
+    ("socket_power", "Kuch rozetkasi (plita, 32 A)", "rozetka_kuch", "socket_power_uzs"),
+    ("switch1", "Kalit (bitta)", "vyklyuchatel", "switch1_uzs"),
+    ("switch2", "Kalit (ikkitalik)", "vyklyuchatel_2", "switch2_uzs"),
+    ("panel", "Elektr qutisi (shchit)", "shchit", "panel_uzs"),
+)
+
+
+def _electrical_device_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
+    """The placed wall devices themselves (2026-11-18), in every room: one line per type with its
+    count (a shop's product under the type's key, else the norm, marked approximate), and the work
+    of fitting them by the point; the panel's fitting is a bigger job and a line of its own. A
+    cooker outlet runs on its own 32 A line: a breaker in the panel each and a 3×6 mm² cable to it
+    (a shop's "kabel_kuch" per metre, else the norm). _electrical_line still prices the ordinary
+    cable; before this the devices were never priced at all."""
+    from app.services.bathroom_extras import load_bathroom_extras_norms
+
+    catalog = catalog or {}
+    placed = (room.state or {}).get("electricals") or []
+    counts: dict[str, int] = {}
+    for item in placed:
+        if isinstance(item, dict) and isinstance(item.get("type"), str):
+            counts[item["type"]] = counts.get(item["type"], 0) + 1
+    n = load_bathroom_extras_norms()["electrics"]
+    fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
+    lines: list[ComputedLine] = []
+    for kind, label, key, norm in _ELECTRICAL_DEVICES:
+        if counts.get(kind):
+            lines.append(_piece_line(label, catalog.get(key), int(n[norm]), "elektr", qty=counts[kind]))
+
+    power = counts.get("socket_power", 0)
+    if power:
+        lines.append(_piece_line("Avtomat 32 A (plita liniyasi)", catalog.get("avtomat_32"), int(n["breaker_32_uzs"]),
+                                 "elektr", qty=power))
+        cable = catalog.get("kabel_kuch")
+        shop_price = _price_per(cable, "m")
+        per_m = shop_price or int(n["power_cable_m_uzs"])
+        run = int(n["power_cable_m"])
+        lines.append(_make_line(
+            label="Elektr kabel 3×6 mm² (plita liniyasi)",
+            formula=f"{power} dona × {run} m = {power * run} m × {fmt(per_m)} so'm",
+            qty=power * run, unit="m", price_uzs=per_m, category="elektr", is_approximate=True,
+            **(_shop(cable) if shop_price else {}),
+        ))
+
+    points = sum(counts.get(kind, 0) for kind, *_ in _ELECTRICAL_DEVICES if kind != "panel")
+    if points:
+        work = int(n["work_point_uzs"])
+        lines.append(_make_line(label="Ish: elektr nuqtalarini o'rnatish", formula=f"{points} nuqta × {fmt(work)} so'm",
+                                qty=points, unit="dona", price_uzs=work, category="elektr"))
+    if counts.get("panel"):
+        work = int(n["work_panel_uzs"])
+        lines.append(_make_line(label="Ish: elektr qutisini o'rnatish", formula=f"{counts['panel']} dona × {fmt(work)} so'm",
+                                qty=counts["panel"], unit="dona", price_uzs=work, category="elektr"))
     return lines
 
 
@@ -1496,6 +3037,65 @@ def _electrical_line(
         warning=warning_text,
         **shop,
     )
+
+
+def _ceiling_finish_lines(
+    room: "Room", norms_map: "dict[str, Norm]", catalog: dict, ceiling_state: str | None,
+) -> list[ComputedLine]:
+    """The ceiling's own finish (2026-11-18), whatever is built under it (the bare slab or a
+    board ceiling): primed until it is puttied, then painted, with the painter's work, over the
+    floor's area. A bathroom's paint is a moisture-resistant one. The paint is the shop's median
+    (nobody picks a ceiling paint yet), else the fallback price; approximate either way."""
+    from app.services.tile_work import load_tile_norms
+
+    area = _float(room.floor_area)
+    if area <= 0:
+        return []
+    wet = _is_bathroom(room)
+    head = "Namga chidamli shift bo'yog'i" if wet else "Shift bo'yog'i"
+    lines: list[ComputedLine] = []
+
+    if stage_index(ceiling_state) < stage_index(STAGE_SHPAKLOVKA):
+        grunt_norm = norms_map.get("grunt")
+        params = grunt_norm.params if grunt_norm and grunt_norm.params else {}
+        rate = float(params.get("rate_kg_m2", PRIMER_RATE_KG_M2))
+        bag_kg, bag_price = int(params.get("bag_kg", PRIMER_BAG_KG)), int(params.get("bag_price_uzs", PRIMER_BAG_PRICE_UZS))
+        material = catalog.get("grunt")
+        shop = _bag_from_shop(material)
+        label = f"Shift grunti (asosiy qatlam) {bag_kg} kg qop"
+        if shop:
+            (bag_kg, bag_price), label = shop, f"Shift grunti: {_named(material.name_uz, f'{shop[0]:g} kg')}"
+        kg = math.ceil(area * rate)
+        bags = max(1, math.ceil(kg / bag_kg))
+        lines.append(_make_line(
+            label=label, formula=f"{area:.1f} m² × {rate} kg/m² = {kg} kg → {bags} qop",
+            qty=bags, unit="qop", price_uzs=bag_price, category="shift_boyoq",
+            is_approximate=grunt_norm is None, warning=APPROXIMATE_NORM_NOTE if grunt_norm is None else None,
+            **(_shop(material) if shop else {}),
+        ))
+
+    paint = catalog.get("finish:boyoq")
+    if paint is not None:
+        lines.append(_paint_only_line(
+            paint, norms_map.get("boyoq"), area, [], is_approximate=True, warning=FINISH_STAND_IN_NOTE,
+            label_head=head, category="shift_boyoq",
+        ))
+    else:
+        line = _paint_only_line(
+            _PaintMaterialLike("", PAINT_FALLBACK_PRICE_PER_LITER_UZS), norms_map.get("boyoq"), area, [],
+            is_approximate=True, warning="Material tanlanmagan — taxminiy narx ishlatildi.",
+            label_head=head, category="shift_boyoq",
+        )
+        line.label = f"{head} (material tanlanmagan)"
+        lines.append(line)
+
+    work = int(load_tile_norms()["work_ceiling_paint_m2_uzs"])
+    qty = _round2(area)
+    lines.append(_make_line(
+        label="Ish: shiftni bo'yash", formula=f"{qty:.2f} m² × {work:,} so'm".replace(",", " "),
+        qty=qty, unit="m²", price_uzs=work, category="shift_boyoq",
+    ))
+    return lines
 
 
 def _ceiling_construction_lines(
@@ -1760,7 +3360,7 @@ def compute_estimate(
     has_any_paint = any(
         isinstance(c, dict) and c.get("kind") == "paint"
         for c in wall_coverings_state.values()
-    )
+    ) or bool(_tile_above_areas(room))
     # Same reasoning again for a custom-uploaded photo wallpaper ("texture"
     # kind) — it needs plaster/primer/putty under it exactly like oboy does,
     # even though its finish line itself can't be priced deterministically
@@ -1782,7 +3382,9 @@ def compute_estimate(
             lines.append(_plaster_line(room, norms_map, catalog.get("suvoq")))
         if idx < stage_index(STAGE_SHPAKLOVKA):
             lines.append(_grunt_line(room, norms_map, catalog.get("grunt")))
-            lines.append(_putty_line(room, norms_map, catalog.get("shpatlyovka")))
+            putty = _putty_line(room, norms_map, catalog.get("shpatlyovka"), sum(a for _, a in _tile_wall_areas(room)))
+            if putty is not None:
+                lines.append(putty)
 
     # ------------------------------------------------------------------ #
     # 1. Paint (boyoq) finish — triggered by EITHER a resolved boyoq       #
@@ -1836,6 +3438,10 @@ def compute_estimate(
     #     always emitted needing an AI price (see recompute_totals /      #
     #     app.services.smeta_ai for how the router backfills it).         #
     # ------------------------------------------------------------------ #
+    # A kitchen backsplash (spec 2026-11-14): its own lines; a tiled wall it covers is not tiled twice.
+    splash_lines, splash_tile_m2, splash_cover = _backsplash_lines(room, catalog or {})
+    tiled = [(wall, max(0.0, area - splash_cover.get(wall, 0.0))) for wall, area in _tile_wall_areas(room)]
+    wall_tile_m2 = sum(area for _, area in tiled)
     if has_any_texture:
         # A shop's wallpaper from the library is priced by the roll; a user's own photo
         # has no price and keeps the AI-priced placeholder.
@@ -1845,6 +3451,13 @@ def compute_estimate(
             if area <= 0 or url in priced_urls:
                 continue
             lines.append(_texture_line(url, area, wall_ids))
+        # Wall tile is a texture to the studio, but it is bought by the square metre.
+        if wall_tile_m2 > 0:
+            sizes = {key: _covering_tile_size(covering) for key, _, covering, _ in _tiled_walls(room)}
+            lines.append(_wall_tile_line(
+                wall_tile_m2, [wall for wall, area in tiled if area > 0], catalog,
+                [sizes.get(wall) for wall, area in tiled if area > 0],
+            ))
 
     # ------------------------------------------------------------------ #
     # 3. Floor covering — skipped entirely when floor_state is finished   #
@@ -1862,6 +3475,14 @@ def compute_estimate(
             if _float(room.floor_area) > 0:
                 lines.extend(_tile_lines(room, floor_mat, norms_map, catalog.get("plintus")))
 
+    # 3a. Tile work: adhesive, grout and laying, for the floor and wall tile together.
+    lines.extend(splash_lines)
+    lines.extend(_tile_work_lines(_floor_tile_area_m2(room, floor_mat, floor_already_done), wall_tile_m2, catalog, splash_tile_m2))
+    # 3a'. A bathroom is waterproofed whatever it is finished in.
+    lines.extend(_waterproofing_lines(room, catalog, floor_already_done))
+    # 3a''. An electric heated floor under the tile, when ticked (2026-11-18).
+    lines.extend(_heated_floor_lines(room, catalog or {}, floor_already_done))
+
     # ------------------------------------------------------------------ #
     # 3b. Ceiling construction — skipped entirely when ceiling_state is   #
     #     finished, same reasoning as floor_already_done above.           #
@@ -1871,6 +3492,7 @@ def compute_estimate(
     ceiling_already_done = ceiling_state == "tayyor"
     if not ceiling_already_done:
         lines.extend(_ceiling_construction_lines(room, norms_map, ceiling_catalog, set(picked)))
+        lines.extend(_ceiling_finish_lines(room, norms_map, ceiling_catalog, ceiling_state))
 
     # The cornice the studio draws (a choice of its own, made by the user or a ready-made
     # style), so it is listed whatever stage the ceiling itself is at.
@@ -1882,12 +3504,17 @@ def compute_estimate(
     # 4. Furniture ("jihoz") — every distinct item the user has placed     #
     # ------------------------------------------------------------------ #
     lines.extend(_furniture_lines(room, catalog))
+    # A towel rail the user picked from a shop (2026-11-15) prices the rails in place of the cheapest.
+    rail_picks = {k: v for k, v in picked.items() if k in ("sochiq_quritgich", "sochiq_quritgich_el")}
+    lines.extend(_plumbing_lines(room, {**catalog, **rail_picks}))
 
     # ------------------------------------------------------------------ #
     # 4b. Light fixtures — the purchase price of each placed light. Separate #
     #     from the electrical line below, which only prices the wiring.    #
     # ------------------------------------------------------------------ #
     lines.extend(_light_lines(room, catalog))
+    # 4b'. A bathroom's extractor fan, with the electrics but not of the wiring plan.
+    lines.extend(_fan_lines(room, catalog, norms_map))
 
     # ------------------------------------------------------------------ #
     # 5. Electrical — measured cable run when the room has a placed plan,  #
@@ -1895,6 +3522,8 @@ def compute_estimate(
     # ------------------------------------------------------------------ #
     elec_line = _electrical_line(room, norms_map, wiring_meters, catalog.get("kabel"))
     lines.append(elec_line)
+    # 5b. The devices on those points, and the work of fitting them.
+    lines.extend(_electrical_device_lines(room, catalog))
 
     # Totals — total_uzs is the FULL expected spend (exact + approximate).
     # Silently dropping approximate lines here used to understate the total

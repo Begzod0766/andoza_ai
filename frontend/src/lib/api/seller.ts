@@ -3,6 +3,7 @@ import type { FurnitureStyle } from "../furnitureStyles";
 import type { ModelYaw } from "../modelYaw";
 import type { AdminFurnitureCategory, AdminPlacement, AdminRoomType } from "./admin";
 import type { OrderLine, OrderStatus } from "./orders";
+import type { Wallpaper } from "./wallpapers";
 
 /** Where a shop or a model stands with the admins. Anything but "approved" is
  *  hidden from the public catalog. */
@@ -128,6 +129,47 @@ export async function deleteMyModel(id: string): Promise<void> {
   return apiClient<void>(`/seller/furniture/${id}`, { method: "DELETE" });
 }
 
+export interface UploadMyWallpaperInput {
+  file: File;
+  name: string;
+  priceUzs: number;
+  widthCm: number;
+  totalLengthM: number;
+}
+
+export async function listMyWallpapers(): Promise<Wallpaper[]> {
+  return apiClient<Wallpaper[]>("/seller/wallpapers");
+}
+
+/** Add an oboy to the caller's shop. It waits for an admin before it shows. */
+export async function uploadMyWallpaper(input: UploadMyWallpaperInput): Promise<Wallpaper> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("name", input.name);
+  form.append("price_uzs", String(input.priceUzs));
+  form.append("width_cm", String(input.widthCm));
+  form.append("total_length_m", String(input.totalLengthM));
+  return apiClient<Wallpaper>("/seller/wallpapers", { method: "POST", body: form });
+}
+
+/** Only the fields given are sent. Replacing the image is refused once approved. */
+export async function updateMyWallpaper(
+  id: string,
+  patch: Partial<UploadMyWallpaperInput>,
+): Promise<Wallpaper> {
+  const form = new FormData();
+  if (patch.file) form.append("file", patch.file);
+  if (patch.name !== undefined) form.append("name", patch.name);
+  if (patch.priceUzs !== undefined) form.append("price_uzs", String(patch.priceUzs));
+  if (patch.widthCm !== undefined) form.append("width_cm", String(patch.widthCm));
+  if (patch.totalLengthM !== undefined) form.append("total_length_m", String(patch.totalLengthM));
+  return apiClient<Wallpaper>(`/seller/wallpapers/${encodeURIComponent(id)}`, { method: "PATCH", body: form });
+}
+
+export async function deleteMyWallpaper(id: string): Promise<void> {
+  return apiClient<void>(`/seller/wallpapers/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 // ---------- Admin moderation ----------
 
 export interface PendingStore extends SellerStore {
@@ -160,13 +202,15 @@ export interface PendingQueue {
   furniture: PendingModel[];
   /** Absent on a server that predates self-service ustalar. */
   ustalar?: PendingUsta[];
+  /** Absent on a server that predates seller wallpapers. */
+  wallpapers?: Wallpaper[];
 }
 
 export async function getPendingQueue(): Promise<PendingQueue> {
   return apiClient<PendingQueue>("/admin/moderation/pending");
 }
 
-export type ModerationTarget = "stores" | "furniture" | "ustalar";
+export type ModerationTarget = "stores" | "furniture" | "ustalar" | "wallpapers";
 
 export async function approvePending(target: ModerationTarget, id: string): Promise<void> {
   return apiClient<void>(`/admin/moderation/${target}/${id}/approve`, { method: "POST" });

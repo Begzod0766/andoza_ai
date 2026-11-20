@@ -1,0 +1,104 @@
+import { describe, expect, it } from 'vitest'
+import type { RoomGeometry } from '@/store/types'
+import { CLEARANCE_CM, fixtureClearances, fixtureOverlaps, type ClearancePiece } from '@/lib/fixtureClearance'
+
+// Centred: A at z = −1 (x −1.25 → 1.25), B at x = 1.25, C at z = 1, D at x = −1.25.
+const geometry = { walls: [
+  { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
+  { id: 'C', length: 2500, elements: [] }, { id: 'D', length: 2000, elements: [] },
+] } as unknown as RoomGeometry
+
+const toilet: ClearancePiece = { id: 't', name: 'Unitaz', role: 'toilet', rect: { x: 0, z: -0.675, w: 0.4, d: 0.65, rotation: 0 } }
+const bath: ClearancePiece = { id: 'b', name: 'Vanna', role: 'bathtub', rect: { x: 0.4, z: -0.65, w: 1.7, d: 0.7, rotation: 0 } }
+const box = (id: string, x: number, z: number, w: number, d: number): ClearancePiece => ({ id, name: id, role: 'shelf', rect: { x, z, w, d, rotation: 0 } })
+
+describe('fixtureClearances (2026-11-18): the free floor in front of a toilet, bidet, bath or shower', () => {
+  it('the needs: 80 cm before a toilet or bidet, 70 before a bath or shower', () => {
+    expect(CLEARANCE_CM).toEqual({ toilet: 80, bidet: 80, bathtub: 70, shower: 70 })
+  })
+
+  it('a toilet facing an empty room: no warning', () => {
+    expect(fixtureClearances([toilet], geometry)).toEqual([])
+  })
+
+  it('a cabinet 25 cm in front of a toilet: a warning with the free depth', () => {
+    // The toilet's front is at z = −0.35; the cabinet's back at −0.1.
+    expect(fixtureClearances([toilet, box('Shkaf', 0, 0.1, 1.0, 0.4)], geometry)).toEqual([
+      { id: 't', name: 'Unitaz', role: 'toilet', freeCm: 25, needCm: 80 },
+    ])
+  })
+
+  it('something only partly in front of a toilet still takes its floor (the whole width must be free)', () => {
+    // Covers x 0.1..0.5: the toilet's right edge (0.2) is in front of it.
+    expect(fixtureClearances([toilet, box('Javon', 0.3, 0.1, 0.4, 0.4)], geometry)[0]?.freeCm).toBe(25)
+  })
+
+  it('a bath needs 70 cm somewhere along its front, 70 cm wide: a piece by one end does not count', () => {
+    // A box in front of the bath's left part (x −0.45..0.15), 10 cm off it; the right part is free to the wall.
+    expect(fixtureClearances([bath, box('Rakovina', -0.15, 0, 0.6, 0.4)], geometry)).toEqual([])
+    // Across the whole room 30 cm off it: nowhere.
+    expect(fixtureClearances([bath, box('Shkaf', 0, 0.3, 2.5, 0.6)], geometry)).toEqual([
+      { id: 'b', name: 'Vanna', role: 'bathtub', freeCm: 30, needCm: 70 },
+    ])
+  })
+
+  it('a free stretch exactly 70 cm wide is enough: a piece whose edge is at its end does not block it (2026-11-18, a real room)', () => {
+    // The bath is x −0.45..1.25; a shower box from x 0.25 leaves −0.45..0.25 free, 70 cm.
+    expect(fixtureClearances([bath, box('Dush', 0.75, 0.2, 1.0, 0.4)], geometry)).toEqual([])
+  })
+
+  it('a toilet turned to face along x measures along x', () => {
+    // Against D (x = −1.25), its front at x = −0.6; a box from x −0.25.
+    const turned: ClearancePiece = { ...toilet, rect: { x: -1.25 + 0.325, z: 0, w: 0.4, d: 0.65, rotation: Math.PI / 2 } }
+    expect(fixtureClearances([turned, box('Kir', 0, 0, 0.5, 0.5)], geometry)[0]?.freeCm).toBe(35)
+  })
+
+  it('a wall close in front: the room itself is too small', () => {
+    const narrow = { walls: [
+      { id: 'A', length: 2000, elements: [] }, { id: 'B', length: 1200, elements: [] },
+      { id: 'C', length: 2000, elements: [] }, { id: 'D', length: 1200, elements: [] },
+    ] } as unknown as RoomGeometry
+    // A at z = −0.6: the toilet's front at −0.6 + 0.65 = 0.05, C at 0.6.
+    const t = { ...toilet, rect: { ...toilet.rect, z: -0.6 + 0.325 } }
+    expect(fixtureClearances([t], narrow)[0]?.freeCm).toBe(55)
+  })
+
+  it('a rug lies on the floor: it does not take the free floor', () => {
+    expect(fixtureClearances([toilet, { id: 'g', name: 'Gilam', role: 'rug', rect: { x: 0, z: 0, w: 1, d: 1, rotation: 0 } }], geometry)).toEqual([])
+  })
+
+  it('a wall-hung toilet stands 20 cm off the wall on its box: that much less floor in front (2026-11-18)', () => {
+    const hung: ClearancePiece = { ...toilet, name: 'Osma unitaz' }
+    expect(fixtureClearances([hung, box('Shkaf', 0, 0.1, 1.0, 0.4)], geometry)[0]?.freeCm).toBe(5)
+  })
+
+  it('a door swinging in takes the floor it sweeps (2026-11-18)', () => {
+    // A 70 cm door in the middle of C (z = 1), opening into the room: its leaf sweeps to z = 0.3.
+    const withDoor = { walls: geometry.walls.map((w) => (w.id === 'C' ? { ...w, elements: [{ id: 'd', type: 'eshik', position: 900, width: 700, height: 2000 }] } : w)) } as unknown as RoomGeometry
+    const got = fixtureClearances([toilet], withDoor)[0]
+    expect(got?.needCm).toBe(80)
+    // The leaf's arc over the toilet's width comes to about 0.32 (the toilet's front at −0.35).
+    expect(got!.freeCm).toBeGreaterThanOrEqual(64)
+    expect(got!.freeCm).toBeLessThanOrEqual(69)
+  })
+})
+
+describe('fixtureOverlaps (mobile QA 2026-11-18)', () => {
+  const r = (x: number, z: number, w: number, d: number) => ({ x, z, w, d, rotation: 0 })
+  it('names each pair of pieces standing in each other, a fixture among them', () => {
+    expect(fixtureOverlaps([
+      { name: 'Vanna 5', role: 'bathtub', rect: r(0, 0, 1.7, 0.75) },
+      { name: 'Unitaz', role: 'toilet', rect: r(0.5, 0.5, 0.56, 0.7) },
+      { name: 'Rakovina 3', role: 'sink', rect: r(-0.5, 1.2, 0.41, 0.62) },
+    ])).toEqual([['Vanna 5', 'Unitaz']])
+  })
+  it('two pieces only touching, a rug, or furniture with no fixture are not named', () => {
+    expect(fixtureOverlaps([
+      { name: 'Vanna', role: 'bathtub', rect: r(0, 0, 1, 1) },
+      { name: 'Unitaz', role: 'toilet', rect: r(1, 0, 1, 1) },
+      { name: 'Gilam', role: 'rug', rect: r(0, 0, 3, 3) },
+      { name: 'Stol', role: 'dining_table', rect: r(5, 5, 1, 1) },
+      { name: 'Stul', role: 'dining_chair', rect: r(5.2, 5, 0.5, 0.5) },
+    ])).toEqual([])
+  })
+})

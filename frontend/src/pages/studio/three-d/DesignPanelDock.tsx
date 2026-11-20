@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
 import { DesignPanel } from "@/components/studio/DesignPanel";
 import type { Room } from "@/lib/api";
-import type { PhaseKey } from "@/lib/phases";
+import { isPlumbingPhase, type PhaseKey } from "@/lib/phases";
 import type { LightTypeId } from "@/lib/lightCatalog";
 
 /**
@@ -41,8 +41,12 @@ export function DesignPanelDock({
           the right half instead of covering the screen as a bottom sheet,
           specifically so the 3D view stays fully visible on the left half
           while it's open (the whole point is watching a material apply to
-          the wall live). Still catches a tap on that left half to close. */}
-      {showPanel && (
+          the wall live). Still catches a tap on that left half to close.
+          Not above a plumbing stage's bottom sheet (mobile QA 2026-11-18,
+          #299): there the riser, the towel rail and the machines are dragged
+          in the 3D while the sheet is open, and this layer took every touch;
+          that sheet closes with its own button. */}
+      {showPanel && !isPlumbingPhase(activePhase) && (
         <div
           className="lg:hidden fixed inset-0 z-40"
           onClick={() => setShowPanel(false)}
@@ -94,18 +98,25 @@ export function DesignPanelDock({
           instead so the 3D canvas on the left stays visible and live while
           picking a material — the actual point of this panel). */}
       <div
+        data-testid="design-panel-mobile"
         className={[
-          /* mobile base */
-          'fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card',
-          showPanel ? 'translate-x-0' : 'translate-x-full',
+          /* mobile base — the plumbing stages (Quvurlar, Jihozlar) are forms: from the bottom at full width, the 3D and
+             its pipe runs in view above (mobile QA 2026-11-09 #1); every other stage takes the right
+             half, so the wall being finished stays in view. */
+          isPlumbingPhase(activePhase)
+            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-hidden flex flex-col bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
+            : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full'}`,
           /* desktop override */
-          'lg:static lg:translate-x-0 lg:w-auto lg:h-full lg:shadow-none lg:z-auto lg:overflow-auto',
+          'lg:static lg:block lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto lg:border-l lg:border-line',
         ].join(' ')}
       >
         {/* Mobile close button — replaces the old drag-to-dismiss handle,
             which doesn't make sense for a side panel. Tapping the now-
             transparent backdrop on the left half also closes it. */}
-        <div className="lg:hidden flex justify-end p-2">
+        {/* In a plumbing stage's bottom sheet this bar stays put and only the body below it scrolls, so
+            the form never slides up under the rounded top (on iOS a sticky bar still let a row show
+            above it: mobile QA re-check 2026-11-12, #244). */}
+        <div className="lg:hidden shrink-0 flex justify-end p-2">
           <button
             onClick={() => setShowPanel(false)}
             aria-label={t('common.yopish')}
@@ -116,9 +127,18 @@ export function DesignPanelDock({
             </svg>
           </button>
         </div>
-        <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}
+        {isPlumbingPhase(activePhase) ? (
+          <div data-testid="design-panel-scroll"
+            className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)] lg:h-full lg:overflow-visible lg:pb-0">
+            <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}
+            selectedLightId={selectedLightId} onLightChange={selectLight}
+            armedLightType={armedLightType} onArmLight={setArmedLightType} planMode={planMode} />
+          </div>
+        ) : (
+          <DesignPanel room={room} phase={activePhase} selectedWall={selectedWall} onWallChange={setSelectedWall}
           selectedLightId={selectedLightId} onLightChange={selectLight}
           armedLightType={armedLightType} onArmLight={setArmedLightType} planMode={planMode} />
+        )}
       </div>
       </div>
       {/* Docked to the panel's left edge (mirrors the left rail's toggle,

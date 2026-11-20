@@ -20,6 +20,7 @@ import { ModelEditDialog } from "./ModelEditDialog";
 import { SellerModelCard } from "./SellerModelCard";
 import { SellerOrders } from "./SellerOrders";
 import { SellerModelFormDialog } from "./SellerModelFormDialog";
+import { SellerWallpapers } from "./SellerWallpapers";
 import { StatusBadge } from "./StatusBadge";
 import { StoreApplyForm } from "./StoreApplyForm";
 import { StoreEditDialog } from "./StoreEditDialog";
@@ -42,6 +43,7 @@ export default function SellerPage() {
   const [error, setError] = useState<FormError>(null);
   const [editingStore, setEditingStore] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [addingWallpaper, setAddingWallpaper] = useState(false);
   const [editingModel, setEditingModel] = useState<SellerModel | null>(null);
 
   const storeQuery = useQuery({ queryKey: STORE_KEY, queryFn: getMyStore });
@@ -171,8 +173,12 @@ export default function SellerPage() {
               </section>
             )}
 
+            {store.status === "approved" && (
+              <SellerWallpapers openNew={addingWallpaper} onOpenNewChange={setAddingWallpaper} />
+            )}
+
             <StoreEditDialog key={store.id + store.name} store={store} open={editingStore} onOpenChange={setEditingStore} onSaved={setStore} />
-            <SellerModelFormDialog open={uploading} onOpenChange={setUploading} />
+            <SellerModelFormDialog open={uploading} onOpenChange={setUploading} onAddWallpaper={() => setAddingWallpaper(true)} />
             {editingModel && (
               <ModelEditDialog
                 model={editingModel}

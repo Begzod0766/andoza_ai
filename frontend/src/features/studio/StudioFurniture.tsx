@@ -6,6 +6,8 @@
  * ThreeDPage.tsx, which was a 5300-line single file — this is a pure
  * code-motion extraction, not a rewrite.
  */
+import { useRoomKind, useRoomStages } from '@/features/studio/useStageView'
+import { drawnAt, furnitureStage } from '@/lib/stageView'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { formatDecimal } from '@/lib/utils'
 import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -23,6 +25,7 @@ import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { useInViewCard } from "./useInViewCard";
 import { showToast } from "@/components/ui/Toast";
 import { useTranslation } from "react-i18next";
+import { fixtureDisplayName } from "@/lib/fixtureName";
 import { intlLocale } from "@/i18n";
 import { SelectionOutline } from "./SelectionOutline";
 import type { PlacedFurniture, UserFurnitureEntry } from "@/store/roomStore";
@@ -42,7 +45,18 @@ import { nanoid } from "nanoid";
 import * as THREE from "three";
 import { toDiffuseOnly } from "@/lib/modelMaterials";
 import { ceilingFitScale } from "@/lib/modelSize"
+import { inferRole } from "@/lib/furnitureRole"
+import { wallHungShiftM } from "@/lib/bathroomBoxes"
+
+/** How far forward a placed piece is drawn off its place, metres (2026-11-18): a wall-hung toilet hangs on
+ * the front of its box (BathroomBoxes3D), so it is drawn that far off the wall; its saved place is unchanged. */
+function useDrawnShift(item: PlacedFurniture): number {
+  const row = useRoomStore((s) => s.catalogFurniture.find((c) => c.id === item.furniture_id))
+  const name = row?.name_uz ?? item.name ?? item.furniture_id
+  return wallHungShiftM(name, inferRole(row?.category ?? null, name))
+}
 import { turnedSize, yawRadians, type ModelYaw } from "@/lib/modelYaw";
+import { lengthStretch } from "@/lib/modelSize";
 import { furnitureRoomBounds, measuredFootprints } from "./furnitureNudge";
 
 // ─── Shared furniture entry (catalog + user-uploaded) ─────────────────────────
@@ -177,8 +191,17 @@ function applyColorOverrides(obj: THREE.Object3D, overrides: Record<string, stri
 
 // ─── Placed furniture renderer ────────────────────────────────────────────────
 
+/**
+ * The yaw group's own scale that stretches the model by `ls` along the placed piece's width: the
+ * scale is taken before the yaw turns it, so a model turned a quarter is stretched along its own z.
+ */
+function stretchAxes(ls: number, yaw: ModelYaw | undefined): [number, number, number] {
+  return yaw === 90 || yaw === 270 ? [1, 1, ls] : [ls, 1, 1]
+}
+
 export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   const entry = useFurnitureEntry(item.furniture_id)
+  const shift = useDrawnShift(item)
   const modelPath = entry?.modelPath ?? ''
   const { scene } = useGLTF(modelPath || '/models/table_boconcept_hauge.glb')
   // Only user-imported models are worth reporting on — catalog GLBs are known good
@@ -197,11 +220,12 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
 
   // Compute bottom offset ONCE per clone, before R3F touches the object's position.
   // Storing scale-independent value so it stays correct when scaleOverride changes.
-  const { yOffUnit, rawHeight, rootAt } = useMemo(() => {
+  const { yOffUnit, rawHeight, rootAt, rawW, rawD } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(cloned)
     const ok = isFinite(box.min.y)
     return {
       yOffUnit: ok ? -box.min.y : 0, rawHeight: ok ? box.max.y - box.min.y : 0,
+      rawW: ok ? box.max.x - box.min.x : 0, rawD: ok ? box.max.z - box.min.z : 0,
       rootAt: footprintCentredRoot(cloned, box),
     }
   }, [cloned]);
@@ -222,6 +246,7 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
   if (!entry || !modelPath) return null;
   // Never through the ceiling: the model's own scale is brought under it (QA 2026-11-05 #3).
   const s = ceilingFitScale(autoScale ?? entry.scale, rawHeight, ceilingHeight) * (item.scaleOverride ?? 1);
+  const ls = lengthStretch(item.lengthCm, turnedSize({ w: rawW, d: rawD }, entry.modelYaw ?? 0).w * s);
   // The model's own yaw turns it to face the room first; the placement's
   // rotation turns it from there. Bottom alignment is unaffected: a turn
   // about Y leaves box.min.y where it was.
@@ -231,7 +256,8 @@ export function FurnitureItem({ item }: { item: PlacedFurniture }) {
       rotation={[0, item.rotation, 0]}
       scale={s}
     >
-      <group rotation={[0, yawRadians(entry.modelYaw), 0]}>
+      {/* Drawn off its place by `shift` (a wall-hung toilet on its box); the yaw turns it about its own middle. */}
+      <group position={[0, 0, shift / s]} rotation={[0, yawRadians(entry.modelYaw), 0]} scale={stretchAxes(ls, entry.modelYaw)}>
         <primitive object={cloned} position={rootAt} />
       </group>
     </group>
@@ -304,6 +330,7 @@ export function DraggableFurnitureItem({
 }) {
   const { t } = useTranslation()
   const entry = useFurnitureEntry(item.furniture_id)
+  const shift = useDrawnShift(item)
   const modelPath = entry?.modelPath ?? ''
   const { scene } = useGLTF(modelPath || '/models/table_boconcept_hauge.glb')
   // Only user-imported models are worth reporting on — catalog GLBs are known good
@@ -444,8 +471,8 @@ export function DraggableFurnitureItem({
   useEffect(() => {
     if (!entry) return
     const s = effScale * (item.scaleOverride ?? 1)
-    onFootprint(item.id, geomHW * s, geomHD * s)
-  }, [item.id, geomHW, geomHD, entry, effScale, item.scaleOverride, onFootprint])
+    onFootprint(item.id, geomHW * s * lengthStretch(item.lengthCm, geomHW * 2 * s), geomHD * s)
+  }, [item.id, geomHW, geomHD, entry, effScale, item.scaleOverride, item.lengthCm, onFootprint])
 
   useLayoutEffect(() => {
     if (!item.colorOverrides || Object.keys(item.colorOverrides).length === 0) return
@@ -523,7 +550,8 @@ export function DraggableFurnitureItem({
   const modelH = entry.autoScale ? geomHH * 2 * s : (entry.sizeM.h ?? 1) * so
   const buttonH = modelH + 0.18
   const btnActive = isDragging
-  const fw = geomHW * s * 2   // actual footprint width
+  const ls = lengthStretch(item.lengthCm, geomHW * 2 * s)
+  const fw = geomHW * s * 2 * ls   // actual footprint width
   const fd = geomHD * s * 2   // actual footprint depth
   // In 'select' mode, an already-selected item is directly draggable (see
   // startDragFromMesh) — 'grab' signals that, same as 'move' mode; a
@@ -537,7 +565,8 @@ export function DraggableFurnitureItem({
   return (
     <group ref={groupRef} position={[item.x / 1000, 0, item.y / 1000]}>
       <group ref={primitiveRef} position={[0, yOff, 0]} rotation={[0, item.rotation, 0]} scale={s}>
-        <group rotation={[0, yawRadians(modelYaw), 0]}>
+        {/* A kitchen set cut to its wall: stretched along its width only (prod e2e 2026-11-18). */}
+        <group position={[0, 0, shift / s]} rotation={[0, yawRadians(modelYaw), 0]} scale={stretchAxes(ls, modelYaw)}>
           <primitive
             object={cloned}
             position={rootAt}
@@ -604,7 +633,9 @@ export function DraggableFurnitureItem({
           same frame loop while a live scale drag is in flight. */}
       {isSelected && (
         <group ref={selRef} rotation={[0, item.rotation, 0]}>
-          <SelectionOutline object={cloned} scale={s} position={[0, yOff, 0]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
+          <group scale={[ls, 1, 1]}>
+            <SelectionOutline object={cloned} scale={s} position={[0, yOff, shift]} rotationY={yawRadians(modelYaw)} rootAt={rootAt} />
+          </group>
         </group>
       )}
       {toolMode === 'move' && (
@@ -688,7 +719,7 @@ export function DraggableFurnitureItem({
               boxShadow: '0 6px 20px rgba(0,0,0,.18)', whiteSpace: 'nowrap', textAlign: 'center',
             }}
           >
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#111827' }}>{displayInfo.name}</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#111827' }}>{fixtureDisplayName(displayInfo.name, t)}</p>
             <p style={{ margin: '2px 0 0', fontSize: 11, color: '#6B7280' }}>
               {formatDecimal(fw, 2)} × {formatDecimal(fd, 2)} m
               {displayInfo.priceUzs != null && ` · ${t('studio.shared.price_som', { price: displayInfo.priceUzs.toLocaleString(intlLocale()) })}`}
@@ -725,6 +756,9 @@ export function DraggableFurnitureModels({
   const furniture = useRoomStore((s) => s.furniture)
   const userFurniture = useRoomStore((s) => s.userFurniture)
   const catalogFurniture = useRoomStore((s) => s.catalogFurniture)
+  const viewStage = useRoomStore((s) => s.viewStage)
+  const roomKind = useRoomKind()
+  const roomStages = useRoomStages()
   const moveFurniture = useRoomStore((s) => s.moveFurniture)
   const resizeFurniture = useRoomStore((s) => s.resizeFurniture)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -788,6 +822,14 @@ export function DraggableFurnitureModels({
     footprintsRef.current.set(id, { hw, hd })
   }, [])
 
+  /** At a stage (spec 2026-11-18): a bathroom's fixtures from Jihozlar, everything else from Mebel. */
+  function drawnHere(item: { furniture_id: string; name?: string }): boolean {
+    if (viewStage === 'full') return true
+    const row = catalogFurniture.find((f) => f.id === item.furniture_id)
+    const stage = furnitureStage(row?.name_uz ?? item.name ?? item.furniture_id, row?.category, roomKind)
+    return drawnAt(stage, viewStage, roomStages)
+  }
+
   function resolveEntry(furnitureId: string): AnyFurnitureEntry | undefined {
     return (
       FURNITURE_CATALOG.find((f) => f.id === furnitureId) ??
@@ -806,7 +848,7 @@ export function DraggableFurnitureModels({
     const row = catalogFurniture.find((f) => f.id === item.furniture_id)
     const so = item.scaleOverride ?? 1
     return placeholderSize(
-      (entry?.sizeM.w ?? 0) * so,
+      item.lengthCm && item.lengthCm > 0 ? item.lengthCm / 100 : (entry?.sizeM.w ?? 0) * so,
       (entry?.sizeM.d ?? 0) * so,
       (row?.height_cm ? row.height_cm / 100 : entry?.sizeM.h ?? 0) * so,
     )
@@ -1102,7 +1144,7 @@ export function DraggableFurnitureModels({
           deleted from the library — must render NOTHING. Drawing it anyway
           made it fall through to the catalog fallback model below, leaving a
           phantom table set standing where the deleted furniture had been. */}
-      {furniture.filter((item) => !!resolveEntry(item.furniture_id)).map((item) => (
+      {furniture.filter((item) => !!resolveEntry(item.furniture_id) && drawnHere(item)).map((item) => (
         <Suspense
           key={item.id}
           fallback={

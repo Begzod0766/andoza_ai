@@ -6,6 +6,9 @@ import WizardPage from './WizardPage'
 import { useRoomStore } from '@/store/roomStore'
 import { applyLanguage } from '@/i18n'
 import ru from '@/i18n/locales/ru.json'
+import uz from '@/i18n/locales/uz.json'
+
+const UZ_ROOM_TYPES = uz.rooms.type
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -275,6 +278,22 @@ describe('WizardPage – Step 5 (Results)', () => {
     expect(vi.mocked(createRoom).mock.calls[0][1]).toMatchObject({ room_type: 'yotoqxona' })
   })
 
+  it('a room of a picked type is named by it, not "Xona" (kitchen QA 2026-11-18 K10)', async () => {
+    const { createRoom } = await import('@/lib/api')
+    vi.mocked(createRoom).mockClear()
+    renderWizard()
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'oshxona' } })
+    for (let i = 0; i < 5; i++) {
+      await waitFor(() => screen.getByText('Keyingi'))
+      fireEvent.click(screen.getByText('Keyingi'))
+    }
+    await waitFor(() => expect(createRoom).toHaveBeenCalled())
+    expect(vi.mocked(createRoom).mock.calls[0][1]).toMatchObject({ room_type: 'oshxona', name: UZ_ROOM_TYPES.oshxona })
+    // The store keeps it too (kitchen re-check 2026-11-19 R2): the studio opens on this store and its
+    // autosave wrote the store's default name over the room's.
+    expect(useRoomStore.getState().name).toBe(UZ_ROOM_TYPES.oshxona)
+  })
+
   it('calls createApartment and createRoom on step 5', async () => {
     const { createApartment, createRoom } = await import('@/lib/api')
     renderWizard()
@@ -374,5 +393,94 @@ describe('WizardPage in Russian', () => {
     fireEvent.click(screen.getByText(ru.wizard.keyingi))
     await waitFor(() => expect(screen.getByText(ru.wizard.pol_maydoni)).toBeTruthy())
     expect(screen.getByText(ru.wizard.devor_maydoni)).toBeTruthy()
+  })
+})
+
+// ─── A new room starts from a new room (prod 2026-11-08) ──────────────────────
+// "Enter dimensions" opened the wizard on the last room's 6-wall geometry left in localStorage:
+// W1..W6, wall A 7.4 m for a bathroom, wall C 5.4 m — and no "resume?" question.
+
+const SIX_WALLS = {
+  walls: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].map((id, i) => ({ id, length: [7400, 3000, 5400, 2000, 2000, 1000][i], elements: [] })),
+  vertices: [[0, 0], [7400, 0], [7400, 3000], [2000, 3000], [2000, 5000], [0, 5000]],
+}
+const renderAt = (path: string) => render(<MemoryRouter initialEntries={[path]}><WizardPage /></MemoryRouter>)
+const lengths = () => useRoomStore.getState().geometry.walls.map((w) => `${w.id}${w.length}`).join(' ')
+
+describe('WizardPage – a new room does not inherit the last room', () => {
+  it('opened from the menu with no draft, it starts from a fresh 4-wall room', async () => {
+    useRoomStore.setState({ geometry: SIX_WALLS as never, furniture: [{ id: 'f' } as never], ceilingHeight: 3100 })
+    renderAt('/wizard')
+    await waitFor(() => expect(lengths()).toBe('A4000 B3000 C4000 D3000'))
+    expect(useRoomStore.getState().furniture).toEqual([])
+  })
+
+  it('with a draft not yet past the first step, it starts fresh too', async () => {
+    useRoomStore.setState({ geometry: SIX_WALLS as never, draftId: 'draft-1' })
+    renderAt('/wizard')
+    await waitFor(() => expect(lengths()).toBe('A4000 B3000 C4000 D3000'))
+    expect(useRoomStore.getState().draftId).toBe('draft-1')
+  })
+
+  it.each(['/wizard?from=draw', '/wizard?from=scan'])('a drawn or scanned room handed over (%s) is kept', async (path) => {
+    useRoomStore.setState({ geometry: SIX_WALLS as never })
+    renderAt(path)
+    await new Promise((r) => setTimeout(r, 50))
+    expect(useRoomStore.getState().geometry.walls).toHaveLength(6)
+  })
+})
+
+describe('WizardPage – in a rectangle, C follows A and D follows B', () => {
+  async function toWall(name: string) {
+    fireEvent.click(screen.getByText('Keyingi'))
+    await waitFor(() => expect(screen.getByRole('heading', { name })).toBeTruthy())
+  }
+  const wall = (id: string) => useRoomStore.getState().geometry.walls.find((w) => w.id === id)!.length
+
+  it('setting A and B sets C and D while they still match', async () => {
+    renderAt('/wizard')
+    await toWall('A devor')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2.5' } })
+    expect(wall('A')).toBe(2500)
+    expect(wall('C')).toBe(2500)
+    await toWall('B devor')
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } })
+    expect(wall('D')).toBe(2000)
+  })
+
+  it('a C the user set apart is left alone', async () => {
+    useRoomStore.setState({ geometry: { walls: [
+      { id: 'A', length: 4000, elements: [] }, { id: 'B', length: 3000, elements: [] },
+      { id: 'C', length: 3500, elements: [] }, { id: 'D', length: 3000, elements: [] },
+    ] } as never, draftId: 'draft-1' })
+    const api = await import('@/lib/api')
+    vi.mocked(api.getDraftRoom).mockResolvedValueOnce({ id: 'draft-1', state: { wizardStep: 1, geometry: useRoomStore.getState().geometry }, created_at: '', updated_at: '' } as never)
+    renderAt('/wizard')
+    fireEvent.click(await screen.findByText(/davom etish/i))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'A devor' })).toBeTruthy())
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2.5' } })
+    expect(wall('C')).toBe(3500)
+  })
+})
+
+describe('WizardPage – the walls start at the picked room type’s size (2026-11-15)', () => {
+  it('picking a bathroom on a new room makes it 2.5 × 2 m; a kitchen then 3 × 3', async () => {
+    renderAt('/wizard')
+    await waitFor(() => expect(lengths()).toBe('A4000 B3000 C4000 D3000'))
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'hammom' } })
+    await waitFor(() => expect(lengths()).toBe('A2500 B2000 C2500 D2000'))
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'oshxona' } })
+    await waitFor(() => expect(lengths()).toBe('A3000 B3000 C3000 D3000'))
+  })
+
+  it('walls already set are kept when the type is picked', async () => {
+    useRoomStore.setState({ geometry: { walls: [
+      { id: 'A', length: 3200, elements: [] }, { id: 'B', length: 2100, elements: [] },
+      { id: 'C', length: 3200, elements: [] }, { id: 'D', length: 2100, elements: [] },
+    ] } as never })
+    renderAt('/wizard?from=draw')
+    fireEvent.change(screen.getByLabelText('Xona turi'), { target: { value: 'hammom' } })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(lengths()).toBe('A3200 B2100 C3200 D2100')
   })
 })

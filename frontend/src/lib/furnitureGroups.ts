@@ -789,6 +789,8 @@ function placeExtra(ctx: Ctx, pieces: Piece[]): GroupCandidate[] {
 
 const PLACERS: Record<GroupId, (ctx: Ctx, pieces: Piece[]) => GroupCandidate[]> = {
   lounge: placeLounge, dining: placeDining, sleep: placeSleep, work: placeWork, storage: placeStorage, extra: placeExtra,
+  // Plumbing fixtures stand against walls like storage in an AI layout; the studio's add flow has its own rules (placement.ts).
+  plumbing: placeStorage,
 }
 
 export interface GroupOptions {

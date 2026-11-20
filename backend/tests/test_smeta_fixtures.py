@@ -187,7 +187,7 @@ def test_1_simple_paint_laminate(boyoq_norm, laminat_norm, paint_mat, laminat_ma
     assert cats.count("laminat") == 1
     assert cats.count("plintus") == 1
     assert cats.count("elektr") == 1
-    assert len(est.lines) == 7
+    assert len(est.lines) == 10  # + the ceiling's primer, paint and work (2026-11-18)
 
     # Spot-check paint qty: ceil(37.8 * 2 / 9.0) = ceil(8.4) = 9 liters
     paint_line = next(ln for ln in est.lines if ln.category == "boyoq")
@@ -221,7 +221,7 @@ def test_2_paint_laminate_with_openings(boyoq_norm, laminat_norm, paint_mat, lam
     est = compute_estimate(room, mats, norms)
 
     # Defaults to "xom" → +1 line (suvoq) versus the pre-stage-gating count
-    assert len(est.lines) == 7
+    assert len(est.lines) == 10  # + the ceiling's primer, paint and work (2026-11-18)
     assert any(ln.category == "suvoq" for ln in est.lines)
 
     # Spot-check paint: ceil(34.11 * 2 / 9.0) = ceil(7.58) = 8 liters
@@ -263,7 +263,9 @@ def test_3_oboy_all_damask_tile(oboy_norm, tile_mat, oboy_mat):
     # (Fix 8: tile floors now get a plinth line too, same as laminate)
     assert sum(1 for ln in est.lines if ln.category in ("suvoq", "grunt", "shpatlyovka")) == 3
     assert any(ln.category == "plintus" for ln in est.lines)
-    assert len(est.lines) == 10
+    # A tile floor also brings adhesive, grout and the laying work (spec 2026-11-10): +3
+    assert sum(1 for ln in est.lines if ln.category == "plitka_ish") == 3
+    assert len(est.lines) == 16  # + the ceiling's primer, paint and work (2026-11-18)
 
     # Wall A: 5.0 * 2.7 = 13.5, waste=13.5*1.15=15.525, rolls=ceil(15.525/10.653)=2
     wall_a = next(ln for ln in oboy_lines if "devor A" in ln.label)
@@ -317,7 +319,7 @@ def test_4_mixed_oboy_paint_laminate(boyoq_norm, laminat_norm, oboy_norm, paint_
     # Laminat + plintus + elektr
     assert any(ln.category == "laminat" for ln in est.lines)
     # Total: suvoq(1) + 2 oboy + 3 paint(boyoq/grunt/shpatlyovka) + 2 laminat/plintus + 1 elektr = 9
-    assert len(est.lines) == 9
+    assert len(est.lines) == 12  # + the ceiling's primer, paint and work (2026-11-18)
 
     # Fix 2: the paint litre count must only cover walls B+D (paint), NOT
     # room.net_wall_area (48.6, all 4 walls) — that would double-count A+C,
@@ -360,7 +362,7 @@ def test_5_oboy_tekstura_no_floor(oboy_norm, oboy_mat):
     # No floor material, but a raw ("xom") wallpapered room still needs
     # suvoq+grunt+shpatlyovka prep → 3 + oboy(4) + elektr(1) = 8 lines
     assert sum(1 for ln in est.lines if ln.category in ("suvoq", "grunt", "shpatlyovka")) == 3
-    assert len(est.lines) == 8
+    assert len(est.lines) == 11  # + the ceiling's primer, paint and work (2026-11-18)
 
 
 # ---------------------------------------------------------------------------
@@ -423,7 +425,7 @@ def test_7_minimal_paint_no_floor(boyoq_norm, paint_mat):
     est = compute_estimate(room, mats, norms)
 
     # suvoq + boyoq + grunt + shpatlyovka + elektr = 5 lines (defaults to "xom")
-    assert len(est.lines) == 5
+    assert len(est.lines) == 8  # + the ceiling's primer, paint and work (2026-11-18)
     assert sum(1 for ln in est.lines if ln.category == "suvoq") == 1
     assert sum(1 for ln in est.lines if ln.category == "boyoq") == 1
     assert sum(1 for ln in est.lines if ln.category == "elektr") == 1
@@ -453,7 +455,9 @@ def test_8_large_tile_paint(boyoq_norm, plitka_norm, paint_mat, tile_mat):
 
     # suvoq + boyoq + grunt + shpatlyovka + plitka + plintus + elektr = 7
     # (Fix 8: tile floors now get a plinth line too, same as laminate)
-    assert len(est.lines) == 7
+    # A tile floor also brings adhesive, grout and the laying work (spec 2026-11-10): +3
+    assert sum(1 for ln in est.lines if ln.category == "plitka_ish") == 3
+    assert len(est.lines) == 13  # + the ceiling's primer, paint and work (2026-11-18)
     assert sum(1 for ln in est.lines if ln.category == "suvoq") == 1
     assert sum(1 for ln in est.lines if ln.category == "plintus") == 1
 
@@ -535,7 +539,7 @@ def test_10_paint_only_no_floor(boyoq_norm, paint_mat):
     est = compute_estimate(room, mats, norms)
 
     # suvoq + boyoq + grunt + shpatlyovka + elektr = 5, no floor lines (defaults to "xom")
-    assert len(est.lines) == 5
+    assert len(est.lines) == 8  # + the ceiling's primer, paint and work (2026-11-18)
     assert not any(ln.category in ("laminat", "plitka", "plintus") for ln in est.lines)
 
 
@@ -560,7 +564,9 @@ def test_11_tile_floor_no_wall_material(plitka_norm, tile_mat):
     est = compute_estimate(room, mats, norms)
 
     # plitka + plintus + elektr = 3 (Fix 8: tile now gets a plinth line too)
-    assert len(est.lines) == 3
+    # A tile floor also brings adhesive, grout and the laying work (spec 2026-11-10): +3
+    assert sum(1 for ln in est.lines if ln.category == "plitka_ish") == 3
+    assert len(est.lines) == 9  # + the ceiling's primer, paint and work (2026-11-18)
     assert any(ln.category == "plitka" for ln in est.lines)
     assert any(ln.category == "plintus" for ln in est.lines)
 
@@ -609,7 +615,7 @@ def test_12_oboy_bolalar_laminat(oboy_norm, laminat_norm, oboy_mat, laminat_mat)
     # Wallpaper-only room defaults to "xom" → suvoq+grunt+shpatlyovka(3) +
     # oboy(4) + laminat(1) + plintus(1) + elektr(1) = 10
     assert sum(1 for ln in est.lines if ln.category in ("suvoq", "grunt", "shpatlyovka")) == 3
-    assert len(est.lines) == 10
+    assert len(est.lines) == 13  # + the ceiling's primer, paint and work (2026-11-18)
 
 
 # ---------------------------------------------------------------------------
@@ -635,7 +641,7 @@ def test_13_paint_only_high_ceiling(boyoq_norm, paint_mat):
     est = compute_estimate(room, mats, norms)
 
     # Defaults to "xom" → suvoq + boyoq + grunt + shpatlyovka + elektr = 5
-    assert len(est.lines) == 5
+    assert len(est.lines) == 8  # + the ceiling's primer, paint and work (2026-11-18)
     assert sum(1 for ln in est.lines if ln.category == "suvoq") == 1
 
     # Paint: ceil(36.0 * 2 / 9.0) = ceil(8.0) = 8 liters
@@ -715,7 +721,7 @@ def test_15_plinth_reduced_by_doors(boyoq_norm, laminat_norm, paint_mat, laminat
 
     # Defaults to "xom" → suvoq(1) + boyoq+grunt+shpatlyovka(3) + laminat+plintus(2) + elektr(1) = 7
     assert sum(1 for ln in est.lines if ln.category == "suvoq") == 1
-    assert len(est.lines) == 7
+    assert len(est.lines) == 10  # + the ceiling's primer, paint and work (2026-11-18)
 
 
 # ---------------------------------------------------------------------------

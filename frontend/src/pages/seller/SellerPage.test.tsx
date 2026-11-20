@@ -20,6 +20,10 @@ const api = vi.hoisted(() => ({
   fetchPhotoModelGlb: vi.fn(),
   listMyOrders: vi.fn(),
   advanceMyOrder: vi.fn(),
+  listMyWallpapers: vi.fn(),
+  uploadMyWallpaper: vi.fn(),
+  updateMyWallpaper: vi.fn(),
+  deleteMyWallpaper: vi.fn(),
 }))
 vi.mock('@/lib/api', () => ({
   ...Object.fromEntries(Object.entries(api).map(([k, v]) => [k, (...a: unknown[]) => v(...a)])),
@@ -63,6 +67,7 @@ function renderPage() {
 beforeEach(() => {
   Object.values(api).forEach((f) => f.mockReset())
   api.listMyOrders.mockResolvedValue([])
+  api.listMyWallpapers.mockResolvedValue([])
 })
 
 describe('SellerPage', () => {
@@ -90,6 +95,7 @@ describe('SellerPage', () => {
     await screen.findByText(/Arizangiz ko'rib chiqilmoqda\. Tasdiqlangach/)
     expect(screen.queryByRole('button', { name: /Yangi model/ })).toBeNull()
     expect(api.listMyModels).not.toHaveBeenCalled()
+    expect(api.listMyWallpapers).not.toHaveBeenCalled()
   })
 
   it('shows why a shop was rejected and lets the seller send it again', async () => {
@@ -293,5 +299,22 @@ describe('model styles', () => {
     renderPage()
     fireEvent.click(await screen.findByTitle('Tahrirlash'))
     expect(await screen.findByText('Hamma uslubga mos')).toBeInTheDocument()
+  })
+
+  it('lists the wallpapers below the models, and the model dialog links to adding one', async () => {
+    api.getMyStore.mockResolvedValue(store())
+    api.listMyModels.mockResolvedValue({ total: 0, page: 1, per_page: 100, items: [] })
+    api.listMyWallpapers.mockResolvedValue([{
+      id: 'w1', name: 'Klassik gul', kind: 'oboy', store_id: 's1', store_name: null, price_uzs: 120000, description: null,
+      width_cm: 106, height_cm: null, total_length_m: 10, url: 'u', content_type: 'image/jpeg', size_bytes: 1,
+      created_at: '2026-11-15', status: 'pending', moderation_note: null,
+    }])
+    renderPage()
+    expect(await screen.findByText('Klassik gul')).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: /Yangi model/ }))
+    expect(await screen.findByText("Oboy qo'shmoqchimisiz?")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: "Oboy qo'shish" }))
+    expect(await screen.findByText('Yangi oboy')).toBeInTheDocument()
+    expect(screen.queryByText("Oboy qo'shmoqchimisiz?")).toBeNull()
   })
 })

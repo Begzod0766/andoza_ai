@@ -49,3 +49,78 @@ describe('the arc menu furniture by room', () => {
     expect(mebel().items![0].key).toBe('room:mehmonxona')
   })
 })
+
+describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)', () => {
+  it('a bathroom has it: its fixtures, and "add point" opening Quvurlar', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const cat = result.current.find((c) => c.key === 'jihozlar')!
+    expect(cat.label).toBe('Jihozlar')
+    expect(cat.items!.map((i) => i.key)).toEqual(['sx:vanna', 'sx:panel', 'sx:add'])
+    cat.items!.find((i) => i.key === 'sx:add')!.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('quvurlar')
+  })
+
+  it('opens the Jihozlar panel too, the only way to it on a phone (QA 2026-11-18)', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const panel = result.current.find((c) => c.key === 'jihozlar')!.items!.find((i) => i.key === 'sx:panel')!
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('jihozlar')
+  })
+
+  it('a living room does not', () => {
+    useRoomStore.setState({ roomType: 'mehmonxona', name: 'Zal' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt: () => {} }), { wrapper })
+    expect(result.current.find((c) => c.key === 'jihozlar')).toBeUndefined()
+  })
+})
+
+describe('the arc menu Floor category', () => {
+  it('ends with the Pol panel, where the heated floor is (QA 2026-11-18)', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const items = result.current.find((c) => c.key === 'pol')!.items!
+    const panel = items[items.length - 1]
+    expect(panel.key).toBe('pol:panel')
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('pol')
+  })
+})
+
+describe('the arc menu Montaj category (mobile QA 2026-11-19, #345 1)', () => {
+  it('opens the Montaj panel, the list of sockets and switches: a phone had no way to it', () => {
+    useRoomStore.setState({ roomType: 'oshxona', name: 'Oshxona' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const panel = result.current.find((c) => c.key === 'montaj')!.items!.find((i) => i.key === 'montaj:panel')!
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('montaj')
+  })
+})
+
+describe('the arc menu Rang category (mobile QA 2026-11-19, #350 2)', () => {
+  it('ends with the paint panel, where the shop\'s wall paints are: a phone had no way to them', () => {
+    useRoomStore.setState({ roomType: 'oshxona', name: 'Oshxona' })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const openPanelAt = vi.fn()
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
+    const items = result.current.find((c) => c.key === 'rang')!.items!
+    const panel = items[items.length - 1]
+    expect(panel.key).toBe('rang:panel')
+    expect(panel.closesMenu).toBe(true)
+    panel.onSelect()
+    expect(openPanelAt).toHaveBeenCalledWith('boyoq')
+  })
+})

@@ -28,7 +28,7 @@ const USTA_TRADES: Record<string, TKey> = {
 };
 
 /** What sellers have submitted and is waiting for a decision: shop applications,
- *  craftsman (usta) applications and uploaded 3D models. Approving makes it live; rejecting needs a reason the
+ *  craftsman (usta) applications and uploaded 3D models and shops' wallpapers. Approving makes it live; rejecting needs a reason the
  *  seller will see. */
 export function ModerationQueue({ onError }: { onError: (msg: FormError) => void }) {
   const { t } = useTranslation();
@@ -43,6 +43,8 @@ export function ModerationQueue({ onError }: { onError: (msg: FormError) => void
     // whose active flags the decision just changed. Once is enough; listing
     // KEY separately as well fetched the queue twice.
     queryClient.invalidateQueries({ queryKey: ["admin"] });
+    // The admin wallpaper library (WallpaperSection) lists every status.
+    queryClient.invalidateQueries({ queryKey: ["wallpapers"] });
   };
 
   const approve = useMutation({
@@ -63,7 +65,8 @@ export function ModerationQueue({ onError }: { onError: (msg: FormError) => void
   const stores = queue.data?.stores ?? [];
   const models = queue.data?.furniture ?? [];
   const ustalar = queue.data?.ustalar ?? [];
-  const total = stores.length + models.length + ustalar.length;
+  const wallpapers = queue.data?.wallpapers ?? [];
+  const total = stores.length + models.length + ustalar.length + wallpapers.length;
   if (queue.isLoading || total === 0) return null;
 
   return (
@@ -125,6 +128,22 @@ export function ModerationQueue({ onError }: { onError: (msg: FormError) => void
           </div>
           <Button size="sm" onClick={() => approve.mutate({ target: "furniture", id: m.id })} disabled={approve.isPending}>{t("common.tasdiqlash")}</Button>
           <Button size="sm" variant="tertiary" onClick={() => setRejecting({ target: "furniture", id: m.id, label: m.name_uz })}>{t("dokon.mod.reject")}</Button>
+        </Card>
+      ))}
+
+      {wallpapers.map((w) => (
+        <Card key={w.id} size="sm" className="flex items-center gap-3">
+          <img src={w.url} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover border border-line" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-ink truncate">{w.name}</p>
+            <p className="text-xs text-ink-muted truncate">
+              {w.store_name ?? "—"}
+              {w.price_uzs != null ? ` · ${t("seller.wallpapers.price_roll", { price: w.price_uzs.toLocaleString(intlLocale()) })}` : ""}
+              {w.width_cm != null && w.total_length_m != null ? ` · ${t("seller.wallpapers.size", { w: w.width_cm, l: w.total_length_m })}` : ""}
+            </p>
+          </div>
+          <Button size="sm" onClick={() => approve.mutate({ target: "wallpapers", id: w.id })} disabled={approve.isPending}>{t("common.tasdiqlash")}</Button>
+          <Button size="sm" variant="tertiary" onClick={() => setRejecting({ target: "wallpapers", id: w.id, label: w.name })}>{t("dokon.mod.reject")}</Button>
         </Card>
       ))}
 

@@ -207,7 +207,7 @@ function LinkCard({
   title, text, action, to, tone, icon,
 }: { title: string; text: string; action: string; to: string; tone: "orange" | "violet"; icon: React.ReactNode }) {
   const navigate = useNavigate();
-  const glow = tone === "orange" ? "bg-orange-400/25" : "bg-violet-500/25";
+  const glow = tone === "orange" ? "bg-orange/25" : "bg-violet-500/25";
   return (
     <BentoCard>
       {/* A soft colour in the corner, so the card has a face and is not a white slab with a button. */}
