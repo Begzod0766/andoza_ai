@@ -7,6 +7,7 @@ import type { Material, Order } from "@/lib/api";
 import { errorMessage } from "./admin/errorMessage";
 import { formatWhen, nextOrdersPage } from "@/lib/orderStatus";
 import { useAuthStore } from "@/store/authStore";
+import { useGuestGate } from "@/lib/guestGate";
 import {
   S1_ShopHome,
   S2_ProjectMaterials,
@@ -80,6 +81,8 @@ export default function DokonPage() {
   // Admin-only catalog management (create shops, upload 3D models) — a
   // separate surface from the customer-facing marketplace screens below.
   const isAdmin = useAuthStore((s) => s.user)?.is_admin === true;
+  // Ordering needs an account: a guest of the app is asked to sign up at checkout.
+  const { gate, promptIfRequired } = useGuestGate();
 
   // Navigation
   const [screen, setScreen] = useState<Screen>("shop");
@@ -239,6 +242,7 @@ export default function DokonPage() {
   };
 
   const handleCheckout = () => {
+    if (gate("order")) return;
     setScreen("payment");
   };
 
@@ -284,6 +288,7 @@ export default function DokonPage() {
       setScreen("order-tracking");
     } catch (err) {
       if (created.length > 0) setPlacedOrders(created);
+      if (created.length === 0 && promptIfRequired(err)) return;
       setCheckoutError(
         `${errorMessage(err, t("dokon.screens.submit_failed"))}${
           created.length > 0 ? ` ${t("dokon.screens.partial", { count: created.length })}` : ""

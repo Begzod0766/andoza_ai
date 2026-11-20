@@ -21,6 +21,7 @@ import { cutListCsv, downloadCsv } from "@/features/mebel/export/csv";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import { createWorkshopLink, cutMebelProject, errorMessage, revokeWorkshopLink } from "@/lib/api";
+import { useGuestGate } from "@/lib/guestGate";
 import { producedOffcuts, usedStockIds } from "@/features/mebel/engine";
 import { PrintView } from "@/features/mebel/export/PrintView";
 import { LabelsPrintView } from "@/features/mebel/export/LabelsPrintView";
@@ -62,6 +63,8 @@ export default function MebelProjectPage() {
   const { toast } = useToast();
   const [workshopToken, setWorkshopToken] = useState<string | null>(null);
   const printingLabels = useRef(false);
+  // Labels carry the workshop link, which needs an account: a guest of the app signs up first.
+  const { gate, promptIfRequired } = useGuestGate();
   const [cutting, setCutting] = useState(false);
   const [cutError, setCutError] = useState("");
   const cutAt = m.cutAt;
@@ -148,6 +151,7 @@ export default function MebelProjectPage() {
   // carry an edit the server does not have: save first, or do not print.
   const printLabels = async (format: LabelFormat) => {
     if (printingLabels.current) return;
+    if (gate("workshop_link")) return;
     // The link is known and the server holds what is shown: print inside the click itself.
     // Safari asks first (or ignores it) when print() comes after an await.
     if (workshopToken && m.saveState === "saved") {
@@ -164,8 +168,8 @@ export default function MebelProjectPage() {
       let token: string;
       try {
         ({ token } = await createWorkshopLink(id));
-      } catch {
-        toast({ variant: "error", title: t("mebel.workshop.link_failed") });
+      } catch (err) {
+        if (!promptIfRequired(err)) toast({ variant: "error", title: t("mebel.workshop.link_failed") });
         return;
       }
       flushSync(() => { setWorkshopToken(token); setPrinting(format); });

@@ -1172,6 +1172,8 @@
     "faqat_tamir": "Renovation only",
     "mebel_kirmagan": "Furniture and fittings are not included in the total",
     "bozor_yangilash": "Update market prices",
+    "guestPricesNote": "Prices are approximate. Sign up to get them refined.",
+    "guestSignUp": "Sign up",
     "bozor_qidirilmoqda": "Looking up prices…",
     "bozor_belgi": "market price",
     "bozor_manba": "source",

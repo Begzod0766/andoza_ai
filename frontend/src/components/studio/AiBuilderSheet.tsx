@@ -22,6 +22,7 @@ import { applyToOtherRooms, previewOtherRooms, undoOtherRooms } from "@/lib/appl
 import type { RoomOutcome, RoomsUndo } from "@/lib/applyToRooms"
 import type { DesignSource } from "@/lib/planForRoom"
 import { RoomTypePicker } from "./RoomTypePicker"
+import { useGuestGate } from "@/lib/guestGate"
 import { trimLabel, trimProfileDef } from "@/lib/trimProfiles"
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
@@ -136,6 +137,7 @@ export function mergeRoomsUndo(before: RoomsUndo | null, written: RoomsUndo): Ro
 export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, roomType: roomTypeProp, initialPinUrl }: AiBuilderSheetProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { gate, promptIfRequired } = useGuestGate()
   // The apartment's rooms, shared with the studio's own list (`useFlatRooms`).
   const { data: aptRooms } = useQuery({
     queryKey: ["apt-rooms", aptId],
@@ -301,6 +303,8 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
   async function generate(e?: React.FormEvent) {
     e?.preventDefault()
     if (!canSend) return
+    // The AI designer is paid: a guest of the app is asked to sign up instead.
+    if (gate("ai_design")) return
     setRunning(true)
     setError("")
     setNotice("")
@@ -312,6 +316,7 @@ export function AiBuilderSheet({ open, onOpenChange, onSave, roomId, aptId, room
           ? await aiDesignFromImage(roomId, image, prompt.trim(), roomType)
           : await aiDesign(roomId, prompt.trim(), roomType)
     } catch (err) {
+      if (promptIfRequired(err)) return
       setPlan(null)
       setApplied(null)
       setError(errorText(err))

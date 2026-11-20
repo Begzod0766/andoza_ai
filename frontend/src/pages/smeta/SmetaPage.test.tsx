@@ -9,6 +9,9 @@ import { formatUZS } from '@/lib/utils'
 import { getRoom } from '@/lib/api'
 import { applyLanguage } from '@/i18n'
 import en from '@/i18n/locales/en.json'
+import ru from '@/i18n/locales/ru.json'
+import uz from '@/i18n/locales/uz.json'
+import { asGuest, asRegistered, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
 // ─── Mocks ────────────────────────────────────────────────────────────────
 //
@@ -700,5 +703,63 @@ describe('SmetaPage (by shop: photos, shop cards, map)', () => {
     expect(screen.queryByTestId('shops-map')).toBeNull()
     expect(screen.queryByRole('button', { name: /Do'konlar bo'yicha/ })).toBeNull()
     expect(document.querySelector('[data-shop]')).toBeNull()
+  })
+})
+
+describe('SmetaPage (guest estimate)', () => {
+  const NOTE = "Narxlar taxminiy. Ro'yxatdan o'tsangiz, aniqlashtiriladi."
+  afterEach(resetGuestMode)
+
+  it('shows the note for a guest estimate', async () => {
+    asGuest()
+    previewEstimate.mockResolvedValue({ ...ESTIMATE_RESPONSE, prices_approximate_for_guest: true })
+    renderSmetaPage()
+    expect(await screen.findByText(NOTE)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Ro'yxatdan o'tish" })).toBeInTheDocument()
+  })
+
+  it('no note without the flag', async () => {
+    asRegistered()
+    previewEstimate.mockResolvedValue(ESTIMATE_RESPONSE)
+    renderSmetaPage()
+    await screen.findByText('Jami xarajat')
+    expect(screen.queryByText(NOTE)).toBeNull()
+    expect(screen.queryByRole('button', { name: "Ro'yxatdan o'tish" })).toBeNull()
+  })
+
+  it("the note's sign-up link asks for registration", async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    previewEstimate.mockResolvedValue({ ...ESTIMATE_RESPONSE, prices_approximate_for_guest: true })
+    renderSmetaPage()
+    fireEvent.click(await screen.findByRole('button', { name: "Ro'yxatdan o'tish" }))
+    expect(post).toHaveBeenCalledWith('{"feature":"market_prices"}')
+  })
+
+  it('guest market button asks for registration', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    previewEstimate.mockResolvedValue({ ...ESTIMATE_RESPONSE, market_prices_available: true, prices_approximate_for_guest: true })
+    renderSmetaPage()
+    fireEvent.click(await screen.findByText('Bozor narxlarini yangilash'))
+    expect(post).toHaveBeenCalledWith('{"feature":"market_prices"}')
+    expect(previewEstimate).not.toHaveBeenCalledWith(expect.anything(), { market: true })
+  })
+
+  it('registered market button unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    previewEstimate.mockResolvedValue({ ...ESTIMATE_RESPONSE, market_prices_available: true })
+    renderSmetaPage()
+    fireEvent.click(await screen.findByText('Bozor narxlarini yangilash'))
+    await waitFor(() => expect(previewEstimate).toHaveBeenCalledWith('room-1', { market: true }))
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('locales carry the note', () => {
+    expect(uz.smeta.guestPricesNote).toBe(NOTE)
+    expect(ru.smeta.guestPricesNote).toBe('Цены ориентировочные. После регистрации они будут уточнены.')
+    expect(en.smeta.guestPricesNote).toBe('Prices are approximate. Sign up to get them refined.')
+    expect([uz.smeta.guestSignUp, ru.smeta.guestSignUp, en.smeta.guestSignUp]).toEqual(["Ro'yxatdan o'tish", 'Зарегистрироваться', 'Sign up'])
   })
 })

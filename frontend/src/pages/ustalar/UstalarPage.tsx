@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { Usta, UstalarParams } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Panel, Tile } from "@/components/ui/Panel";
+import { useGuestGate } from "@/lib/guestGate";
 
 function StarRating({ rating }: { rating: number }) {
   const full = Math.round(rating);
@@ -87,11 +88,19 @@ function ContactModal({ usta, roomId, onClose }: ContactModalProps) {
   const [phone, setPhone] = useState("");
   const [success, setSuccess] = useState(false);
   const [phoneError, setPhoneError] = useState(false);
+  const { promptIfRequired } = useGuestGate();
 
   const mutation = useMutation({
     mutationFn: () =>
       createLead({ usta_id: usta.id, room_id: roomId, message, contact_phone: phone }),
     onSuccess: () => setSuccess(true),
+    // A guest of the app (seen only now, e.g. a stale session) gets the sign-up prompt.
+    onError: (err) => {
+      if (promptIfRequired(err)) {
+        mutation.reset();
+        onClose();
+      }
+    },
   });
 
   return (
@@ -173,6 +182,11 @@ export default function UstalarPage() {
   const [sort, setSort] = useState<UstalarParams["sort"]>(undefined);
   const [selectedUsta, setSelectedUsta] = useState<Usta | null>(null);
   const roomId = useSearchParams()[0].get("room") ?? undefined;
+  // Contacting an usta needs a phone and an account: a guest of the app signs up first.
+  const { gate } = useGuestGate();
+  const contact = (usta: Usta) => {
+    if (!gate("contact")) setSelectedUsta(usta);
+  };
 
   const { data: ustalar = [], isLoading, isError } = useQuery({
     queryKey: ["ustalar", sort],
@@ -228,7 +242,7 @@ export default function UstalarPage() {
           {!isLoading && !isError && ustalar.length > 0 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {ustalar.map((usta) => (
-                <UstaCard key={usta.id} usta={usta} onContact={setSelectedUsta} />
+                <UstaCard key={usta.id} usta={usta} onContact={contact} />
               ))}
             </div>
           )}

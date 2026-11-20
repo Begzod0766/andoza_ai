@@ -1,6 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type { ReactElement } from 'react'
+import { render as rtlRender, screen, waitFor, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { ApiError } from '@/lib/api/client'
+import i18n from '@/i18n'
 import { RenderSheet } from './RenderSheet'
+import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
+
+// The sheet lives in the Studio, under the app's router (the guest gate navigates).
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter })
 
 const createRender = vi.fn()
 const createRelight = vi.fn()
@@ -262,5 +270,72 @@ describe('RenderSheet', () => {
       expect(createUpscale).toHaveBeenLastCalledWith('renders/u/b.jpg')
       expect(screen.getByRole('button', { name: '4K ✓' })).toBeDisabled()
     })
+  })
+})
+
+describe('RenderSheet in guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('guest: render asks for registration and sends nothing', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    panoramaJpeg.mockResolvedValue(new Blob(['pano']))
+    const onOpenChange = vi.fn()
+    render(<RenderSheet open onOpenChange={onOpenChange} roomId="room-7" />)
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
+    expect(createRender).not.toHaveBeenCalled()
+    expect(panoramaJpeg).not.toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('late 403 opens the prompt instead of the error text', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    panoramaJpeg.mockResolvedValue(new Blob(['pano']))
+    createRender.mockRejectedValue(new ApiError(body403('render'), 403))
+    const onOpenChange = vi.fn()
+    render(<RenderSheet open onOpenChange={onOpenChange} roomId="room-7" />)
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    // back to idle: no spinner, no error, the empty frame
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByText(i18n.t('render.natija_joyi'))).toBeInTheDocument()
+    expect(screen.queryByText(/registration_required/)).toBeNull()
+  })
+
+  /** A saved first render (not yet 4K) shown from the gallery: relight and 4K are both on offer. */
+  async function guestWithSavedRender() {
+    listRenders.mockResolvedValue([{
+      id: '1', kind: 'render', url: 'https://s3/old.jpg', key: 'renders/u/old.jpg', lighting: null, prompt: null,
+      panorama: true, parent_key: null, room_id: 'room-7', created_at: '2026-10-01T10:00:00Z',
+    }])
+    const post = inAppWithChannel()
+    asGuest()
+    render(<RenderSheet open onOpenChange={() => {}} roomId="room-7" mode="gallery" />)
+    await waitFor(() => expect(viewerSrc()).toBe('https://s3/old.jpg'))
+    return post
+  }
+
+  it('guest: relight asks for registration and sends nothing', async () => {
+    const post = await guestWithSavedRender()
+    fireEvent.click(screen.getByRole('button', { name: 'Iliq chiroqlar' }))
+    expect(post).toHaveBeenCalledWith('{"feature":"render"}')
+    expect(createRelight).not.toHaveBeenCalled()
+  })
+
+  it('guest: 4K asks for registration and sends nothing', async () => {
+    const post = await guestWithSavedRender()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('render.to4k') }))
+    expect(post).toHaveBeenCalledWith('{"feature":"render"}')
+    expect(createUpscale).not.toHaveBeenCalled()
+  })
+
+  it('registered user unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    await renderOnce(FIRST, 'room-7')
+    expect(createRender).toHaveBeenCalledTimes(1)
+    expect(post).not.toHaveBeenCalled()
   })
 })
