@@ -34,6 +34,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Guests go first: without is_guest they would read as registered users
+    # with no identity at all. Their rooms etc. go with them (ON DELETE CASCADE).
+    op.execute("DELETE FROM users WHERE is_guest")
     op.execute("DROP INDEX IF EXISTS ix_users_is_guest")
     op.drop_column("users", "registered_at")
     op.drop_column("users", "last_seen_at")

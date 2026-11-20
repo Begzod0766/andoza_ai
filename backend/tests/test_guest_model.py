@@ -71,3 +71,24 @@ def test_user_out_unflushed_user_is_not_a_guest():
     # column default fills it at INSERT); it serialises as a registered user.
     u = User(id=uuid.uuid4(), language="uz", is_admin=False, created_at=datetime.now(timezone.utc))
     assert UserOut.model_validate(u).is_guest is False
+
+
+def test_downgrade_deletes_guests_before_dropping_the_flag(monkeypatch):
+    # Otherwise every guest would come back as an identity-less "registered" user.
+    spec = importlib.util.spec_from_file_location("m_1786000052_down", _MIGRATION)
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    calls: list[tuple[str, str]] = []
+
+    class _Op:
+        def execute(self, sql):
+            calls.append(("execute", str(sql)))
+
+        def drop_column(self, table, column):
+            calls.append(("drop_column", column))
+
+    monkeypatch.setattr(m, "op", _Op())
+    m.downgrade()
+    deletes = [i for i, c in enumerate(calls) if c[0] == "execute" and c[1].startswith("DELETE FROM users WHERE is_guest")]
+    drop = calls.index(("drop_column", "is_guest"))
+    assert deletes and deletes[0] < drop
