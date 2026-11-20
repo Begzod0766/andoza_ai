@@ -13,8 +13,11 @@ ALGORITHM = "HS256"
 def create_access_token(
     subject: str,
     expires_delta: Optional[timedelta] = None,
+    *,
+    guest: bool = False,
 ) -> str:
-    """Return a signed JWT access token for *subject*."""
+    """Return a signed JWT access token for *subject*. *guest* marks a token
+    issued to a guest account: it stops working once the row is upgraded."""
     if expires_delta is None:
         expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
@@ -24,10 +27,12 @@ def create_access_token(
         "exp": expire,
         "type": "access",
     }
+    if guest:
+        payload["guest"] = True
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(subject: str, expires_days: Optional[int] = None) -> str:
+def create_refresh_token(subject: str, expires_days: Optional[int] = None, *, guest: bool = False) -> str:
     """Return a signed JWT refresh token for *subject*, valid *expires_days*
     (default ``REFRESH_TOKEN_EXPIRE_DAYS``; guests get a longer one)."""
     if expires_days is None:
@@ -38,7 +43,33 @@ def create_refresh_token(subject: str, expires_days: Optional[int] = None) -> st
         "exp": expire,
         "type": "refresh",
     }
+    if guest:
+        payload["guest"] = True
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _claims(token: str, token_type: str) -> Optional[dict]:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        return None
+    return payload if payload.get("type") == token_type else None
+
+
+def access_token_claims(token: str) -> Optional[dict]:
+    """The claims of a valid access token, or None."""
+    return _claims(token, "access")
+
+
+def refresh_token_claims(token: str) -> Optional[dict]:
+    """The claims of a valid refresh token, or None."""
+    return _claims(token, "refresh")
+
+
+def is_guest_token_of_registered(claims: dict, user) -> bool:
+    """A token issued to a guest, presented for a row that is no longer one
+    (upgraded): refused, so only the tokens issued at the upgrade work."""
+    return claims.get("guest") is True and getattr(user, "is_guest", None) is not True
 
 
 def verify_token(token: str) -> Optional[str]:

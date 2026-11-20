@@ -20,7 +20,13 @@ import bcrypt as _bcrypt
 from app.api.v1.deps import CurrentUser, _bearer_scheme
 from app.config import NATIVE_APP_ORIGINS, settings
 from app.core.cache import get_redis
-from app.core.security import create_access_token, create_refresh_token, verify_refresh_token, verify_token
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    is_guest_token_of_registered,
+    refresh_token_claims,
+    verify_token,
+)
 from app.core.sms import generate_otp, send_otp, store_otp, verify_otp
 from app.database import get_db
 from app.models.user import User
@@ -374,19 +380,34 @@ async def refresh_tokens(
             detail="Refresh token missing.",
         )
 
-    user_id = verify_refresh_token(refresh_token)
+    claims = refresh_token_claims(refresh_token)
+    user_id = claims.get("sub") if claims else None
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token.",
         )
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
+    # Locked and read fresh: a merge deleting this row now waits for the
+    # refresh to commit, or has already deleted it (no row: 401) — never a
+    # 500 from writing last_seen_at to a row that vanished meanwhile.
+    try:
+        user_uuid = UUID(str(user_id))
+    except ValueError:
+        user_uuid = None
+    user = None
+    if user_uuid is not None:
+        user = (
+            await db.execute(
+                select(User).where(User.id == user_uuid).with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+    if user is None or is_guest_token_of_registered(claims, user):
         # 401, not 404: a guest merged into another account (or deleted) has
         # no row any more, and its old refresh token must end the session
-        # the way any dead token does.
+        # the way any dead token does. A guest's token after an upgrade is
+        # dead too: the upgrade issued new ones.
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token.",
@@ -558,8 +579,8 @@ def _guest_login_response(user: User, request: Request, response: Response) -> L
     GUEST_REFRESH_TOKEN_EXPIRE_DAYS — it is the guest's only "password"."""
     subject = str(user.id)
     days = settings.GUEST_REFRESH_TOKEN_EXPIRE_DAYS
-    access_token = create_access_token(subject)
-    refresh_token = create_refresh_token(subject, expires_days=days)
+    access_token = create_access_token(subject, guest=True)
+    refresh_token = create_refresh_token(subject, expires_days=days, guest=True)
     _set_auth_cookie(response, access_token)
     _set_refresh_cookie(response, refresh_token, max_age=days * 86400)
 

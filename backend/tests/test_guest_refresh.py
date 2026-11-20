@@ -83,7 +83,9 @@ def test_registered_refresh_stays_30_days_and_sets_last_seen(make_client):
 
 
 def test_refresh_after_upgrade_gets_registered_ttl(make_client):
-    # Token minted while the row was a guest; the row has since been upgraded.
+    # A 90-day token without the `guest` claim for a row that is registered
+    # now gets the registered lifetime. (A token issued TO a guest carries
+    # the claim and is refused after the upgrade: tests/test_guest_tokens.py.)
     user = _user(is_guest=False)
     client, _ = make_client(user)
     tok = create_refresh_token(str(user.id), expires_days=90)

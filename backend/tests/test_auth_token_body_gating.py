@@ -47,8 +47,8 @@ class _FakeUserDb:
         # (refresh) queries land here; try id first since UUIDs never
         # collide with usernames.
         for value in params.values():
-            if value in self._users_by_id:
-                return _Result(scalar=self._users_by_id[value])
+            if str(value) in self._users_by_id:
+                return _Result(scalar=self._users_by_id[str(value)])
         username = next(iter(params.values()), None)
         return _Result(scalar=self._users_by_username.get(username))
 

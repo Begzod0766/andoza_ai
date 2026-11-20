@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import verify_token
+from app.core.security import access_token_claims, is_guest_token_of_registered
 from app.database import get_db
 from app.i18n.messages import localized
 from app.models.user import User
@@ -37,7 +37,8 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    sub = verify_token(token)
+    claims = access_token_claims(token)
+    sub = claims.get("sub") if claims else None
     if sub is None:
         raise credentials_exception
     try:
@@ -47,7 +48,7 @@ async def get_current_user(
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    if user is None:
+    if user is None or is_guest_token_of_registered(claims, user):
         raise credentials_exception
     return user
 
