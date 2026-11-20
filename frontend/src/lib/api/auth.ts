@@ -13,6 +13,8 @@ export interface AuthUser {
   /** The interface language this account chose; older cached users have none. */
   language?: Language;
   created_at: string;
+  /** A server-side guest of the mobile app (guest mode); missing on old app builds = false. */
+  is_guest?: boolean;
 }
 
 export interface LoginResponse {

@@ -66,6 +66,8 @@ export interface EstimateResponse {
   /** On a response that asked for market prices: lines looked up / repriced. */
   market_checked?: number;
   market_updated?: number;
+  /** A guest's estimate skipped the AI gap-fill and market prices; the page says so. */
+  prices_approximate_for_guest?: boolean;
   /** Every shop a line's store_id points to; absent from older servers. */
   stores?: EstimateStore[];
 }
