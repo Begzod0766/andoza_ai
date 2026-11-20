@@ -11,10 +11,10 @@ from __future__ import annotations
 import structlog
 import uuid as uuid_module
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
 from app.database import run_after_commit
 from app.models.lead import Lead
 from app.models.room import Room
@@ -26,7 +26,8 @@ from app.schemas.usta_profile import UstaApply, UstaLeadOut, UstaLeadUpdate, Ust
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/usta", tags=["usta"])
+# Business section: a guest gets registration_required (spec 2026-11-20).
+router = APIRouter(prefix="/usta", tags=["usta"], dependencies=[Depends(registered_user("business"))])
 
 
 async def _own_profile(db: DbSession, user) -> Usta | None:

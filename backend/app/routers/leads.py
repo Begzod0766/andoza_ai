@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
+from app.models.user import User
 from app.models.apartment import Apartment
 from app.models.estimate import Estimate
 from app.models.lead import Lead
@@ -25,7 +28,7 @@ router = APIRouter(prefix="/leads", tags=["leads"])
 )
 async def create_lead(
     body: LeadCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("contact"))],
     db: DbSession,
 ) -> LeadOut:
     # Verify usta exists and is active

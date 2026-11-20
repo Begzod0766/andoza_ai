@@ -14,14 +14,14 @@ import uuid as uuid_module
 from typing import get_args
 
 import structlog
-from fastapi import APIRouter, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.i18n import translate_detail
 from app.schemas.admin_catalog import FURNITURE_STYLES, ModelYaw
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
 from app.core.storage import absolute_media_url, upload_file
 from app.database import run_after_commit
 from app.core.model_files import is_glb_with_meshes, model_keys, served_key
@@ -56,7 +56,8 @@ from app.schemas.seller import (
 
 logger = structlog.get_logger(__name__)
 
-router = APIRouter(prefix="/seller", tags=["seller"])
+# Business section: a guest gets registration_required (spec 2026-11-20).
+router = APIRouter(prefix="/seller", tags=["seller"], dependencies=[Depends(registered_user("business"))])
 
 _MAX_GLB_BYTES = 50 * 1024 * 1024
 _MAX_THUMB_BYTES = 5 * 1024 * 1024

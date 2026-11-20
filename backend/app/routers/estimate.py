@@ -411,6 +411,19 @@ def _totals_from_raw_lines(raw_lines: list[dict]) -> dict[str, int]:
     }
 
 
+def _is_guest(user: Any) -> bool:
+    """A guest caller (identity check: only a real True, as deps.registered_user)."""
+    return getattr(user, "is_guest", None) is True
+
+
+async def _fill_ai_price_gaps_unless_guest(computed: ComputedEstimate, user: Any) -> ComputedEstimate:
+    """The AI gap-fill costs an LLM call: a guest's estimate keeps the catalog /
+    approximate prices instead (and says so, prices_approximate_for_guest)."""
+    if _is_guest(user):
+        return computed
+    return await fill_ai_price_gaps(computed, user_id=str(user.id))
+
+
 async def _with_market_prices(
     computed: ComputedEstimate, market: bool, user_id: str
 ) -> tuple[ComputedEstimate, int, int]:
@@ -466,9 +479,10 @@ async def preview_estimate(
         current_state=current_state, floor_state=floor_state, ceiling_state=ceiling_state,
         wiring_meters=wiring_meters, catalog=catalog,
     )
-    computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
+    computed = await _fill_ai_price_gaps_unless_guest(computed, current_user)
+    # Market prices are a paid lookup too: ignored for a guest (market_checked=0).
     computed, market_checked, market_updated = await _with_market_prices(
-        computed, market, str(current_user.id)
+        computed, market and not _is_guest(current_user), str(current_user.id)
     )
     usd_rate = await get_usd_rate()
     lines = _computed_to_schema_lines(computed.lines)
@@ -494,6 +508,7 @@ async def preview_estimate(
         market_prices_available=market_prices_available(),
         market_checked=market_checked,
         market_updated=market_updated,
+        prices_approximate_for_guest=_is_guest(current_user),
     )
 
 
@@ -525,7 +540,7 @@ async def create_estimate(
         current_state=current_state, floor_state=floor_state, ceiling_state=ceiling_state,
         wiring_meters=wiring_meters, catalog=catalog,
     )
-    computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
+    computed = await _fill_ai_price_gaps_unless_guest(computed, current_user)
 
     # Persist immutable snapshot
     estimate = Estimate(
@@ -560,6 +575,7 @@ async def create_estimate(
         usd_rate=usd_rate,
         total_usd=round(uzs_to_usd(computed.total_uzs, usd_rate)),
         market_prices_available=market_prices_available(),
+        prices_approximate_for_guest=_is_guest(current_user),
     )
 
 
@@ -639,10 +655,11 @@ async def _generate_estimate_pdf(
         current_state=current_state, floor_state=floor_state, ceiling_state=ceiling_state,
         wiring_meters=wiring_meters, catalog=catalog,
     )
-    computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
-    computed, _, _ = await _with_market_prices(computed, market, str(current_user.id))
+    computed = await _fill_ai_price_gaps_unless_guest(computed, current_user)
+    guest = _is_guest(current_user)
+    computed, _, _ = await _with_market_prices(computed, market and not guest, str(current_user.id))
 
-    pdf_bytes = _build_pdf(room, computed, lang=lang)
+    pdf_bytes = _build_pdf(room, computed, lang=lang, guest_note=guest)
 
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -737,6 +754,7 @@ async def get_estimate(
         electrical_confirmed=_electrical_confirmed(raw_lines),
         usd_rate=usd_rate,
         total_usd=round(uzs_to_usd(totals["total_uzs"], usd_rate)),
+        prices_approximate_for_guest=_is_guest(current_user),
     )
 
 
@@ -805,8 +823,11 @@ def _fmt_qty(n: int | float) -> str:
     return whole.replace(",", " ") + (f".{frac}" if frac else "")
 
 
-def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) -> bytes:
-    """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes."""
+def _build_pdf(
+    room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE, guest_note: bool = False
+) -> bytes:
+    """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes. *guest_note*
+    adds the "prices are approximate, sign up" line under the totals."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -818,11 +839,13 @@ def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) 
         title=f"andoza.ai {smeta_t('sarlavha', lang)} — {room.name}",
         author="andoza.ai",
     )
-    doc.build(_pdf_story(room, est, lang, _pdf_fonts()))
+    doc.build(_pdf_story(room, est, lang, _pdf_fonts(), guest_note=guest_note))
     return buf.getvalue()
 
 
-def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, str]) -> list[Any]:
+def _pdf_story(
+    room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, str], guest_note: bool = False
+) -> list[Any]:
     """The PDF's flowables. Every fixed text and each line's label, unit, warning and formula are
     in *lang* (app.services.smeta_text, the web page's vocabulary); numbers are as computed."""
     font, font_bold = fonts
@@ -1027,6 +1050,10 @@ def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, s
     ]))
     story.append(total_tbl)
     story.append(Spacer(1, 0.3 * cm))
+
+    if guest_note:
+        # A guest's estimate skipped the AI gap-fill and market prices.
+        story.append(Paragraph(xml_escape(tx("guest_prices_note")), warning_style))
 
     story.append(Paragraph(xml_escape(tx("disclaimer")), disclaimer))
 

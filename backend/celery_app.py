@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -12,7 +13,10 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # empty and the tasks live in app/tasks/media.py. Without this list both the
 # worker and the converter start with an empty [tasks] registry and reject
 # every dispatched job as "Received unregistered task of type ...".
-app = Celery("uytamir", include=["app.tasks.media", "app.tasks.push", "app.tasks.furniture_styles"])
+app = Celery(
+    "uytamir",
+    include=["app.tasks.media", "app.tasks.push", "app.tasks.furniture_styles", "app.tasks.maintenance"],
+)
 
 app.conf.update(
     # Transport
@@ -46,5 +50,15 @@ app.conf.update(
     # Result expiry (24 h)
     result_expires=86400,
 )
+
+# Periodic tasks, run by the `beat` service (docker-compose.prod.yml), in the
+# Asia/Tashkent timezone set above.
+app.conf.beat_schedule = {
+    # Guests nobody uses any more (spec 2026-11-20 mehmon rejimi).
+    "cleanup-stale-guests": {
+        "task": "app.tasks.maintenance.cleanup_stale_guests",
+        "schedule": crontab(hour=4, minute=0),
+    },
+}
 
 app.autodiscover_tasks(["app.tasks"])

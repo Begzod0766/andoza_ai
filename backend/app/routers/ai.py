@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import dataclasses
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -19,7 +19,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.i18n import localized
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
+from app.models.user import User
 from app.config import settings
 from app.models.apartment import Apartment
 from app.models.electrical import RoomElectrical
@@ -244,7 +245,7 @@ def _require_ai() -> None:
 async def ai_design(
     room_id: uuid.UUID,
     body: AiDesignRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("ai_design"))],
     db: DbSession,
 ) -> dict:
     _require_ai()
@@ -258,7 +259,7 @@ async def ai_design(
 )
 async def ai_design_from_image(
     room_id: uuid.UUID,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("ai_design"))],
     db: DbSession,
     image: UploadFile = File(...),
     prompt: str | None = Form(default=None, max_length=500),
@@ -312,7 +313,7 @@ async def ai_design_from_pin(
     room_id: uuid.UUID,
     body: AiDesignPinRequest,
     request: Request,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("ai_design"))],
     db: DbSession,
 ) -> dict | JSONResponse:
     """The image-design pipeline fed from a pin. Nothing that fails on Pinterest's
@@ -380,7 +381,7 @@ class AiBuildRequest(BaseModel):
 async def ai_build(
     room_id: uuid.UUID,
     body: AiBuildRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("ai_build"))],
     db: DbSession,
 ) -> StreamingResponse:
     if not settings.AI_FEATURES_ENABLED:
@@ -498,7 +499,7 @@ class SmetaAskResponse(BaseModel):
 async def smeta_ask(
     room_id: uuid.UUID,
     body: SmetaAskRequest,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("smeta_ask"))],
     db: DbSession,
 ) -> SmetaAskResponse:
     if not settings.AI_FEATURES_ENABLED:
