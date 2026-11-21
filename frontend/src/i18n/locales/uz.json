@@ -1006,7 +1006,7 @@
     "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
     "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
     "tour": {
-      "scene": {
+      "surface": {
         "title": "Sahna",
         "body": "Devor yoki polga bosing: shu joy uchun asboblar chiqadi (rang, plitka, oboy va boshqalar)"
       },

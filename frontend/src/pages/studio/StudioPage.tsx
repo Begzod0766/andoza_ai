@@ -36,7 +36,7 @@ import { DiscardDesignMenuItem } from "@/components/studio/DiscardDesignMenuItem
 import { StudioTour, isTourTargetShown } from "@/components/studio/StudioTour";
 import {
   STUDIO_TOUR_STEPS, isStudioTourDone, markStudioTourDone, presentSteps, shouldStartStudioTour,
-  type StudioTourTarget,
+  type StudioTourStep,
 } from "@/lib/studioTour";
 
 // Read live at navigation time (not from the last render): a save marks the
@@ -111,7 +111,7 @@ export default function StudioPage() {
   // It opens only with at least one target on screen, so a tour that showed nothing is never
   // remembered as seen.
   const [tourReady, setStudioTourReady] = useState(false);
-  const [tourSteps, setTourSteps] = useState<StudioTourTarget[] | null>(null);
+  const [tourSteps, setTourSteps] = useState<StudioTourStep[] | null>(null);
   // Once the tour has been on screen it never starts on its own again here: with a storage that
   // will not keep "done", it would reopen the moment Skip closed it.
   const tourShownRef = useRef(false);

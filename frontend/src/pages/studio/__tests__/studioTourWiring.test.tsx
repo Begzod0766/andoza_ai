@@ -54,7 +54,7 @@ function ui(ready: boolean) {
   )
 }
 
-const sceneTitle = () => i18n.t('studio.tour.scene.title')
+const sceneTitle = () => i18n.t('studio.tour.surface.title')
 const tourCard = () => screen.queryByRole('dialog', { name: sceneTitle() })
 
 beforeEach(() => {

@@ -1006,7 +1006,7 @@
     "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
     "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
     "tour": {
-      "scene": {
+      "surface": {
         "title": "Scene",
         "body": "Tap a wall or the floor: tools for that spot appear (colour, tile, wallpaper and more)"
       },

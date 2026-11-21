@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourTarget } from "@/lib/studioTour";
+import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourStep } from "@/lib/studioTour";
 
 const PAD = 8;
 const GAP = 12;
 
 type Box = { left: number; top: number; width: number; height: number };
 
-function measure(id: StudioTourTarget): Box | null {
+function measure(id: string): Box | null {
   const el = document.querySelector(`[data-tour="${id}"]`);
   if (!el) return null;
   const r = el.getBoundingClientRect();
@@ -18,8 +18,8 @@ function measure(id: StudioTourTarget): Box | null {
 }
 
 /** Whether the tour would show this target right now (in the DOM, with a box, on screen). */
-export function isTourTargetShown(id: StudioTourTarget): boolean {
-  return measure(id) !== null;
+export function isTourTargetShown(target: string): boolean {
+  return measure(target) !== null;
 }
 
 /**
@@ -27,15 +27,17 @@ export function isTourTargetShown(id: StudioTourTarget): boolean {
  * blurred and dimmed. It never marks itself done — `onFinish` (skip or the last step) tells
  * the page, which decides what to remember.
  */
-export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarget[]; onFinish: () => void }) {
+export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep[]; onFinish: () => void }) {
   const { t } = useTranslation();
   // The targets on screen when the tour opens; a step whose target is missing is dropped.
-  const [ids] = useState(() => steps.filter((s) => measure(s) !== null));
+  const [ids] = useState(() => steps.filter((s) => measure(s.targets[0]) !== null));
   // `gone` counts the steps dropped along the way, so the counter reads "2/6", not "3/7".
   const [pos, setPos] = useState({ index: 0, gone: 0 });
   const { index, gone } = pos;
-  const id = ids[index];
-  const [box, setBox] = useState<Box | null>(() => (id ? measure(id) : null));
+  const step = ids[index];
+  const id = step?.id;
+  const target = step?.targets[0];
+  const [box, setBox] = useState<Box | null>(() => (target ? measure(target) : null));
   const [cardH, setCardH] = useState(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,16 +57,16 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
   useLayoutEffect(() => {
     if (!id) return;
     const update = () => {
-      const b = measure(id);
+      const b = measure(target!);
       if (b) setBox(b);
       else {
         // The target vanished: move to the next step still on screen (the updater only acts
         // while the position is still on this step, so resize + orientationchange together
         // advance once), or end when none is left.
         setPos((p) => {
-          if (ids[p.index] !== id) return p;
+          if (ids[p.index] !== step) return p;
           let k = p.index + 1;
-          while (k < ids.length && measure(ids[k]) === null) k++;
+          while (k < ids.length && measure(ids[k].targets[0]) === null) k++;
           return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
         });
       }
@@ -76,7 +78,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const empty = ids.length === 0;
 
@@ -134,12 +136,12 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourTarg
         ref={cardRef}
         role="dialog"
         aria-modal="true"
-        aria-label={t(`studio.tour.${id}.title`)}
+        aria-label={t(`studio.tour.${id}.title` as never)}
         className="fixed inset-x-4 mx-auto max-w-sm overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         style={cardStyle}
       >
-        <h2 className="text-base font-semibold">{t(`studio.tour.${id}.title`)}</h2>
-        <p className="mt-1 text-sm text-ink-muted">{t(`studio.tour.${id}.body`)}</p>
+        <h2 className="text-base font-semibold">{t(`studio.tour.${id}.title` as never)}</h2>
+        <p className="mt-1 text-sm text-ink-muted">{t(`studio.tour.${id}.body` as never)}</p>
         <div className="mt-3 flex items-center gap-3">
           <span className="text-xs tabular-nums text-ink-muted">
             {t("studio.tour.step_of", { current: index + 1 - gone, total: ids.length - gone })}
