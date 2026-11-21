@@ -103,7 +103,8 @@ describe('raycastInFront', () => {
 // ─── A tap on the rail is not a tap on the wall behind it (mobile re-check 2026-11-11) ───
 
 import { vi } from 'vitest'
-import { railPointerHandlers } from '../TowelRails3D'
+import { railPointerHandlers, railRaycast, raycastInFront } from '../TowelRails3D'
+import { noRaycast } from '../constants'
 
 describe('railPointerHandlers', () => {
   it('in the Santexnika stage a press starts the drag and a tap stops at the rail', () => {
@@ -117,8 +118,28 @@ describe('railPointerHandlers', () => {
     expect(click.stopPropagation).toHaveBeenCalled()
   })
 
-  it('in any other stage the rail has no handlers at all: a touch goes through it', () => {
+  it('in any other stage, with nothing to open, the rail has no handlers at all: a touch goes through it', () => {
     expect(railPointerHandlers(false, vi.fn())).toEqual({})
+  })
+
+  it('in any other stage a tap opens the fixtures panel and stops at the rail (mobile QA 2026-11-21, #359)', () => {
+    // In the finished room a tap on the machine went to the floor and opened its ring.
+    const start = vi.fn(), open = vi.fn()
+    const h = railPointerHandlers(false, start, open)
+    expect(h.onPointerDown).toBeUndefined()
+    const click = { stopPropagation: vi.fn() }
+    h.onClick!(click as never)
+    expect(click.stopPropagation).toHaveBeenCalled()
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(start).not.toHaveBeenCalled()
+  })
+})
+
+describe('railRaycast (#359)', () => {
+  it('in front of all in a plumbing stage, as itself when a tap opens the panel, never otherwise', () => {
+    expect(railRaycast(true, false)).toBe(raycastInFront)
+    expect(railRaycast(false, true)).toBe(THREE.Mesh.prototype.raycast)
+    expect(railRaycast(false, false)).toBe(noRaycast)
   })
 })
 

@@ -338,7 +338,8 @@ const SEAM_STEP = Math.PI / 36
  * The turn for the panorama so its seam (its left and right edges, which the render service does not join
  * and blurs: kitchen re-check 2026-11-19, the seam on the kitchen set) faces the emptiest way from `eye`.
  * The cost of a turn is how much of the pieces' outline, seen from the eye, falls in the strip either side
- * of the seam. 0, the old turn, when nothing is there; else the least costly, the nearest to 0 on a tie.
+ * of the seam. The middle of the image faces the biggest piece when the seam is clear there (#343); else
+ * the least costly turn, the nearest that on a tie; 0 in an empty room.
  * Pieces in world metres, as the studio draws them; one the eye stands in is left out.
  */
 export function panoramaSeamYaw(eye: { x: number; z: number }, pieces: readonly { x: number; z: number; w: number; d: number; rotation: number }[]): number {
@@ -361,11 +362,16 @@ export function panoramaSeamYaw(eye: { x: number; z: number }, pieces: readonly 
     // A span past +PI comes round again from -PI.
     return sum + part(a, b) + part(a - 2 * Math.PI, b - 2 * Math.PI)
   }, 0)
-  if (cost(0) <= 1e-9) return 0
-  let best = 0, bestCost = cost(0)
-  for (let k = 1; k < 72; k++) {
-    for (const yaw of [k * SEAM_STEP, -k * SEAM_STEP]) {
-      if (Math.abs(yaw) > Math.PI + 1e-9) continue
+  // The viewer opens on the middle of the image (mobile QA 2026-11-21, #343: it opened on the bare wall
+  // across from the kitchen set): the middle faces the biggest piece, the seam behind the eye, where the
+  // seam is clear; else the clearest turn nearest that. The middle at yaw faces (-sin yaw, cos yaw).
+  const biggest = pieces.filter((r) => Math.hypot(r.x - eye.x, r.z - eye.z) > 1e-6)
+    .reduce<(typeof pieces)[number] | null>((b, r) => (!b || r.w * r.d > b.w * b.d ? r : b), null)
+  const start = biggest ? Math.atan2(-(biggest.x - eye.x), biggest.z - eye.z) : 0
+  let best = wrap(start) + 0, bestCost = cost(best)   // + 0: no -0
+  if (bestCost <= 1e-9) return best
+  for (let k = 1; k <= 36; k++) {
+    for (const yaw of [wrap(start + k * SEAM_STEP), wrap(start - k * SEAM_STEP)]) {
       const c = cost(yaw)
       if (c < bestCost - 1e-9) { best = yaw; bestCost = c }
     }
