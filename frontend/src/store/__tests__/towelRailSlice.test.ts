@@ -298,3 +298,23 @@ describe('a rail keeps off the riser box (mobile QA 2026-11-18)', () => {
     expect(st().towelRails[0].positionMm).toBe(400 + 250)
   })
 })
+
+describe('a second rail (mobile QA 2026-11-14, #277)', () => {
+  it('does not go on top of the first: a rail keeps clear of the other rails', () => {
+    expect(st().addTowelRail()).toBe(true)
+    expect(st().addTowelRail()).toBe(true)
+    const [a, b] = st().towelRails
+    const overlap = a.wallId === b.wallId && Math.abs(a.positionMm - b.positionMm) < 500
+    expect(overlap).toBe(false)
+  })
+  it('dragged onto another rail, it stops beside it', () => {
+    useRoomStore.setState({ towelRails: [
+      { id: 'r1', wallId: 'A', positionMm: 1200, heightMm: 1000 },
+      { id: 'r2', wallId: 'A', positionMm: 2000, heightMm: 1000 },
+    ] })
+    st().beginTowelRailDrag()
+    st().moveTowelRail('r2', 1200)
+    st().endTowelRailDrag()
+    expect(Math.abs(st().towelRails[1].positionMm - 1200)).toBeGreaterThanOrEqual(500)
+  })
+})

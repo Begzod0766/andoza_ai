@@ -178,7 +178,7 @@ export function placeWasher(geometry: RoomGeometry, riser: RiserAt, others: read
  * free place left, is dropped; one now past a wall's end or in an opening, on a rail or on the
  * riser, is moved to the nearest free place. The same list when nothing changed.
  */
-export function keepWashers(washers: readonly Washer[], geometry: RoomGeometry, rails: readonly TowelRail[], riser?: RiserAt): Washer[] {
+export function keepWashers(washers: readonly Washer[], geometry: RoomGeometry, rails: readonly TowelRail[], riser?: RiserAt, taken: readonly Rect[] = []): Washer[] {
   let changed = false
   const out: Washer[] = []
   const others: WallTaken[] = [
@@ -186,7 +186,10 @@ export function keepWashers(washers: readonly Washer[], geometry: RoomGeometry, 
     ...(riser ? riserTaken(geometry, riser) : []),
   ]
   for (const m of washers) {
-    const at = nearestFreeWasher(geometry, m.wallId, m.positionMm, others, undefined, machineHalf(m))
+    let at = nearestFreeWasher(geometry, m.wallId, m.positionMm, others, undefined, machineHalf(m))
+    // One that must move goes to the nearest place clear of the furniture too (mobile QA 2026-11-14, #271:
+    // pushed off the riser onto the sink); one that stays put stays, wherever the user stood it.
+    if (at != null && at !== m.positionMm && taken.length) at = nearestClearOfFurniture(geometry, m, at, others, taken)
     if (at == null) { changed = true; continue }
     if (at !== m.positionMm) changed = true
     const kept = at === m.positionMm ? m : { ...m, positionMm: at }
@@ -194,6 +197,24 @@ export function keepWashers(washers: readonly Washer[], geometry: RoomGeometry, 
     others.push({ wallId: kept.wallId, positionMm: kept.positionMm, halfMm: machineHalf(kept) })
   }
   return changed ? out : (washers as Washer[])
+}
+
+/** The place on `m`'s wall, nearest `from` and free by the wall rules, whose floor box is clear of `taken`;
+ *  `from` when none is. */
+function nearestClearOfFurniture(geometry: RoomGeometry, m: Washer, from: number, others: readonly WallTaken[], taken: readonly Rect[]): number {
+  const clear = (p: number) => {
+    const box = washerBox(geometry, { ...m, positionMm: p })
+    return !!box && !taken.some((t) => overlaps(box, t, 0))
+  }
+  if (clear(from)) return from
+  let best: number | null = null
+  for (const [lo, hi] of washerSpans(geometry, m.wallId, others, machineHalf(m))) {
+    for (let p = lo; ; p = Math.min(hi, p + STEP_MM)) {
+      if (clear(p) && (best == null || Math.abs(p - m.positionMm) < Math.abs(best - m.positionMm))) best = p
+      if (p >= hi) break
+    }
+  }
+  return best ?? from
 }
 
 /** Machines read from a saved room: anything that is not a sound machine is left out. */
