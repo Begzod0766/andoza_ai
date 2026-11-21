@@ -81,6 +81,8 @@ export function Washers3D({ controlsRef }: {
   const geometry = useRoomStore((s) => s.geometry);
   const moveWasher = useRoomStore((s) => s.moveWasher);
   const active = useRoomStore((s) => s.plumbingStage);
+  // Caught and dragged in a plumbing stage, with a phone's sheet closed too (#359).
+  const draggable = useRoomStore((s) => s.plumbingDrag);
   // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
@@ -145,8 +147,8 @@ export function Washers3D({ controlsRef }: {
         if (!pose) return null;
         const { W, D, H } = dims(m);
         return (
-          <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(m, e))}>
-            <mesh castShadow receiveShadow raycast={active ? raycastInFront : noRaycast}>
+          <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(m, e))}>
+            <mesh castShadow receiveShadow raycast={draggable ? raycastInFront : noRaycast}>
               <boxGeometry args={[W, H, D]} />
               <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>

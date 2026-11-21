@@ -11,7 +11,7 @@ import { RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
 import { wallAnchorOf, type WallAnchor } from "@/lib/newRoomFromWall";
 import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
-import { plumbingStageOn, DOCKED_PANEL_QUERY } from '@/lib/plumbingStageOn';
+import { plumbingDragOn, plumbingStageOn, DOCKED_PANEL_QUERY } from '@/lib/plumbingStageOn';
 import { useRoomStore } from "@/store/roomStore";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { useCompactStudio } from "@/lib/compactStudio";
@@ -440,7 +440,9 @@ export default function ThreeDPage() {
   }, []);
   useEffect(() => {
     // Off at a camera station or the 360, which every render and saved frame is taken from (2026-11-18).
-    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked, panorama || cameraStation != null));
+    const capturing = panorama || cameraStation != null;
+    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked, capturing));
+    useRoomStore.getState().setPlumbingDrag(plumbingDragOn(activePhase, capturing));
   }, [activePhase, showPanel, panelDocked, panorama, cameraStation]);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);

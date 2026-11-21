@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { plumbingLayerShown, plumbingStageOn } from '@/lib/plumbingStageOn'
+import { plumbingDragOn, plumbingLayerShown, plumbingStageOn } from '@/lib/plumbingStageOn'
 
 describe('plumbingStageOn (mobile QA 2026-11-16; Quvurlar/Jihozlar 2026-11-18)', () => {
   it('on a wide screen the panel is always docked: on in either plumbing stage', () => {
@@ -35,5 +35,17 @@ describe('plumbingStageOn while a camera station or the 360 is on (every render 
   it('off, so no point, pipe run or bare riser is in the picture', () => {
     expect(plumbingStageOn('quvurlar', true, true, true)).toBe(false)
     expect(plumbingStageOn('jihozlar', true, true, false)).toBe(true)
+  })
+})
+
+describe('plumbingDragOn (mobile QA 2026-11-21, #359): towel rails, machines and the riser can be caught', () => {
+  it('in either plumbing stage, on a phone with its sheet closed too', () => {
+    // The sheet covers the lower 60% of a phone: the user closes it to reach a rail and drag it.
+    expect(plumbingDragOn('jihozlar')).toBe(true)
+    expect(plumbingDragOn('quvurlar')).toBe(true)
+  })
+  it('never at a camera station or in the 360, nor at another stage', () => {
+    expect(plumbingDragOn('jihozlar', true)).toBe(false)
+    expect(plumbingDragOn('mebel')).toBe(false)
   })
 })

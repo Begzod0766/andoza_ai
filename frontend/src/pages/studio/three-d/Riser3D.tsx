@@ -40,7 +40,8 @@ export function Riser3D({ controlsRef, hiddenWalls }: {
   const geometry = useRoomStore((s) => s.geometry);
   const manual = useRoomStore((s) => s.plumbingRiser);
   const ceilingMm = useRoomStore((s) => s.ceilingHeight);
-  const active = useRoomStore((s) => s.plumbingStage);
+  // Caught and dragged in a plumbing stage, with a phone's sheet closed too (#359).
+  const draggable = useRoomStore((s) => s.plumbingDrag);
   const shown = useRoomStore((s) => riserVisible(s));
   const setPlumbingRiser = useRoomStore((s) => s.setPlumbingRiser);
   const { camera, gl } = useThree();
@@ -104,7 +105,7 @@ export function Riser3D({ controlsRef, hiddenWalls }: {
         <meshStandardMaterial color={GREY} roughness={0.6} metalness={0.1} />
       </mesh>
       {/* A wider, unseen hit area, nearest on the ray (as a towel rail's): a finger catches the pipe. */}
-      <mesh raycast={raycastInFront} {...railPointerHandlers(active, start)}>
+      <mesh raycast={raycastInFront} {...railPointerHandlers(draggable, start)}>
         <cylinderGeometry args={[HIT_RADIUS, HIT_RADIUS, h, 12]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>

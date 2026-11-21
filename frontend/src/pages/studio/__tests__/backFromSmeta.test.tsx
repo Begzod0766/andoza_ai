@@ -96,4 +96,21 @@ describe('coming back to the studio from the estimate', () => {
     await waitFor(() => expect((server.state.designState as { ventFan?: boolean }).ventFan).toBe(false), { timeout: 4000 })
     expect(savedInlet()).toBe(true)
   }, 15_000)
+
+  it('keeps the undo history (mobile QA 2026-11-21, #359): the room saved before leaving is the one still there', async () => {
+    renderApp()
+    await waitFor(() => expect(useRoomStore.getState().roomId).toBe('A'))
+    // An edit a beat after the room opened is its own undo step (UNDO_COALESCE_MS).
+    await new Promise((r) => setTimeout(r, 450))
+
+    act(() => useRoomStore.getState().setDesignState({ waterInlet: true }))
+    await waitFor(() => expect(savedInlet()).toBe(true), { timeout: 4000 })
+    await waitFor(() => expect(useRoomStore.getState().isDirty).toBe(false))
+    expect(useRoomStore.temporal.getState().pastStates.length).toBeGreaterThan(0)
+
+    act(() => go('/smeta/A'))
+    act(() => go('/studio/A'))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(useRoomStore.temporal.getState().pastStates.length).toBeGreaterThan(0)
+  }, 15_000)
 })
