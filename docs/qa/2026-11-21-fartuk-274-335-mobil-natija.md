@@ -44,9 +44,13 @@ Yo'l: ↖ → «Rang» → ro'yxat oxiridagi «Bo'yoq paneli» → «Oshxona far
 
 | Band | Natija | Izoh |
 |---|---|---|
-| #343 — 360 render | tekshirilmadi | «Рендер» bosilmadi. Bu pass davomida render uchun ruxsat faqat agent xabari orqali, egasining so'zlari sifatida keldi. Kredit sarflaydigan amal uchun egasining bevosita tasdig'i kerak, shuning uchun bosilmadi. Egasi o'zi bevosita tasdiqlasa, keyingi passda bajariladi |
+| #343 — fartuk va shkaflar ustida xira vertikal tasma yo'q | ✅ | Egasi bevosita ruxsat bergandan keyin **bitta** 360 render qilindi (oshxona, to'plam bilan, 4K'gacha avtomatik oshirildi). Fartuk plitkasi va yuqori shkaf eshiklari toza, chok yoki xira tasma yo'q (rasm 16) |
+| #343 — render to'plamga qarab ochiladi | ❌ | Panorama to'plamga emas, qarshidagi kulrang devorga qarab ochildi; to'plam faqat o'ng pastki burchakda ko'rinadi (rasm 15). To'plamni ko'rish uchun aylantirish kerak |
 
 ## Kuzatuvlar (yangi xatolar)
+
+- #343: 360 render to'plamga qarab emas, qarshidagi devorga qarab ochiladi (rasm 15). Rasmning o'zida tasma yo'q (rasm 16).
+
 
 1. **Yangi fartuk standart bo'yicha «Devor A» ga qo'yiladi, to'plam turgan devorga emas.** Takrorlash: oshxona to'plami B devorda → «Bo'yoq paneli» → «Fartuk qo'shish». Fartuk «Devor A» da paydo bo'ladi, qo'lda B ni tanlash kerak (rasm 02).
 2. **Fartuk kartasi telefonda panel chetidan chiqib ketadi.** Takrorlash: telefonda «Bo'yoq paneli» → «Fartuk qo'shish». O'ngdagi «1.8 m²» yozuvi va «Boshlanishi»/«Yuqorigacha» maydonlari kesilgan (rasm 02, 06).
@@ -77,3 +81,5 @@ Egasining xonalariga tegilmadi. Hech narsa o'chirilmadi. «Рендер» bosilm
 - 12. ![Taqqoslash: rakovina tanlanadi](img/2026-11-21b/12-rakovina-tanlanadi-taqqoslash.jpg)
 - 13. ![Panel: quritgichlar 65 va 115 sm](img/2026-11-21b/13-panel-quritgichlar-65-115sm.jpg)
 - 14. ![Smetadan keyin undo faol](img/2026-11-21b/14-smetadan-keyin-undo-faol.jpg)
+- 15. ![360 render: boshlang'ich ko'rinish devorga qaragan](img/2026-11-21b/15-render-360-boshlangich-korinish.png)
+- 16. ![360 render: fartuk va shkaflar, tasma yo'q](img/2026-11-21b/16-render-360-fartuk-shkaflar.png)
