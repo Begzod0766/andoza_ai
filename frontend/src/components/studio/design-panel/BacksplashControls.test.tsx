@@ -12,9 +12,9 @@ vi.mock('@/lib/api/materials', () => ({ getMaterials: vi.fn().mockResolvedValue(
 const geometry = { walls: (['A', 'B', 'C', 'D'] as const).map((id, i) => ({ id, length: i % 2 ? 2000 : 4000, elements: [] })) } as unknown as RoomGeometry
 const one: Backsplash = { id: 'f1', wallId: 'A', material: 'tile', startMm: 0, lengthMm: 3000, bottomMm: 850, topMm: 1450, color: '#F2EFE9' }
 
-function controls(value: Backsplash[] | undefined, targetWall = 'B') {
+function controls(value: Backsplash[] | undefined, targetWall = 'B', setWall?: string | null) {
   const onChange = vi.fn()
-  render(<BacksplashControls geometry={geometry} ceilingMm={2700} targetWall={targetWall} value={value} onChange={onChange} />)
+  render(<BacksplashControls geometry={geometry} ceilingMm={2700} targetWall={targetWall} value={value} onChange={onChange} setWall={setWall} />)
   return onChange
 }
 const last = (fn: ReturnType<typeof vi.fn>) => fn.mock.calls.at(-1)![0] as Backsplash[]
@@ -26,10 +26,22 @@ describe('BacksplashControls', () => {
     expect(last(onChange)).toEqual([expect.objectContaining({ wallId: 'B', material: 'tile', startMm: 0, lengthMm: 2000, bottomMm: 850, topMm: 1450 })])
   })
 
-  it('with "all walls" picked it goes on the first wall', () => {
+  it('with "all walls" picked and no kitchen set it goes on the first wall', () => {
     const onChange = controls(undefined, 'ALL')
     fireEvent.click(screen.getByRole('button', { name: "Fartuk qo'shish" }))
     expect(last(onChange)[0].wallId).toBe('A')
+  })
+
+  it('with "all walls" picked it goes on the wall the kitchen set stands against (mobile QA 2026-11-21, #335)', () => {
+    const onChange = controls(undefined, 'ALL', 'C')
+    fireEvent.click(screen.getByRole('button', { name: "Fartuk qo'shish" }))
+    expect(last(onChange)[0].wallId).toBe('C')
+  })
+
+  it('a wall the user picked still wins over the set\'s', () => {
+    const onChange = controls(undefined, 'B', 'C')
+    fireEvent.click(screen.getByRole('button', { name: "Fartuk qo'shish" }))
+    expect(last(onChange)[0].wallId).toBe('B')
   })
 
   it('shows its area and switches to skinali, taking the glass colour', () => {
@@ -98,5 +110,18 @@ describe('WallSection: the backsplash block', () => {
   it('is not there in a bedroom', () => {
     setup('yotoqxona', 'Yotoqxona')
     expect(screen.queryByRole('button', { name: "Fartuk qo'shish" })).toBeNull()
+  })
+})
+
+describe('BacksplashControls on a phone (mobile QA 2026-11-21, #335): nothing runs past the half-width panel', () => {
+  it('the wall row and every centimetre field wrap rather than push their right end out', () => {
+    controls([one])
+    const wall = screen.getByRole('combobox')
+    expect(wall.closest('div')!.className).toMatch(/\bflex-wrap\b/)
+    expect(wall.className).toMatch(/\bmin-w-0\b/)
+    for (const input of screen.getAllByRole('textbox')) {
+      expect(input.closest('label')!.className).toMatch(/\bflex-wrap\b/)
+      expect(input.className).toMatch(/\bmax-w-full\b/)
+    }
   })
 })

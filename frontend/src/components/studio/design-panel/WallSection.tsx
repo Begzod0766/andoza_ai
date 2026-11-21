@@ -23,6 +23,9 @@ import { MaterialSwatch } from "../MaterialSwatch";
 import { WALL_COLORS, wallColorName } from "@/lib/wallPalette";
 import { TileHeightControls } from "./TileHeightControls";
 import { BacksplashControls } from "./BacksplashControls";
+import { kitchenSetWall } from "@/lib/backsplash";
+import { isKitchenSet } from "@/lib/furnitureRole";
+import { placedFurnitureBoxes } from "@/features/studio/nextFurnitureSpot";
 import { effectiveRoomType } from "@/lib/roomType";
 import type { Backsplash } from "@/store/types";
 import { isTileCovering } from "@/lib/tileBand";
@@ -75,6 +78,14 @@ export function WallSection({
   const designState = useRoomStore((s) => s.designState);
   const geometry = useRoomStore((s) => s.geometry);
   const ceilingHeight = useRoomStore((s) => s.ceilingHeight);
+  // The wall the kitchen set stands against: a new backsplash goes there when no wall is picked (#335).
+  const furniture = useRoomStore((s) => s.furniture);
+  const catalogFurniture = useRoomStore((s) => s.catalogFurniture);
+  const setWall = React.useMemo(() => kitchenSetWall(geometry,
+    placedFurnitureBoxes(useRoomStore.getState()).filter((p) => p.role === "kitchen_set" || isKitchenSet(p.name))
+      .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [geometry, furniture, catalogFurniture]);
   const surfaces = useRoomStore((s) => s.surfaces);
   const applySurface = useRoomStore((s) => s.applySurface);
   const tweakWallCovering = useRoomStore((s) => s.tweakWallCovering);
@@ -247,7 +258,7 @@ export function WallSection({
       {isKitchen && (
         <section className="pt-5 border-t border-line">
           <BacksplashControls geometry={geometry} ceilingMm={ceilingHeight} targetWall={targetWall}
-            value={designState.backsplashes} onChange={setBacksplashes} />
+            value={designState.backsplashes} onChange={setBacksplashes} setWall={setWall} />
         </section>
       )}
       <section className="pt-5 border-t border-line">

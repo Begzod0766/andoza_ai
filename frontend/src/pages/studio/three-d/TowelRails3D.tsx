@@ -83,21 +83,33 @@ export function raycastInFront(this: THREE.Mesh, raycaster: THREE.Raycaster, int
  * nothing went on to the wall behind and opened the wall's menu (mobile re-check 2026-11-11). In any
  * other stage there are none and a touch goes through.
  */
-export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void): {
+export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void, open?: () => void): {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
 } {
-  if (!active) return {};
-  return { onPointerDown: start, onClick: (e) => e.stopPropagation() };
+  if (active) return { onPointerDown: start, onClick: (e) => e.stopPropagation() };
+  // In any other stage a tap opens the fixtures panel (mobile QA 2026-11-21, #359): in the finished room
+  // a tap on a machine went to the floor behind it and opened the floor's ring, as if nothing were there.
+  if (open) return { onClick: (e) => { e.stopPropagation(); open(); } };
+  return {};
+}
+
+/** The hit area's raycast: ahead of all in a plumbing stage (raycastInFront), as itself where a tap opens the
+ * fixtures panel (furniture in front still takes its own tap), and none at a camera station or in the 360. */
+export function railRaycast(active: boolean, tappable: boolean): THREE.Mesh['raycast'] {
+  if (active) return raycastInFront;
+  return tappable ? THREE.Mesh.prototype.raycast : noRaycast;
 }
 
 /**
  * The heated towel rails on the walls (spec 2026-11-10): a chrome ladder each, drawn in code. A rail
  * slides along its wall by drag; the store keeps it off doors, windows and the wall's ends.
  */
-export function TowelRails3D({ controlsRef, hiddenWalls }: {
+export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   hiddenWalls?: ReadonlySet<string>;
+  /** Opens the fixtures panel: a tap outside a plumbing stage (#359). None while capturing a frame. */
+  onOpen?: () => void;
 }) {
   const towelRails = useRoomStore((s) => s.towelRails);
   const geometry = useRoomStore((s) => s.geometry);
@@ -173,9 +185,9 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
         const { W, H } = dims(rail);
         const bars = ladderBars(rail);
         return (
-          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e))}>
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e), onOpen)}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
-            <mesh raycast={draggable ? raycastInFront : noRaycast}>
+            <mesh raycast={railRaycast(draggable, !!onOpen)}>
               <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>

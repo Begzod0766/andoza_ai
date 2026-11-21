@@ -1,3 +1,4 @@
+import { wallWalk } from '@/lib/plumbingRuns'
 import { nanoid } from 'nanoid'
 import type { Backsplash, RoomGeometry } from '@/store/types'
 import { resolveElementPositions } from '@/lib/wallPositions'
@@ -85,4 +86,23 @@ export function backsplashPieces(b: Backsplash, geometry: RoomGeometry, ceilingM
 
 export function backsplashAreaM2(pieces: readonly Rect[]): number {
   return pieces.reduce((sum, p) => sum + ((p.x1 - p.x0) * (p.y1 - p.y0)) / 1e6, 0)
+}
+
+/**
+ * The wall the biggest kitchen set stands against (mobile QA 2026-11-21, #335): where a new backsplash goes
+ * when no one wall is picked. It went on wall A whatever wall the set was on. The wall nearest the middle
+ * of the set's back; null with no set. Sets in world metres, as the studio draws them.
+ */
+export function kitchenSetWall(geometry: RoomGeometry, sets: readonly { x: number; z: number; w: number; d: number; rotation: number }[]): string | null {
+  const set = sets.reduce<(typeof sets)[number] | null>((b, s) => (!b || s.w * s.d > b.w * b.d ? s : b), null)
+  if (!set) return null
+  // Its front faces (sin r, cos r): the back's middle is half its depth behind its centre.
+  const bx = set.x - Math.sin(set.rotation) * set.d / 2, bz = set.z - Math.cos(set.rotation) * set.d / 2
+  let best: string | null = null, bestDist = Infinity
+  for (const w of wallWalk(geometry)) {
+    const t = Math.max(0, Math.min(w.lengthM, (bx - w.startX) * w.dirX + (bz - w.startZ) * w.dirZ))
+    const dist = Math.hypot(bx - (w.startX + w.dirX * t), bz - (w.startZ + w.dirZ * t))
+    if (dist < bestDist) { bestDist = dist; best = w.id }
+  }
+  return best
 }

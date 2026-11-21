@@ -735,6 +735,8 @@ export default function ThreeDPage() {
     openPhasePanel(phase);
     setShowPanel(true);
   }, [openPhasePanel]);
+  // A tap on a towel rail or machine in any other stage opens Jihozlar, where it drags (#359).
+  const openFixtures = useCallback(() => openPanelAt('jihozlar'), [openPanelAt]);
   const arcCategories = useArcCategories({ selectedWall, openPanelAt });
 
   // The same query key and scope the design panel's Oboy tab uses, so the ring
@@ -1153,6 +1155,8 @@ export default function ThreeDPage() {
             toolMode={toolMode}
             selectedFurId={selectedFurId}
             selectFurniture={selectFurniture}
+            // Not while a camera station or the 360 is on: every render and saved frame is taken from one.
+            onOpenFixtures={panorama || cameraStation != null ? undefined : openFixtures}
             selectedPart={selectedPart}
             selectFurniturePart={selectFurniturePart}
             showScan={showScan}
