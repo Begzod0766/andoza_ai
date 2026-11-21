@@ -2,8 +2,8 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import { useRoomStore, UNDO_COALESCE_MS } from '../roomStore'
 import { roomContentChanged } from '@/lib/autosave'
-import { riserSpot } from '@/lib/plumbingRuns'
-import { nearestFree, placeTowelRail, TOWEL_RAIL_HEIGHT_MM } from '@/lib/towelRail'
+import { riserSpot, wallWalk } from '@/lib/plumbingRuns'
+import { nearestFree, placeTowelRail, railHalf, TOWEL_RAIL_HEIGHT_MM } from '@/lib/towelRail'
 import type { RoomGeometry } from '../types'
 
 const DOOR = { id: 'd', type: 'eshik', position: 650, width: 700, height: 2050 }
@@ -316,5 +316,24 @@ describe('a second rail (mobile QA 2026-11-14, #277)', () => {
     st().moveTowelRail('r2', 1200)
     st().endTowelRailDrag()
     expect(Math.abs(st().towelRails[1].positionMm - 1200)).toBeGreaterThanOrEqual(500)
+  })
+})
+
+describe('a rail keeps off a washbasin (mobile QA 2026-11-21, #365)', () => {
+  /** A washbasin (60 × 50 cm, no catalog row) against wall A, its middle `alongMm` from A's start. */
+  const basinOnA = (alongMm: number) => {
+    const a = wallWalk(geometry).find((w) => w.id === 'A')!
+    const x = a.startX + a.dirX * alongMm / 1000 + a.nx * 0.25, z = a.startZ + a.dirZ * alongMm / 1000 + a.nz * 0.25
+    return { id: 'basin', furniture_id: 'rakovina-1', name: 'Rakovina', x: x * 1000, y: z * 1000, rotation: Math.atan2(a.nx, a.nz) }
+  }
+  it('dragged onto the basin, the rail stops beside it, not above it', () => {
+    useRoomStore.setState({ furniture: [basinOnA(1600)] as never, catalogFurniture: [], plumbingRiser: riserSpot(geometry, [{ x: 0, z: 99 }]) })
+    useRoomStore.setState({ towelRails: [{ id: 'r1', wallId: 'A', positionMm: 900, heightMm: TOWEL_RAIL_HEIGHT_MM }] })
+    st().moveTowelRail('r1', 1600)
+    const r = st().towelRails[0]
+    const half = railHalf(r)
+    expect(r.wallId).toBe('A')
+    // The basin takes A 1300…1900.
+    expect(r.positionMm + half <= 1300 || r.positionMm - half >= 1900).toBe(true)
   })
 })

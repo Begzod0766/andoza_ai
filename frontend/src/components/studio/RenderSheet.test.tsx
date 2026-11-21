@@ -38,9 +38,12 @@ const BIG = { url: 'https://s3/big.jpg', key: 'renders/u/big.jpg', prompt: null 
 
 const viewerSrc = () => screen.getByTestId('pano-viewer').getAttribute('data-src')
 
+/** Its own button starts a render (a paid one): opening the sheet does not (mobile QA 2026-11-21, #365). */
+const pressRender = () => fireEvent.click(screen.getByRole('button', { name: 'Render qilish' }))
+
 /**
- * Opening the sheet is what starts the render: the 360 camera's button opens
- * it. The 4K copy follows on its own and replaces the first render in the
+ * The 360 camera's button opens the sheet and its "Render" button starts the render.
+ * The 4K copy follows on its own and replaces the first render in the
  * viewer, so "ready" means the 4K is showing.
  */
 async function renderOnce(outcome = FIRST, roomId?: string) {
@@ -49,13 +52,23 @@ async function renderOnce(outcome = FIRST, roomId?: string) {
   createUpscale.mockResolvedValue({ job_id: 'ju' })
   waitForRender.mockResolvedValueOnce(outcome).mockResolvedValueOnce(BIG)
   render(<RenderSheet open onOpenChange={() => {}} roomId={roomId} />)
+  pressRender()
   await waitFor(() => expect(viewerSrc()).toBe(BIG.url))
 }
 
 beforeEach(() => { createRender.mockReset(); createRelight.mockReset(); createUpscale.mockReset(); waitForRender.mockReset(); panoramaJpeg.mockReset(); listRenders.mockReset(); listRenders.mockResolvedValue([]) })
 
 describe('RenderSheet', () => {
-  it('takes the panorama and renders it as soon as it opens, with no button pressed', async () => {
+  it('opening sends nothing: a render costs a credit, so only its button starts one (mobile QA 2026-11-21, #365)', async () => {
+    panoramaJpeg.mockResolvedValue(new Blob(['pano']))
+    render(<RenderSheet open onOpenChange={() => {}} />)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(panoramaJpeg).not.toHaveBeenCalled()
+    expect(createRender).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Render qilish' })).toBeEnabled()
+  })
+
+  it('its button takes the panorama and renders it', async () => {
     await renderOnce()
     expect(panoramaJpeg).toHaveBeenCalledTimes(1)
     expect(createRender).toHaveBeenCalledTimes(1)
@@ -119,6 +132,7 @@ describe('RenderSheet', () => {
       panoramaJpeg.mockResolvedValue(null)
       listRenders.mockResolvedValue([row('new', 'https://s3/new.jpg')])
       const { rerender } = render(<RenderSheet open onOpenChange={() => {}} roomId="room-7" />)
+      pressRender()
       await screen.findByRole('alert')
 
       rerender(<RenderSheet open={false} onOpenChange={() => {}} roomId="room-7" />)
@@ -158,12 +172,14 @@ describe('RenderSheet', () => {
     panoramaJpeg.mockResolvedValue(new Blob(['pano']))
     createRender.mockRejectedValue(new Error("Bugun AI so'rovlar limiti tugadi."))
     render(<RenderSheet open onOpenChange={() => {}} />)
+    pressRender()
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('limiti tugadi'))
   })
 
   it('says so when the panorama cannot be taken, and does not call the server', async () => {
     panoramaJpeg.mockResolvedValue(null)
     render(<RenderSheet open onOpenChange={() => {}} />)
+    pressRender()
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Panoramani olib bo'))
     expect(createRender).not.toHaveBeenCalled()
   })
@@ -199,6 +215,7 @@ describe('RenderSheet', () => {
     createRender.mockResolvedValue({ job_id: 'j1' })
     waitForRender.mockReturnValue(new Promise(() => {}))
     render(<RenderSheet open onOpenChange={() => {}} />)
+    pressRender()
     await screen.findByRole('status')
     expect(screen.queryByRole('button', { name: 'Iliq chiroqlar' })).toBeNull()
   })
@@ -250,6 +267,7 @@ describe('RenderSheet', () => {
       createUpscale.mockRejectedValue(new Error("Bugun AI so'rovlar limiti tugadi."))
       waitForRender.mockResolvedValueOnce(FIRST)
       render(<RenderSheet open onOpenChange={() => {}} />)
+      pressRender()
       await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('limiti tugadi'))
       expect(viewerSrc()).toBe(FIRST.url)
       // and the chip is there to try again by hand
@@ -282,6 +300,7 @@ describe('RenderSheet in guest mode', () => {
     panoramaJpeg.mockResolvedValue(new Blob(['pano']))
     const onOpenChange = vi.fn()
     render(<RenderSheet open onOpenChange={onOpenChange} roomId="room-7" />)
+    pressRender()
     await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
     expect(createRender).not.toHaveBeenCalled()
     expect(panoramaJpeg).not.toHaveBeenCalled()
@@ -295,6 +314,7 @@ describe('RenderSheet in guest mode', () => {
     createRender.mockRejectedValue(new ApiError(body403('render'), 403))
     const onOpenChange = vi.fn()
     render(<RenderSheet open onOpenChange={onOpenChange} roomId="room-7" />)
+    pressRender()
     await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"render"}'))
     expect(onOpenChange).toHaveBeenCalledWith(false)
     // back to idle: no spinner, no error, the empty frame

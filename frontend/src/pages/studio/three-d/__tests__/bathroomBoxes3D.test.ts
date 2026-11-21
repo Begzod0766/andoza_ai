@@ -1,8 +1,8 @@
 /** The riser box, water heater and wall-hung toilet box in 3D (2026-11-18): where each stands. */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RoomGeometry } from '@/store/types'
 import { wallWalk } from '@/lib/plumbingRuns'
-import { spotPose } from '../BathroomBoxes3D'
+import { riserBoxHandlers, spotPose } from '../BathroomBoxes3D'
 
 const geometry = { walls: [
   { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
@@ -19,5 +19,18 @@ describe('spotPose', () => {
   })
   it('a wall the room lacks: nothing', () => {
     expect(spotPose({ wallId: 'Z', positionMm: 0 }, geometry, 0.1)).toBeNull()
+  })
+})
+
+describe('riserBoxHandlers (mobile QA 2026-11-21, #365): the boxed-in riser in the finished room', () => {
+  it('a tap opens the pipes panel, where the bare riser drags, and stops at the box', () => {
+    // A long press turned the camera and the riser stayed put.
+    const open = vi.fn(), click = { stopPropagation: vi.fn() }
+    riserBoxHandlers(open).onClick!(click as never)
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(click.stopPropagation).toHaveBeenCalled()
+  })
+  it('none while a frame is taken (a camera station or the 360)', () => {
+    expect(riserBoxHandlers(undefined)).toEqual({})
   })
 })

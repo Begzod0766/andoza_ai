@@ -66,22 +66,24 @@ export function riserBoxTaken(geometry: RoomGeometry, riser: RiserAt): Array<{ w
 export interface WallSpan { wallId: string; from: number; to: number }
 
 /** A usual bath and shower, mm (width, depth), for a catalog row with none (backend smeta.py _WET_FOOTPRINT_CM). */
-const WET_SIZE_MM = { bathtub: [1700, 700], shower: [900, 900] } as const
+const WET_SIZE_MM = { bathtub: [1700, 700], shower: [900, 900], sink: [600, 500] } as const
+type WetRole = keyof typeof WET_SIZE_MM
 /** A piece this near a wall stands against it, mm. */
 const AGAINST_MM = 150
 
 /** The stretch of each wall a bath or a shower stands against: its floor rectangle's corners measured along
  * every wall it is within 15 cm of, so a bath in a corner takes its end's width of the side wall too. */
-export function wetSpans(furniture: PlacedFurniture[], catalog: CatalogFurniture[], geometry: RoomGeometry): WallSpan[] {
+export function wetSpans(furniture: PlacedFurniture[], catalog: CatalogFurniture[], geometry: RoomGeometry, roles: readonly WetRole[] = ['bathtub', 'shower']): WallSpan[] {
   const byId = new Map(catalog.map((c) => [c.id, c]))
   const walk = wallWalk(geometry)
   return furniture.flatMap((f) => {
     const row = byId.get(f.furniture_id)
     const role = inferRole(row?.category ?? null, row?.name_uz ?? f.name ?? f.furniture_id)
-    if (role !== 'bathtub' && role !== 'shower') return []
+    if (!(roles as readonly string[]).includes(role)) return []
+    const wet = role as WetRole
     const k = f.scaleOverride ?? 1
-    const w = (row?.footprint_w ? row.footprint_w * 10 : WET_SIZE_MM[role][0]) * k / 1000
-    const d = (row?.footprint_d ? row.footprint_d * 10 : WET_SIZE_MM[role][1]) * k / 1000
+    const w = (row?.footprint_w ? row.footprint_w * 10 : WET_SIZE_MM[wet][0]) * k / 1000
+    const d = (row?.footprint_d ? row.footprint_d * 10 : WET_SIZE_MM[wet][1]) * k / 1000
     // The piece's front is +Z turned by its rotation (as lib/plumbingPoints reads it); its width runs across that.
     const fx = Math.sin(f.rotation), fz = Math.cos(f.rotation)
     const cx = f.x / 1000, cz = f.y / 1000

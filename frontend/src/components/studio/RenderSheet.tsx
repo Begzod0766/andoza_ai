@@ -130,12 +130,9 @@ export function RenderSheet({
     return true
   }
 
-  // Opened from the 360 camera: the panorama is taken and sent at once, with
-  // no further button to press. Opening again renders again. The gallery does not.
-  useEffect(() => {
-    if (open && mode === "render") void start()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  // Opening the sheet starts nothing: a render costs a credit, and the 360 camera's button that opened it
+  // was easy to touch by accident (mobile QA 2026-11-21, #365: a render nobody asked for). Its own
+  // "Render" button starts one.
 
   async function start() {
     if (phase === "capturing" || phase === "rendering") return
