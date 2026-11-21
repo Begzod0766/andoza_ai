@@ -18,6 +18,8 @@ export interface FurnitureSlice {
   moveFurniture(id: string, x: number, y: number, rotation: number): void
   resizeFurniture(id: string, scaleOverride: number): void
   removeFurniture(id: string): void
+  /** Removes several items in one `set` (one undo step); unknown ids are ignored. */
+  removeFurnitureMany(ids: readonly string[]): void
   setFurnitureColors(id: string, overrides: Record<string, string>): void
   hideFurniturePart(id: string, partKey: string): void
   addUserFurniture(entry: UserFurnitureEntry): void
@@ -83,6 +85,15 @@ export const createFurnitureSlice: StateCreator<
   removeFurniture(id) {
     set((state) => {
       const furniture = state.furniture.filter((f) => f.id !== id)
+      return { isDirty: true, furniture, plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry) }
+    })
+  },
+
+  removeFurnitureMany(ids) {
+    set((state) => {
+      const drop = new Set(ids)
+      const furniture = state.furniture.filter((f) => !drop.has(f.id))
+      if (furniture.length === state.furniture.length) return state
       return { isDirty: true, furniture, plumbing: withFixturePoints(state.plumbing, furniture, state.catalogFurniture, state.geometry) }
     })
   },
