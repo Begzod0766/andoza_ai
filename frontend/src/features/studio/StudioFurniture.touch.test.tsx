@@ -1,9 +1,11 @@
 /**
  * A finger on a model, on a phone (QA 2026-11-05 #4, re-check R9):
- *   - a pinch that starts with one finger on a model selected it, and could not zoom;
+ *   - one finger pressed on a model and dragged moves it, selected first or not;
+ *   - two fingers on a model twist it round (the transform toolbar went, 2026-11-20);
  *   - iOS may cancel a touch (a system gesture, a scroll it takes over) with `pointercancel` and no
  *     `pointerup`: the drag never ended, and the camera stayed switched off;
- *   - a second finger landing mid-drag moved the piece to wherever that finger went.
+ *   - a second finger landing mid-drag moved the piece to wherever that finger went — now it
+ *     turns the drag into a twist instead.
  *
  * Same harness as StudioFurniture.yaw.test.tsx: a real react-three-fiber root driven directly,
  * with a stub renderer. jsdom has no PointerEvent, so mouse events carry the pointer fields.
@@ -121,15 +123,46 @@ describe('a finger on a model', () => {
     r.unmount()
   })
 
-  it('a pinch that starts on it does not select it, and leaves the camera free', () => {
+  it('a tap without travel selects it and leaves it where it stood', () => {
     const r = mountRoom(null)
     send(r.canvas, touch('pointerdown', 1, cx, cy))
-    send(r.canvas, touch('pointerdown', 2, cx + 200, cy + 100))
+    send(window, touch('pointermove', 1, cx + 2, cy + 1))
+    send(window, touch('pointerup', 1, cx + 2, cy + 1))
+    expect(r.selections).toContain('f1')
+    expect(stored()).toMatchObject({ x: 0, y: 0, rotation: 0 })
     expect(r.controls.enabled).toBe(true)
-    send(window, touch('pointermove', 2, cx + 260, cy + 140))
-    send(r.canvas, touch('pointerup', 2, cx + 260, cy + 140))
-    send(r.canvas, touch('pointerup', 1, cx, cy))
-    expect(r.selections).toEqual([])
+    r.unmount()
+  })
+
+  it('a one-finger drag moves it even when it was not selected first', () => {
+    const r = mountRoom(null)
+    send(r.canvas, touch('pointerdown', 1, cx, cy))
+    expect(r.controls.enabled).toBe(false)
+    send(window, touch('pointermove', 1, cx + 60, cy))
+    send(window, touch('pointerup', 1, cx + 60, cy))
+    expect(r.selections).toContain('f1')
+    expect(stored().x).toBeGreaterThan(100)
+    expect(r.controls.enabled).toBe(true)
+    r.unmount()
+  })
+
+  it('two fingers that start on it twist it, and the camera stays out of it', () => {
+    const r = mountRoom(null)
+    send(r.canvas, touch('pointerdown', 1, cx, cy))
+    send(r.canvas, touch('pointerdown', 2, cx + 100, cy))
+    expect(r.controls.enabled).toBe(false)
+    // The second finger swings a quarter turn clockwise on screen round the first.
+    send(window, touch('pointermove', 2, cx + 71, cy + 71))
+    send(window, touch('pointermove', 2, cx, cy + 100))
+    act(() => { advance(performance.now()) })
+    send(window, touch('pointerup', 2, cx, cy + 100))
+    send(window, touch('pointerup', 1, cx, cy))
+    // Seen from above, clockwise on screen is a negative turn about +y.
+    expect(stored().rotation).toBeCloseTo(-Math.PI / 2, 2)
+    expect(Math.abs(stored().x)).toBeLessThan(1)
+    expect(Math.abs(stored().y)).toBeLessThan(1)
+    expect(r.selections).toContain('f1')
+    expect(r.controls.enabled).toBe(true)
     r.unmount()
   })
 
@@ -150,18 +183,23 @@ describe('a finger on a model', () => {
     r.unmount()
   })
 
-  it('a second finger landing mid-drag ends the drag without moving the piece', () => {
+  it('a second finger landing mid-drag turns the drag into a twist', () => {
     const r = mountRoom('f1')
     send(r.canvas, touch('pointerdown', 1, cx, cy))
     send(window, touch('pointermove', 1, cx + 60, cy))
-    send(r.canvas, touch('pointerdown', 2, cx + 300, cy + 150))
-    send(window, touch('pointermove', 2, cx + 340, cy + 170))
-    send(window, touch('pointerup', 2, cx + 340, cy + 170))
+    act(() => { advance(performance.now()) })
+    const movedTo = r.meshAt().x
+    expect(movedTo).toBeGreaterThan(0.1)
+    send(r.canvas, touch('pointerdown', 2, cx + 160, cy))
+    // A quarter turn the other way: counter-clockwise on screen.
+    send(window, touch('pointermove', 2, cx + 60, cy - 100))
+    send(window, touch('pointerup', 2, cx + 60, cy - 100))
     send(window, touch('pointerup', 1, cx + 60, cy))
     act(() => { advance(performance.now()) })
-    expect(stored()).toMatchObject({ x: 0, y: 0 })
+    expect(stored().rotation).toBeCloseTo(Math.PI / 2, 2)
+    // The second finger's travel never moved the piece.
+    expect(stored().x / 1000).toBeCloseTo(movedTo, 1)
     expect(r.controls.enabled).toBe(true)
-    expect(r.meshAt().x).toBeCloseTo(0, 6)
     r.unmount()
   })
 
@@ -174,13 +212,14 @@ describe('a finger on a model', () => {
     const grabX = cx + 20
     send(r.canvas, touch('pointerdown', 1, grabX, cy))
     expect(r.controls.enabled).toBe(false)
-    send(window, touch('pointermove', 1, grabX + 1, cy))
+    // 8 px: just past the tap threshold (TAP_SLOP_PX), well short of the 20 px offset.
+    send(window, touch('pointermove', 1, grabX + 8, cy))
     act(() => { advance(performance.now()) })
-    // One pixel of travel is about 9 mm across the floor; the piece follows it, not the 20 px offset.
-    expect(Math.abs(r.meshAt().x)).toBeLessThan(0.03)
-    send(window, touch('pointerup', 1, grabX + 1, cy))
+    // 8 px of travel is ~0.12 m across this floor; jumping by the grab offset as well would be ~0.4 m.
+    expect(Math.abs(r.meshAt().x)).toBeLessThan(0.2)
+    send(window, touch('pointerup', 1, grabX + 8, cy))
     expect(stored().x).toBeGreaterThan(0)
-    expect(stored().x).toBeLessThan(30)
+    expect(stored().x).toBeLessThan(200)
     expect(Math.abs(stored().y)).toBeLessThan(1)
     r.unmount()
   })

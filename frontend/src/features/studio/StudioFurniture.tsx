@@ -19,7 +19,7 @@ import {
   resolveFurnitureMove, resolveFurnitureRotation,
   type Obstacle, type OrientedFootprint,
 } from '@/lib/furnitureCollision'
-import { holdCameraStill, swallowPickClick } from '@/lib/pickEvents'
+import { swallowPickClick } from '@/lib/pickEvents'
 import { multiTouchGuard } from '@/lib/multiTouchGuard'
 import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { useInViewCard } from "./useInViewCard";
@@ -297,6 +297,9 @@ export interface SelectedPart {
   label: string
 }
 
+/** Finger travel, px, under which a press on a model is a tap, not a drag. */
+const TAP_SLOP_PX = 6
+
 /** Exported for its tests; the studio renders it through DraggableFurnitureModels. */
 export function DraggableFurnitureItem({
   item,
@@ -517,6 +520,12 @@ export function DraggableFurnitureItem({
     if ((toolMode === 'move' || toolMode === 'select') && groupRef.current && dragPosRef.current) {
       groupRef.current.position.x = dragPosRef.current.x
       groupRef.current.position.z = dragPosRef.current.z
+      // A two-finger twist turns the piece within the same gesture; on a
+      // plain one-finger drag the angle is the piece's own and this is a no-op.
+      if (primitiveRef.current && dragRotRef.current !== null) {
+        primitiveRef.current.rotation.y = dragRotRef.current
+        if (selRef.current) selRef.current.rotation.y = dragRotRef.current
+      }
     } else if (toolMode === 'rotate' && primitiveRef.current && dragRotRef.current !== null) {
       primitiveRef.current.rotation.y = dragRotRef.current
       // A turn against a wall shifts the model off it; show that as it
@@ -553,10 +562,9 @@ export function DraggableFurnitureItem({
   const ls = lengthStretch(item.lengthCm, geomHW * 2 * s)
   const fw = geomHW * s * 2 * ls   // actual footprint width
   const fd = geomHD * s * 2   // actual footprint depth
-  // In 'select' mode, an already-selected item is directly draggable (see
-  // startDragFromMesh) — 'grab' signals that, same as 'move' mode; a
-  // not-yet-selected item just gets the plain 'pointer' selection cursor.
-  const meshCursor = toolMode === 'select' ? (isSelected ? 'grab' : 'pointer')
+  // In 'select' mode every model is directly draggable, selected or not (see
+  // startDragFromMesh) — 'grab' says so.
+  const meshCursor = toolMode === 'select' ? 'grab'
                    : toolMode === 'part'   ? 'crosshair'
                    : toolMode === 'rotate' ? 'ew-resize'
                    : toolMode === 'scale'  ? 'ns-resize'
@@ -782,6 +790,27 @@ export function DraggableFurnitureModels({
   const scaleStartYRef = useRef(0)
   const scaleStartValueRef = useRef(1)
   const rotateStartAngleRef = useRef(0)
+  /** Where the press began, and whether the finger has since travelled far
+   *  enough to count as a drag. A press that never does is a tap: it selects
+   *  and moves nothing, so a finger's jitter does not nudge the piece. */
+  const pressAtRef = useRef({ x: 0, y: 0 })
+  const movedRef = useRef(false)
+  /** The drag finger's latest screen position — where a twist's first finger
+   *  is when a second one lands. */
+  const lastPosRef = useRef({ x: 0, y: 0 })
+  /**
+   * A two-finger twist on the piece in hand: the transform toolbar went at the
+   * user's request (2026-11-20), and turning is two fingers on the model now.
+   * `total` is the angle the pair has swung through since it began, unwrapped
+   * so a turn past half a revolution keeps going rather than flipping back.
+   */
+  const twistRef = useRef<{
+    a: { id: number; x: number; y: number }
+    b: { id: number; x: number; y: number }
+    lastAngle: number
+    total: number
+    startRot: number
+  } | null>(null)
   const geometry = useRoomStore((s) => s.geometry)
   // The walls the drag actually has to respect. `roomW`/`roomD` are the room's
   // BOUNDING extents, which for a drawn or scanned room describe a rectangle
@@ -795,7 +824,7 @@ export function DraggableFurnitureModels({
     () => furnitureRoomBounds(geometry, { W: roomW, D: roomD }), [geometry, roomW, roomD])
 
   const { bind: holdBind, cancel: cancelHold } = useHoldToDelete()
-  const { camera, gl } = useThree()
+  const { camera, gl, invalidate } = useThree()
   const floorPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
   const hitPoint = useRef(new THREE.Vector3())
@@ -895,9 +924,12 @@ export function DraggableFurnitureModels({
   function activateDrag(item: PlacedFurniture, clientX: number, clientY = 0, pointerId?: number) {
     onSelectItem(item.id)
     dragPointerRef.current = { id: pointerId, at: Date.now() }
-    // 'select' mode reaching here only happens via the already-selected-item
-    // bypass above — there's no rotate/scale affordance in that mode, so a
-    // plain drag always means reposition, exactly like 'move' mode.
+    pressAtRef.current = { x: clientX, y: clientY }
+    lastPosRef.current = { x: clientX, y: clientY }
+    movedRef.current = false
+    twistRef.current = null
+    // In 'select' mode one finger repositions, exactly like 'move' mode; a
+    // second finger turns it into a twist (see the drag effect below).
     if (toolMode === 'move' || toolMode === 'select') {
       // Prefer actual geometry footprint; fall back to catalog sizeM
       const fp = footprintsRef.current.get(item.id)
@@ -943,78 +975,35 @@ export function DraggableFurnitureModels({
     if (controlsRef.current) controlsRef.current.enabled = false
   }
 
-  // A press on an already-selected item starts dragging immediately, even in
-  // 'select' mode — no toolbar switch to 'move' needed first. Matches the
-  // same fix already shipped for ceiling lights (LightingComponents.tsx) and
-  // wall openings (WallOpenings.tsx): first press on an unselected item only
-  // selects it (selectedId hasn't updated yet for this render), a
-  // subsequent press on the now-selected item drags it. Non-select tool
-  // modes (move/rotate/scale) are unaffected — they already dragged on the
-  // very first press.
+  // A press on any model starts dragging it at once and selects it — no tap to
+  // select first, and no toolbar mode to arm (the toolbar went, 2026-11-20).
+  // A press that never travels is just the tap that selects (see movedRef). A
+  // second finger landing while this one is down turns the gesture into a
+  // twist instead of handing the camera a pinch.
   function startDragFromMesh(item: PlacedFurniture, e: ThreeEvent<PointerEvent>) {
     e.stopPropagation()
+    // The second finger of a twist lands on the model too: the live gesture
+    // already owns it, and starting a fresh drag would throw that away.
+    if (draggingIdRef.current) return
     // Hold to delete rides along with the drag: it gives way as soon as the
     // finger travels, so this still drags exactly as it did.
     holdBind({
       label: resolveDisplayInfo(item).name,
       onDelete: () => onDelete(item.id),
     }).onPointerDown(e)
-    if (toolMode === 'select' && selectedId !== item.id) {
-      // The press that selects must not also orbit the camera.
-      holdCameraStill(controlsRef.current)
-      // A finger selects when it lifts, not when it lands: the first finger of a pinch lands on
-      // whatever is under it, and selecting there turned every zoom over a piece into picking it.
-      if (e.pointerType === 'touch') selectOnRelease(item.id, e.pointerId)
-      else onSelectItem(item.id)
-      return
-    }
     activateDrag(item, e.clientX, e.clientY, e.pointerId)
-  }
-
-  /**
-   * Select `id` when the finger that pressed it lifts, unless a second finger joined in on the way:
-   * that press was a pinch, and the camera (held still for the press) is handed back to it at once.
-   * A cancelled touch selects nothing.
-   */
-  function selectOnRelease(id: string, pointerId: number) {
-    const at = Date.now()
-    const controls = controlsRef.current
-    const done = () => {
-      window.removeEventListener('pointerdown', onDown, true)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onCancel)
-    }
-    const onDown = (ev: PointerEvent) => {
-      if (ev.pointerType !== 'touch' || ev.pointerId === pointerId) return
-      done()
-      cancelHold()
-      if (controls) controls.enabled = true
-    }
-    const onUp = (ev: PointerEvent) => {
-      if (ev.pointerId !== pointerId) return
-      done()
-      if (!pinch.multiTouchSince(at)) onSelectItem(id)
-    }
-    const onCancel = (ev: PointerEvent) => { if (ev.pointerId === pointerId) done() }
-    window.addEventListener('pointerdown', onDown, true)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onCancel)
   }
 
   function startDragFromButton(item: PlacedFurniture, e: React.PointerEvent) {
     e.stopPropagation()
     e.preventDefault()
+    if (draggingIdRef.current) return
     // The handle is the model: holding it deletes, exactly as holding the
     // model does. It was the one way of grabbing a model that could not.
     holdBind({
       label: resolveDisplayInfo(item).name,
       onDelete: () => onDelete(item.id),
     }).onPointerDown(e)
-    if (toolMode === 'select' && selectedId !== item.id) {
-      onSelectItem(item.id)
-      holdCameraStill(controlsRef.current)
-      return
-    }
     activateDrag(item, e.clientX, e.clientY, e.pointerId)
   }
 
@@ -1023,8 +1012,13 @@ export function DraggableFurnitureModels({
     if (!id) return
     const item = furnitureRef.current.find((f) => f.id === id)
     if (item) {
-      if (toolMode === 'move' || toolMode === 'select') {
-        moveFurniture(id, dragPosRef.current.x * 1000, dragPosRef.current.z * 1000, item.rotation)
+      if (twistRef.current) {
+        moveFurniture(id, dragPosRef.current.x * 1000, dragPosRef.current.z * 1000, dragRotRef.current)
+      } else if (toolMode === 'move' || toolMode === 'select') {
+        // A tap that never travelled leaves the piece exactly where it stood.
+        if (movedRef.current) {
+          moveFurniture(id, dragPosRef.current.x * 1000, dragPosRef.current.z * 1000, item.rotation)
+        }
       } else if (toolMode === 'rotate') {
         // Position too: turning against a wall shifts the model off it, and
         // committing the old position would put it back through the wall.
@@ -1039,6 +1033,7 @@ export function DraggableFurnitureModels({
   /** Lets go without moving anything: the piece stays where it was before the press. */
   function endDrag() {
     draggingIdRef.current = null
+    twistRef.current = null
     setDraggingId(null)
     if (controlsRef.current) controlsRef.current.enabled = true
     document.body.style.cursor = ''
@@ -1053,10 +1048,51 @@ export function DraggableFurnitureModels({
     /** Two fingers were down since the press: it is a pinch now, and the drag is called off. */
     const pinched = () => pinch.multiTouchSince(dragPointerRef.current.at)
 
+    /** Turns the piece by the angle the two fingers have swung through. */
+    const twistMove = (e: PointerEvent) => {
+      const tw = twistRef.current!
+      const f = e.pointerId === tw.a.id ? tw.a : e.pointerId === tw.b.id ? tw.b : null
+      if (!f) return // a third finger: not part of the twist
+      f.x = e.clientX
+      f.y = e.clientY
+      const angle = Math.atan2(tw.b.y - tw.a.y, tw.b.x - tw.a.x)
+      let d = angle - tw.lastAngle
+      if (d > Math.PI) d -= 2 * Math.PI
+      else if (d < -Math.PI) d += 2 * Math.PI
+      tw.total += d
+      tw.lastAngle = angle
+      // Screen angles grow clockwise (y points down), and seen from above a
+      // clockwise turn is a negative one about +y — hence the minus.
+      const step = 5 * (Math.PI / 180)
+      const wantRot = Math.round((tw.startRot - tw.total) / step) * step
+      // Same rule as the rotate drag: only into room the piece can occupy.
+      const solved = resolveFurnitureRotation(
+        worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds),
+        dragBox(wantRot),
+        wantRot,
+        roomBounds,
+        obstaclesFor(draggingIdRef.current!),
+      )
+      if (solved) {
+        dragRotRef.current = solved.rotation
+        const w = planToWorld(solved.at, roomBounds)
+        dragPosRef.current.set(w.x, 0, w.z)
+        invalidate()
+      }
+    }
+
     const handleMove = (e: PointerEvent) => {
-      if (otherPointer(e) || !draggingIdRef.current) return
+      if (!draggingIdRef.current) return
+      if (twistRef.current) { twistMove(e); return }
+      if (otherPointer(e)) return
       if (pinched()) { endDrag(); return }
+      lastPosRef.current = { x: e.clientX, y: e.clientY }
       if (toolMode === 'move' || toolMode === 'select') {
+        if (!movedRef.current) {
+          const p = pressAtRef.current
+          if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < TAP_SLOP_PX) return
+          movedRef.current = true
+        }
         if (!floorHitAt(e.clientX, e.clientY, hitPoint.current)) return
         // Where the finger asks the centre to be: its floor point plus the grab offset.
         const grab = grabOffsetRef.current
@@ -1116,14 +1152,40 @@ export function DraggableFurnitureModels({
     // takes the gesture over). Nothing listened for it: the drag stayed live, the camera stayed
     // switched off, and the next touch anywhere carried the piece on. A cancel lets go of the
     // drag without moving the piece, and so does a second finger landing: that is a pinch.
+    // A twist ends when either of its fingers lifts: the angle it reached is
+    // kept, and the finger still down does nothing more (the camera never saw
+    // it land, so it does not orbit either).
+    const inTwist = (e: PointerEvent) =>
+      !!twistRef.current && (e.pointerId === twistRef.current.a.id || e.pointerId === twistRef.current.b.id)
     const handleUp = (e: PointerEvent) => {
+      if (twistRef.current) { if (inTwist(e)) commitDrag(); return }
       if (otherPointer(e)) return
       if (pinched()) endDrag()
       else commitDrag()
     }
-    const handleCancel = (e: PointerEvent) => { if (!otherPointer(e)) endDrag() }
+    const handleCancel = (e: PointerEvent) => {
+      if (twistRef.current) { if (inTwist(e)) endDrag(); return }
+      if (!otherPointer(e)) endDrag()
+    }
     const handleDown = (e: PointerEvent) => {
-      if (e.pointerType === 'touch' && otherPointer(e)) { cancelHold(); endDrag() }
+      if (e.pointerType !== 'touch' || !otherPointer(e)) return
+      if (twistRef.current) return // a third finger changes nothing
+      cancelHold()
+      const firstId = dragPointerRef.current.id
+      if ((toolMode === 'move' || toolMode === 'select') && firstId !== undefined) {
+        // A second finger on the piece in hand: twist it round the first.
+        const a = { id: firstId, ...lastPosRef.current }
+        const b = { id: e.pointerId, x: e.clientX, y: e.clientY }
+        twistRef.current = {
+          a, b,
+          lastAngle: Math.atan2(b.y - a.y, b.x - a.x),
+          total: 0,
+          startRot: dragRotRef.current,
+        }
+        invalidate()
+      } else {
+        endDrag()
+      }
     }
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)

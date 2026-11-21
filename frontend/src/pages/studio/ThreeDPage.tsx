@@ -63,7 +63,6 @@ import { useThreeDKeyboardShortcuts } from "./three-d/useThreeDKeyboardShortcuts
 import { useAddRoomNavigation } from "./three-d/useAddRoomNavigation";
 import { useFlatRooms } from "./three-d/useFlatRooms";
 import { PhaseStageNav } from "./three-d/PhaseStageNav";
-import { ModelToolbar } from "./three-d/ModelToolbar";
 import { SUN_INTENSITY } from "./three-d/SceneEnvironment";
 import { ToolsDrawerPanel } from "./three-d/ToolsDrawerPanel";
 import { DesignPanelDock } from "./three-d/DesignPanelDock";
@@ -1049,10 +1048,10 @@ export default function ThreeDPage() {
             </div>
           )}
 
-          {/* The transform tools for whatever model is selected, down the
-              left edge. They come with the selection and go with it — see
-              ModelToolbar. */}
-          <ModelToolbar selectedId={selectedFurId} toolMode={toolMode} setToolMode={setToolMode} />
+          {/* The transform toolbar (Tanlash / Aylantirish / 90° / − +) that
+              stood down the left edge went at the user's request (2026-11-20):
+              one finger on a model drags it, two fingers twist it — see
+              DraggableFurnitureModels. */}
 
           {/* The orange "Buyum qo'shish" CTA stood here until the user asked
               for it to go (2026-09-28). The corner arc offers the same things
