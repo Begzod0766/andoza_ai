@@ -1,4 +1,5 @@
 import type { StateCreator } from 'zustand'
+import { placedFurnitureBoxes } from '@/features/studio/nextFurnitureSpot'
 import type { PlumbingPoint } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { withFixturePoints } from '@/lib/plumbingPoints'
@@ -46,7 +47,10 @@ let riserDragStart: RiserAt | null | undefined
 /** The washing machines kept clear of the riser at `at` (2026-11-14): one it now stands on moves to the
  * nearest free place, as it does for a door. The same list when none is in the way. */
 function washersClearOf(state: RoomStore, at: RiserAt | null) {
-  return keepWashers(state.washers, state.geometry, state.towelRails, roomRiser(state.geometry, at))
+  // Clear of the furniture too when one has to move (mobile QA 2026-11-14, #271). A rug lies flat.
+  const taken = placedFurnitureBoxes(state).filter((p) => p.role !== 'rug')
+    .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
+  return keepWashers(state.washers, state.geometry, state.towelRails, roomRiser(state.geometry, at), taken)
 }
 
 export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice> = (set, get) => ({
