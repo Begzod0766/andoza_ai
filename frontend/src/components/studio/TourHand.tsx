@@ -15,7 +15,7 @@ export function TourHand({ x, y, replayKey }: { x: number; y: number; replayKey:
         width="40"
         height="48"
         viewBox="0 0 40 48"
-        className="absolute left-[-14px] top-[-4px] origin-top-left drop-shadow-lg motion-reduce:animate-none animate-[tourtap_1.2s_ease-in-out_2]"
+        className="absolute left-[-18px] top-0 origin-top-left drop-shadow-lg motion-reduce:animate-none animate-[tourtap_1.2s_ease-in-out_2_forwards]"
       >
         <path
           d="M14 4a4 4 0 0 1 8 0v18l3-1a4 4 0 0 1 5 2l1-1a4 4 0 0 1 5 3l1-0.5a4 4 0 0 1 4 4V34c0 8-5 13-13 13h-3c-5 0-8-2-11-6L4 31a4 4 0 0 1 6-5l4 4z"
