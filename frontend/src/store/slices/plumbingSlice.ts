@@ -37,6 +37,9 @@ export interface PlumbingSlice {
    * a towel rail can be caught and dragged in 3D, ahead of anything standing in front of it. */
   plumbingStage: boolean
   setPlumbingStage(on: boolean): void
+  /** Towel rails, machines and the riser can be dragged in 3D (lib/plumbingStageOn plumbingDragOn). */
+  plumbingDrag: boolean
+  setPlumbingDrag(on: boolean): void
 }
 
 /** The points as they were when the drag in progress began (see beginPlumbingDrag). */
@@ -58,9 +61,14 @@ export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice>
   plumbingRiser: null,
   showPipeRuns: false,
   plumbingStage: false,
+  plumbingDrag: false,
 
   setPlumbingStage(on) {
     set({ plumbingStage: on })
+  },
+
+  setPlumbingDrag(on) {
+    set({ plumbingDrag: on })
   },
 
   setPlumbingRiser(at) {

@@ -6,6 +6,7 @@ import { defaultApartmentName, defaultRoomName } from '@/lib/defaultNames';
 import { storeGeometryToApiGeometry } from "@/lib/apiRoomGeometry";
 import { useNoPageZoom } from "@/hooks/useNoPageZoom";
 import { ApiError } from "@/lib/api/client";
+import { roomCopyStamp } from "@/lib/roomCopyStamp";
 import { NavLink, Outlet, useParams, useNavigate, useLocation } from "react-router-dom";
 import RoomSettingsSheet from "@/components/studio/RoomSettingsSheet";
 import { Ruler } from "lucide-react";
@@ -271,8 +272,8 @@ export default function StudioPage() {
   const inFlight = useRef<Promise<boolean> | null>(null);
   /** `updated_at` of the server copy the store last took or wrote, so the
    *  same copy fetched again is not loaded over the store (which would clear
-   *  the undo history for nothing). */
-  const loadedAtRef = useRef<string | null>(null);
+   *  the undo history for nothing). Outlives the page: back from the estimate (#359). */
+  const loadedAtRef = useMemo(() => roomCopyStamp(roomId), [roomId]);
   /** The save the whole studio uses — the autosave, the room list, the AI
    *  builder. Resolves once the running save is done. */
   async function handleSave(): Promise<void> {

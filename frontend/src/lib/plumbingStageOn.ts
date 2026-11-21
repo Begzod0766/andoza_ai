@@ -12,6 +12,16 @@ export function plumbingStageOn(phase: string, sheetOpen: boolean, wide: boolean
   return isPlumbingPhase(phase) && (wide || sheetOpen) && !capturing
 }
 
+/**
+ * Whether towel rails, machines and the riser can be caught and dragged in 3D (mobile QA 2026-11-21, #359):
+ * in either plumbing stage, with a phone's sheet closed too. That sheet covers the lower 60% of the screen, so
+ * the user closes it to reach a rail, and closing it had ended the drag with the stage. The shower zone and
+ * the clash red still follow plumbingStageOn. Off at a camera station or in the 360.
+ */
+export function plumbingDragOn(phase: string, capturing = false): boolean {
+  return isPlumbingPhase(phase) && !capturing
+}
+
 /** The width from which the studio docks its design panel (Tailwind `lg`). */
 export const DOCKED_PANEL_QUERY = '(min-width: 1024px)'
 

@@ -105,6 +105,8 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
   // Caught and dragged in a plumbing stage only; in any other it is scenery, and a touch goes
   // through it to the camera or to whatever is there.
   const active = useRoomStore((s) => s.plumbingStage);
+  // Caught and dragged in a plumbing stage, with a phone's sheet closed too (#359).
+  const draggable = useRoomStore((s) => s.plumbingDrag);
   // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
@@ -171,9 +173,9 @@ export function TowelRails3D({ controlsRef, hiddenWalls }: {
         const { W, H } = dims(rail);
         const bars = ladderBars(rail);
         return (
-          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(rail, e))}>
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e))}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
-            <mesh raycast={active ? raycastInFront : noRaycast}>
+            <mesh raycast={draggable ? raycastInFront : noRaycast}>
               <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
