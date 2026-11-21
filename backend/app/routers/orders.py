@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import uuid
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.i18n import translate_detail
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
+from app.models.user import User
 from app.models.furniture import Furniture
 from app.models.material import Material
 from app.models.order import Order, OrderLine
@@ -97,7 +100,7 @@ async def _resolve_line_prices(
 )
 async def create_order(
     body: OrderCreate,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("order"))],
     db: DbSession,
 ) -> OrderOut:
     material_prices, furniture_prices, store_id = await _resolve_line_prices(db, body.lines)

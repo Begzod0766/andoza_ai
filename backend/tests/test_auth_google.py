@@ -151,10 +151,10 @@ def test_response_matches_password_login_shape(client, verifier):
     assert "token" in res.cookies
     assert "refresh_token" in res.cookies
     body = res.json()
-    assert set(body) == {"user", "access_token", "refresh_token", "token_type"}
+    assert set(body) == {"user", "access_token", "refresh_token", "token_type", "guest_merged_rooms"}
     assert body["access_token"] is None and body["refresh_token"] is None
     assert body["token_type"] == "bearer"
-    assert set(body["user"]) == {"id", "phone", "username", "name", "is_admin", "language", "created_at"}
+    assert set(body["user"]) == {"id", "phone", "username", "name", "is_admin", "language", "created_at", "is_guest"}
 
 
 def test_native_client_gets_tokens_in_body(client, verifier):

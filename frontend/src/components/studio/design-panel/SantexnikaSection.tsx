@@ -122,6 +122,11 @@ export function SantexnikaSection({ part, bathroom = false }: {
     setRiserDraft(null);
     if (Number.isFinite(cm)) placeRiser(riser.wallId, Math.round(cm * 10));
   }
+  // Where along its wall too (mobile QA 2026-11-21, #359): two rails on one wall read the same by height alone.
+  const railWhere = (r: { wallId: string; positionMm: number; heightMm: number }) =>
+    t("studio.santexnika.rail_where", { wall: wallNumber(r.wallId), along: Math.round(r.positionMm / 10), cm: Math.round(r.heightMm / 10) });
+  const washerWhere = (m: { wallId: string; positionMm: number }) =>
+    t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId), along: Math.round(m.positionMm / 10) });
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
 
   // The room's walls can change under an open panel (another room, a resize): the picker keeps to them.
@@ -150,9 +155,9 @@ export function SantexnikaSection({ part, bathroom = false }: {
       {sinks.length > 0 && (
         <ul className="space-y-1">
           {sinks.map((m) => (
-            <li key={m.id} aria-label={`${t("studio.santexnika.sink")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+            <li key={m.id} aria-label={`${t("studio.santexnika.sink")}, ${washerWhere(m)}`}
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-              <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+              <span className="text-[12px] text-ink">{washerWhere(m)}</span>
               <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                 {t("studio.santexnika.remove")}
               </button>
@@ -330,9 +335,9 @@ export function SantexnikaSection({ part, bathroom = false }: {
           {towelRails.length > 0 && (
             <ul className="space-y-1">
               {towelRails.map((r) => (
-                <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}`}
+                <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${railWhere(r)}`}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-                  <span className="text-[12px] text-ink">{t("studio.santexnika.where", { wall: wallNumber(r.wallId), cm: Math.round(r.heightMm / 10) })}</span>
+                  <span className="text-[12px] text-ink">{railWhere(r)}</span>
                   {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
                   <span className="flex gap-1">
                     {(["water", "electric"] as const).map((k) => {
@@ -382,9 +387,9 @@ export function SantexnikaSection({ part, bathroom = false }: {
         {washingMachines.length > 0 && (
           <ul className="space-y-1">
             {washingMachines.map((m) => (
-              <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+              <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${washerWhere(m)}`}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-                <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+                <span className="text-[12px] text-ink">{washerWhere(m)}</span>
                 <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
                   {t("studio.santexnika.remove")}
                 </button>
@@ -407,9 +412,9 @@ export function SantexnikaSection({ part, bathroom = false }: {
           {dishwashers.length > 0 && (
             <ul className="space-y-1">
               {dishwashers.map((m) => (
-                <li key={m.id} aria-label={`${t("studio.santexnika.dish")}, ${t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}`}
+                <li key={m.id} aria-label={`${t("studio.santexnika.dish")}, ${washerWhere(m)}`}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-                  <span className="text-[12px] text-ink">{t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId) })}</span>
+                  <span className="text-[12px] text-ink">{washerWhere(m)}</span>
                   <select aria-label={t("studio.santexnika.dish_width")} value={machineSize(m).w}
                     onChange={(e) => setNoDishWidth(!setWasherWidth(m.id, Number(e.target.value) as 600 | 450))}
                     className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">

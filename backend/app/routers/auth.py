@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated
+from uuid import UUID
 
 import httpx
 import structlog
@@ -16,14 +17,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import bcrypt as _bcrypt
 
-from app.api.v1.deps import CurrentUser
+from app.api.v1.deps import CurrentUser, _bearer_scheme
 from app.config import NATIVE_APP_ORIGINS, settings
 from app.core.cache import get_redis
-from app.core.security import create_access_token, create_refresh_token, verify_refresh_token
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    is_guest_token_of_registered,
+    refresh_token_claims,
+    verify_token,
+)
 from app.core.sms import generate_otp, send_otp, store_otp, verify_otp
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import AppleLoginRequest, DeleteAccountRequest, GoogleLoginRequest, LoginRequest, LoginResponse, MeUpdate, OTPRequest, OTPVerify, RegisterRequest, UserOut
+from app.services.guest_account import MergeResult, merge_guest_into, upgrade_guest
+from app.schemas.auth import AppleLoginRequest, DeleteAccountRequest, GoogleLoginRequest, GuestCreateRequest, LoginRequest, LoginResponse, MeUpdate, OTPRequest, OTPVerify, RegisterRequest, UserOut
 
 def _hash_password(password: str) -> str:
     return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
@@ -59,6 +67,12 @@ _REGISTER_IP_RATE_WINDOW = 3600  # 1 hour
 # Account deletion: password confirmation must not be brute-forceable.
 _DELETE_USER_RATE_LIMIT = 5
 _DELETE_USER_RATE_WINDOW = 900
+
+# Guest sessions (POST /auth/guest): one message for all three limits, so the
+# answer does not tell an abuser which axis it hit.
+_GUEST_IP_RATE_WINDOW = 3600       # 1 hour
+_GUEST_INSTALL_RATE_WINDOW = 86400  # 1 day
+_GUEST_GLOBAL_RATE_WINDOW = 86400   # 1 day
 
 _IS_DEV = settings.ENVIRONMENT == "development"
 _COOKIE_MAX_AGE = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -107,15 +121,16 @@ def _set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
-def _set_refresh_cookie(response: Response, token: str) -> None:
-    """Set the HttpOnly refresh token cookie, scoped to the refresh endpoint only."""
+def _set_refresh_cookie(response: Response, token: str, max_age: int | None = None) -> None:
+    """Set the HttpOnly refresh token cookie, scoped to the refresh endpoint only.
+    *max_age* defaults to the registered-user refresh lifetime."""
     response.set_cookie(
         key="refresh_token",
         value=token,
         httponly=True,
         secure=not _IS_DEV,
         samesite="lax",
-        max_age=_REFRESH_COOKIE_MAX_AGE,
+        max_age=_REFRESH_COOKIE_MAX_AGE if max_age is None else max_age,
         path="/api/v1/auth/refresh",
     )
 
@@ -147,6 +162,44 @@ async def _enforce_rate_limit(
     if count == 0:
         await pipe.expire(key, window)
     await pipe.execute()
+
+
+async def get_guest_caller(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    bearer: Annotated[str | None, Depends(_bearer_scheme)] = None,
+) -> User | None:
+    """The guest making this sign-in request, if any — so the sign-in can
+    upgrade it or merge it into the account. Bearer first (the native app),
+    then the `token` cookie (a WebView's guest cookie must not override the
+    app's own token). Only an active guest counts; a registered user's token
+    is ignored, exactly as these routes always ignored tokens. Never raises:
+    a sign-in must not fail over a stale or broken token."""
+    for token in (bearer, request.cookies.get("token")):
+        if not token:
+            continue
+        sub = verify_token(token)
+        if sub is None:
+            continue
+        try:
+            user_id = UUID(sub)
+            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        except Exception:  # noqa: BLE001 — see docstring
+            logger.warning("guest_caller_lookup_failed")
+            # Leave the session usable for the sign-in itself.
+            try:
+                await db.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+            return None
+        if user is not None and user.is_active and user.is_guest is True:
+            return user
+        # A valid token of someone who is not a guest: no guest here.
+        return None
+    return None
+
+
+GuestCaller = Annotated[User | None, Depends(get_guest_caller)]
 
 
 @router.post(
@@ -228,6 +281,7 @@ async def verify_otp_endpoint(
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
+    guest: GuestCaller,
 ) -> LoginResponse:
     """Brute-force guarded (max 5 attempts per 5-min window).
     On success: sets HttpOnly JWT cookies. JWTs are also echoed in the
@@ -259,28 +313,24 @@ async def verify_otp_endpoint(
 
     result = await db.execute(select(User).where(User.phone == body.phone))
     user = result.scalar_one_or_none()
+    merged: MergeResult | None = None
+    if user is None and guest is not None:
+        # A new phone: the guest becomes this account, rooms and all (None:
+        # a concurrent sign-up upgraded it first — make a fresh account).
+        user = await upgrade_guest(db, guest, phone=body.phone)
     if user is None:
-        user = User(phone=body.phone)
+        user = User(phone=body.phone, registered_at=datetime.now(timezone.utc))
         db.add(user)
         await db.flush()
         # Same reason as register(): populate server defaults (created_at)
         # so the freshly-created user serialises into a complete LoginResponse.
         await db.refresh(user)
+    elif guest is not None and user.is_active and user.id != guest.id:
+        merged = await merge_guest_into(db, guest.id, user)
 
     logger.info("user_authenticated", user_id=str(user.id), phone=body.phone)
 
-    subject = str(user.id)
-    access_token = create_access_token(subject)
-    refresh_token = create_refresh_token(subject)
-    _set_auth_cookie(response, access_token)
-    _set_refresh_cookie(response, refresh_token)
-
-    is_native = _is_native_client(request)
-    return LoginResponse(
-        user=UserOut.model_validate(user),
-        access_token=access_token if is_native else None,
-        refresh_token=refresh_token if is_native else None,
-    )
+    return _login_response(user, request, response, merged)
 
 
 @router.get(
@@ -330,34 +380,47 @@ async def refresh_tokens(
             detail="Refresh token missing.",
         )
 
-    user_id = verify_refresh_token(refresh_token)
+    claims = refresh_token_claims(refresh_token)
+    user_id = claims.get("sub") if claims else None
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token.",
         )
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
+    # Locked and read fresh: a merge deleting this row now waits for the
+    # refresh to commit, or has already deleted it (no row: 401) — never a
+    # 500 from writing last_seen_at to a row that vanished meanwhile.
+    try:
+        user_uuid = UUID(str(user_id))
+    except ValueError:
+        user_uuid = None
+    user = None
+    if user_uuid is not None:
+        user = (
+            await db.execute(
+                select(User).where(User.id == user_uuid).with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+    if user is None or is_guest_token_of_registered(claims, user):
+        # 401, not 404: a guest merged into another account (or deleted) has
+        # no row any more, and its old refresh token must end the session
+        # the way any dead token does. A guest's token after an upgrade is
+        # dead too: the upgrade issued new ones.
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token.",
         )
+
+    # Stale guests are cleaned up by this (app/tasks/maintenance.py).
+    user.last_seen_at = datetime.now(timezone.utc)
 
     logger.info("tokens_rotated", user_id=user_id)
 
-    access_token = create_access_token(user_id)
-    refresh_token_new = create_refresh_token(user_id)
-    _set_auth_cookie(response, access_token)
-    _set_refresh_cookie(response, refresh_token_new)
-
-    is_native = _is_native_client(request)
-    return LoginResponse(
-        user=UserOut.model_validate(user),
-        access_token=access_token if is_native else None,
-        refresh_token=refresh_token_new if is_native else None,
-    )
+    # The lifetime follows what the row is NOW: a guest token refreshed after
+    # an upgrade gets the registered (shorter) refresh token.
+    return _login_response(user, request, response)
 
 
 @router.post(
@@ -385,6 +448,7 @@ async def register(
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
+    guest: GuestCaller,
 ) -> LoginResponse:
     """Rate-limited: max registrations per IP per hour to prevent mass account creation."""
     redis = get_redis()
@@ -404,34 +468,37 @@ async def register(
             detail="Bu username allaqachon band.",
         )
 
-    user = User(
-        username=body.username,
-        password_hash=_hash_password(body.password),
-        name=body.name,
-        language=body.language or "uz",
-    )
-    db.add(user)
-    await db.flush()
-    # Reload so server-side defaults (created_at) are populated before we
-    # serialise UserOut — otherwise the response is an incomplete
-    # LoginResponse (missing created_at) and validation 500s. This makes
-    # register return the SAME fully-loaded user shape as /login.
-    await db.refresh(user)
+    password_hash = _hash_password(body.password)
+    user = None
+    if guest is not None:
+        # The guest becomes this account in place (same id, same rooms) and
+        # keeps the language it already has. None: a concurrent sign-up
+        # upgraded it first, so this one gets an account of its own.
+        user = await upgrade_guest(
+            db, guest,
+            username=body.username,
+            password_hash=password_hash,
+            name=body.name,
+        )
+    if user is None:
+        user = User(
+            username=body.username,
+            password_hash=password_hash,
+            name=body.name,
+            language=body.language or "uz",
+            registered_at=datetime.now(timezone.utc),
+        )
+        db.add(user)
+        await db.flush()
+        # Reload so server-side defaults (created_at) are populated before we
+        # serialise UserOut — otherwise the response is an incomplete
+        # LoginResponse (missing created_at) and validation 500s. This makes
+        # register return the SAME fully-loaded user shape as /login.
+        await db.refresh(user)
 
     logger.info("user_registered", user_id=str(user.id), username=body.username)
 
-    subject = str(user.id)
-    access_token = create_access_token(subject)
-    refresh_token = create_refresh_token(subject)
-    _set_auth_cookie(response, access_token)
-    _set_refresh_cookie(response, refresh_token)
-
-    is_native = _is_native_client(request)
-    return LoginResponse(
-        user=UserOut.model_validate(user),
-        access_token=access_token if is_native else None,
-        refresh_token=refresh_token if is_native else None,
-    )
+    return _login_response(user, request, response)
 
 
 @router.post(
@@ -445,6 +512,7 @@ async def login_with_password(
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
+    guest: GuestCaller,
 ) -> LoginResponse:
     """Rate-limited by IP (anti credential-spraying) and by username
     (anti brute-force), each independently, before any credential check runs."""
@@ -474,15 +542,23 @@ async def login_with_password(
             detail="Username yoki parol noto'g'ri.",
         )
 
+    # Not into an inactive account: the guest's rooms would be stranded there.
+    merged = await merge_guest_into(db, guest.id, user) if guest is not None and user.is_active else None
+
     logger.info("user_logged_in", user_id=str(user.id), username=body.username)
 
-    return _login_response(user, request, response)
+    return _login_response(user, request, response, merged)
 
 
-def _login_response(user: User, request: Request, response: Response) -> LoginResponse:
+def _login_response(
+    user: User, request: Request, response: Response, merged: MergeResult | None = None
+) -> LoginResponse:
     """Sign *user* in: set the auth cookies and build the LoginResponse
-    (tokens echoed in the body for native clients only). Shared by the
-    password, Google and Apple logins so all answer identically."""
+    (tokens echoed in the body for native clients only). Shared by every
+    sign-in route so all answer identically. *merged* is the guest merged
+    into *user* by this sign-in, if any."""
+    if user.is_guest is True:
+        return _guest_login_response(user, request, response)
     subject = str(user.id)
     access_token = create_access_token(subject)
     refresh_token = create_refresh_token(subject)
@@ -494,7 +570,87 @@ def _login_response(user: User, request: Request, response: Response) -> LoginRe
         user=UserOut.model_validate(user),
         access_token=access_token if is_native else None,
         refresh_token=refresh_token if is_native else None,
+        guest_merged_rooms=merged.rooms if merged else None,
     )
+
+
+def _guest_login_response(user: User, request: Request, response: Response) -> LoginResponse:
+    """_login_response for a guest: the refresh token (and its cookie) lives
+    GUEST_REFRESH_TOKEN_EXPIRE_DAYS — it is the guest's only "password"."""
+    subject = str(user.id)
+    days = settings.GUEST_REFRESH_TOKEN_EXPIRE_DAYS
+    access_token = create_access_token(subject, guest=True)
+    refresh_token = create_refresh_token(subject, expires_days=days, guest=True)
+    _set_auth_cookie(response, access_token)
+    _set_refresh_cookie(response, refresh_token, max_age=days * 86400)
+
+    is_native = _is_native_client(request)
+    return LoginResponse(
+        user=UserOut.model_validate(user),
+        access_token=access_token if is_native else None,
+        refresh_token=refresh_token if is_native else None,
+    )
+
+
+@router.post(
+    "/guest",
+    response_model=LoginResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Open a guest session (no sign-up)",
+)
+async def create_guest(
+    body: GuestCreateRequest,
+    request: Request,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> LoginResponse:
+    """A new guest user with no phone/username/email/sub. Free features work
+    for it; paid and identity ones answer 403 registration_required. Off
+    unless GUEST_MODE_ENABLED. Rate-limited per IP, per app install and
+    globally per day."""
+    if not settings.GUEST_MODE_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Mehmon rejimi hozircha yoqilmagan.",
+        )
+
+    redis = get_redis()
+    await _enforce_rate_limit(
+        redis,
+        f"guest_ip_rate:{_get_client_ip(request)}",
+        settings.GUEST_IP_RATE_LIMIT,
+        _GUEST_IP_RATE_WINDOW,
+        "Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.",
+    )
+    if body.install_id is not None:
+        await _enforce_rate_limit(
+            redis,
+            f"guest_install_rate:{body.install_id}",
+            settings.GUEST_INSTALL_RATE_LIMIT,
+            _GUEST_INSTALL_RATE_WINDOW,
+            "Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.",
+        )
+    await _enforce_rate_limit(
+        redis,
+        "guest_global_daily",
+        settings.GUEST_GLOBAL_DAILY_LIMIT,
+        _GUEST_GLOBAL_RATE_WINDOW,
+        "Juda ko'p mehmon sessiyasi ochildi. Birozdan keyin qayta urinib ko'ring.",
+    )
+
+    user = User(
+        is_guest=True,
+        language=body.language or "uz",
+        last_seen_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.flush()
+    # Load server defaults (created_at) so UserOut serialises fully.
+    await db.refresh(user)
+
+    # user_id only: no IP or install id in the log.
+    logger.info("guest_created", user_id=str(user.id))
+    return _guest_login_response(user, request, response)
 
 
 _GOOGLE_ISSUERS = frozenset({"accounts.google.com", "https://accounts.google.com"})
@@ -536,6 +692,7 @@ async def login_with_google(
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
+    guest: GuestCaller,
 ) -> LoginResponse:
     """Exchange a Google ID token (from Google Identity Services on the web,
     or Google Sign-In on Android/iOS) for our own session.
@@ -595,24 +752,33 @@ async def login_with_google(
 
     result = await db.execute(select(User).where(User.google_sub == sub))
     user = result.scalar_one_or_none()
+    merged: MergeResult | None = None
 
     if user is None:
         name = (claims.get("name") or "").strip()[:100] or None
         email = (claims.get("email") or "").strip()[:255] or None
-        user = User(google_sub=sub, email=email, name=name, language=body.language or "uz")
-        db.add(user)
-        await db.flush()
-        # Load server defaults (created_at) so UserOut serialises fully,
-        # exactly as register() does.
-        await db.refresh(user)
+        if guest is not None:
+            user = await upgrade_guest(db, guest, google_sub=sub, email=email, name=name)
+        if user is None:
+            user = User(
+                google_sub=sub, email=email, name=name, language=body.language or "uz",
+                registered_at=datetime.now(timezone.utc),
+            )
+            db.add(user)
+            await db.flush()
+            # Load server defaults (created_at) so UserOut serialises fully,
+            # exactly as register() does.
+            await db.refresh(user)
         logger.info("user_registered_google", user_id=str(user.id))
     elif not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=_GOOGLE_INVALID_DETAIL
         )
+    elif guest is not None:
+        merged = await merge_guest_into(db, guest.id, user)
 
     logger.info("user_logged_in_google", user_id=str(user.id))
-    return _login_response(user, request, response)
+    return _login_response(user, request, response, merged)
 
 
 _APPLE_ISSUER = "https://appleid.apple.com"
@@ -701,6 +867,7 @@ async def login_with_apple(
     request: Request,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
+    guest: GuestCaller,
 ) -> LoginResponse:
     """Exchange a Sign in with Apple identity token for our own session.
 
@@ -751,24 +918,33 @@ async def login_with_apple(
 
     result = await db.execute(select(User).where(User.apple_sub == sub))
     user = result.scalar_one_or_none()
+    merged: MergeResult | None = None
 
     if user is None:
         name = (body.name or "").strip()[:100] or None
         # May be an @privaterelay.appleid.com address: kept for display only.
         email = (claims.get("email") or "").strip()[:255] or None
-        user = User(apple_sub=sub, email=email, name=name, language=body.language or "uz")
-        db.add(user)
-        await db.flush()
-        # Load server defaults (created_at) so UserOut serialises fully.
-        await db.refresh(user)
+        if guest is not None:
+            user = await upgrade_guest(db, guest, apple_sub=sub, email=email, name=name)
+        if user is None:
+            user = User(
+                apple_sub=sub, email=email, name=name, language=body.language or "uz",
+                registered_at=datetime.now(timezone.utc),
+            )
+            db.add(user)
+            await db.flush()
+            # Load server defaults (created_at) so UserOut serialises fully.
+            await db.refresh(user)
         logger.info("user_registered_apple", user_id=str(user.id))
     elif not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail=_APPLE_INVALID_DETAIL
         )
+    elif guest is not None:
+        merged = await merge_guest_into(db, guest.id, user)
 
     logger.info("user_logged_in_apple", user_id=str(user.id))
-    return _login_response(user, request, response)
+    return _login_response(user, request, response, merged)
 
 
 @router.post(

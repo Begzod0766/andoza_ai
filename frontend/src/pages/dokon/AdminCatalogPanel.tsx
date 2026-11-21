@@ -103,6 +103,7 @@ export default function AdminCatalogPanel() {
             onBack={() => setSelectedStore(null)}
             onError={setError}
             onDeleted={() => setSelectedStore(null)}
+            onUpdated={setSelectedStore}
           />
         ) : (
           <CatalogOverview onError={setError} onSelectStore={setSelectedStore} />

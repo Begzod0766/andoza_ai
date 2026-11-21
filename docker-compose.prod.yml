@@ -55,6 +55,15 @@ services:
       # Seed the presentation demo stores once (app/seed_demo_stores.py). Set
       # DEMO_STORES=0 in the deploy env to never seed them.
       DEMO_STORES: ${DEMO_STORES:-1}
+      # Guest mode (spec docs/superpowers/specs/2026-11-20-mehmon-rejimi-design.md): the app's
+      # first launch gets a guest account; paid and contact actions ask for sign-up. Kill
+      # switch: GUEST_MODE_ENABLED=false in the server's shell env or the .env next to this
+      # file, then `docker compose up -d api` (POST /auth/guest answers 503 again).
+      GUEST_MODE_ENABLED: ${GUEST_MODE_ENABLED:-true}
+      # Must stay off: uvicorn --proxy-headers above already gives the real client IP, and
+      # trusting X-Forwarded-For[0] would let a client spoof it past the per-IP limits.
+      # Set here so a stray TRUST_PROXY_HEADERS=true in backend/.env cannot turn it on.
+      TRUST_PROXY_HEADERS: "false"
     depends_on:
       postgres:
         condition: service_healthy

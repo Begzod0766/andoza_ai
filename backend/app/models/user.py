@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, String, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Index, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint("language IN ('uz','ru','en')", name="ck_users_language"),
+        Index("ix_users_is_guest", "id", postgresql_where=text("is_guest")),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -62,6 +63,20 @@ class User(Base):
     # Interface language the person chose (uz / ru / en)
     language: Mapped[str] = mapped_column(
         String(5), default="uz", server_default="uz", nullable=False
+    )
+    # Guest mode (spec 2026-11-20): a row the app opened without sign-up.
+    # It has no phone/username/sub; a sign-in upgrades it in place or merges
+    # it into an existing account. Counts of "users" filter `NOT is_guest`.
+    is_guest: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    # Written on /auth/guest and /auth/refresh; stale guests are cleaned up by it.
+    last_seen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # When the row became a real account (plain sign-up or a guest upgrade).
+    registered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

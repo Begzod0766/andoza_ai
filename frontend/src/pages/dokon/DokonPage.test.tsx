@@ -2,11 +2,14 @@
  * The checkout places real orders: one per shop, with the delivery details, and
  * the cart only loses what was actually ordered.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { FeedbackProvider } from '@/components/ui/FeedbackProvider'
+import { MemoryRouter } from 'react-router-dom'
 import DokonPage from './DokonPage'
+import { ApiError } from '@/lib/api/client'
+import { asGuest, asRegistered, body403, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
 const listCatalogFurniture = vi.fn()
 const getMaterials = vi.fn()
@@ -40,7 +43,8 @@ const orderOut = (dealer: string, over: object = {}) => ({
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={client}><FeedbackProvider><DokonPage /></FeedbackProvider></QueryClientProvider>)
+  // Under a router like the app itself: the guest gate can send to /login.
+  return render(<MemoryRouter><QueryClientProvider client={client}><FeedbackProvider><DokonPage /></FeedbackProvider></QueryClientProvider></MemoryRouter>)
 }
 
 async function addFromShop(buttonName: RegExp, tab?: string) {
@@ -249,5 +253,44 @@ describe('shop browsing', () => {
 
     expect(await screen.findByRole('tab', { name: 'Materiallar', selected: true })).toBeInTheDocument()
     expect((screen.getByLabelText('Qidirish') as HTMLInputElement).value).toBe('akril')
+  })
+})
+
+describe('DokonPage checkout in guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('guest: checkout asks for registration and orders nothing', async () => {
+    const post = inAppWithChannel()
+    asGuest()
+    mount()
+    await addFromShop(/Divan, 4\s500\s000/)
+    fireEvent.click(await screen.findByRole('button', { name: /Savat \(/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Buyurtma berish' }))
+    expect(post).toHaveBeenCalledWith('{"feature":"order"}')
+    expect(screen.queryByLabelText('Manzil')).toBeNull()
+    expect(createOrder).not.toHaveBeenCalled()
+  })
+
+  it('late 403 opens the prompt instead of the error text', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    createOrder.mockRejectedValue(new ApiError(body403('order'), 403))
+    mount()
+    await addFromShop(/Divan, 4\s500\s000/)
+    await fillAndConfirm()
+    await waitFor(() => expect(post).toHaveBeenCalledWith('{"feature":"order"}'))
+    expect(screen.queryByText(/registration_required/)).toBeNull()
+    expect(screen.queryByText("Ro'yxatdan o'ting")).toBeNull()
+  })
+
+  it('registered user unchanged', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    createOrder.mockResolvedValue(orderOut('Mebel Plus'))
+    mount()
+    await addFromShop(/Divan, 4\s500\s000/)
+    await fillAndConfirm()
+    await waitFor(() => expect(createOrder).toHaveBeenCalledTimes(1))
+    expect(post).not.toHaveBeenCalled()
   })
 })

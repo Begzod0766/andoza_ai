@@ -138,7 +138,7 @@ def test_first_sign_in_creates_user(client, db, verifier):
     body = res.json()
     assert body["user"]["id"] == str(user.id)
     assert body["user"]["name"] == "Ali Valiyev"
-    assert set(body["user"]) == {"id", "phone", "username", "name", "is_admin", "language", "created_at"}
+    assert set(body["user"]) == {"id", "phone", "username", "name", "is_admin", "language", "created_at", "is_guest"}
 
 
 def test_returning_user_found_by_sub(client, db, verifier):

@@ -157,6 +157,8 @@ def _reprice(ln: ComputedLine, quote: MarketQuote) -> ComputedLine:
         unit_price_uzs=quote.price_uzs,
         subtotal_uzs=subtotal,
         store_name=quote.store,
+        # A shop found on the web, not one of ours: the line leaves our shop's group.
+        store_id=None,
         is_approximate=False,
         warning=None,
         price_source="market",

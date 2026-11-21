@@ -212,3 +212,20 @@ describe('a kitchen sink (2026-11-18)', () => {
     expect(Math.abs(at!.positionMm - 2500)).toBe(600)
   })
 })
+
+describe('a machine moved off the riser (mobile QA 2026-11-14, #271)', () => {
+  it('goes to the nearest free place clear of the furniture, not onto the sink beside it', () => {
+    const g = rect(2500, 2000)
+    // A machine at A 1250; the riser dragged onto it; a sink stands right of it.
+    const sink = { ...washerBox(g, { wallId: 'A', positionMm: 1250 - 650 })!, w: 0.6, d: 0.5 }
+    const kept = keepWashers([{ id: 'm', wallId: 'A', positionMm: 1250 }], g, [], { wallId: 'A', positionMm: 1250 }, [sink])
+    const box = washerBox(g, kept[0])!
+    expect(overlaps(box, sink, 0)).toBe(false)
+  })
+  it('a machine the riser does not touch stays where it is, furniture or not', () => {
+    const g = rect(2500, 2000)
+    const chair = { ...washerBox(g, { wallId: 'A', positionMm: 600 })!, w: 0.4, d: 0.4 }
+    const list = [{ id: 'm', wallId: 'A', positionMm: 600 }]
+    expect(keepWashers(list, g, [], { wallId: 'C', positionMm: 100 }, [chair])).toBe(list)
+  })
+})

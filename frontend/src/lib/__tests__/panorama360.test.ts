@@ -138,4 +138,16 @@ describe('the panorama seam', () => {
   it('a set the seam was not on leaves it where it was', () => {
     expect(panoramaSeamYaw({ x: 0, z: 0 }, [{ ...set, z: 1.155 }])).toBe(0)
   })
+  /** The way the middle of the image faces, where the viewer opens (lon = 0). */
+  const middle = (yaw: number) => ({ x: -Math.sin(yaw), z: Math.cos(yaw) })
+  it('the viewer opens on the set (mobile QA 2026-11-21, #343): the middle of the image faces it', () => {
+    // It opened on the bare wall across from the set, the set only in a corner.
+    const m = middle(panoramaSeamYaw({ x: 0, z: 0 }, [set]))
+    expect(m.z).toBeLessThan(-Math.cos(Math.PI / 12))
+  })
+  it('with a small piece too, the middle faces the biggest', () => {
+    const stool = { x: 1.2, z: 0.3, w: 0.35, d: 0.35, rotation: 0 }
+    const m = middle(panoramaSeamYaw({ x: 0, z: 0 }, [stool, set]))
+    expect(m.z).toBeLessThan(-Math.cos(Math.PI / 12))
+  })
 })

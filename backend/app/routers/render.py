@@ -12,12 +12,13 @@ from datetime import datetime
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.i18n import translate_detail
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
+from app.models.user import User
 from app.config import settings
 from app.core.storage import delete_file, upload_file
 from app.models.media_job import MediaJob
@@ -48,7 +49,7 @@ _EXT = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 )
 async def create_render(
     file: UploadFile,
-    current_user: CurrentUser,
+    current_user: Annotated[User, Depends(registered_user("render"))],
     db: DbSession,
     prompt: Annotated[str | None, Form(max_length=_MAX_PROMPT_CHARS)] = None,
     room_id: Annotated[uuid_module.UUID | None, Form()] = None,
@@ -110,7 +111,7 @@ class RelightIn(BaseModel):
     status_code=status.HTTP_202_ACCEPTED,
     summary="Relight a finished render with an interior lighting mood",
 )
-async def create_relight(body: RelightIn, current_user: CurrentUser, db: DbSession) -> dict:
+async def create_relight(body: RelightIn, current_user: Annotated[User, Depends(registered_user("render"))], db: DbSession) -> dict:
     if not settings.MYARCHITECT_API_KEY or settings.RENDER_DAILY_LIMIT <= 0:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Render xizmati mavjud emas")
     if body.lighting not in INTERIOR_LIGHTING:
@@ -137,7 +138,7 @@ class UpscaleIn(BaseModel):
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upscale a finished render to 4K",
 )
-async def create_upscale(body: UpscaleIn, current_user: CurrentUser, db: DbSession) -> dict:
+async def create_upscale(body: UpscaleIn, current_user: Annotated[User, Depends(registered_user("render"))], db: DbSession) -> dict:
     if not settings.MYARCHITECT_API_KEY or settings.RENDER_DAILY_LIMIT <= 0:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Render xizmati mavjud emas")
     _require_own_render(current_user, body.render_key)

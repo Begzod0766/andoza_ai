@@ -172,7 +172,7 @@ export function ThreeDCanvasScene({
   controlsRef,
   addingRoom, handleAddRoom, aptRooms, activeLayoutPos,
   handleDeleteSibling, onSwitchRoom, onSaveRoom,
-  toolMode, selectedFurId, selectFurniture, selectedPart, selectFurniturePart,
+  toolMode, selectedFurId, selectFurniture, selectedPart, selectFurniturePart, onOpenFixtures, onOpenPipes,
   showScan, showQibla, replacedGhosts, setScanSwap,
   selectedDoorId, selectDoor,
   selectedLightId, selectLight,
@@ -231,6 +231,10 @@ export function ThreeDCanvasScene({
   toolMode: ToolMode;
   selectedFurId: string | null;
   selectFurniture: (id: string | null) => void;
+  /** A tap on a towel rail or machine outside a plumbing stage opens the fixtures panel (#359). */
+  onOpenFixtures?: () => void;
+  /** A tap on the boxed-in riser opens the pipes panel, where it drags (#365). */
+  onOpenPipes?: () => void;
   selectedPart: SelectedPart | null;
   selectFurniturePart: (part: SelectedPart | null) => void;
   showScan: boolean;
@@ -1027,12 +1031,12 @@ export function ThreeDCanvasScene({
         <QiblaMarker W={W} D={D} visible={showQibla} />
         {drawn('montaj') && <DraggableElectricalModels controlsRef={controlsRef} W={W} D={D} hiddenWalls={behind} />}
         <PlumbingPoints3D controlsRef={controlsRef} hiddenWalls={behind} />
-        {drawn('jihozlar') && <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} />}
+        {drawn('jihozlar') && <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} onOpen={onOpenFixtures} />}
         {drawn('boyoq') && <Backsplashes3D hiddenWalls={behind} />}
         <Riser3D controlsRef={controlsRef} hiddenWalls={behind} />
-        {drawn('jihozlar') && <Washers3D controlsRef={controlsRef} hiddenWalls={behind} />}
+        {drawn('jihozlar') && <Washers3D controlsRef={controlsRef} hiddenWalls={behind} onOpen={onOpenFixtures} />}
         {drawn('jihozlar') && <VentFan3D hiddenWalls={behind} />}
-        <BathroomBoxes3D hiddenWalls={behind} />
+        <BathroomBoxes3D hiddenWalls={behind} onOpenRiser={onOpenPipes} />
         {drawn('jihozlar') && <ShowerScreens3D />}
         <FloorDrains3D />
         <OpeningLayer

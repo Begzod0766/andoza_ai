@@ -22,6 +22,22 @@ export interface EstimateLine {
   store_name?: string | null;
   /** ISO date the market price was read. */
   price_checked_at?: string | null;
+  /** The shop product's photo (absolute URL); absent on a line with no product, and on
+   *  estimates saved before photos existed. */
+  image_url?: string | null;
+}
+
+/** A shop the estimate buys from, listed once (EstimateResponse.stores). */
+export interface EstimateStore {
+  id: string;
+  name: string;
+  district: string | null;
+  address: string | null;
+  /** Null until the shop sets its map point. */
+  lat: number | null;
+  lng: number | null;
+  phone: string | null;
+  telegram: string | null;
 }
 
 export interface EstimateResponse {
@@ -50,6 +66,10 @@ export interface EstimateResponse {
   /** On a response that asked for market prices: lines looked up / repriced. */
   market_checked?: number;
   market_updated?: number;
+  /** A guest's estimate skipped the AI gap-fill and market prices; the page says so. */
+  prices_approximate_for_guest?: boolean;
+  /** Every shop a line's store_id points to; absent from older servers. */
+  stores?: EstimateStore[];
 }
 
 // ---------- Estimate ----------

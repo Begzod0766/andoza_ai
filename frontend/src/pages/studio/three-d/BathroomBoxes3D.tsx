@@ -1,3 +1,4 @@
+import type { ThreeEvent } from "@react-three/fiber";
 import { useMemo } from "react";
 import { useDrawnAt } from "@/features/studio/useStageView";
 import { useRoomStore } from "@/store/roomStore";
@@ -24,6 +25,15 @@ export function spotPose(spot: WallSpot, geometry: RoomGeometry, out: number): {
   if (!w) return null;
   const t = spot.positionMm / 1000;
   return { x: w.startX + w.dirX * t + w.nx * out, z: w.startZ + w.dirZ * t + w.nz * out, rotY: Math.atan2(w.nx, w.nz) };
+}
+
+/**
+ * The boxed-in riser's handlers (mobile QA 2026-11-21, #365): in the finished room a long press on it turned
+ * the camera and the riser stayed put. A tap opens the pipes panel, where the bare riser shows and drags,
+ * and stops at the box. None while a frame is taken.
+ */
+export function riserBoxHandlers(open: (() => void) | undefined): { onClick?: (e: ThreeEvent<MouseEvent>) => void } {
+  return open ? { onClick: (e) => { e.stopPropagation(); open(); } } : {};
 }
 
 /** A box against a wall, finished as that wall is (its front and sides drawn as walls), `h` metres tall. */
@@ -54,7 +64,11 @@ function CladBox({ w, d, h, covering, id, children }: { w: number; d: number; h:
  * hatch (in place of the bare pipe once the plumbing stage is left); the water heater when it is in
  * the estimate; the box each wall-hung toilet hangs on, with its flush plate.
  */
-export function BathroomBoxes3D({ hiddenWalls }: { hiddenWalls?: ReadonlySet<string> }) {
+export function BathroomBoxes3D({ hiddenWalls, onOpenRiser }: {
+  hiddenWalls?: ReadonlySet<string>;
+  /** Opens the pipes panel: a tap on the riser box (#365). None while capturing a frame. */
+  onOpenRiser?: () => void;
+}) {
   const wet = useRoomStore((s) => {
     const t = effectiveRoomType(s.roomType, s.name);
     return t === "hammom" || t === "oshxona";
@@ -95,7 +109,7 @@ export function BathroomBoxes3D({ hiddenWalls }: { hiddenWalls?: ReadonlySet<str
   return (
     <>
       {box && boxPose && (
-        <group position={[boxPose.x, 0, boxPose.z]} rotation={[0, boxPose.rotY, 0]}>
+        <group position={[boxPose.x, 0, boxPose.z]} rotation={[0, boxPose.rotY, 0]} {...riserBoxHandlers(onOpenRiser)}>
           <CladBox id="riser-box" w={RISER_BOX_W_MM / 1000} d={RISER_BOX_D_MM / 1000} h={H} covering={resolveWallCovering(coverings, box.wallId)}>
             <group position={[0, HATCH_BOTTOM_MM / 1000 + hatchH / 2, RISER_BOX_D_MM / 2000]}>
               <mesh position={[0, 0, PROUD]} raycast={noRaycast}>

@@ -608,6 +608,13 @@ PDF_TEXT: dict[str, dict[str, str]] = {
         "en": "The electrical work price is approximate — confirm it with an electrician.",
     },
     "made_by": {"uz": "Tuzilgan", "ru": "Составлено", "en": "Made by"},
+    # Under the totals of a guest's PDF (spec 2026-11-20 mehmon rejimi); the web page shows
+    # the same words from its own locale key smeta.guestPricesNote.
+    "guest_prices_note": {
+        "uz": "Narxlar taxminiy. Ro'yxatdan o'tsangiz, aniqlashtiriladi.",
+        "ru": "Цены ориентировочные. После регистрации они будут уточнены.",
+        "en": "Prices are approximate. Sign up to get them refined.",
+    },
 }
 
 

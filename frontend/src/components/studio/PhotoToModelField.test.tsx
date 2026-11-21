@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { PhotoToModelField } from './PhotoToModelField'
+import { ApiError } from '@/lib/api/client'
+import { asRegistered, inAppWithChannel, resetGuestMode } from '@/lib/__tests__/guestTestUtils'
 
 const api = vi.hoisted(() => ({
   createPhotoModel: vi.fn(),
@@ -104,5 +106,21 @@ describe('PhotoToModelField', () => {
     pick('Rasmdan 3D model yaratish', img('sofa.jpg'))
     await screen.findByRole('status')
     expect(screen.getByRole('radio', { name: 'Bir nechta rasm' })).toBeDisabled()
+  })
+})
+
+// Only sellers and admins see this field (seller and admin model dialogs), and a guest
+// cannot reach either, so it has no guest gate (spec §7). A 403 is still the seller's.
+describe('PhotoToModelField and guest mode', () => {
+  afterEach(resetGuestMode)
+
+  it('PhotoToModelField keeps the seller error', async () => {
+    const post = inAppWithChannel()
+    asRegistered()
+    api.createPhotoModel.mockRejectedValue(new ApiError('{"detail":"Faqat sotuvchi va administrator uchun"}', 403))
+    const { onError } = setup()
+    pick('Rasmdan 3D model yaratish', img('sofa.jpg'))
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Faqat sotuvchi va administrator uchun'))
+    expect(post).not.toHaveBeenCalled()
   })
 })

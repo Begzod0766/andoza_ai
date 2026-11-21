@@ -11,7 +11,7 @@ import { RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
 import { wallAnchorOf, type WallAnchor } from "@/lib/newRoomFromWall";
 import { NewRoomSheet } from "@/components/studio/NewRoomSheet";
 import { requestViewCapture } from "./three-d/RoomCameras";
-import { plumbingStageOn, DOCKED_PANEL_QUERY } from '@/lib/plumbingStageOn';
+import { plumbingDragOn, plumbingStageOn, DOCKED_PANEL_QUERY } from '@/lib/plumbingStageOn';
 import { useRoomStore } from "@/store/roomStore";
 import { StudioTabStrip } from "@/components/studio/StudioTabStrip";
 import { useCompactStudio } from "@/lib/compactStudio";
@@ -439,7 +439,9 @@ export default function ThreeDPage() {
   }, []);
   useEffect(() => {
     // Off at a camera station or the 360, which every render and saved frame is taken from (2026-11-18).
-    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked, panorama || cameraStation != null));
+    const capturing = panorama || cameraStation != null;
+    useRoomStore.getState().setPlumbingStage(plumbingStageOn(activePhase, showPanel, panelDocked, capturing));
+    useRoomStore.getState().setPlumbingDrag(plumbingDragOn(activePhase, capturing));
   }, [activePhase, showPanel, panelDocked, panorama, cameraStation]);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -732,6 +734,10 @@ export default function ThreeDPage() {
     openPhasePanel(phase);
     setShowPanel(true);
   }, [openPhasePanel]);
+  // A tap on a towel rail or machine in any other stage opens Jihozlar, where it drags (#359).
+  const openFixtures = useCallback(() => openPanelAt('jihozlar'), [openPanelAt]);
+  // A tap on the boxed-in riser opens Quvurlar, where the bare riser drags (#365).
+  const openPipes = useCallback(() => openPanelAt('quvurlar'), [openPanelAt]);
   const arcCategories = useArcCategories({ selectedWall, openPanelAt });
 
   // The same query key and scope the design panel's Oboy tab uses, so the ring
@@ -1150,6 +1156,9 @@ export default function ThreeDPage() {
             toolMode={toolMode}
             selectedFurId={selectedFurId}
             selectFurniture={selectFurniture}
+            // Not while a camera station or the 360 is on: every render and saved frame is taken from one.
+            onOpenFixtures={panorama || cameraStation != null ? undefined : openFixtures}
+            onOpenPipes={panorama || cameraStation != null ? undefined : openPipes}
             selectedPart={selectedPart}
             selectFurniturePart={selectFurniturePart}
             showScan={showScan}

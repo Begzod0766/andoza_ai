@@ -9,7 +9,7 @@ import { isDishwasher, isKitchenSink, machineSize, washerBox, WASHER_WALL_GAP_MM
 import { overlaps, type Rect } from "@/lib/aiDesignLayout";
 import { isKitchenSet } from "@/lib/furnitureRole";
 import { placedFurnitureBoxes } from "@/features/studio/nextFurnitureSpot";
-import { dragToPositionMm, raycastInFront, railPointerHandlers } from "./TowelRails3D";
+import { dragToPositionMm, railPointerHandlers, railRaycast } from "./TowelRails3D";
 import { noRaycast } from "./constants";
 import { clashColor } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
@@ -63,8 +63,10 @@ export function shownWashers<T extends Washer>(washers: readonly T[], geometry: 
  * In a plumbing stage a machine slides along its wall by drag; the store keeps it off doors,
  * windows, towel rails, other machines and the wall's ends.
  */
-export function Washers3D({ controlsRef }: {
+export function Washers3D({ controlsRef, onOpen }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  /** Opens the fixtures panel: a tap outside a plumbing stage (#359). None while capturing a frame. */
+  onOpen?: () => void;
   /** Not used: a machine stands on the floor and is drawn whatever wall is hidden (#338). */
   hiddenWalls?: ReadonlySet<string>;
 }) {
@@ -81,6 +83,8 @@ export function Washers3D({ controlsRef }: {
   const geometry = useRoomStore((s) => s.geometry);
   const moveWasher = useRoomStore((s) => s.moveWasher);
   const active = useRoomStore((s) => s.plumbingStage);
+  // Caught and dragged in a plumbing stage, with a phone's sheet closed too (#359).
+  const draggable = useRoomStore((s) => s.plumbingDrag);
   // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
@@ -145,8 +149,8 @@ export function Washers3D({ controlsRef }: {
         if (!pose) return null;
         const { W, D, H } = dims(m);
         return (
-          <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(active, (e) => start(m, e))}>
-            <mesh castShadow receiveShadow raycast={active ? raycastInFront : noRaycast}>
+          <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(m, e), onOpen)}>
+            <mesh castShadow receiveShadow raycast={railRaycast(draggable, !!onOpen)}>
               <boxGeometry args={[W, H, D]} />
               <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>

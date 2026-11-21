@@ -3,17 +3,20 @@ book. The calculation itself runs in the browser (the engine is pure
 TypeScript); the server only keeps what the user typed, scoped to them."""
 from __future__ import annotations
 
+from typing import Annotated
+
 import secrets
 import uuid as uuid_module
 from datetime import datetime, timezone
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func, select, update
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.api.v1.deps import CurrentUser, DbSession
+from app.api.v1.deps import CurrentUser, DbSession, registered_user
+from app.models.user import User
 from app.models.furniture_project import FurnitureProject
 from app.models.price_book import PriceBook
 from app.models.mebel_offcut import MebelOffcut
@@ -112,7 +115,7 @@ async def _new_workshop_token(db) -> str:
 
 @router.post("/projects/{project_id}/workshop-link", response_model=WorkshopLinkOut,
              summary="The project's workshop token for label QR codes (created on first call)")
-async def create_workshop_link(project_id: uuid_module.UUID, current_user: CurrentUser, db: DbSession) -> WorkshopLinkOut:
+async def create_workshop_link(project_id: uuid_module.UUID, current_user: Annotated[User, Depends(registered_user("workshop_link"))], db: DbSession) -> WorkshopLinkOut:
     row = await _own_project(db, current_user, project_id)
     if row.workshop_token:
         return WorkshopLinkOut(token=row.workshop_token)
@@ -244,7 +247,7 @@ async def put_price_book(body: PriceBookIn, current_user: CurrentUser, db: DbSes
 
 
 @router.post("/ai/suggest", response_model=dict, summary="Cabinets proposed from the user's description")
-async def ai_suggest(body: SuggestIn, current_user: CurrentUser) -> dict:
+async def ai_suggest(body: SuggestIn, current_user: Annotated[User, Depends(registered_user("mebel_ai"))]) -> dict:
     """The model proposes; nothing is saved. The user accepts it in the page."""
     from app.services.llm import BudgetExceededError
     from app.services.mebel_ai import suggest_cabinets

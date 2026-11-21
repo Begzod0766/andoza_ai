@@ -47,3 +47,12 @@ def test_the_compose_parser_reads_worker_queues():
     text = "command: celery -A celery_app worker -l info -Q default,media -c 4\n" \
            "command: celery -A celery_app worker -l info -Q styles -c 2\n"
     assert _consumed_queues(text) == {"default", "media", "styles"}
+
+
+@pytest.mark.skipif(not PROD_COMPOSE.exists(), reason="repository root not mounted")
+def test_the_guest_cleanup_runs_on_a_production_worker_and_beat_is_deployed():
+    text = PROD_COMPOSE.read_text()
+    queue = celery_app.app.amqp.router.route({}, "app.tasks.maintenance.cleanup_stale_guests")["queue"].name
+    assert queue in _consumed_queues(text)
+    # beat_schedule only fires if a beat process runs.
+    assert "celery -A celery_app beat" in text

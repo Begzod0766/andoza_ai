@@ -1058,6 +1058,7 @@
       "cold": "Cold water",
       "hot": "Hot water",
       "where": "wall {{wall}} · {{cm}} cm",
+      "rail_where": "wall {{wall}} · {{along}} cm from its end · {{cm}} cm high",
       "own": "fixture's",
       "summary": "Drain: {{dp}} points, ~{{dm}} m · Water: {{wp}} points, ~{{wm}} m",
       "pipes": "Show pipe runs",
@@ -1085,7 +1086,7 @@
       "washer": "Washing machine",
       "washer_add": "Add a washing machine",
       "washer_own": "the machine's",
-      "washer_where": "wall {{wall}}",
+      "washer_where": "wall {{wall}} · {{along}} cm from its end",
       "washer_no_room": "No room on the walls for a washing machine.",
       "dish": "Dishwasher",
       "dish_add": "Add a dishwasher",
@@ -1124,7 +1125,6 @@
       "title": "Kitchen backsplash",
       "add": "Add a backsplash",
       "wall": "Wall",
-      "wall_n": "Wall {{n}}",
       "tile": "Tile",
       "skinali": "Skinali",
       "start": "Starts at, cm",
@@ -1172,6 +1172,8 @@
     "faqat_tamir": "Renovation only",
     "mebel_kirmagan": "Furniture and fittings are not included in the total",
     "bozor_yangilash": "Update market prices",
+    "guestPricesNote": "Prices are approximate. Sign up to get them refined.",
+    "guestSignUp": "Sign up",
     "bozor_qidirilmoqda": "Looking up prices…",
     "bozor_belgi": "market price",
     "bozor_manba": "source",
@@ -1488,6 +1490,21 @@
       "under_fixtures": "under fixtures",
       "banka_one": "can",
       "banka_other": "cans"
+    },
+    "shop": {
+      "view_shops": "By shop",
+      "view_sections": "By section",
+      "view_aria": "How to group the estimate",
+      "none": "No shop chosen / labour",
+      "open_map": "Open in maps",
+      "yandex": "Yandex Maps",
+      "google": "Google Maps",
+      "map_title": "Shops on the map",
+      "map_hint": "Tap a marker to jump to that shop's lines",
+      "map_missing": "Some shops are not on the map: they have not set their location yet",
+      "map_aria": "Map of the shops in this estimate",
+      "no_point": "No map location yet",
+      "photo_alt": "{{name}} — photo"
     }
   },
   "ustalar": {
@@ -2914,6 +2931,22 @@
       "restore_failed": "Could not restore",
       "model_hint": "Want to add a wallpaper?",
       "model_add": "Add wallpaper"
+    },
+    "location": {
+      "address": "Address",
+      "address_placeholder": "E.g. Chilonzor 9th block, 12",
+      "title": "Map location",
+      "lat": "Latitude (lat)",
+      "lng": "Longitude (lng)",
+      "pick": "Pick on the map",
+      "hide_map": "Hide the map",
+      "pick_hint": "Tap the map to put the point there",
+      "clear": "Clear the point",
+      "outside": "The point must be inside Uzbekistan",
+      "pair": "Enter latitude and longitude together",
+      "hint": "Buyers see your shop on the estimate's map and can get directions",
+      "edit": "Address and map",
+      "saved": "Address saved"
     }
   },
   "rooms": {

@@ -6,6 +6,7 @@ import { createRender, createRelight, createUpscale, listRenders, waitForRender,
 import type { SavedRender } from "@/lib/api"
 import { panoramaJpeg } from "@/lib/panoramaSnap"
 import { PanoramaViewer } from "./PanoramaViewer"
+import { useGuestGate } from "@/lib/guestGate"
 import type { LightingMood } from "@/lib/api"
 
 type Phase = "idle" | "capturing" | "rendering" | "relighting" | "upscaling" | "done" | "error"
@@ -59,6 +60,8 @@ export function RenderSheet({
   initialSaved?: SavedRender[]
 }) {
   const { t } = useTranslation()
+  // A guest of the app is asked to sign up instead of rendering (renders are paid).
+  const { gate, promptIfRequired } = useGuestGate()
   const [prompt, setPrompt] = useState("")
   // True while the box holds the description the API wrote, not the user's own words.
   const [generated, setGenerated] = useState(false)
@@ -127,15 +130,16 @@ export function RenderSheet({
     return true
   }
 
-  // Opened from the 360 camera: the panorama is taken and sent at once, with
-  // no further button to press. Opening again renders again. The gallery does not.
-  useEffect(() => {
-    if (open && mode === "render") void start()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  // Opening the sheet starts nothing: a render costs a credit, and the 360 camera's button that opened it
+  // was easy to touch by accident (mobile QA 2026-11-21, #365: a render nobody asked for). Its own
+  // "Render" button starts one.
 
   async function start() {
     if (phase === "capturing" || phase === "rendering") return
+    if (gate("render")) {
+      onOpenChange(false)
+      return
+    }
     setError("")
     setRelightError("")
     setVersions([])
@@ -172,6 +176,11 @@ export function RenderSheet({
       void upscale(first, 1)
     } catch (err) {
       if (controller.signal.aborted) return
+      if (promptIfRequired(err)) {
+        setPhase("idle")
+        onOpenChange(false)
+        return
+      }
       setError(errorMessage(err))
       setPhase("error")
     }
@@ -180,6 +189,7 @@ export function RenderSheet({
   async function relight(mood: LightingMood) {
     const base = versions[active]
     if (!base || phase === "relighting" || phase === "upscaling") return
+    if (gate("render")) return
     setRelightError("")
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -196,6 +206,7 @@ export function RenderSheet({
       setActive(versions.length)
     } catch (err) {
       if (controller.signal.aborted) return
+      if (promptIfRequired(err)) return
       setRelightError(errorMessage(err))
     } finally {
       if (!controller.signal.aborted) setPhase("done")
@@ -208,6 +219,7 @@ export function RenderSheet({
    *  Never wire this straight to onClick: React would pass the event as `base`. */
   async function upscale(base: Version | undefined = versions[active], count: number = versions.length) {
     if (!base || base.upscaled || phase === "relighting" || phase === "upscaling") return
+    if (gate("render")) return
     setRelightError("")
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -224,6 +236,7 @@ export function RenderSheet({
       setActive(count)
     } catch (err) {
       if (controller.signal.aborted) return
+      if (promptIfRequired(err)) return
       setRelightError(errorMessage(err))
     } finally {
       if (!controller.signal.aborted) setPhase("done")

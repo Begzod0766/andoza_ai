@@ -14,10 +14,12 @@ const SKINALI_COLORS = ["#FFFFFF", "#1F2937", "#9CA3AF"];
  * A kitchen's backsplashes (spec 2026-11-14): add one on the picked wall, and set each one's wall,
  * place, height, material and colour. Writes the whole list through `onChange`.
  */
-export function BacksplashControls({ geometry, ceilingMm, targetWall, value, onChange }: {
+export function BacksplashControls({ geometry, ceilingMm, targetWall, value, onChange, setWall }: {
   geometry: RoomGeometry;
   ceilingMm: number;
   targetWall: string;
+  /** The wall the kitchen set stands against (lib/backsplash kitchenSetWall): where one goes with no wall picked. */
+  setWall?: string | null;
   value: Backsplash[] | undefined;
   onChange: (next: Backsplash[]) => void;
 }) {
@@ -26,7 +28,9 @@ export function BacksplashControls({ geometry, ceilingMm, targetWall, value, onC
   const list = React.useMemo(() => saneBacksplashes(value), [value]);
   const walls = geometry.walls;
   const add = () => {
-    const wallId = walls.some((w) => w.id === targetWall) ? targetWall : walls[0]?.id;
+    // A picked wall, else the set's (mobile QA 2026-11-21, #335: it went on wall A, the set on B), else the first.
+    const isWall = (id: string | null | undefined) => !!id && walls.some((w) => w.id === id);
+    const wallId = isWall(targetWall) ? targetWall : isWall(setWall) ? setWall! : walls[0]?.id;
     if (wallId) onChange([...list, newBacksplash(geometry, wallId)]);
   };
   const patch = (id: string, p: Partial<Backsplash>) => onChange(list.map((b) => (b.id === id ? { ...b, ...p } : b)));
@@ -56,12 +60,12 @@ function CmField({ label, mm, onCommit }: { label: string; mm: number; onCommit:
     onCommit(Math.round(cm * 10));
   };
   return (
-    <label htmlFor={id} className="flex items-center justify-between gap-2 text-xs font-medium text-ink-muted">
+    <label htmlFor={id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-xs font-medium text-ink-muted">
       {label}
       <input id={id} inputMode="decimal" value={typed} onChange={(e) => setTyped(e.target.value)} onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
         onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "center", behavior: "smooth" })}
-        className="w-20 rounded-lg border border-line bg-card px-2 py-1 text-right text-[12px] text-ink" />
+        className="w-20 max-w-full rounded-lg border border-line bg-card px-2 py-1 text-right text-[12px] text-ink" />
     </label>
   );
 }
@@ -79,12 +83,14 @@ function BacksplashRow({ b, geometry, ceilingMm, wallIds, onPatch, onRemove }: {
   const colors = b.material === "skinali" ? SKINALI_COLORS : WALL_COLORS;
   return (
     <div className="space-y-2 rounded-lg border border-line bg-card p-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor={wallId} className="flex items-center gap-2 text-xs font-medium text-ink-muted">
+      {/* Wraps on a phone, where the panel is half the screen wide (mobile QA 2026-11-21, #335): the area ran off it. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label htmlFor={wallId} className="flex min-w-0 items-center gap-2 text-xs font-medium text-ink-muted">
           {t("studio.backsplash.wall")}
           <select id={wallId} value={b.wallId} onChange={(e) => onPatch({ wallId: e.target.value })}
-            className="rounded-lg border border-line bg-card px-2 py-1 text-[12px] text-ink">
-            {wallIds.map((id) => <option key={id} value={id}>{t("studio.backsplash.wall_n", { n: wallNumber(id) })}</option>)}
+            className="min-w-[3.5rem] rounded-lg border border-line bg-card px-2 py-1 text-[12px] text-ink">
+            {/* The letter alone: the label says "Devor", and "Devor B" was cut to "Devor ⌃" on a phone (#365). */}
+            {wallIds.map((id) => <option key={id} value={id}>{wallNumber(id)}</option>)}
           </select>
         </label>
         <span className="text-[12px] font-semibold text-ink">{area.toFixed(2)} m²</span>

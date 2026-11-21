@@ -57,8 +57,18 @@ class UserOut(BaseModel):
     is_admin: bool = False
     language: Literal["uz", "ru", "en"] = "uz"
     created_at: datetime
+    # A guest session (no sign-up yet); older clients ignore the field.
+    is_guest: bool = False
 
     model_config = {"from_attributes": True}
+
+    @field_validator("is_guest", mode="before")
+    @classmethod
+    def _only_true_is_guest(cls, v: object) -> bool:
+        # A User() not flushed yet has None here (the column default fills it
+        # at INSERT). Only a real True marks a guest — the same identity rule
+        # as deps.registered_user.
+        return v is True
 
 
 class MeUpdate(BaseModel):
@@ -81,6 +91,18 @@ class LoginResponse(BaseModel):
     access_token: str | None = None
     refresh_token: str | None = None
     token_type: str = "bearer"
+    # A sign-in that merged a guest into an existing account: how many of the
+    # guest's rooms moved there (the app says so). None otherwise; older
+    # clients ignore it.
+    guest_merged_rooms: int | None = None
+
+
+class GuestCreateRequest(BaseModel):
+    """POST /auth/guest. ``install_id`` is a random id the app keeps per
+    install (only used for the per-install rate limit, never stored)."""
+
+    install_id: UUID | None = None
+    language: Literal["uz", "ru", "en"] | None = None
 
 
 class RegisterRequest(BaseModel):

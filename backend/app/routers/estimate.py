@@ -62,7 +62,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.deps import CurrentUser, DbSession
@@ -75,12 +75,15 @@ from app.models.norm import Norm
 from app.models.room import Room
 from app.models.room_finish import RoomFinish
 from app.models.room_state import RoomState
+from app.models.store import Store
 from app.schemas.estimate import (
     EstimateLine,
     EstimateResponse,
+    EstimateStore,
     EstimateSummary,
     PaginatedEstimates,
 )
+from app.core.storage import request_base_url
 from app.services.currency import get_usd_rate, uzs_to_usd
 from app.services.estimate_catalog import load_estimate_catalog
 from app.services.llm import BudgetExceededError
@@ -257,13 +260,14 @@ def _computed_to_schema_lines(lines: list[ComputedLine]) -> list[EstimateLine]:
             unit_price=ln.unit_price_uzs,
             total_uzs=ln.subtotal_uzs,
             is_approximate=ln.is_approximate,
-            store_id=None,
+            store_id=ln.store_id,
             category=ln.category,
             warning=ln.warning,
             price_source=ln.price_source,
             source_url=ln.source_url,
             store_name=ln.store_name,
             price_checked_at=ln.price_checked_at,
+            image_url=ln.image_url,
         )
         for ln in lines
     ]
@@ -280,16 +284,84 @@ def _jsonb_lines_to_schema(raw_lines: list[dict]) -> list[EstimateLine]:
             unit_price=ln.get("unit_price_uzs", 0),
             total_uzs=ln.get("subtotal_uzs", 0),
             is_approximate=ln.get("is_approximate", False),
-            store_id=None,
+            store_id=ln.get("store_id"),
             category=ln.get("category", ""),
             warning=ln.get("warning"),
             price_source=ln.get("price_source"),
             source_url=ln.get("source_url"),
             store_name=ln.get("store_name"),
             price_checked_at=ln.get("price_checked_at"),
+            image_url=ln.get("image_url"),
         )
         for ln in raw_lines
     ]
+
+
+def _known_stores(*rows_maps: dict | None) -> dict[str, Any]:
+    """The shops already loaded on the rows compute_estimate priced from (a Material's or a
+    Furniture row's ``store``), by id — so preview/create need no extra query for them."""
+    out: dict[str, Any] = {}
+    for rows in rows_maps:
+        for row in (rows or {}).values():
+            store = getattr(row, "store", None)
+            sid = getattr(store, "id", None)
+            if sid is not None:
+                out[str(sid)] = store
+    return out
+
+
+async def _attach_stores(
+    lines: list[EstimateLine], db: Any, request: Request, known: dict[str, Any] | None = None,
+) -> list[EstimateStore]:
+    """Make each line's photo URL absolute and list, once, every shop the lines buy from.
+
+    A saved estimate from before lines carried store_id has only store_name: such a line is
+    matched to the one shop of that name (none when two share it). Shops not already loaded
+    in *known* are fetched in one query; with nothing to look up, there is no query."""
+    base = request_base_url(request)
+    for ln in lines:
+        if ln.image_url and ln.image_url.startswith("/"):
+            ln.image_url = f"{base}{ln.image_url}"
+    found: dict[str, Any] = dict(known or {})
+    want_ids = {str(ln.store_id) for ln in lines if ln.store_id} - set(found)
+    want_names = {ln.store_name for ln in lines if not ln.store_id and ln.store_name and ln.price_source != "market"}
+    by_name: dict[str, list[Any]] = {}
+    if want_ids or want_names:
+        ids = []
+        for sid in want_ids:
+            try:
+                ids.append(uuid.UUID(sid))
+            except ValueError:
+                pass
+        clauses = []
+        if ids:
+            clauses.append(Store.id.in_(ids))
+        if want_names:
+            clauses.append(Store.name.in_(want_names))
+        if clauses:
+            result = await db.execute(select(Store).where(or_(*clauses)))
+            for store in result.scalars().all():
+                found[str(store.id)] = store
+                by_name.setdefault(store.name, []).append(store)
+    for ln in lines:
+        if not ln.store_id and ln.store_name in by_name and len(by_name[ln.store_name]) == 1 \
+                and ln.price_source != "market":
+            ln.store_id = by_name[ln.store_name][0].id
+    order: list[str] = []
+    for ln in lines:
+        sid = str(ln.store_id) if ln.store_id else None
+        if sid and sid in found and sid not in order:
+            order.append(sid)
+    out = []
+    for sid in order:
+        st = found[sid]
+        out.append(EstimateStore(
+            id=st.id, name=st.name, district=st.district, address=getattr(st, "address", None),
+            lat=float(st.lat) if getattr(st, "lat", None) is not None else None,
+            lng=float(st.lng) if getattr(st, "lng", None) is not None else None,
+            phone=st.phone, telegram=st.telegram,
+        ))
+    return out
 
 
 def _lines_to_jsonb(lines: list[ComputedLine]) -> list[dict]:
@@ -339,6 +411,19 @@ def _totals_from_raw_lines(raw_lines: list[dict]) -> dict[str, int]:
     }
 
 
+def _is_guest(user: Any) -> bool:
+    """A guest caller (identity check: only a real True, as deps.registered_user)."""
+    return getattr(user, "is_guest", None) is True
+
+
+async def _fill_ai_price_gaps_unless_guest(computed: ComputedEstimate, user: Any) -> ComputedEstimate:
+    """The AI gap-fill costs an LLM call: a guest's estimate keeps the catalog /
+    approximate prices instead (and says so, prices_approximate_for_guest)."""
+    if _is_guest(user):
+        return computed
+    return await fill_ai_price_gaps(computed, user_id=str(user.id))
+
+
 async def _with_market_prices(
     computed: ComputedEstimate, market: bool, user_id: str
 ) -> tuple[ComputedEstimate, int, int]:
@@ -371,6 +456,7 @@ async def _with_market_prices(
 )
 async def preview_estimate(
     room_id: uuid.UUID,
+    request: Request,
     current_user: CurrentUser,
     db: DbSession,
     market: bool = Query(default=False, description="Reprice materials with real shop prices"),
@@ -393,16 +479,20 @@ async def preview_estimate(
         current_state=current_state, floor_state=floor_state, ceiling_state=ceiling_state,
         wiring_meters=wiring_meters, catalog=catalog,
     )
-    computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
+    computed = await _fill_ai_price_gaps_unless_guest(computed, current_user)
+    # Market prices are a paid lookup too: ignored for a guest (market_checked=0).
     computed, market_checked, market_updated = await _with_market_prices(
-        computed, market, str(current_user.id)
+        computed, market and not _is_guest(current_user), str(current_user.id)
     )
     usd_rate = await get_usd_rate()
+    lines = _computed_to_schema_lines(computed.lines)
+    stores = await _attach_stores(lines, db, request, _known_stores(materials_map, catalog))
 
     return EstimateResponse(
         id=uuid.uuid4(),
         room_id=room.id,
-        lines=_computed_to_schema_lines(computed.lines),
+        lines=lines,
+        stores=stores,
         total_uzs=computed.total_uzs,
         total_exact_uzs=computed.total_exact_uzs,
         total_approx_uzs=computed.total_approx_uzs,
@@ -418,6 +508,7 @@ async def preview_estimate(
         market_prices_available=market_prices_available(),
         market_checked=market_checked,
         market_updated=market_updated,
+        prices_approximate_for_guest=_is_guest(current_user),
     )
 
 
@@ -433,6 +524,7 @@ async def preview_estimate(
 )
 async def create_estimate(
     room_id: uuid.UUID,
+    request: Request,
     current_user: CurrentUser,
     db: DbSession,
 ) -> EstimateResponse:
@@ -448,7 +540,7 @@ async def create_estimate(
         current_state=current_state, floor_state=floor_state, ceiling_state=ceiling_state,
         wiring_meters=wiring_meters, catalog=catalog,
     )
-    computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
+    computed = await _fill_ai_price_gaps_unless_guest(computed, current_user)
 
     # Persist immutable snapshot
     estimate = Estimate(
@@ -462,11 +554,14 @@ async def create_estimate(
     await db.flush()
     await db.refresh(estimate)
     usd_rate = await get_usd_rate()
+    lines = _computed_to_schema_lines(computed.lines)
+    stores = await _attach_stores(lines, db, request, _known_stores(materials_map, catalog))
 
     return EstimateResponse(
         id=estimate.id,
         room_id=room.id,
-        lines=_computed_to_schema_lines(computed.lines),
+        lines=lines,
+        stores=stores,
         total_uzs=computed.total_uzs,
         total_exact_uzs=computed.total_exact_uzs,
         total_approx_uzs=computed.total_approx_uzs,
@@ -480,6 +575,7 @@ async def create_estimate(
         usd_rate=usd_rate,
         total_usd=round(uzs_to_usd(computed.total_uzs, usd_rate)),
         market_prices_available=market_prices_available(),
+        prices_approximate_for_guest=_is_guest(current_user),
     )
 
 
@@ -559,10 +655,11 @@ async def _generate_estimate_pdf(
         current_state=current_state, floor_state=floor_state, ceiling_state=ceiling_state,
         wiring_meters=wiring_meters, catalog=catalog,
     )
-    computed = await fill_ai_price_gaps(computed, user_id=str(current_user.id))
-    computed, _, _ = await _with_market_prices(computed, market, str(current_user.id))
+    computed = await _fill_ai_price_gaps_unless_guest(computed, current_user)
+    guest = _is_guest(current_user)
+    computed, _, _ = await _with_market_prices(computed, market and not guest, str(current_user.id))
 
-    pdf_bytes = _build_pdf(room, computed, lang=lang)
+    pdf_bytes = _build_pdf(room, computed, lang=lang, guest_note=guest)
 
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
@@ -616,6 +713,7 @@ async def get_estimate_pdf_alias(
 )
 async def get_estimate(
     estimate_id: uuid.UUID,
+    request: Request,
     current_user: CurrentUser,
     db: DbSession,
 ) -> EstimateResponse:
@@ -636,11 +734,14 @@ async def get_estimate(
     raw_lines: list[dict] = estimate.lines or []
     totals = _totals_from_raw_lines(raw_lines)
     usd_rate = await get_usd_rate()
+    lines = _jsonb_lines_to_schema(raw_lines)
+    stores = await _attach_stores(lines, db, request)
 
     return EstimateResponse(
         id=estimate.id,
         room_id=estimate.room_id,
-        lines=_jsonb_lines_to_schema(raw_lines),
+        lines=lines,
+        stores=stores,
         total_uzs=totals["total_uzs"],
         total_exact_uzs=totals["total_exact_uzs"],
         total_approx_uzs=totals["total_approx_uzs"],
@@ -653,6 +754,7 @@ async def get_estimate(
         electrical_confirmed=_electrical_confirmed(raw_lines),
         usd_rate=usd_rate,
         total_usd=round(uzs_to_usd(totals["total_uzs"], usd_rate)),
+        prices_approximate_for_guest=_is_guest(current_user),
     )
 
 
@@ -721,8 +823,11 @@ def _fmt_qty(n: int | float) -> str:
     return whole.replace(",", " ") + (f".{frac}" if frac else "")
 
 
-def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) -> bytes:
-    """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes."""
+def _build_pdf(
+    room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE, guest_note: bool = False
+) -> bytes:
+    """Render *est* as a PDF in *lang* (uz/ru/en) and return raw bytes. *guest_note*
+    adds the "prices are approximate, sign up" line under the totals."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -734,11 +839,13 @@ def _build_pdf(room: Room, est: ComputedEstimate, lang: str = DEFAULT_LANGUAGE) 
         title=f"andoza.ai {smeta_t('sarlavha', lang)} — {room.name}",
         author="andoza.ai",
     )
-    doc.build(_pdf_story(room, est, lang, _pdf_fonts()))
+    doc.build(_pdf_story(room, est, lang, _pdf_fonts(), guest_note=guest_note))
     return buf.getvalue()
 
 
-def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, str]) -> list[Any]:
+def _pdf_story(
+    room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, str], guest_note: bool = False
+) -> list[Any]:
     """The PDF's flowables. Every fixed text and each line's label, unit, warning and formula are
     in *lang* (app.services.smeta_text, the web page's vocabulary); numbers are as computed."""
     font, font_bold = fonts
@@ -943,6 +1050,10 @@ def _pdf_story(room: Room, est: ComputedEstimate, lang: str, fonts: tuple[str, s
     ]))
     story.append(total_tbl)
     story.append(Spacer(1, 0.3 * cm))
+
+    if guest_note:
+        # A guest's estimate skipped the AI gap-fill and market prices.
+        story.append(Paragraph(xml_escape(tx("guest_prices_note")), warning_style))
 
     story.append(Paragraph(xml_escape(tx("disclaimer")), disclaimer))
 

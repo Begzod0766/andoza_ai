@@ -18,10 +18,17 @@ import structlog
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.core.storage import public_url
 from app.models.furniture import Furniture
 from app.models.material import Material
 from app.models.wallpaper import Wallpaper
 from app.services.smeta import WallpaperRoll, _price_per, furniture_catalog_key, wallpaper_catalog_key
+
+
+def _id_of(store: Any) -> str | None:
+    """A shop row's id as a string; None for no shop."""
+    sid = getattr(store, "id", None) if store is not None else None
+    return str(sid) if sid else None
 
 log = structlog.get_logger(__name__)
 
@@ -172,6 +179,7 @@ async def _shop_wallpapers(db: Any) -> dict[str, WallpaperRoll]:
             out[wallpaper_catalog_key(w.storage_key)] = WallpaperRoll(
                 name=w.name, price_uzs=int(w.price_uzs), roll_width_cm=float(w.width_cm),
                 roll_length_m=float(w.total_length_m), store_name=w.store.name if w.store else None,
+                store_id=_id_of(w.store), image_url=public_url(w.storage_key),
             )
         return out
     except Exception as exc:
