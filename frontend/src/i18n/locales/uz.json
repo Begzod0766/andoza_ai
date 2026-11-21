@@ -1008,7 +1008,13 @@
     "tour": {
       "surface": {
         "title": "Sahna",
-        "body": "Devor yoki polga bosing: shu joy uchun asboblar chiqadi (rang, plitka, oboy va boshqalar)"
+        "body": "Devor yoki polga bosing"
+      },
+      "furniture": {
+        "body": "Mebel qo'shing: Mebel → xona → buyum"
+      },
+      "stage": {
+        "body": "Bosqichni almashtiring"
       },
       "arc": {
         "title": "Bo'limlar",

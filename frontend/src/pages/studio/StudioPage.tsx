@@ -33,7 +33,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { StudioMenu } from "@/components/studio/StudioMenu";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 import { DiscardDesignMenuItem } from "@/components/studio/DiscardDesignMenuItem";
-import { StudioTour, isTourTargetShown } from "@/components/studio/StudioTour";
+import { StudioTour, isTourTargetShown, type StudioTourFinishReason } from "@/components/studio/StudioTour";
 import {
   STUDIO_TOUR_STEPS, isStudioTourDone, markStudioTourDone, presentSteps, shouldStartStudioTour,
   type StudioTourStep,
@@ -141,7 +141,8 @@ export default function StudioPage() {
     if (tourReady) openTour();
     else setTourReplayPending(true);
   };
-  const finishTour = () => {
+  // Every ending is remembered for now; the reason matters once the tour cleans up after itself.
+  const finishTour = (_reason: StudioTourFinishReason) => {
     markStudioTourDone();
     setTourSteps(null);
   };
@@ -860,7 +861,7 @@ export default function StudioPage() {
         </Suspense>
       </main>
 
-      {tourSteps && <StudioTour steps={tourSteps} onFinish={finishTour} />}
+      {tourSteps && <StudioTour steps={tourSteps} roomId={roomId ?? "local"} onFinish={finishTour} />}
     </div>
   );
 }

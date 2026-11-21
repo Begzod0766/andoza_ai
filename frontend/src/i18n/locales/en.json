@@ -1008,7 +1008,13 @@
     "tour": {
       "surface": {
         "title": "Scene",
-        "body": "Tap a wall or the floor: tools for that spot appear (colour, tile, wallpaper and more)"
+        "body": "Tap a wall or the floor"
+      },
+      "furniture": {
+        "body": "Add furniture: Furniture → room → item"
+      },
+      "stage": {
+        "body": "Change the stage"
       },
       "arc": {
         "title": "Sections",

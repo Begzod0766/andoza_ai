@@ -1,11 +1,23 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourStep } from "@/lib/studioTour";
+import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourStep, type StudioTourStepId } from "@/lib/studioTour";
+import { onTourEvent } from "@/lib/studioTourEvents";
+import { newFurnitureIds, savePractice } from "@/lib/tourPractice";
+import { useRoomStore } from "@/store/roomStore";
+import { TourHand } from "./TourHand";
 
 const PAD = 8;
 const GAP = 12;
+const ARROW = 8;
+/** How long the ✓ of a finished `do` step shows before the next step. */
+const CHECK_MS = 600;
+/** The hand shows the gesture again after this long without a tap. */
+const IDLE_MS = 10_000;
+
+export type StudioTourFinishReason = "done" | "skip" | "app" | "unmount";
 
 type Box = { left: number; top: number; width: number; height: number };
+type Spot = { target: string; box: Box };
 
 function measure(id: string): Box | null {
   const el = document.querySelector(`[data-tour="${id}"]`);
@@ -23,11 +35,35 @@ export function isTourTargetShown(target: string): boolean {
 }
 
 /**
- * First-run tour of the Studio: a spotlight over each target in turn, the rest of the view
- * blurred and dimmed. It never marks itself done — `onFinish` (skip or the last step) tells
- * the page, which decides what to remember.
+ * The target to spotlight: a `show` step's first; a `do` step's deepest one on screen (the
+ * open ring of a menu the user is walking through), else its first.
  */
-export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep[]; onFinish: () => void }) {
+export function currentTarget(step: StudioTourStep, shown: (target: string) => boolean = isTourTargetShown): string {
+  if (step.kind === "do") {
+    for (let i = step.targets.length - 1; i > 0; i--) if (shown(step.targets[i])) return step.targets[i];
+  }
+  return step.targets[0];
+}
+
+const stepShown = (step: StudioTourStep) => measure(currentTarget(step)) !== null;
+
+const sameSpot = (a: Spot | null, b: Spot) =>
+  !!a && a.target === b.target && a.box.left === b.box.left && a.box.top === b.box.top &&
+  a.box.width === b.box.width && a.box.height === b.box.height;
+
+/**
+ * First-run tour of the Studio: a spotlight over each target in turn, the rest of the view
+ * blurred and dimmed. A `show` step points at a button and its hole is the Next button; a `do`
+ * step lets the tap through to the target and moves on by itself once the user has done it
+ * (picked a surface, added furniture, changed the stage). It never marks itself done —
+ * `onFinish` tells the page why it ended, and the page decides what to remember.
+ */
+export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
+  steps: readonly StudioTourStep[];
+  roomId: string;
+  onStepChange?: (id: StudioTourStepId | null) => void;
+  onFinish: (reason: StudioTourFinishReason) => void;
+}) {
   const { t } = useTranslation();
   // The targets on screen when the tour opens; a step whose target is missing is dropped.
   const [ids] = useState(() => steps.filter((s) => measure(s.targets[0]) !== null));
@@ -36,29 +72,52 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep
   const { index, gone } = pos;
   const step = ids[index];
   const id = step?.id;
-  const target = step?.targets[0];
-  const [box, setBox] = useState<Box | null>(() => (target ? measure(target) : null));
+  const isDo = step?.kind === "do";
+  const [spot, setSpot] = useState<Spot | null>(() => {
+    if (!step) return null;
+    const target = currentTarget(step);
+    const box = measure(target);
+    return box ? { target, box } : null;
+  });
   const [cardH, setCardH] = useState(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  // The index of the `do` step the user has just done (its ✓ is showing).
+  const [doneIndex, setDoneIndex] = useState<number | null>(null);
+  const checked = doneIndex === index;
+  const [replay, setReplay] = useState(0);
+
+  // What the room looked like when the tour opened: new furniture and a changed stage are
+  // measured against it.
+  const [baseline] = useState(() => {
+    const s = useRoomStore.getState();
+    return { ids: s.furniture.map((f) => f.id), stage: s.viewStage };
+  });
+  const furniture = useRoomStore((s) => s.furniture);
+  const viewStage = useRoomStore((s) => s.viewStage);
+  const added = useMemo(() => newFurnitureIds(baseline.ids, furniture), [baseline, furniture]);
 
   // onFinish fires exactly once, whatever strict-mode effects or a double tap do.
   const onFinishRef = useRef(onFinish);
   onFinishRef.current = onFinish;
+  const onStepChangeRef = useRef(onStepChange);
+  onStepChangeRef.current = onStepChange;
   const finishedRef = useRef(false);
-  const finish = () => {
+  const finish = (reason: StudioTourFinishReason) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     notifyAppTour(false);
-    onFinishRef.current();
+    onStepChangeRef.current?.(null);
+    onFinishRef.current(reason);
   };
   const last = index === ids.length - 1;
-  const next = () => (last ? finish() : setPos((p) => ({ ...p, index: p.index + 1 })));
+  const next = () => (last ? finish("done") : setPos((p) => ({ ...p, index: p.index + 1 })));
 
   useLayoutEffect(() => {
-    if (!id) return;
+    if (!step) return;
     const update = () => {
-      const b = measure(target!);
-      if (b) setBox(b);
+      const target = currentTarget(step);
+      const box = measure(target);
+      if (box) setSpot((prev) => (sameSpot(prev, { target, box }) ? prev : { target, box }));
       else {
         // The target vanished: move to the next step still on screen (the updater only acts
         // while the position is still on this step, so resize + orientationchange together
@@ -66,7 +125,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep
         setPos((p) => {
           if (ids[p.index] !== step) return p;
           let k = p.index + 1;
-          while (k < ids.length && measure(ids[k].targets[0]) === null) k++;
+          while (k < ids.length && !stepShown(ids[k])) k++;
           return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
         });
       }
@@ -74,7 +133,17 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep
     update();
     window.addEventListener("resize", update);
     window.addEventListener("orientationchange", update);
+    // A `do` step's target changes as the user opens a menu or a list: follow it every frame.
+    let raf = 0;
+    if (step.kind === "do") {
+      const loop = () => {
+        update();
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+    }
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
@@ -86,7 +155,7 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep
   useEffect(() => {
     if (empty) return;
     notifyAppTour(true);
-    const onSkip = () => finish();
+    const onSkip = () => finish("app");
     window.addEventListener(TOUR_SKIP_EVENT, onSkip);
     return () => {
       window.removeEventListener(TOUR_SKIP_EVENT, onSkip);
@@ -95,14 +164,65 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep
   }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
   // Past the last step (nothing left on screen after a rotation) ends the tour too.
   const spent = empty || index >= ids.length;
-  useEffect(() => { if (spent) finish(); }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (spent) finish("unmount"); }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (id && !finishedRef.current) onStepChangeRef.current?.(id);
+  }, [id]);
+
+  // The furniture added since the tour opened is written down on every change, so it can be
+  // taken out again even if the app is killed mid-tour.
+  const startFurniture = useRef(furniture);
+  useEffect(() => {
+    if (furniture === startFurniture.current || finishedRef.current) return;
+    savePractice({ roomId, ids: added });
+  }, [furniture]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Whether the user has done the current `do` step (the surface step hears it as an event).
+  const did =
+    id === "furniture" ? added.length > 0 :
+    id === "stage" ? viewStage !== baseline.stage :
+    false;
+  useEffect(() => { if (isDo && did && doneIndex !== index) setDoneIndex(index); }, [isDo, did, index]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (id !== "surface" || !isDo) return;
+    return onTourEvent("surface-picked", () => setDoneIndex(index));
+  }, [id, isDo, index]);
+  // The ✓ shows for a moment, then the next step starts (or the tour ends after the last).
+  useEffect(() => {
+    if (!checked) return;
+    const i = index;
+    const timer = setTimeout(() => {
+      if (i === ids.length - 1) finish("done");
+      else setPos((p) => (p.index === i ? { ...p, index: i + 1 } : p));
+    }, CHECK_MS);
+    return () => clearTimeout(timer);
+  }, [checked, index]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The hand shows the gesture again after a while without a tap; a new step or target restarts the wait.
+  const spotTarget = spot?.target;
+  useEffect(() => {
+    if (!isDo || checked) return;
+    const bump = () => setReplay((r) => r + 1);
+    let timer = setTimeout(bump, IDLE_MS);
+    const onDown = () => {
+      clearTimeout(timer);
+      timer = setTimeout(bump, IDLE_MS);
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointerdown", onDown, true);
+    };
+  }, [isDo, checked, id, spotTarget, replay]);
 
   useLayoutEffect(() => {
     const h = cardRef.current?.getBoundingClientRect().height ?? 0;
     if (h !== cardH) setCardH(h);
   });
 
-  if (empty || !id || !box) return null;
+  if (empty || !id || !spot) return null;
+  const { box } = spot;
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -115,44 +235,109 @@ export function StudioTour({ steps, onFinish }: { steps: readonly StudioTourStep
   const wanted = vh - bottom >= top ? bottom + GAP : top - GAP - cardH;
   const cardTop = Math.max(PAD, Math.min(wanted, vh - cardH - PAD));
   const cardStyle = { top: cardTop, maxHeight: vh - 2 * PAD };
+  const cx = box.left + box.width / 2;
+  const cy = box.top + box.height / 2;
 
-  const shade = "fixed bg-black/55 backdrop-blur-sm";
+  // A show step's arrow: a CSS triangle on the card's edge, pointing at the target, when the
+  // card sits clear of it. The card is `inset-x-4 mx-auto max-w-sm` (16px gutters, 384px max).
+  const cardW = Math.min(vw - 32, 384);
+  const cardLeft = (vw - cardW) / 2;
+  const arrowLeft = Math.max(cardLeft + 16, Math.min(cx, cardLeft + cardW - 16)) - ARROW;
+  const arrow = isDo ? null
+    : cardTop >= bottom ? { top: cardTop - ARROW, up: true }
+    : cardTop + cardH <= top ? { top: cardTop + cardH, up: false }
+    : null;
 
+  const shade = "pointer-events-auto fixed bg-black/55 backdrop-blur-sm";
+  const body = t(`studio.tour.${id}.body`);
+  const skip = (
+    <button
+      type="button"
+      onClick={() => finish("skip")}
+      className="shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10"
+    >
+      {t("studio.tour.skip")}
+    </button>
+  );
+  const counter = (
+    <span className="shrink-0 text-xs tabular-nums text-ink-muted">
+      {t("studio.tour.step_of", { current: index + 1 - gone, total: ids.length - gone })}
+    </span>
+  );
+
+  // The overlay itself lets taps through; only the four shades, the card and (on a show step)
+  // the hole button catch them. On a do step the hole is open, so the tap lands on the target.
   return (
-    <div className="fixed inset-0 z-[300]">
+    <div className="pointer-events-none fixed inset-0 z-[300]">
       <div data-tour-backdrop className={shade} style={{ left: 0, top: 0, width: vw, height: top }} />
       <div data-tour-backdrop className={shade} style={{ left: 0, top: bottom, width: vw, height: Math.max(0, vh - bottom) }} />
       <div data-tour-backdrop className={shade} style={{ left: 0, top, width: left, height: bottom - top }} />
       <div data-tour-backdrop className={shade} style={{ left: right, top, width: Math.max(0, vw - right), height: bottom - top }} />
-      <button
-        type="button"
-        data-tour-hole
-        aria-label={t("studio.tour.next")}
-        onClick={next}
-        className="fixed rounded-2xl bg-transparent ring-2 ring-white/90"
-        style={{ left, top, width: right - left, height: bottom - top }}
-      />
+      {isDo ? (
+        <div
+          data-tour-ring
+          className="pointer-events-none fixed rounded-2xl ring-2 ring-white/90"
+          style={{ left, top, width: right - left, height: bottom - top }}
+        />
+      ) : (
+        <button
+          type="button"
+          data-tour-hole
+          aria-label={t("studio.tour.next")}
+          onClick={next}
+          className="pointer-events-auto fixed rounded-2xl bg-transparent ring-2 ring-white/90"
+          style={{ left, top, width: right - left, height: bottom - top }}
+        />
+      )}
+      {isDo && !checked && (
+        <div data-tour-hand>
+          <TourHand key={spot.target} x={cx} y={cy} replayKey={replay} />
+        </div>
+      )}
+      {checked && (
+        <div
+          data-tour-check
+          aria-hidden="true"
+          className="fixed flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-brand text-2xl font-bold text-white shadow-lg"
+          style={{ left: cx, top: cy }}
+        >
+          ✓
+        </div>
+      )}
+      {arrow && (
+        <div
+          data-tour-arrow
+          aria-hidden="true"
+          className={`fixed h-0 w-0 border-x-8 border-x-transparent ${arrow.up ? "border-b-8 border-b-card" : "border-t-8 border-t-card"}`}
+          style={{ left: arrowLeft, top: arrow.top }}
+        />
+      )}
       <div
         ref={cardRef}
         role="dialog"
-        aria-modal="true"
-        aria-label={t(`studio.tour.${id}.title` as never)}
-        className="fixed inset-x-4 mx-auto max-w-sm overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
+        aria-modal={isDo ? undefined : "true"}
+        aria-label={body}
+        className="pointer-events-auto fixed inset-x-4 mx-auto max-w-sm overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         style={cardStyle}
       >
-        <h2 className="text-base font-semibold">{t(`studio.tour.${id}.title` as never)}</h2>
-        <p className="mt-1 text-sm text-ink-muted">{t(`studio.tour.${id}.body` as never)}</p>
-        <div className="mt-3 flex items-center gap-3">
-          <span className="text-xs tabular-nums text-ink-muted">
-            {t("studio.tour.step_of", { current: index + 1 - gone, total: ids.length - gone })}
-          </span>
-          <button type="button" onClick={finish} className="ml-auto rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10">
-            {t("studio.tour.skip")}
-          </button>
-          <button type="button" onClick={next} className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white">
-            {last ? t("studio.tour.done") : t("studio.tour.next")}
-          </button>
-        </div>
+        {isDo ? (
+          <div className="flex items-center gap-3">
+            {counter}
+            <p className="min-w-0 flex-1 text-sm font-medium">{body}</p>
+            {skip}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm">{body}</p>
+            <div className="mt-3 flex items-center gap-3">
+              {counter}
+              <span className="ml-auto">{skip}</span>
+              <button type="button" onClick={next} className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white">
+                {last ? t("studio.tour.done") : t("studio.tour.next")}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
