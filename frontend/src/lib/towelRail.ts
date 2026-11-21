@@ -140,10 +140,15 @@ export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: 
   let best: number | null = null
   const all = cutSpans(freeSpans(geometry, wallId, halfMm), wallId, others, halfMm)
   const home = stayNearMm == null ? undefined : all.find(([lo, hi]) => stayNearMm >= lo && stayNearMm <= hi)
+  // Dragged out of a taken stretch it stood in (mobile QA 2026-11-21, #367: a rail saved over a basin): it leaves
+  // the way it is dragged, not to whichever free end is nearest, which could be behind it.
+  const way = !home && stayNearMm != null ? Math.sign(positionMm - stayNearMm) : 0
   for (const [lo, hi] of home ? [home] : all) {
     const at = Math.min(hi, Math.max(lo, Math.round(positionMm)))
+    if (way && (at - stayNearMm!) * way < 0) continue
     if (best == null || Math.abs(at - positionMm) < Math.abs(best - positionMm)) best = at
   }
+  if (best == null && way) return nearestFree(geometry, wallId, positionMm, undefined, others, halfMm)
   return best
 }
 

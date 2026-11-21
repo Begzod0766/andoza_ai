@@ -337,3 +337,32 @@ describe('a rail keeps off a washbasin (mobile QA 2026-11-21, #365)', () => {
     expect(r.positionMm + half <= 1300 || r.positionMm - half >= 1900).toBe(true)
   })
 })
+
+describe('dragging a rail by a washbasin (mobile QA 2026-11-21, #367)', () => {
+  const basinOnA = (alongMm: number) => {
+    const a = wallWalk(geometry).find((w) => w.id === 'A')!
+    const x = a.startX + a.dirX * alongMm / 1000 + a.nx * 0.25, z = a.startZ + a.dirZ * alongMm / 1000 + a.nz * 0.25
+    return { id: 'basin', furniture_id: 'rakovina-1', name: 'Rakovina', x: x * 1000, y: z * 1000, rotation: Math.atan2(a.nx, a.nz) }
+  }
+  const setup = (railAt: number) => {
+    useRoomStore.setState({ furniture: [basinOnA(1600)] as never, catalogFurniture: [], plumbingRiser: riserSpot(geometry, [{ x: 0, z: 99 }]) })
+    useRoomStore.setState({ towelRails: [{ id: 'r1', wallId: 'A', positionMm: railAt, heightMm: TOWEL_RAIL_HEIGHT_MM }] })
+  }
+  it('stops a little clear of the basin, not touching its edge', () => {
+    setup(700)
+    st().moveTowelRail('r1', 1600)
+    const r = st().towelRails[0]
+    // The basin takes A 1300…1900: the rail ends at least 5 cm before it.
+    expect(r.positionMm + railHalf(r)).toBeLessThanOrEqual(1250)
+  })
+  it('a rail already over the basin, dragged a little one way, leaves it that way', () => {
+    // Saved before rails kept off basins: it hangs at A 1450, over the basin.
+    setup(1450)
+    st().beginTowelRailDrag()
+    st().moveTowelRail('r1', 1500)   // toward the basin's far end (A 1900)
+    st().endTowelRailDrag()
+    const r = st().towelRails[0]
+    expect(r.positionMm).toBeGreaterThan(1450)
+    expect(r.positionMm - railHalf(r)).toBeGreaterThanOrEqual(1900)
+  })
+})

@@ -37,6 +37,9 @@ let dragStart: TowelRail[] | null = null
 
 /** What a rail keeps clear of on the walls: the washing machines (2026-11-14), the riser box (2026-11-18) and
  *  the other rails (mobile QA 2026-11-14, #277: a second rail went on top of the first). */
+/** How far a rail keeps from a washbasin's side, mm (mobile QA 2026-11-21, #367). */
+const BASIN_GAP_MM = 50
+
 function machines(state: RoomStore, except?: string): WallTaken[] {
   return [
     ...state.towelRails.filter((r) => r.id !== except).map((r) => ({ wallId: r.wallId, positionMm: r.positionMm, halfMm: railHalf(r) })),
@@ -46,7 +49,8 @@ function machines(state: RoomStore, except?: string): WallTaken[] {
     // A washbasin's stretch of its wall (mobile QA 2026-11-21, #365): a rail pushed along by another stopped
     // over the basin. A rail hangs from 60 cm, below a basin's rim.
     ...wetSpans(state.furniture, state.catalogFurniture, state.geometry, ['sink'])
-      .map((s) => ({ wallId: s.wallId, positionMm: Math.round((s.from + s.to) / 2), halfMm: Math.round((s.to - s.from) / 2) })),
+      // 5 cm clear of it, not touching its edge (#367).
+      .map((s) => ({ wallId: s.wallId, positionMm: Math.round((s.from + s.to) / 2), halfMm: Math.round((s.to - s.from) / 2) + BASIN_GAP_MM })),
   ]
 }
 
