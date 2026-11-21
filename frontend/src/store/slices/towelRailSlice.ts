@@ -5,7 +5,7 @@ import type { RoomStore } from '../roomStoreTypes'
 import { roomRiser } from '@/lib/plumbingRuns'
 import { nearestFree, placeTowelRail, railHalf, TOWEL_RAIL_HEIGHT_MM, type WallTaken } from '@/lib/towelRail'
 import { machineHalf } from '@/lib/washer'
-import { riserBoxTaken } from '@/lib/bathroomBoxes'
+import { riserBoxTaken, wetSpans } from '@/lib/bathroomBoxes'
 import { effectiveRoomType } from '@/lib/roomType'
 
 const wetRoom = (s: { roomType: string | null; name: string }) => {
@@ -43,6 +43,10 @@ function machines(state: RoomStore, except?: string): WallTaken[] {
     ...state.washers.map((m) => ({ wallId: m.wallId, positionMm: m.positionMm, halfMm: machineHalf(m) })),
     // Only where the box is built: a bathroom or a kitchen (as BathroomBoxes3D draws it).
     ...(wetRoom(state) ? riserBoxTaken(state.geometry, roomRiser(state.geometry, state.plumbingRiser)) : []),
+    // A washbasin's stretch of its wall (mobile QA 2026-11-21, #365): a rail pushed along by another stopped
+    // over the basin. A rail hangs from 60 cm, below a basin's rim.
+    ...wetSpans(state.furniture, state.catalogFurniture, state.geometry, ['sink'])
+      .map((s) => ({ wallId: s.wallId, positionMm: Math.round((s.from + s.to) / 2), halfMm: Math.round((s.to - s.from) / 2) })),
   ]
 }
 

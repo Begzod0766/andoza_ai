@@ -88,8 +88,9 @@ function BacksplashRow({ b, geometry, ceilingMm, wallIds, onPatch, onRemove }: {
         <label htmlFor={wallId} className="flex min-w-0 items-center gap-2 text-xs font-medium text-ink-muted">
           {t("studio.backsplash.wall")}
           <select id={wallId} value={b.wallId} onChange={(e) => onPatch({ wallId: e.target.value })}
-            className="min-w-0 rounded-lg border border-line bg-card px-2 py-1 text-[12px] text-ink">
-            {wallIds.map((id) => <option key={id} value={id}>{t("studio.backsplash.wall_n", { n: wallNumber(id) })}</option>)}
+            className="min-w-[3.5rem] rounded-lg border border-line bg-card px-2 py-1 text-[12px] text-ink">
+            {/* The letter alone: the label says "Devor", and "Devor B" was cut to "Devor ⌃" on a phone (#365). */}
+            {wallIds.map((id) => <option key={id} value={id}>{wallNumber(id)}</option>)}
           </select>
         </label>
         <span className="text-[12px] font-semibold text-ink">{area.toFixed(2)} m²</span>

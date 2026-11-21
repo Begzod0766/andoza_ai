@@ -118,10 +118,19 @@ describe('BacksplashControls on a phone (mobile QA 2026-11-21, #335): nothing ru
     controls([one])
     const wall = screen.getByRole('combobox')
     expect(wall.closest('div')!.className).toMatch(/\bflex-wrap\b/)
-    expect(wall.className).toMatch(/\bmin-w-0\b/)
     for (const input of screen.getAllByRole('textbox')) {
       expect(input.closest('label')!.className).toMatch(/\bflex-wrap\b/)
       expect(input.className).toMatch(/\bmax-w-full\b/)
     }
+  })
+})
+
+describe('BacksplashControls wall picker on a phone (mobile QA 2026-11-21, #365)', () => {
+  it('shows the wall letter itself next to the "Devor" label, wide enough not to be cut', () => {
+    controls([{ ...one, wallId: 'B' }])
+    const wall = screen.getByRole('combobox', { name: 'Devor' }) as HTMLSelectElement
+    // "Devor ⌃" with the letter cut off: the label already says "Devor", the option says only which.
+    expect(wall.selectedOptions[0].textContent).toBe('B')
+    expect(wall.className).toMatch(/\bmin-w-\[/)
   })
 })
