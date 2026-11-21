@@ -251,7 +251,7 @@ const frame = () => act(() => { vi.advanceTimersByTime(20) })
 
 describe('StudioTour do steps', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
     useRoomStore.getState().resetRoom()
     useRoomStore.setState({ furniture: [a], viewStage: 'full' })
     clearPractice()
@@ -304,6 +304,36 @@ describe('StudioTour do steps', () => {
     document.querySelector('[data-tour="arc-mebel-ring-0"]')!.remove()
     frame()
     expect(ring().style.left).toBe('292px')
+  })
+
+  it('do_step_survives_a_brief_vanish: under 500 ms without any target is not a vanish; 500 ms or more is', () => {
+    const onStepChange = vi.fn()
+    mount(['arc-mebel', 'stage'])
+    render(<StudioTour steps={[STEP('furniture'), STEP('stage')]} roomId="r1" onStepChange={onStepChange} onFinish={() => {}} />)
+    const saved = rects['arc-mebel']
+    rects['arc-mebel'] = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(onStepChange).toHaveBeenLastCalledWith('furniture')
+    rects['arc-mebel'] = saved
+    frame()
+    act(() => { vi.advanceTimersByTime(400) })
+    // the earlier gap does not add up with a later one
+    rects['arc-mebel'] = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(onStepChange).toHaveBeenLastCalledWith('furniture')
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(onStepChange).toHaveBeenLastCalledWith('stage')
+    expect(screen.getByText('1/1')).toBeInTheDocument()
+  })
+
+  it('a do step whose targets are gone at a resize moves on at once', () => {
+    const onStepChange = vi.fn()
+    mount(['arc-mebel', 'stage'])
+    render(<StudioTour steps={[STEP('furniture'), STEP('stage')]} roomId="r1" onStepChange={onStepChange} onFinish={() => {}} />)
+    rects['arc-mebel'] = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(onStepChange).toHaveBeenLastCalledWith('stage')
   })
 
   it('furniture_completes_on_new_id, not on moving an old one', () => {

@@ -13,6 +13,9 @@ const ARROW = 8;
 const CHECK_MS = 600;
 /** The hand shows the gesture again after this long without a tap. */
 const IDLE_MS = 10_000;
+/** A do step's targets must be missing this long, frame after frame, to count as vanished
+ *  (an arc re-render or a remounting sheet can drop them for a frame or two). */
+const VANISH_MS = 500;
 
 export type StudioTourFinishReason = "done" | "skip" | "app" | "unmount";
 
@@ -35,17 +38,18 @@ export function isTourTargetShown(target: string): boolean {
 }
 
 /**
- * The target to spotlight: a `show` step's first; a `do` step's deepest one on screen (the
- * open ring of a menu the user is walking through), else its first.
+ * The target to spotlight and its box, in one pass: a `show` step's first target; a `do`
+ * step's deepest one on screen (the open ring of a menu the user is walking through), else
+ * its first. Null when none of them is on screen.
  */
-export function currentTarget(step: StudioTourStep, shown: (target: string) => boolean = isTourTargetShown): string {
-  if (step.kind === "do") {
-    for (let i = step.targets.length - 1; i > 0; i--) if (shown(step.targets[i])) return step.targets[i];
+function locate(step: StudioTourStep): Spot | null {
+  const deepest = step.kind === "do" ? step.targets.length - 1 : 0;
+  for (let i = deepest; i >= 0; i--) {
+    const box = measure(step.targets[i]);
+    if (box) return { target: step.targets[i], box };
   }
-  return step.targets[0];
+  return null;
 }
-
-const stepShown = (step: StudioTourStep) => measure(currentTarget(step)) !== null;
 
 const sameSpot = (a: Spot | null, b: Spot) =>
   !!a && a.target === b.target && a.box.left === b.box.left && a.box.top === b.box.top &&
@@ -73,12 +77,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   const step = ids[index];
   const id = step?.id;
   const isDo = step?.kind === "do";
-  const [spot, setSpot] = useState<Spot | null>(() => {
-    if (!step) return null;
-    const target = currentTarget(step);
-    const box = measure(target);
-    return box ? { target, box } : null;
-  });
+  const [spot, setSpot] = useState<Spot | null>(() => (step ? locate(step) : null));
   const [cardH, setCardH] = useState(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   // The index of the `do` step the user has just done (its ✓ is showing).
@@ -114,38 +113,44 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
 
   useLayoutEffect(() => {
     if (!step) return;
-    const update = () => {
-      const target = currentTarget(step);
-      const box = measure(target);
-      if (box) setSpot((prev) => (sameSpot(prev, { target, box }) ? prev : { target, box }));
-      else {
-        // The target vanished: move to the next step still on screen (the updater only acts
-        // while the position is still on this step, so resize + orientationchange together
-        // advance once), or end when none is left.
-        setPos((p) => {
-          if (ids[p.index] !== step) return p;
-          let k = p.index + 1;
-          while (k < ids.length && !stepShown(ids[k])) k++;
-          return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
-        });
-      }
+    // The target vanished: move to the next step still on screen (the updater only acts
+    // while the position is still on this step, so resize + orientationchange together
+    // advance once), or end when none is left.
+    const vanish = () =>
+      setPos((p) => {
+        if (ids[p.index] !== step) return p;
+        let k = p.index + 1;
+        while (k < ids.length && !locate(ids[k])) k++;
+        return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
+      });
+    // When a frame first found no target; a resize or rotation decides at once.
+    let missingSince: number | null = null;
+    const update = (frameTime?: number) => {
+      const found = locate(step);
+      if (found) {
+        missingSince = null;
+        setSpot((prev) => (sameSpot(prev, found) ? prev : found));
+      } else if (frameTime === undefined) vanish();
+      else if (missingSince === null) missingSince = frameTime;
+      else if (frameTime - missingSince >= VANISH_MS) vanish();
     };
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
+    const onViewChange = () => update();
+    onViewChange();
+    window.addEventListener("resize", onViewChange);
+    window.addEventListener("orientationchange", onViewChange);
     // A `do` step's target changes as the user opens a menu or a list: follow it every frame.
     let raf = 0;
     if (step.kind === "do") {
       const loop = () => {
-        update();
+        update(performance.now());
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
     }
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("resize", onViewChange);
+      window.removeEventListener("orientationchange", onViewChange);
     };
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
