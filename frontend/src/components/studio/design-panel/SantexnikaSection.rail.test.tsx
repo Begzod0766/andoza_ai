@@ -36,14 +36,14 @@ describe('SantexnikaSection: towel rail', () => {
     fireEvent.click(addButton()!)
     expect(rails()).toHaveLength(1)
     const row = screen.getByRole('listitem', { name: /sochiq quritgich/i })
-    expect(row).toHaveTextContent(/devor/i)
+    expect(row).toHaveAccessibleName('Sochiq quritgich')
   })
 
   it('its row has a delete button that takes it and its points away', () => {
     render(<Both bathroom />)
     fireEvent.click(addButton()!)
     expect(screen.getAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(2)
-    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Olib tashlash' }))
+    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: /olib tashlash/i }))
     expect(rails()).toEqual([])
     expect(screen.queryAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(0)
   })
@@ -85,7 +85,7 @@ describe('SantexnikaSection: a rail in a room that is no longer a bathroom (fina
     useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 600, heightMm: 1000 }] })
     render(<Both />)
     expect(addButton()).toBeNull()
-    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Olib tashlash' }))
+    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: /olib tashlash/i }))
     expect(rails()).toEqual([])
   })
 })
@@ -163,24 +163,5 @@ describe('SantexnikaSection: touching furniture (2026-11-15)', () => {
     expect(within(screen.getByRole('listitem', { name: /kir yuvish/i })).getByRole('alert')).toHaveTextContent("Mebelga tegib turibdi: Uch o'rinli divan")
   })
 })
-
-describe('SantexnikaSection: where along its wall (mobile QA 2026-11-21, #359)', () => {
-  it('two rails on one wall read differently: each row says how far along the wall it hangs', () => {
-    render(<Both bathroom />)
-    fireEvent.click(addButton()!)
-    fireEvent.click(addButton()!)
-    const [a, b] = rails()
-    expect(a.wallId === b.wallId && a.positionMm !== b.positionMm).toBe(true)
-    const rows = screen.getAllByRole('listitem', { name: /sochiq quritgich/i })
-    expect(rows[0]).toHaveTextContent(`${Math.round(a.positionMm / 10)} sm`)
-    expect(rows[1]).toHaveTextContent(`${Math.round(b.positionMm / 10)} sm`)
-    expect(rows[0].textContent).not.toBe(rows[1].textContent)
-  })
-
-  it('a washing machine row says how far along its wall it stands', () => {
-    render(<Both bathroom />)
-    fireEvent.click(screen.getByRole('button', { name: /kir yuvish mashinasi/i }))
-    const [m] = useRoomStore.getState().washers
-    expect(screen.getByRole('listitem', { name: /kir yuvish/i })).toHaveTextContent(`${Math.round(m.positionMm / 10)} sm`)
-  })
-})
+// Where along its wall (#359) was dropped from the rows on 2026-11-23: two rails are told apart by number
+// instead (SantexnikaSection.compact.test.tsx).

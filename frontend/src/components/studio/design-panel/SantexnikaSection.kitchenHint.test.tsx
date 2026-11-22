@@ -1,4 +1,7 @@
-/** The fixtures stage reads as a kitchen's in a kitchen (kitchen QA 2026-11-18 K7): no bath or toilet. */
+/**
+ * The Jihozlar stage had a hint naming a room's fixtures (kitchen QA 2026-11-18 K7). It went with the rest of
+ * the panel's text on 2026-11-23 (the user's "too many texts"), in a kitchen as in a bathroom.
+ */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
@@ -14,16 +17,12 @@ beforeEach(() => {
   useRoomStore.setState({ geometry, catalogFurniture: [] })
 })
 
-describe('SantexnikaSection: the Jihozlar hint', () => {
-  it('a kitchen names a kitchen\'s fixtures', () => {
+describe('SantexnikaSection: no Jihozlar hint', () => {
+  it('a kitchen has none, and still offers its own pieces to add', () => {
     useRoomStore.setState({ roomType: 'oshxona' })
     render(<SantexnikaSection part="jihozlar" />)
-    expect(screen.getByText(/moyka, idish va kir yuvish mashinalari/)).toBeInTheDocument()
-    expect(screen.queryByText(/vanna, rakovina, unitaz/)).toBeNull()
-  })
-  it('a bathroom keeps its own', () => {
-    useRoomStore.setState({ roomType: 'hammom' })
-    render(<SantexnikaSection part="jihozlar" bathroom />)
-    expect(screen.getByText(/vanna, rakovina, unitaz/)).toBeInTheDocument()
+    expect(screen.queryByText(/kafel va poldan keyin/)).toBeNull()
+    expect(screen.getByRole('button', { name: "Moyka qo'shish" })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: "Idish yuvish mashinasi qo'shish" })).toBeInTheDocument()
   })
 })

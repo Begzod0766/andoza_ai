@@ -18,11 +18,13 @@ const isPlumbing = (category: string | null | undefined, name: string) =>
  * plans the fixtures there and then lays the pipes. Was: added only in Mebel, with its filter.
  * The pick goes where every "add" puts a piece (nextFurnitureSpot): against a wall, clear of the rest.
  */
-export function PlumbingFixtures({ children, optional = false }: {
+export function PlumbingFixtures({ children, optional = false, title = true }: {
   /** Warnings under the list (the Jihozlar stage's clearances and hatch). */
   children?: React.ReactNode;
   /** Left out when the catalog has nothing to offer and nothing stands (a kitchen, QA 2026-11-18 K1). */
   optional?: boolean;
+  /** Its «Jihozlar» heading; left out where the stage itself is called that (2026-11-23). */
+  title?: boolean;
 }) {
   const { t } = useTranslation();
   const furniture = useRoomStore((s) => s.furniture);
@@ -65,7 +67,7 @@ export function PlumbingFixtures({ children, optional = false }: {
 
   return (
     <div>
-      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.fixtures")}</span>
+      {title && <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.fixtures")}</span>}
       {fixtures.length === 0
         ? <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
         : (
@@ -74,7 +76,7 @@ export function PlumbingFixtures({ children, optional = false }: {
               <li key={f.id} className="flex items-center gap-1 rounded-full border border-line py-1 pl-2.5 pr-1.5 text-[11px] text-ink">
                 {f.name}
                 <button type="button" onClick={() => removeFurniture(f.id)} aria-label={t("studio.santexnika.remove_named", { name: f.name })}
-                  className="flex h-4 w-4 items-center justify-center rounded-full text-ink-muted hover:text-red-500">×</button>
+                  className="-my-1 flex h-7 w-7 items-center justify-center rounded-full text-base leading-none text-ink-muted hover:text-red-500">×</button>
               </li>
             ))}
           </ul>

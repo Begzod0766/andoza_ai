@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useRoomStore } from '@/store/roomStore'
@@ -75,9 +75,45 @@ describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)',
     const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt }), { wrapper })
     const cat = result.current.find((c) => c.key === 'jihozlar')!
     expect(cat.label).toBe('Jihozlar')
-    expect(cat.items!.map((i) => i.key)).toEqual(['sx:vanna', 'sx:panel', 'sx:add'])
+    expect(cat.items!.map((i) => i.key)).toEqual(['sx:vanna', 'sx:rail', 'sx:washer', 'sx:heater', 'sx:panel', 'sx:add'])
     cat.items!.find((i) => i.key === 'sx:add')!.onSelect()
     expect(openPanelAt).toHaveBeenCalledWith('quvurlar')
+  })
+
+  // Adding in two taps (user's complaint 2026-11-23): a rail, a machine and the boiler went only through the panel.
+  const jihozlar = (notify?: (m: string) => void) => {
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useArcCategories({ selectedWall: null, openPanelAt: () => {}, notify }), { wrapper })
+    return () => result.current.find((c) => c.key === 'jihozlar')!.items!
+  }
+
+  it('a towel rail, a washing machine and the boiler are added straight from it', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })
+    const items = jihozlar()
+    items().find((i) => i.key === 'sx:rail')!.onSelect()
+    expect(useRoomStore.getState().towelRails).toHaveLength(1)
+    items().find((i) => i.key === 'sx:washer')!.onSelect()
+    expect(useRoomStore.getState().washers).toHaveLength(1)
+    act(() => items().find((i) => i.key === 'sx:heater')!.onSelect())
+    expect(useRoomStore.getState().designState.waterHeater).toBe(true)
+    // The boiler is one per room: once on, it is not offered again.
+    expect(items().some((i) => i.key === 'sx:heater')).toBe(false)
+  })
+
+  it('says so when a wall has no room for it', () => {
+    useRoomStore.setState({ roomType: 'hammom', name: 'Hammom', addWasher: () => false })
+    const notify = vi.fn()
+    jihozlar(notify)().find((i) => i.key === 'sx:washer')!.onSelect()
+    expect(notify).toHaveBeenCalledWith("Devorlarda kir yuvish mashinasi uchun joy yo'q.")
+  })
+
+  it('a kitchen offers its sink and dishwasher, and no towel rail', () => {
+    useRoomStore.setState({ roomType: 'oshxona', name: 'Oshxona', catalogFurniture: [] })
+    const items = jihozlar()
+    expect(items().map((i) => i.key)).toEqual(['sx:sink', 'sx:dish', 'sx:washer', 'sx:heater', 'sx:panel', 'sx:add'])
+    items().find((i) => i.key === 'sx:sink')!.onSelect()
+    items().find((i) => i.key === 'sx:dish')!.onSelect()
+    expect(useRoomStore.getState().washers).toHaveLength(2)
   })
 
   it('opens the Jihozlar panel too, the only way to it on a phone (QA 2026-11-18)', () => {
