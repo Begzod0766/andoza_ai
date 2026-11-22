@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import Reveal from "./Reveal";
@@ -21,6 +21,11 @@ const STRINGS = [
 ];
 
 const NOTE_STAGGER = 0.16; // s between notes
+// Once a note is on screen it turns itself over to the fix: problem → solution
+// in front of the visitor. Notes go one after another; a note the visitor has
+// already turned is left alone.
+const AUTO_FLIP_AT = 1.4; // s after the note comes into view
+const AUTO_FLIP_STAGGER = 0.6;
 const STRINGS_START = 0.35 + 3 * NOTE_STAGGER + 0.45; // after the last note settles
 
 function Pin({ color, delay, still }: { color: string; delay: number; still: boolean }) {
@@ -81,9 +86,25 @@ interface NoteProps {
 function Note({ index, title, desc, fixTitle, fixDesc, color, tilt, still }: NoteProps) {
   const [flipped, setFlipped] = useState(false);
   const delay = 0.35 + index * NOTE_STAGGER;
+  const noteRef = useRef<HTMLDivElement | null>(null);
+  const seen = useInView(noteRef, { once: true, amount: 0.6 });
+  const touched = useRef(false);
+  const turn = () => {
+    touched.current = true;
+    setFlipped((f) => !f);
+  };
+
+  useEffect(() => {
+    if (still || !seen) return;
+    const id = window.setTimeout(() => {
+      if (!touched.current) setFlipped(true);
+    }, (AUTO_FLIP_AT + index * AUTO_FLIP_STAGGER) * 1000);
+    return () => window.clearTimeout(id);
+  }, [still, seen, index]);
 
   return (
     <motion.div
+      ref={noteRef}
       className="relative w-full max-w-[280px]"
       variants={{
         // the note is "thrown" onto the board from above, overshooting its tilt
@@ -120,11 +141,11 @@ function Note({ index, title, desc, fixTitle, fixDesc, color, tilt, still }: Not
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setFlipped((f) => !f)}
+          onClick={turn}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              setFlipped((f) => !f);
+              turn();
             }
           }}
           aria-pressed={flipped}

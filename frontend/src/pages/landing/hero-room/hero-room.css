@@ -18,6 +18,13 @@
   width: 100%;
   height: calc(100% - 56px);
 }
+/* the closing picture: no estimate bar underneath, so the room takes the card */
+.hr-card-still {
+  aspect-ratio: 1 / 0.92;
+}
+.hr-card-still .hr-svg {
+  height: 100%;
+}
 
 .hr-floor-plan {
   fill: rgba(190, 208, 255, 0.06);

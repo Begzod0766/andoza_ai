@@ -151,6 +151,8 @@ function pill(cx,cy,text,alpha,size,hot){
   if(alpha<=.01)return;
   ctx.save();ctx.globalAlpha=alpha;ctx.font='500 '+size+'px '+MONO;
   var tw=ctx.measureText(text).width,w=tw+20,h=size+13;
+  /* never let a label hang off the canvas edge (narrow phones) */
+  cx=Math.min(Math.max(cx,w/2+2),W-w/2-2);
   rr(cx-w/2,cy-h/2,w,h,h/2);ctx.fillStyle=hot?ACC:'rgba(12,30,84,.95)';ctx.fill();
   ctx.lineWidth=1.2;ctx.strokeStyle=ACC;ctx.stroke();
   ctx.fillStyle=hot?'#2A1200':ACC;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,cx,cy+.5);
@@ -462,7 +464,7 @@ function draw(m){
   var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,i,j;
   for(i=0;i<N;i++){for(j=0;j<2;j++){var c=proj(PTS[i][0],PTS[i][1],j?H:0,e);
     if(c[0]<x0)x0=c[0];if(c[0]>x1)x1=c[0];if(c[1]<y0)y0=c[1];if(c[1]>y1)y1=c[1];}}
-  var sc=Math.min(170,availW/((x1-x0)+1.0),availH/((y1-y0)+1.1));
+  var sc=Math.min(170,(availW-(wide?0:28))/((x1-x0)+1.0),availH/((y1-y0)+1.1));
   var ox=availW/2-(x0+x1)/2*sc,oy=availH/2-(y0+y1)/2*sc;
   var S=function(x,y,z){var c=proj(x,y,z||0,e);return [ox+c[0]*sc,oy+c[1]*sc];};
   var invS=function(X,Y,z){var a=(X-ox)/sc/IC,b=((Y-oy)/sc+z)/IS;return [(b+a)/2,(b-a)/2];};

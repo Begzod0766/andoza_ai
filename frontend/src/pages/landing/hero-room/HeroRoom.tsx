@@ -4,7 +4,7 @@
  * With reduced motion it shows the finished room straight away; afterwards a
  * button plays it again. Geometry and timing live in ./roomTimeline.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   END,
@@ -35,8 +35,8 @@ const TAG_OFFSETS: { dx: number; dy: number; align: "start" | "end" }[] = [
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-function useTimeline(target: React.RefObject<HTMLElement | null>) {
-  const [t, setT] = useState(() => (prefersReducedMotion() ? END : 0));
+function useTimeline(target: React.RefObject<HTMLElement | null>, still: boolean) {
+  const [t, setT] = useState(() => (still || prefersReducedMotion() ? END : 0));
   const raf = useRef(0);
 
   const play = useCallback(() => {
@@ -55,7 +55,7 @@ function useTimeline(target: React.RefObject<HTMLElement | null>) {
   }, []);
 
   useEffect(() => {
-    if (prefersReducedMotion()) return;
+    if (still || prefersReducedMotion()) return;
     const el = target.current;
     if (!el || typeof IntersectionObserver === "undefined") {
       play();
@@ -75,7 +75,7 @@ function useTimeline(target: React.RefObject<HTMLElement | null>) {
       io.disconnect();
       cancelAnimationFrame(raf.current);
     };
-  }, [play, target]);
+  }, [play, target, still]);
 
   return { t, play };
 }
@@ -124,10 +124,15 @@ function Tag({ anchor, name, qty, offset, opacity }: { anchor: Pt; name: string;
   );
 }
 
-export default function HeroRoom() {
+/** `still` draws the finished room only: no build, no estimate bar, no replay (used as a closing picture). */
+export default function HeroRoom({ still = false }: { still?: boolean }) {
   const { t: tr } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
-  const { t, play } = useTimeline(ref);
+  // the hero and the closing card both draw a room: keep their pattern ids apart
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const wpId = `hr-wallpaper-${uid}`;
+  const lamId = `hr-laminate-${uid}`;
+  const { t, play } = useTimeline(ref, still);
   const f = frameAt(t);
   const tags = tr("landing.hero.room.tags", { returnObjects: true }) as { name: string; qty: string }[];
   const m = tr("landing.story.m");
@@ -145,16 +150,16 @@ export default function HeroRoom() {
   const done = t >= END;
 
   return (
-    <div ref={ref} className="hr-card" role="img" aria-label={tr("landing.hero.room.label")}>
+    <div ref={ref} className={still ? "hr-card hr-card-still" : "hr-card"} {...(still ? { "aria-hidden": true } : { role: "img", "aria-label": tr("landing.hero.room.label") })}>
       <svg viewBox="-330 -300 720 720" className="hr-svg" aria-hidden>
         <defs>
           {/* wallpaper: soft vertical stripes, like the first sample in the story */}
-          <pattern id="hr-wallpaper" width="14" height="14" patternUnits="userSpaceOnUse">
+          <pattern id={wpId} width="14" height="14" patternUnits="userSpaceOnUse">
             <rect width="14" height="14" fill="#E4E8F3" />
             <rect width="5" height="14" fill="#C9D3EC" />
           </pattern>
           {/* laminate planks laid along x, skewed onto the iso floor */}
-          <pattern id="hr-laminate" width={S * 1.2} height={S * 0.2} patternUnits="userSpaceOnUse" patternTransform="matrix(0.866 0.5 -0.866 0.5 0 0)">
+          <pattern id={lamId} width={S * 1.2} height={S * 0.2} patternUnits="userSpaceOnUse" patternTransform="matrix(0.866 0.5 -0.866 0.5 0 0)">
             <rect width={S * 1.2} height={S * 0.2} fill="#C4905A" />
             <rect width={S * 1.2} height="1.6" fill="#A9773F" />
             <rect width="1.6" height={S * 0.2} fill="#A9773F" />
@@ -163,15 +168,15 @@ export default function HeroRoom() {
 
         {/* floor */}
         <polygon points={points(floor)} className="hr-floor-plan" />
-        <polygon points={points(floor)} fill="url(#hr-laminate)" opacity={f.finish} />
+        <polygon points={points(floor)} fill={`url(#${lamId})`} opacity={f.finish} />
 
         {/* walls */}
         {h > 0.5 && (
           <g>
             <polygon points={points(leftWall)} fill="#B7C3E2" />
             <polygon points={points(backWall)} fill="#C6D1EA" />
-            <polygon points={points(leftWall)} fill="url(#hr-wallpaper)" opacity={f.finish} style={{ filter: "brightness(0.9)" }} />
-            <polygon points={points(backWall)} fill="url(#hr-wallpaper)" opacity={f.finish} />
+            <polygon points={points(leftWall)} fill={`url(#${wpId})`} opacity={f.finish} style={{ filter: "brightness(0.9)" }} />
+            <polygon points={points(backWall)} fill={`url(#${wpId})`} opacity={f.finish} />
             {win && <polygon points={points(win)} className="hr-window" />}
             <polyline points={points([iso(0, D, h), iso(0, 0, h), iso(W, 0, h)])} className="hr-wall-top" />
           </g>
@@ -194,14 +199,16 @@ export default function HeroRoom() {
         )}
       </svg>
 
-      <div className="hr-total" style={{ opacity: f.total > 0 ? 1 : 0 }}>
-        <span>{tr("landing.hero.room.estimate")}</span>
-        <b>
-          {fmt(TOTAL * f.total)} {tr("landing.hero.room.currency")}
-        </b>
-      </div>
+      {!still && (
+        <div className="hr-total" style={{ opacity: f.total > 0 ? 1 : 0 }}>
+          <span>{tr("landing.hero.room.estimate")}</span>
+          <b>
+            {fmt(TOTAL * f.total)} {tr("landing.hero.room.currency")}
+          </b>
+        </div>
+      )}
 
-      {done && (
+      {done && !still && (
         <button type="button" className="hr-replay" onClick={play}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
