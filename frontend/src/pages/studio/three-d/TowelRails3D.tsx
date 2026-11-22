@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -9,6 +9,9 @@ import { isElectricRail, railSize } from "@/lib/towelRail";
 import { noRaycast } from "./constants";
 import { clashColor } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
+import { showToast } from "@/components/ui/Toast";
+import i18n from "@/i18n";
+import { usePressDrag } from "./pressDrag";
 
 /** A rail's width and height, metres (its size, 2026-11-15). */
 const dims = (rail?: TowelRail) => {
@@ -83,16 +86,20 @@ export function raycastInFront(this: THREE.Mesh, raycaster: THREE.Raycaster, int
  * nothing went on to the wall behind and opened the wall's menu (mobile re-check 2026-11-11). In any
  * other stage there are none and a touch goes through.
  */
-export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void, open?: () => void): {
+export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void, open?: () => void, dragged?: () => boolean): {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
 } {
-  if (active) return { onPointerDown: start, onClick: (e) => e.stopPropagation() };
+  // A tap that moved nothing opens the fixtures panel here too (mobile QA 2026-11-21, #370 b): with a phone's
+  // sheet closed by ×, the stage stays Jihozlar, and a tap on the rail had stopped at it and reopened nothing.
+  if (active) return { onPointerDown: start, onClick: (e) => { e.stopPropagation(); if (open && !dragged?.()) open(); } };
   // In any other stage a tap opens the fixtures panel (mobile QA 2026-11-21, #359): in the finished room
   // a tap on a machine went to the floor behind it and opened the floor's ring, as if nothing were there.
   if (open) return { onClick: (e) => { e.stopPropagation(); open(); } };
   return {};
 }
+
+export { DRAG_SLOP_PX, pressDragStep, type PressDrag } from "./pressDrag";
 
 /** The hit area's raycast: ahead of all in a plumbing stage (raycastInFront), as itself where a tap opens the
  * fixtures panel (furniture in front still takes its own tap), and none at a camera station or in the 360. */
@@ -123,58 +130,47 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
   const clashes = useWallItemClashes();
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
-  const [dragging, setDragging] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!dragging) return;
-    const rail = useRoomStore.getState().towelRails.find((r) => r.id === dragging);
-    const w = rail && wallWalk(geometry).find((x) => x.id === rail.wallId);
-    if (!rail || !w) return;
-    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(w.nx, 0, w.nz), new THREE.Vector3(w.startX, 0, w.startZ));
-    const hit = new THREE.Vector3();
-    const move = (e: PointerEvent) => {
+  // The press on a rail (#370 c, QA #372 c, 4): a drag only once it moves, set up in the press itself.
+  const held = useRef<{ rail: TowelRail; plane: THREE.Plane; told: boolean } | null>(null);
+  const drag = usePressDrag(controlsRef, camera, {
+    onBegin: () => {
+      useRoomStore.getState().beginTowelRailDrag();
+      document.body.style.cursor = "grabbing";
+    },
+    onMove: (e) => {
+      const h = held.current;
+      if (!h) return;
       const r = gl.domElement.getBoundingClientRect();
       raycaster.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-      if (!raycaster.ray.intersectPlane(plane, hit)) return;
-      const at = dragToPositionMm(geometry, rail.wallId, hit.x, hit.z);
-      if (at != null) moveTowelRail(dragging, at);
-    };
-    const end = () => {
-      useRoomStore.getState().endTowelRailDrag();
-      setDragging(null);
-      if (controlsRef.current) controlsRef.current.enabled = true;
+      const hit = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(h.plane, hit)) return;
+      const at = dragToPositionMm(geometry, h.rail.wallId, hit.x, hit.z);
+      if (at == null) return;
+      // Nowhere on its wall for it (#370 a), or none the way it is dragged (QA #380): it stays, and says why, once a drag.
+      const moved = moveTowelRail(h.rail.id, at);
+      if (moved !== "ok" && !h.told) {
+        h.told = true;
+        const sm = Math.round(railSize(h.rail).w / 10);
+        showToast({ variant: "warning", title: moved === "no-room" ? i18n.t("studio.three_d.quritgich_joy_yoq", { sm }) : i18n.t("studio.three_d.quritgich_bu_tomonga_joy_yoq", { sm }) });
+      }
+    },
+    onEnd: (started) => {
+      held.current = null;
+      if (started) useRoomStore.getState().endTowelRailDrag();
       document.body.style.cursor = "";
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", end);
-    window.addEventListener("pointercancel", end);
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
-    };
-  }, [dragging, geometry, camera, gl, raycaster, moveTowelRail, controlsRef]);
-
-  // The scene can go away mid-drag (another page, another room): the drag ends with it, or undo
-  // stays paused and the camera stays locked.
-  const draggingRef = useRef<string | null>(null);
-  draggingRef.current = dragging;
-  useEffect(() => () => {
-    if (!draggingRef.current) return;
-    useRoomStore.getState().endTowelRailDrag();
-    if (controlsRef.current) controlsRef.current.enabled = true;
-    document.body.style.cursor = "";
-  }, [controlsRef]);
+    },
+  });
 
   if (towelRails.length === 0) return null;
 
   const start = (rail: TowelRail, e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0) return;   // a right-click is not a drag
     e.stopPropagation();
-    useRoomStore.getState().beginTowelRailDrag();
-    setDragging(rail.id);
-    if (controlsRef.current) controlsRef.current.enabled = false;
-    document.body.style.cursor = "grabbing";
+    const w = wallWalk(geometry).find((x) => x.id === rail.wallId);
+    if (!w) return;
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(w.nx, 0, w.nz), new THREE.Vector3(w.startX, 0, w.startZ));
+    held.current = { rail, plane, told: false };
+    drag.press({ pointerId: e.pointerId, clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY });
   };
 
   return (
@@ -185,7 +181,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
         const { W, H } = dims(rail);
         const bars = ladderBars(rail);
         return (
-          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e), onOpen)}>
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e), onOpen, drag.dragged)}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
             <mesh raycast={railRaycast(draggable, !!onOpen)}>
               <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />

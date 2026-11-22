@@ -57,7 +57,7 @@ var DOOR={y0:.6,y1:1.5,h:2.1};
 var WIN={w:1.4,z0:.9,z1:2.2,center:2.35};
 var PLAIN='#C6D1EA';
 var LENS=PTS.map(function(q,i){var b=PTS[(i+1)%N];return Math.hypot(b[0]-q[0],b[1]-q[1]);});
-var CUM=[];var PER=0;LENS.forEach(function(L){CUM.push(PER);PER+=L;});
+var CUM=[];var PER=0;LENS.forEach(function(len){CUM.push(PER);PER+=len;});
 var AREA=0;PTS.forEach(function(q,i){var b=PTS[(i+1)%N];AREA+=q[0]*b[1]-b[0]*q[1];});AREA=Math.abs(AREA)/2;
 var DT1=(3.3-DOOR.y1)/3.3,DT2=(3.3-DOOR.y0)/3.3;
 
@@ -151,6 +151,8 @@ function pill(cx,cy,text,alpha,size,hot){
   if(alpha<=.01)return;
   ctx.save();ctx.globalAlpha=alpha;ctx.font='500 '+size+'px '+MONO;
   var tw=ctx.measureText(text).width,w=tw+20,h=size+13;
+  /* never let a label hang off the canvas edge (narrow phones) */
+  cx=Math.min(Math.max(cx,w/2+2),W-w/2-2);
   rr(cx-w/2,cy-h/2,w,h,h/2);ctx.fillStyle=hot?ACC:'rgba(12,30,84,.95)';ctx.fill();
   ctx.lineWidth=1.2;ctx.strokeStyle=ACC;ctx.stroke();
   ctx.fillStyle=hot?'#2A1200':ACC;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,cx,cy+.5);
@@ -184,15 +186,28 @@ function tag(a,dx,dy,l1,l2,alpha,VH){
   ctx.restore();
 }
 function planLabels(S,pts,fr,alpha,d1,size){
+  var out=[];
   for(var i=0;i<N;i++){
     var fi=fr[i];if(fi<=0)continue;
     var pa=pts[i],pb=pts[(i+1)%N],nl=LENS[i];
     var nx=(PTS[(i+1)%N][1]-PTS[i][1])/nl,ny=-(PTS[(i+1)%N][0]-PTS[i][0])/nl;
     var mxp=lerp(pa[0],pb[0],fi/2),myp=lerp(pa[1],pb[1],fi/2);
     var lc=S(mxp+nx*.4,myp+ny*.4,0);
-    var L=Math.hypot(pb[0]-pa[0],pb[1]-pa[1])*fi;
-    pill(lc[0],lc[1],L.toFixed(2)+' '+L.m,alpha,size,fi<.999&&d1<1);
+    var len=Math.hypot(pb[0]-pa[0],pb[1]-pa[1])*fi;
+    var text=len.toFixed(2)+' '+L.m;
+    ctx.save();ctx.font='500 '+size+'px '+MONO;var w=ctx.measureText(text).width+20;ctx.restore();
+    out.push({x:lc[0],y:lc[1],w:w,h:size+13,text:text,hot:fi<.999&&d1<1});
   }
+  /* short walls meeting at a corner put their labels on top of each other on small
+     canvases: move the later one up or down just enough for the two to part
+     (sideways it could be pushed off the canvas edge) */
+  for(var a=0;a<out.length;a++)for(var b=a+1;b<out.length;b++){
+    var p=out[a],q=out[b];
+    if(Math.abs(p.x-q.x)>=(p.w+q.w)/2+2)continue;
+    var need=(p.h+q.h)/2+2-Math.abs(p.y-q.y);
+    if(need>0)q.y+=(q.y>=p.y?1:-1)*need;
+  }
+  out.forEach(function(o){pill(o.x,o.y,o.text,alpha,size,o.hot);});
 }
 function areaLabel(S,alpha,val){
   if(alpha<=.01)return;
@@ -462,7 +477,7 @@ function draw(m){
   var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,i,j;
   for(i=0;i<N;i++){for(j=0;j<2;j++){var c=proj(PTS[i][0],PTS[i][1],j?H:0,e);
     if(c[0]<x0)x0=c[0];if(c[0]>x1)x1=c[0];if(c[1]<y0)y0=c[1];if(c[1]>y1)y1=c[1];}}
-  var sc=Math.min(170,availW/((x1-x0)+1.0),availH/((y1-y0)+1.1));
+  var sc=Math.min(170,(availW-(wide?0:28))/((x1-x0)+1.0),availH/((y1-y0)+1.1));
   var ox=availW/2-(x0+x1)/2*sc,oy=availH/2-(y0+y1)/2*sc;
   var S=function(x,y,z){var c=proj(x,y,z||0,e);return [ox+c[0]*sc,oy+c[1]*sc];};
   var invS=function(X,Y,z){var a=(X-ox)/sc/IC,b=((Y-oy)/sc+z)/IS;return [(b+a)/2,(b-a)/2];};

@@ -16,8 +16,8 @@ export const CONFIG = {
   cardPaintOpacity: 0.2, // translucent blue film left on a card after the roller passes
   rollerScaleDesktop: 1,
   rollerScaleMobile: 0.68,
-  desktopScrollLength: 450, // vh of scroll the pinned sequence lasts
-  mobileScrollLength: 260,
+  desktopScrollLength: 220, // vh of scroll the pinned sequence lasts (kept short: long pins feel like the page is stuck)
+  mobileScrollLength: 160,
   /** px, how far behind the roller the paint's leading edge sits */
   paintLagPx: 40,
   debug: false, // ← flip true to see the path, roller/card anchors, progress

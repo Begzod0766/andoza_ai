@@ -206,6 +206,8 @@
       "qoshni_shakli_sarlavha": "The neighboring room's shape will change",
       "qoshni_shakli_matn": "This room extends into the neighboring room, and that room's shape will change. Continue?",
       "qoshni_saqlanmadi": "The neighbouring room's new shape could not be saved, so the size was not changed.",
+      "quritgich_joy_yoq": "The towel rail can't move: this wall has no free {{sm}} cm for it.",
+      "quritgich_bu_tomonga_joy_yoq": "The towel rail can't move this way: there is no free {{sm}} cm on that side.",
       "orqasida_xona_bor": "There is already a room behind this wall: \"{{name}}\".",
       "boshqa_devor": "Add the new room behind a different wall.",
       "eshik_deraza": "Door / Window",
@@ -1006,39 +1008,38 @@
     "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
     "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
     "tour": {
-      "scene": {
-        "title": "Scene",
-        "body": "Tap a wall or the floor: tools for that spot appear (colour, tile, wallpaper and more)"
+      "surface": {
+        "body": "Tap a wall or the floor"
       },
-      "arc": {
-        "title": "Sections",
-        "body": "Sections: Furniture, Plumbing, Paint, Lighting"
+      "furniture": {
+        "body": "Add furniture: Furniture → room → item"
+      },
+      "stage": {
+        "body": "Change the stage"
       },
       "menu": {
-        "title": "Menu",
-        "body": "⋮ → Estimate: prices, materials and work list, PDF"
+        "body": "Estimate and PDF are here"
       },
       "undo": {
-        "title": "Undo",
-        "body": "Undo and redo the last action"
+        "body": "Undo the last action"
       },
       "lock": {
-        "title": "Lock",
-        "body": "Locks the camera: the room does not rotate when you drag the screen"
+        "body": "Lock the camera"
       },
       "camera": {
-        "title": "Camera",
-        "body": "Preset cameras and realistic render"
+        "body": "Preset cameras and render"
       },
       "help": {
-        "title": "Guide",
         "body": "Watch the guide again any time"
       },
       "next": "Next",
       "skip": "Skip",
       "done": "Got it",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Guide"
+      "help_btn": "Guide",
+      "practice_question": "Keep the furniture you added while practising?",
+      "practice_remove": "Remove",
+      "practice_keep": "Keep"
     },
     "santexnika": {
       "title": "Plumbing",
@@ -1829,47 +1830,27 @@
       "subtitle": "Scan, design and get an accurate estimate — buy all the materials you need from one app.",
       "primary": "Start for free",
       "secondary": "How does it work?",
-      "note": "Free to sign up · No card required"
-    },
-    "conveyor": {
-      "pairs": [
-        {
-          "problem": "Unclear costs",
-          "problemTip": "There's no way to know upfront what materials and labor will cost",
-          "solution": "Exact estimate",
-          "solutionTip": "An exact price for every stage, calculated automatically"
-        },
-        {
-          "problem": "Many shops",
-          "problemTip": "Driving across town chasing different prices for each material",
-          "solution": "One shop",
-          "solutionTip": "Materials from 100+ shops in one place — compare and buy"
-        },
-        {
-          "problem": "Unreliable craftsman",
-          "problemTip": "It's hard to know in advance who does quality work",
-          "solution": "Verified craftsman",
-          "solutionTip": "Trusted craftsmen with ratings and reviews"
-        },
-        {
-          "problem": "Slow planning",
-          "problemTip": "Planning drags on for weeks",
-          "solution": "Fast 3D plan",
-          "solutionTip": "A ready 3D plan and visualization in minutes"
-        },
-        {
-          "problem": "Manual math",
-          "problemTip": "Hand calculations are slow and full of mistakes",
-          "solution": "Auto calculation",
-          "solutionTip": "Material quantities and prices computed automatically"
-        },
-        {
-          "problem": "Messy process",
-          "problemTip": "Not knowing where to start or what comes next",
-          "solution": "Clear stages",
-          "solutionTip": "A step-by-step plan — you stay in control"
-        }
-      ]
+      "note": "Free to sign up · No card required",
+      "room": {
+        "label": "The room builds step by step: plan, walls, wallpaper and laminate, furniture, prices and the estimate",
+        "tags": [
+          {
+            "name": "Wallpaper",
+            "qty": "9 rolls"
+          },
+          {
+            "name": "Laminate",
+            "qty": "14.3 m²"
+          },
+          {
+            "name": "Furniture",
+            "qty": "5 items"
+          }
+        ],
+        "estimate": "Sample estimate",
+        "currency": "UZS",
+        "replay": "Play again"
+      }
     },
     "problem": {
       "heading": "Renovation doesn't have to be painful",
@@ -1990,20 +1971,20 @@
       "label": "How it works — paint story",
       "cards": [
         {
-          "title": "Creative Design",
-          "desc": "Beautiful and modern designs for your ideas."
+          "title": "3D studio",
+          "desc": "Pick walls, floors and furniture and watch the room change in 3D."
         },
         {
-          "title": "Fast Performance",
-          "desc": "Optimized for speed and a smooth experience."
+          "title": "A plan in minutes",
+          "desc": "Scan the room with your phone or type in its size."
         },
         {
-          "title": "Smart Analytics",
-          "desc": "Understand your data and grow faster."
+          "title": "Exact estimate",
+          "desc": "Every material and every job is priced automatically."
         },
         {
-          "title": "Secure & Reliable",
-          "desc": "Your data is always safe with us."
+          "title": "Vetted craftsmen",
+          "desc": "Choose a craftsman by ratings and reviews."
         }
       ]
     },

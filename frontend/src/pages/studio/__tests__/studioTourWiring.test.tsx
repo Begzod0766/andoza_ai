@@ -1,12 +1,17 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, act, renderHook } from '@testing-library/react'
-import { useEffect } from 'react'
-import { MemoryRouter, Route, Routes, useOutletContext } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, fireEvent, act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode, useEffect } from 'react'
+import { MemoryRouter, Outlet, Route, Routes, useOutletContext } from 'react-router-dom'
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
 import i18n from '@/i18n'
 import type { StudioContext } from '../ThreeDPage'
 import { STUDIO_TOUR_KEY } from '@/lib/studioTour'
-import { studioTourReady, useStudioTourWiring } from '../three-d/useStudioTourWiring'
+import { studioTourReady, useStudioTourWiring, usePendingPracticeCleanup } from '../three-d/useStudioTourWiring'
+import { emitTourEvent, onTourEvent } from '@/lib/studioTourEvents'
+import { loadPractice, savePractice } from '@/lib/tourPractice'
+import { useRoomStore } from '@/store/roomStore'
+import { getRoom, getCatalogFurniture, listCatalogFurniture, type CatalogFurniture } from '@/lib/api'
+import type { StudioTourStepId } from '@/lib/studioTour'
 
 let compact = true
 vi.mock('@/lib/compactStudio', async (orig) => ({
@@ -21,9 +26,48 @@ vi.mock('@/hooks/useRestoreUserModels', () => ({ useRestoreUserModels: () => {} 
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   getRoom: vi.fn().mockResolvedValue({ id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }),
+  listCatalogFurniture: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, per_page: 100 }),
+  getCatalogFurniture: vi.fn(),
+}))
+
+// ThreeDPage with its R3F scene swapped for a wall button. A tap on a wall reaches the wall
+// mesh first (focusSurface) and then its group (the radial menu's onClick), as r3f bubbles it.
+// The scene reports its first drawn frame on mount, unless a test holds it back (`sceneDraws`)
+// and draws it later through `drawScene`.
+let sceneDraws = true
+let drawScene: (() => void) | null = null
+vi.mock('../three-d/ThreeDCanvasScene', () => ({
+  ThreeDCanvasScene: (p: { selectedWall: string | null; focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void }; onSceneDrawn?: () => void; selectedFurId: string | null; selectFurniture: (id: string | null) => void }) => {
+    drawScene = () => p.onSceneDrawn?.()
+    // eslint-disable-next-line react-hooks/rules-of-hooks, react-hooks/exhaustive-deps
+    useEffect(() => { if (sceneDraws) p.onSceneDrawn?.() }, [])
+    return (
+      <>
+        <button onClick={() => { p.focusSurface('w1'); p.holdBind('wall', 'w1').onClick({ clientX: 5, clientY: 5 }) }}>wall</button>
+        <p data-testid="selected-wall">{String(p.selectedWall)}</p>
+        <button onClick={() => p.selectFurniture('f1')}>chair</button>
+        <p data-testid="selected-fur">{String(p.selectedFurId)}</p>
+      </>
+    )
+  },
+}))
+vi.mock('@/components/studio/SurfaceRadialMenu', async (orig) => ({
+  ...(await orig<typeof import('@/components/studio/SurfaceRadialMenu')>()),
+  default: () => <div data-testid="radial" />,
+}))
+vi.mock('@/components/studio/QuarterArcMenu', () => ({
+  QuarterArcMenu: ({ tourId, closed, categories, tourOnly }: { tourId?: string; closed?: boolean; categories?: { key: string; tourKey?: string }[]; tourOnly?: string }) => (
+    <div data-tour={tourId} data-closed={String(!!closed)} data-tour-only={tourOnly}>
+      {categories?.filter((c) => c.tourKey).map((c) => <button key={c.key} data-tour={`arc-${c.tourKey}`} />)}
+    </div>
+  ),
+}))
+vi.mock('../three-d/DesignPanelDock', () => ({
+  DesignPanelDock: ({ activePhase }: { activePhase: string }) => <div data-testid="dock" data-phase={activePhase} />,
 }))
 
 import StudioPage from '../StudioPage'
+import ThreeDPage from '../ThreeDPage'
 
 /** A stand-in for the 3D view: a scene target, and readiness as the test sets it. */
 function SceneTab({ ready }: { ready: boolean }) {
@@ -54,11 +98,13 @@ function ui(ready: boolean) {
   )
 }
 
-const sceneTitle = () => i18n.t('studio.tour.scene.title')
+const sceneTitle = () => i18n.t('studio.tour.surface.body')
 const tourCard = () => screen.queryByRole('dialog', { name: sceneTitle() })
 
 beforeEach(() => {
   compact = true
+  sceneDraws = true
+  drawScene = null
   localStorage.clear()
   // jsdom lays nothing out: every tour target gets a box on screen.
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
@@ -172,6 +218,15 @@ describe('the studio tour in StudioPage', () => {
     expect(document.querySelector('[data-tour="undo"]')).not.toBeNull()
     expect(document.querySelector('[data-tour="menu"]')).toHaveAttribute('aria-label', i18n.t('studio.menu.more'))
   })
+
+  it('header_covered: the header is marked for the tour to keep it in the shade on every step', async () => {
+    render(ui(true))
+    await screen.findByRole('dialog', { name: sceneTitle() })
+    const header = document.querySelector('header') as HTMLElement
+    expect(header).toHaveAttribute('data-tour-cover')
+    // its buttons (Back, "?", the menu) are under a shade, not in the surface step's hole
+    expect(header.contains(document.querySelector('[data-tour="help"]'))).toBe(true)
+  })
 })
 
 describe('studioTourReady (ThreeDPage)', () => {
@@ -208,5 +263,488 @@ describe('useStudioTourWiring (ThreeDPage)', () => {
     expect(setReady).toHaveBeenLastCalledWith(false)
     unmount()
     expect(setReady).toHaveBeenLastCalledWith(false)
+  })
+})
+
+describe('the studio tour, StudioPage side (task 7)', () => {
+  function StepTab() {
+    const { setStudioTourReady, studioTourStep } = useOutletContext<StudioContext>()
+    useEffect(() => {
+      setStudioTourReady?.(true)
+      return () => setStudioTourReady?.(false)
+    }, [setStudioTourReady])
+    return <div data-tour="scene"><p>scene</p><p data-testid="step">{String(studioTourStep ?? null)}</p></div>
+  }
+  const stepUi = () => (
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={['/studio/r1']}>
+        <Routes>
+          <Route path="/studio/:roomId" element={<StudioPage />}>
+            <Route index element={<StepTab />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+
+  it('passes the current step to the page, and null once it ends', async () => {
+    render(stepUi())
+    await screen.findByRole('dialog', { name: sceneTitle() })
+    expect(screen.getByTestId('step')).toHaveTextContent('surface')
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.skip') }))
+    expect(screen.getByTestId('step')).toHaveTextContent('null')
+  })
+
+  it('waits for the room to load before opening (its furniture is the baseline)', async () => {
+    let resolve: (v: unknown) => void = () => {}
+    vi.mocked(getRoom).mockImplementationOnce(() => new Promise((r) => { resolve = r }) as ReturnType<typeof getRoom>)
+    render(stepUi())
+    await screen.findByText('scene')
+    await act(async () => {})
+    expect(tourCard()).toBeNull()
+    await act(async () => { resolve({ id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }) })
+    expect(await screen.findByRole('dialog', { name: sceneTitle() })).toBeInTheDocument()
+  })
+})
+
+describe('the studio tour, ThreeDPage side (task 7)', () => {
+  const room = { id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }
+  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean; at?: string; setReady?: (r: boolean) => void; client?: QueryClient; room?: typeof room }
+  const page = ({ active = false, step = null, roomReady = true, at = '/studio/r1', setReady, client = new QueryClient({ defaultOptions: { queries: { retry: false } } }), room: theRoom = room }: Ctx = {}) => (
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[at]}>
+        <Routes>
+          <Route path="/studio/:roomId" element={<Outlet context={{ room: theRoom, onSave: async () => {}, roomReady, studioTourActive: active, studioTourStep: step, setStudioTourReady: setReady } as unknown as StudioContext} />}>
+            <Route index element={<ThreeDPage />} />
+            <Route path="mebel" element={<ThreeDPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+  const q = (id: string) => document.querySelector(`[data-tour="${id}"]`)
+  const place = (id: string) => useRoomStore.getState().placeFurniture({ id, furniture_id: 'f', x: 0, y: 0, rotation: 0 })
+  const ids = () => useRoomStore.getState().furniture.map((f) => f.id)
+
+  beforeEach(() => {
+    useRoomStore.getState().resetRoom()
+  })
+
+  it('surface_step_hides_floating_buttons', async () => {
+    const { rerender } = render(page())
+    await screen.findByText('wall')
+    expect(q('lock')).not.toBeNull()
+    expect(q('camera')).not.toBeNull()
+    expect(q('arc')).not.toBeNull()
+    expect(q('stage')).not.toBeNull()
+    rerender(page({ active: true, step: 'surface' }))
+    expect(q('lock')).toBeNull()
+    expect(q('camera')).toBeNull()
+    expect(q('arc')).toBeNull()
+    expect(q('stage')).toBeNull()
+    expect(q('scene')).not.toBeNull()
+    rerender(page({ active: true, step: 'menu' }))
+    expect(q('lock')).not.toBeNull()
+    expect(q('arc')).not.toBeNull()
+  })
+
+  it('furniture_step_hides_floating_buttons but keeps the arc (its spotlight would leave them tappable)', async () => {
+    const { rerender } = render(page())
+    await screen.findByText('wall')
+    rerender(page({ active: true, step: 'furniture' }))
+    expect(q('lock')).toBeNull()
+    expect(q('camera')).toBeNull()
+    expect(q('stage')).toBeNull()
+    expect(q('arc')).not.toBeNull()
+    expect(q('scene')).not.toBeNull()
+  })
+
+  it('surface_and_furniture_steps_hide_the_mebel_pills and the 2D/3D toggle', async () => {
+    const toggle = () => screen.queryByRole('switch', { name: i18n.t('studio.plan_toggle.aria') })
+    const doors = () => screen.queryByTitle(i18n.t('studio.eshik_deraza_tahrirlash'))
+    const { rerender } = render(page({ at: '/studio/r1/mebel' }))
+    await screen.findByText('wall')
+    expect(toggle()).not.toBeNull()
+    expect(doors()).not.toBeNull()
+    for (const step of ['surface', 'furniture'] as const) {
+      rerender(page({ at: '/studio/r1/mebel', active: true, step }))
+      expect(toggle()).toBeNull()
+      expect(doors()).toBeNull()
+    }
+    rerender(page({ at: '/studio/r1/mebel', active: true, step: 'menu' }))
+    expect(toggle()).not.toBeNull()
+    expect(doors()).not.toBeNull()
+  })
+
+  it('catalog_settled: the tour is not ready until the furniture catalog has loaded (its arc key decides the furniture step)', async () => {
+    let resolve: (v: unknown) => void = () => {}
+    vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise((r) => { resolve = r }) as ReturnType<typeof listCatalogFurniture>)
+    const setReady = vi.fn()
+    render(page({ setReady }))
+    await screen.findByText('wall')
+    await act(async () => {})
+    expect(setReady).not.toHaveBeenCalledWith(true)
+    await act(async () => { resolve({ items: [], total: 0, page: 1, per_page: 100 }) })
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  it('catalog_settled: a catalog that fails to load lets the tour open too', async () => {
+    let reject: (e: unknown) => void = () => {}
+    vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise((_, r) => { reject = r }) as ReturnType<typeof listCatalogFurniture>)
+    const setReady = vi.fn()
+    render(page({ setReady }))
+    await screen.findByText('wall')
+    await act(async () => {})
+    expect(setReady).not.toHaveBeenCalledWith(true)
+    await act(async () => { reject(new Error('offline')) })
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  const shopRow = (id: string) => ({ id, name_uz: 'Divan', category: 'divan', room_type: 'mehmonxona', store_id: null, store_name: null, placement: 'pol', price_uzs: null, glb_url: 'x.glb', thumbnail_url: null, footprint_w: 100, footprint_d: 50 }) as CatalogFurniture
+
+  it('catalog_settled: a model placed from a link (?place=) that is not in the catalog does not block the tour', async () => {
+    const placeId = '11111111-2222-4333-8444-555555555555'
+    vi.mocked(listCatalogFurniture).mockResolvedValueOnce({ items: [shopRow('sofa')], total: 1, page: 1, per_page: 100 } as Awaited<ReturnType<typeof listCatalogFurniture>>)
+    vi.mocked(getCatalogFurniture).mockResolvedValueOnce(shopRow(placeId))
+    const setReady = vi.fn()
+    render(page({ setReady, at: `/studio/r1?place=${placeId}` }))
+    await screen.findByText('wall')
+    await waitFor(() => expect(useRoomStore.getState().catalogFurniture.map((f) => f.id)).toEqual(['sofa', placeId]))
+    await act(async () => {})
+    expect(setReady).toHaveBeenLastCalledWith(true)
+  })
+
+  it('catalog_settled: offline (the catalog query paused) the tour opens', async () => {
+    onlineManager.setOnline(false)
+    try {
+      const setReady = vi.fn()
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+    } finally {
+      onlineManager.setOnline(true)
+    }
+  })
+
+  describe('a slow catalog', () => {
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true }) })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('under 8 s: the tour waits, and when it opens the catalog (the furniture step) is in the store', async () => {
+      let resolve: (v: unknown) => void = () => {}
+      vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise((r) => { resolve = r }) as ReturnType<typeof listCatalogFurniture>)
+      const catalogAtReady: number[] = []
+      const setReady = vi.fn((r: boolean) => { if (r) catalogAtReady.push(useRoomStore.getState().catalogFurniture.length) })
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(5000) })
+      expect(setReady).not.toHaveBeenCalledWith(true)
+      await act(async () => { resolve({ items: [shopRow('sofa')], total: 1, page: 1, per_page: 100 }) })
+      await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+      expect(catalogAtReady[0]).toBe(1)
+    })
+
+    it('never answering: the tour is let open 8 s after the view was ready', async () => {
+      vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise(() => {}) as ReturnType<typeof listCatalogFurniture>)
+      const setReady = vi.fn()
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(7500) })
+      expect(setReady).not.toHaveBeenCalledWith(true)
+      await act(async () => { vi.advanceTimersByTime(600) })
+      expect(setReady).toHaveBeenLastCalledWith(true)
+    })
+  })
+
+  it('scene_drawn: the tour is not ready until the 3D scene has drawn its first frame', async () => {
+    sceneDraws = false
+    const setReady = vi.fn()
+    render(page({ setReady }))
+    await screen.findByText('wall')
+    await act(async () => {})
+    expect(setReady).not.toHaveBeenCalledWith(true)
+    act(() => drawScene?.())
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  describe('a scene that never draws', () => {
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true }) })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('scene_drawn: the tour is let open 8 s after the view was ready', async () => {
+      sceneDraws = false
+      const setReady = vi.fn()
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(7500) })
+      expect(setReady).not.toHaveBeenCalledWith(true)
+      await act(async () => { vi.advanceTimersByTime(600) })
+      expect(setReady).toHaveBeenLastCalledWith(true)
+    })
+
+    it('scene_drawn: StrictMode\'s simulated remount does not lose the 8 s fallback', async () => {
+      sceneDraws = false
+      vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise(() => {}) as ReturnType<typeof listCatalogFurniture>)
+      const setReady = vi.fn()
+      render(<StrictMode>{page({ setReady })}</StrictMode>)
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(8100) })
+      expect(setReady).toHaveBeenLastCalledWith(true)
+    })
+  })
+
+  it('surface_pick_emits_and_closes_radial', async () => {
+    const picked = vi.fn()
+    const off = onTourEvent('surface-picked', picked)
+    const { rerender } = render(page())
+    fireEvent.click(await screen.findByText('wall'))
+    expect(screen.getByTestId('radial')).toBeInTheDocument()
+    expect(picked).not.toHaveBeenCalled()
+    rerender(page({ active: true, step: 'surface' }))
+    expect(screen.queryByTestId('radial')).toBeNull()
+    fireEvent.click(screen.getByText('wall'))
+    expect(picked).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('radial')).toBeNull()
+    off()
+  })
+
+  it('wall_unselected_after_surface_step: the wall picked on step 1 is let go once the step is done, and at the end', async () => {
+    const wall = () => screen.getByTestId('selected-wall')
+    const { rerender } = render(page({ active: true, step: 'surface' }))
+    fireEvent.click(await screen.findByText('wall'))
+    // still selected while the step shows its check
+    expect(wall()).toHaveTextContent('w1')
+    rerender(page({ active: true, step: 'furniture' }))
+    expect(wall()).toHaveTextContent('null')
+
+    // the tour ending on the surface step lets it go too
+    rerender(page({ active: true, step: 'surface' }))
+    fireEvent.click(screen.getByText('wall'))
+    expect(wall()).toHaveTextContent('w1')
+    rerender(page({ active: false, step: null }))
+    expect(wall()).toHaveTextContent('null')
+  })
+
+  it('furniture_pick_on_surface_step (#2): a tap on furniture does the step too, and is let go once it moves on', async () => {
+    const picked = vi.fn()
+    const off = onTourEvent('surface-picked', picked)
+    const fur = () => screen.getByTestId('selected-fur')
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { rerender } = render(page({ active: true, step: 'surface', client }))
+    fireEvent.click(await screen.findByText('chair'))
+    expect(picked).toHaveBeenCalledTimes(1)
+    rerender(page({ active: true, step: 'furniture', client }))
+    expect(fur()).toHaveTextContent('null')
+    // on any other step a furniture pick is no surface pick
+    fireEvent.click(screen.getByText('chair'))
+    expect(picked).toHaveBeenCalledTimes(1)
+    off()
+  })
+
+  it('furniture_pick_without_a_tour selects it and says nothing', async () => {
+    const picked = vi.fn()
+    const off = onTourEvent('surface-picked', picked)
+    render(page())
+    fireEvent.click(await screen.findByText('chair'))
+    expect(screen.getByTestId('selected-fur')).toHaveTextContent('f1')
+    expect(picked).not.toHaveBeenCalled()
+    off()
+  })
+
+  it('hand_upper_scene (#2): the scene asks the tour hand for its upper part', async () => {
+    render(page())
+    await screen.findByText('wall')
+    expect(q('scene')).toHaveAttribute('data-tour-hand-y', '0.3')
+  })
+
+  it('scene_drawn_per_room (#5): switching rooms waits for the new room\'s first frame again', async () => {
+    const setReady = vi.fn()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { rerender } = render(page({ setReady, client }))
+    await screen.findByText('wall')
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+    rerender(page({ setReady, client, room: { ...room, id: 'r2' } }))
+    await act(async () => {})
+    expect(setReady).toHaveBeenLastCalledWith(false)
+    act(() => drawScene?.())
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  it('wall_selection_untouched_without_a_tour', async () => {
+    render(page())
+    fireEvent.click(await screen.findByText('wall'))
+    expect(screen.getByTestId('selected-wall')).toHaveTextContent('w1')
+  })
+
+  it('arc_open_only_on_furniture_step', async () => {
+    const { rerender } = render(page({ active: true, step: 'furniture' }))
+    await screen.findByText('wall')
+    expect(q('arc')).toHaveAttribute('data-closed', 'false')
+    rerender(page({ active: true, step: 'menu' }))
+    expect(q('arc')).toHaveAttribute('data-closed', 'true')
+    rerender(page({ active: false, step: null }))
+    expect(q('arc')).toHaveAttribute('data-closed', 'false')
+  })
+
+  it('arc_only_mebel_on_furniture_step: the other categories are locked only on the furniture step', async () => {
+    const { rerender } = render(page({ active: true, step: 'furniture' }))
+    await screen.findByText('wall')
+    expect(q('arc')).toHaveAttribute('data-tour-only', 'mebel')
+    rerender(page({ active: true, step: 'stage' }))
+    expect(q('arc')).not.toHaveAttribute('data-tour-only')
+    rerender(page({ active: false, step: null }))
+    expect(q('arc')).not.toHaveAttribute('data-tour-only')
+  })
+
+  it('restore_view: the stage picked during the tour goes back to the one it opened on', async () => {
+    const { rerender } = render(page())
+    await screen.findByText('wall')
+    expect(useRoomStore.getState().viewStage).toBe('full')
+    rerender(page({ active: true, step: 'stage' }))
+    const openedOn = screen.getByTestId('dock').getAttribute('data-phase')
+    fireEvent.click(q('stage') as HTMLElement)
+    const buttons = (q('stage-list') as HTMLElement).querySelectorAll('button')
+    fireEvent.click(buttons[0])
+    expect(useRoomStore.getState().viewStage).not.toBe('full')
+    expect(screen.getByTestId('dock')).not.toHaveAttribute('data-phase', openedOn)
+    act(() => emitTourEvent('restore-view'))
+    expect(useRoomStore.getState().viewStage).toBe('full')
+    expect(screen.getByTestId('dock')).toHaveAttribute('data-phase', openedOn)
+  })
+
+  it('pending_practice_same_room: the furniture an interrupted tour left is taken out once the room is ready', async () => {
+    place('a'); place('b')
+    savePractice({ roomId: room.id, ids: ['b'] })
+    const { rerender } = render(page({ roomReady: false }))
+    await screen.findByText('wall')
+    expect(ids()).toEqual(['a', 'b'])
+    rerender(page({ roomReady: true }))
+    expect(ids()).toEqual(['a'])
+    expect(loadPractice(room.id)).toBeNull()
+  })
+
+  it('pending_practice_other_room: another room\'s record is left alone', async () => {
+    place('a'); place('b')
+    savePractice({ roomId: 'other', ids: ['b'] })
+    render(page({ roomReady: true }))
+    await screen.findByText('wall')
+    expect(ids()).toEqual(['a', 'b'])
+    expect(loadPractice('other')).toEqual({ roomId: 'other', ids: ['b'] })
+  })
+
+  it('pending_practice_per_room: a record of another room written later does not hide this room\'s', async () => {
+    place('a'); place('b')
+    savePractice({ roomId: room.id, ids: ['b'] })
+    savePractice({ roomId: 'other', ids: ['z'] })
+    render(page({ roomReady: true }))
+    await screen.findByText('wall')
+    expect(ids()).toEqual(['a'])
+    expect(loadPractice(room.id)).toBeNull()
+    expect(loadPractice('other')).toEqual({ roomId: 'other', ids: ['z'] })
+  })
+
+  it('pending practice is not cleaned up while a tour is open', async () => {
+    place('a'); place('b')
+    savePractice({ roomId: room.id, ids: ['b'] })
+    const { rerender } = render(page({ roomReady: true, active: true, step: 'surface' }))
+    await screen.findByText('wall')
+    expect(ids()).toEqual(['a', 'b'])
+    expect(loadPractice(room.id)).not.toBeNull()
+    rerender(page({ roomReady: true, active: false }))
+    expect(ids()).toEqual(['a'])
+  })
+})
+
+describe('useStudioTourWiring: the view the tour opened on (task 7)', () => {
+  type V = { viewStage: string; activePhase: string }
+  function setup() {
+    const restoreView = vi.fn()
+    const hook = renderHook(
+      ({ active, view }: { active: boolean; view: V }) =>
+        useStudioTourWiring({ active, ready: true, onStart: () => {}, onEnd: () => {}, view, restoreView }),
+      { initialProps: { active: false, view: { viewStage: 'full', activePhase: 'boyoq' } } },
+    )
+    return { restoreView, ...hook }
+  }
+
+  it('restore_view: restores the snapshot from the start, once', () => {
+    const { restoreView, rerender } = setup()
+    rerender({ active: true, view: { viewStage: 'full', activePhase: 'boyoq' } })
+    rerender({ active: true, view: { viewStage: 'suvoq', activePhase: 'suvoq' } })
+    act(() => emitTourEvent('restore-view'))
+    expect(restoreView).toHaveBeenCalledTimes(1)
+    expect(restoreView).toHaveBeenLastCalledWith({ viewStage: 'full', activePhase: 'boyoq' })
+    act(() => emitTourEvent('restore-view'))
+    rerender({ active: false, view: { viewStage: 'full', activePhase: 'boyoq' } })
+    expect(restoreView).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores on end when no restore-view came, and does not listen once ended', () => {
+    const { restoreView, rerender } = setup()
+    rerender({ active: true, view: { viewStage: 'full', activePhase: 'boyoq' } })
+    rerender({ active: true, view: { viewStage: 'suvoq', activePhase: 'suvoq' } })
+    rerender({ active: false, view: { viewStage: 'suvoq', activePhase: 'suvoq' } })
+    expect(restoreView).toHaveBeenCalledTimes(1)
+    act(() => emitTourEvent('restore-view'))
+    expect(restoreView).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('usePendingPracticeCleanup (task 7)', () => {
+  const place = (id: string) => useRoomStore.getState().placeFurniture({ id, furniture_id: 'f', x: 0, y: 0, rotation: 0 })
+  const ids = () => useRoomStore.getState().furniture.map((f) => f.id)
+  beforeEach(() => { useRoomStore.getState().resetRoom() })
+
+  it('runs once per room open', () => {
+    place('a'); place('b'); place('c')
+    savePractice({ roomId: 'r1', ids: ['b'] })
+    const { rerender } = renderHook(
+      ({ roomReady }) => usePendingPracticeCleanup({ roomId: 'r1', roomReady, tourActive: false }),
+      { initialProps: { roomReady: true } },
+    )
+    expect(ids()).toEqual(['a', 'c'])
+    savePractice({ roomId: 'r1', ids: ['c'] })
+    rerender({ roomReady: false })
+    rerender({ roomReady: true })
+    expect(ids()).toEqual(['a', 'c'])
+  })
+})
+
+describe('the studio tour over the real 3D page (visual check #1)', () => {
+  const shopRow = (id: string) => ({ id, name_uz: 'Divan', category: 'divan', room_type: 'mehmonxona', store_id: null, store_name: null, placement: 'pol', price_uzs: null, glb_url: 'x.glb', thumbnail_url: null, footprint_w: 100, footprint_d: 50 }) as CatalogFurniture
+  const fullUi = () => (
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/studio/r1']}>
+        <Routes>
+          <Route path="/studio/:roomId" element={<StudioPage />}>
+            <Route index element={<ThreeDPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+  beforeEach(() => {
+    useRoomStore.getState().resetRoom()
+    vi.mocked(listCatalogFurniture).mockResolvedValue({ items: [shopRow('sofa')], total: 1, page: 1, per_page: 100 } as Awaited<ReturnType<typeof listCatalogFurniture>>)
+  })
+  afterEach(() => {
+    vi.mocked(listCatalogFurniture).mockResolvedValue({ items: [], total: 0, page: 1, per_page: 100 })
+  })
+
+  it('surface done -> the furniture step shows (2/8), and once furniture is added the stage step (3/8)', async () => {
+    render(fullUi())
+    const surface = await screen.findByRole('dialog', { name: sceneTitle() })
+    expect(surface).toHaveTextContent('1/8')
+    act(() => emitTourEvent('surface-picked'))
+    const furniture = await screen.findByRole('dialog', { name: i18n.t('studio.tour.furniture.body') }, { timeout: 3000 })
+    expect(furniture).toHaveTextContent('2/8')
+    // still there after the vanish grace
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+    expect(screen.getByRole('dialog', { name: i18n.t('studio.tour.furniture.body') })).toHaveTextContent('2/8')
+    act(() => { useRoomStore.getState().placeFurniture({ id: 'new', furniture_id: 'sofa', x: 0, y: 0, rotation: 0 }) })
+    const stage = await screen.findByRole('dialog', { name: i18n.t('studio.tour.stage.body') }, { timeout: 3000 })
+    expect(stage).toHaveTextContent('3/8')
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+    expect(screen.getByRole('dialog', { name: i18n.t('studio.tour.stage.body') })).toHaveTextContent('3/8')
   })
 })

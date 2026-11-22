@@ -126,6 +126,9 @@
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
+    /* No double-tap zoom (mobile QA #372 3): iOS kept every tap waiting on a possible second one, and the
+       first gesture after a sheet or the wall ring closed was lost. Pinch-zoom of pages stays. */
+    touch-action: manipulation;
     -moz-osx-font-smoothing: grayscale;
   }
 
@@ -492,4 +495,18 @@ textarea,
 :disabled,
 [aria-disabled='true'] {
   cursor: not-allowed !important;
+}
+
+/* Studio tour "hand": drop in, press, release (see TourHand.tsx). */
+@keyframes tourtap {
+  0%   { opacity: 0; transform: translate(10px, 14px) scale(1); }
+  30%  { opacity: 1; transform: translate(0, 0) scale(1); }
+  50%  { opacity: 1; transform: translate(0, 2px) scale(0.9); }
+  70%  { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(0, 0) scale(1); }
+}
+@keyframes tourring {
+  0%, 45% { opacity: 0; transform: scale(0.3); }
+  55%     { opacity: 0.9; transform: scale(0.5); }
+  100%    { opacity: 0; transform: scale(1.8); }
 }

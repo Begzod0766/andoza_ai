@@ -103,7 +103,7 @@ describe('raycastInFront', () => {
 // ─── A tap on the rail is not a tap on the wall behind it (mobile re-check 2026-11-11) ───
 
 import { vi } from 'vitest'
-import { railPointerHandlers, railRaycast, raycastInFront } from '../TowelRails3D'
+import { railPointerHandlers, railRaycast, raycastInFront, pressDragStep, DRAG_SLOP_PX } from '../TowelRails3D'
 import { noRaycast } from '../constants'
 
 describe('railPointerHandlers', () => {
@@ -132,6 +132,42 @@ describe('railPointerHandlers', () => {
     expect(click.stopPropagation).toHaveBeenCalled()
     expect(open).toHaveBeenCalledTimes(1)
     expect(start).not.toHaveBeenCalled()
+  })
+})
+
+describe('railPointerHandlers: a tap in a plumbing stage (#370 b)', () => {
+  it('a tap that moved nothing opens the fixtures panel: with the phone sheet closed by ×, a tap on the rail reopened nothing', () => {
+    const open = vi.fn()
+    const h = railPointerHandlers(true, vi.fn(), open, () => false)
+    const click = { stopPropagation: vi.fn() }
+    h.onClick!(click as never)
+    expect(click.stopPropagation).toHaveBeenCalled()
+    expect(open).toHaveBeenCalledTimes(1)
+  })
+  it('the click that ends a drag opens nothing', () => {
+    const open = vi.fn()
+    const h = railPointerHandlers(true, vi.fn(), open, () => true)
+    h.onClick!({ stopPropagation: vi.fn() } as never)
+    expect(open).not.toHaveBeenCalled()
+  })
+})
+
+describe('pressDragStep: a press becomes a drag only once it moves (#370 c)', () => {
+  const press = () => ({ pointerId: 1, x0: 100, y0: 100, started: false })
+  it('waits while the finger stays within the slop, then starts, then moves', () => {
+    const p = press()
+    expect(pressDragStep(p, { type: 'move', pointerId: 1, x: 100 + DRAG_SLOP_PX - 1, y: 100 })).toBe('wait')
+    expect(pressDragStep(p, { type: 'move', pointerId: 1, x: 100 + DRAG_SLOP_PX, y: 100 })).toBe('start')
+    expect(p.started).toBe(true)
+    expect(pressDragStep(p, { type: 'move', pointerId: 1, x: 100, y: 100 })).toBe('move')
+  })
+  it('a second finger before the drag starts cancels it: the pinch is the camera\'s', () => {
+    expect(pressDragStep(press(), { type: 'down', pointerId: 2, x: 300, y: 300 })).toBe('cancel')
+  })
+  it('a second finger once the drag is on, and another pointer\'s moves, change nothing', () => {
+    const p = { ...press(), started: true }
+    expect(pressDragStep(p, { type: 'down', pointerId: 2, x: 300, y: 300 })).toBe('ignore')
+    expect(pressDragStep(press(), { type: 'move', pointerId: 2, x: 400, y: 400 })).toBe('ignore')
   })
 })
 

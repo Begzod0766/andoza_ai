@@ -25,6 +25,34 @@ function throwingStorage(): Storage {
   return { length: 0, clear: boom, getItem: boom, key: boom, removeItem: boom, setItem: boom };
 }
 
+describe("STUDIO_TOUR_STEPS", () => {
+  it("lists the eight steps in order", () => {
+    expect(STUDIO_TOUR_STEPS.map((s) => s.id)).toEqual(
+      ["surface", "furniture", "stage", "menu", "undo", "lock", "camera", "help"],
+    );
+  });
+
+  it("has the do/show kinds and targets (shallow to deep)", () => {
+    expect(STUDIO_TOUR_STEPS.map((s) => [s.id, s.kind, s.targets])).toEqual([
+      ["surface", "do", ["scene"]],
+      ["furniture", "do", ["arc-mebel", "arc-mebel-ring-0", "arc-mebel-ring-1"]],
+      ["stage", "do", ["stage", "stage-list"]],
+      ["menu", "show", ["menu"]],
+      ["undo", "show", ["undo"]],
+      ["lock", "show", ["lock"]],
+      ["camera", "show", ["camera"]],
+      ["help", "show", ["help"]],
+    ]);
+  });
+
+  it("remembers under the v2 key and ignores the v1 one", () => {
+    expect(STUDIO_TOUR_KEY).toBe("studio.tour.v2.done");
+    const s = memoryStorage();
+    s.setItem("studio.tour.v1.done", "1");
+    expect(isStudioTourDone(s)).toBe(false);
+  });
+});
+
 describe("studioTour state", () => {
   it("is not done with an empty storage", () => {
     expect(isStudioTourDone(memoryStorage())).toBe(false);
@@ -52,9 +80,13 @@ describe("studioTour state", () => {
 
 describe("presentSteps", () => {
   it("drops steps whose target is absent", () => {
-    const r = presentSteps(STUDIO_TOUR_STEPS, (t) => t !== "camera");
-    expect(r).not.toContain("camera");
+    const r = presentSteps(STUDIO_TOUR_STEPS, (t) => t !== "arc-mebel");
+    expect(r.map((s) => s.id)).not.toContain("furniture");
     expect(r).toHaveLength(STUDIO_TOUR_STEPS.length - 1);
+  });
+
+  it("keeps a step when its first target is on screen", () => {
+    expect(presentSteps(STUDIO_TOUR_STEPS, (t) => t === "scene").map((s) => s.id)).toEqual(["surface"]);
   });
 });
 

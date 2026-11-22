@@ -70,3 +70,17 @@ describe('the design panel on a phone', () => {
     expect(setShowPanel).toHaveBeenCalledWith(false)
   })
 })
+
+// QA #380 3: a tap within the 300 ms the closed sheet takes to slide away landed on the sheet, not the 3D.
+describe('the closed design panel on a phone lets taps through as it slides away', () => {
+  it.each(['quvurlar', 'jihozlar', 'devor'])('%s: closed, it catches no taps (on a desktop, docked, it does)', (phase) => {
+    render(<DesignPanelDock {...props(phase)} showPanel={false} />)
+    const panel = screen.getByTestId('design-panel-mobile')
+    expect(panel.className).toMatch(/(^| )pointer-events-none( |$)/)
+    expect(panel.className).toContain('lg:pointer-events-auto')
+  })
+  it('open, it does', () => {
+    render(<DesignPanelDock {...props('jihozlar')} />)
+    expect(screen.getByTestId('design-panel-mobile').className).not.toMatch(/(^| )pointer-events-none( |$)/)
+  })
+})

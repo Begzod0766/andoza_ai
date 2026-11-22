@@ -365,4 +365,30 @@ describe('dragging a rail by a washbasin (mobile QA 2026-11-21, #367)', () => {
     expect(r.positionMm).toBeGreaterThan(1450)
     expect(r.positionMm - railHalf(r)).toBeGreaterThanOrEqual(1900)
   })
+  it('over a basin with no room the way it is dragged: it stays, and says so, not jumping the other way (QA #380, 221 sm)', () => {
+    // The basin takes A 400…1000: nothing free to its left for a 50 cm rail, room to its right.
+    useRoomStore.setState({ furniture: [basinOnA(700)] as never, catalogFurniture: [], plumbingRiser: riserSpot(geometry, [{ x: 0, z: 99 }]) })
+    useRoomStore.setState({ towelRails: [{ id: 'r1', wallId: 'A', positionMm: 800, heightMm: TOWEL_RAIL_HEIGHT_MM }] })
+    st().beginTowelRailDrag()
+    expect(st().moveTowelRail('r1', 750)).toBe('no-room-this-way')
+    expect(st().towelRails[0].positionMm).toBe(800)
+    // Dragged the other way, it leaves that way as before.
+    expect(st().moveTowelRail('r1', 850)).toBe('ok')
+    st().endTowelRailDrag()
+    expect(st().towelRails[0].positionMm - railHalf(st().towelRails[0])).toBeGreaterThanOrEqual(1050)
+  })
+})
+
+describe('moveTowelRail says when a rail has nowhere to go (#370 a)', () => {
+  it("'ok' when it moved or could stay, 'no-room' when its wall has no free place for it", () => {
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 800, heightMm: 1000 }] })
+    expect(st().moveTowelRail('r', 900)).toBe('ok')
+    // A wall shorter than the rail is wide: no place on it at all.
+    useRoomStore.setState({
+      geometry: { walls: [{ id: 'A', length: 400, elements: [] }, ...geometry.walls.slice(1)] } as unknown as RoomGeometry,
+      towelRails: [{ id: 'r', wallId: 'A', positionMm: 200, heightMm: 1000 }],
+    })
+    expect(st().moveTowelRail('r', 300)).toBe('no-room')
+    expect(st().towelRails[0].positionMm).toBe(200)
+  })
 })

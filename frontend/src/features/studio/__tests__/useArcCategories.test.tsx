@@ -50,6 +50,23 @@ describe('the arc menu furniture by room', () => {
   })
 })
 
+describe('the arc menu Mebel tour key', () => {
+  it('is unset while no room has any furniture, set once one does', () => {
+    useRoomStore.setState({ catalogFurniture: [] })
+    expect(mebel().tourKey).toBeUndefined()
+    useRoomStore.setState({ catalogFurniture: [row('sofa', 'Divan 1', 'divan', 'mehmonxona')] })
+    expect(mebel().tourKey).toBe('mebel')
+  })
+
+  it('is set by the user\'s own uploads alone, with an empty catalog (the catalog failed to load)', () => {
+    useRoomStore.setState({
+      catalogFurniture: [],
+      userFurniture: [{ id: 'u1', name: 'Kreslo', emoji: '🪑', blobId: 'b', modelPath: 'blob:x', scale: 1, sizeM: { w: 1, d: 1, h: 1 }, hasTextures: false }],
+    })
+    expect(mebel().tourKey).toBe('mebel')
+  })
+})
+
 describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)', () => {
   it('a bathroom has it: its fixtures, and "add point" opening Quvurlar', () => {
     useRoomStore.setState({ roomType: 'hammom', name: 'Hammom' })

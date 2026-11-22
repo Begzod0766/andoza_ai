@@ -1,5 +1,5 @@
 import type { ThreeEvent } from "@react-three/fiber";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useDrawnAt } from "@/features/studio/useStageView";
 import { useRoomStore } from "@/store/roomStore";
 import { resolveWallCovering, type RoomGeometry, type WallCovering } from "@/store/types";
@@ -12,6 +12,8 @@ import {
 import { riserVisible } from "./Riser3D";
 import { Wall } from "./WallComponents";
 import { noRaycast } from "./constants";
+import { DRAG_SLOP_PX } from "./pressDrag";
+import { multiTouchGuard, type MultiTouchGuard } from "@/lib/multiTouchGuard";
 
 const WHITE = "#F8FAFC";
 const TRIM = "#CBD5E1";
@@ -31,9 +33,27 @@ export function spotPose(spot: WallSpot, geometry: RoomGeometry, out: number): {
  * The boxed-in riser's handlers (mobile QA 2026-11-21, #365): in the finished room a long press on it turned
  * the camera and the riser stayed put. A tap opens the pipes panel, where the bare riser shows and drags,
  * and stops at the box. None while a frame is taken.
+ *
+ * Only a tap (QA #380 6b, 6c): R3F hands the box the click that ends a press however far the finger went,
+ * so a drag on it (which turns the camera: the box does not drag) and a pinch begun on it opened the panel.
+ * A click that moved past DRAG_SLOP_PX, or whose press a second finger joined, is not a tap.
  */
-export function riserBoxHandlers(open: (() => void) | undefined): { onClick?: (e: ThreeEvent<MouseEvent>) => void } {
-  return open ? { onClick: (e) => { e.stopPropagation(); open(); } } : {};
+export function riserBoxHandlers(
+  open: (() => void) | undefined,
+  pinch: MultiTouchGuard = multiTouchGuard(),
+  now: () => number = () => Date.now(),
+): { onPointerDown?: (e: ThreeEvent<PointerEvent>) => void; onClick?: (e: ThreeEvent<MouseEvent>) => void } {
+  if (!open) return {};
+  // A click with no press seen: only fingers down now say it is a pinch.
+  let pressAt = Infinity;
+  return {
+    onPointerDown: () => { pressAt = now(); },
+    onClick: (e) => {
+      e.stopPropagation();
+      if ((e.delta ?? 0) > DRAG_SLOP_PX || pinch.multiTouchSince(pressAt)) return;
+      open();
+    },
+  };
 }
 
 /** A box against a wall, finished as that wall is (its front and sides drawn as walls), `h` metres tall. */
@@ -88,6 +108,11 @@ export function BathroomBoxes3D({ hiddenWalls, onOpenRiser }: {
   const heaterHung = useDrawnAt("jihozlar");
 
   const riser = useMemo(() => roomRiser(geometry, manual), [geometry, manual]);
+  // Made once: the press they remember must outlive a re-render (a new opener) between press and click.
+  const openRiser = useRef(onOpenRiser);
+  openRiser.current = onOpenRiser;
+  const tapHandlers = useMemo(() => riserBoxHandlers(() => openRiser.current?.()), []);
+  const riserHandlers = onOpenRiser ? tapHandlers : {};
   const box = useMemo(() => (wet && !pipeShown ? riserBoxSpot(geometry, riser) : null), [wet, pipeShown, geometry, riser]);
   const boiler = useMemo(
     () => (wet && heater && heaterHung ? boilerSpot(geometry, riser, ceilingMm, [...wetSpans(furniture, catalog, geometry), ...railSpans(rails)]) : null),
@@ -109,7 +134,7 @@ export function BathroomBoxes3D({ hiddenWalls, onOpenRiser }: {
   return (
     <>
       {box && boxPose && (
-        <group position={[boxPose.x, 0, boxPose.z]} rotation={[0, boxPose.rotY, 0]} {...riserBoxHandlers(onOpenRiser)}>
+        <group position={[boxPose.x, 0, boxPose.z]} rotation={[0, boxPose.rotY, 0]} {...riserHandlers}>
           <CladBox id="riser-box" w={RISER_BOX_W_MM / 1000} d={RISER_BOX_D_MM / 1000} h={H} covering={resolveWallCovering(coverings, box.wallId)}>
             <group position={[0, HATCH_BOTTOM_MM / 1000 + hatchH / 2, RISER_BOX_D_MM / 2000]}>
               <mesh position={[0, 0, PROUD]} raycast={noRaycast}>

@@ -1,0 +1,145 @@
+/* The hero's drawing board: the same blue sheet and orange accent as the scroll
+   story below, so the hero reads as its first frame. */
+.hr-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  background-color: #0f2766;
+  background-image:
+    linear-gradient(rgba(190, 208, 255, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190, 208, 255, 0.075) 1px, transparent 1px);
+  background-size: 24px 24px;
+  box-shadow: 0 40px 80px -36px rgba(15, 39, 102, 0.65);
+  aspect-ratio: 1 / 1.02;
+  width: 100%;
+}
+.hr-svg {
+  display: block;
+  width: 100%;
+  height: calc(100% - 56px);
+}
+/* the closing picture: no estimate bar underneath, so the room takes the card */
+.hr-card-still {
+  aspect-ratio: 1 / 0.92;
+}
+.hr-card-still .hr-svg {
+  height: 100%;
+}
+
+.hr-floor-plan {
+  fill: rgba(190, 208, 255, 0.06);
+}
+.hr-outline {
+  fill: none;
+  stroke: #ff9340;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.hr-wall-top {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.6;
+}
+.hr-window {
+  fill: #dbe7ff;
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.hr-pill rect {
+  fill: rgba(12, 30, 84, 0.95);
+  stroke: #ff9340;
+  stroke-width: 1.2;
+}
+.hr-pill text {
+  fill: #ff9340;
+  font: 500 19px var(--font-mono, "IBM Plex Mono", ui-monospace, Menlo, monospace);
+}
+
+.hr-tag line {
+  stroke: #ff9340;
+  stroke-width: 2.4;
+}
+.hr-tag circle {
+  fill: #ff9340;
+  stroke: #0f2766;
+  stroke-width: 3;
+}
+.hr-tag rect {
+  fill: #ffffff;
+  filter: drop-shadow(0 8px 14px rgba(8, 20, 60, 0.35));
+}
+.hr-tag text {
+  fill: #44548c;
+  font: 500 21px var(--font-mono, "IBM Plex Mono", ui-monospace, Menlo, monospace);
+}
+.hr-tag-name {
+  fill: #0f2766;
+  font-weight: 700;
+  font-family: var(--font-body, "Instrument Sans", system-ui, sans-serif);
+}
+
+.hr-total {
+  position: absolute;
+  inset: auto 14px 14px 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-radius: 14px;
+  background: #ff9340;
+  color: #2a1200;
+  font: 500 13px/1.2 var(--font-body, "Instrument Sans", system-ui, sans-serif);
+  transition: opacity 0.3s;
+}
+.hr-total b {
+  font: 600 17px/1.2 var(--font-mono, "IBM Plex Mono", ui-monospace, Menlo, monospace);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hr-replay {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid rgba(190, 208, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(12, 30, 84, 0.6);
+  color: #dbe7ff;
+  font: 600 12px/1 var(--font-body, "Instrument Sans", system-ui, sans-serif);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.hr-replay:hover {
+  background: rgba(12, 30, 84, 0.9);
+  border-color: #ff9340;
+}
+.hr-replay:focus-visible {
+  outline: 2px solid #ff9340;
+  outline-offset: 2px;
+}
+
+/* "How it works": the same blue sheet, small, one per step */
+.how-board {
+  overflow: hidden;
+  border-radius: 22px;
+  background-color: #0f2766;
+  background-image:
+    linear-gradient(rgba(190, 208, 255, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190, 208, 255, 0.075) 1px, transparent 1px);
+  background-size: 20px 20px;
+  box-shadow: 0 30px 60px -34px rgba(15, 39, 102, 0.6);
+  aspect-ratio: 1 / 0.86;
+  transition: opacity 0.4s;
+}
+.how-svg {
+  height: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .how-board { transition: none; }
+}

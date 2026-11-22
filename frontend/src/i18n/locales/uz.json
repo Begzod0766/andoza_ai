@@ -206,6 +206,8 @@
       "qoshni_shakli_sarlavha": "Qo'shni xona shakli o'zgaradi",
       "qoshni_shakli_matn": "Bu xona qo'shni xonaga kiradi va u xonaning shakli o'zgaradi. Davom etasizmi?",
       "qoshni_saqlanmadi": "Qo'shni xonaning yangi shakli saqlanmadi, shuning uchun o'lcham o'zgartirilmadi.",
+      "quritgich_joy_yoq": "Quritgichni surib bo'lmaydi: bu devorda {{sm}} sm bo'sh joy yo'q.",
+      "quritgich_bu_tomonga_joy_yoq": "Quritgichni bu tomonga surib bo'lmaydi: u tomonda {{sm}} sm bo'sh joy yo'q.",
       "orqasida_xona_bor": "Bu devor orqasida allaqachon xona bor: \"{{name}}\".",
       "boshqa_devor": "Yangi xonani boshqa devor orqasiga qo'shing.",
       "eshik_deraza": "Eshik / Deraza",
@@ -1006,39 +1008,38 @@
     "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
     "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
     "tour": {
-      "scene": {
-        "title": "Sahna",
-        "body": "Devor yoki polga bosing: shu joy uchun asboblar chiqadi (rang, plitka, oboy va boshqalar)"
+      "surface": {
+        "body": "Devor yoki polga bosing"
       },
-      "arc": {
-        "title": "Bo'limlar",
-        "body": "Bo'limlar: Mebel, Santexnika, Rang, Chiroq"
+      "furniture": {
+        "body": "Mebel qo'shing: Mebel → xona → buyum"
+      },
+      "stage": {
+        "body": "Bosqichni almashtiring"
       },
       "menu": {
-        "title": "Menyu",
-        "body": "⋮ → Smeta: narxlar, material va ish ro'yxati, PDF"
+        "body": "Smeta va PDF shu yerda"
       },
       "undo": {
-        "title": "Bekor qilish",
-        "body": "Oxirgi amalni bekor qilish va qaytarish"
+        "body": "Oxirgi amalni bekor qilish"
       },
       "lock": {
-        "title": "Qulf",
-        "body": "Kamerani qotiradi: ekranni surganda xona aylanmaydi"
+        "body": "Kamerani qotirish"
       },
       "camera": {
-        "title": "Kamera",
-        "body": "Tayyor kameralar va realistik render"
+        "body": "Tayyor kameralar va render"
       },
       "help": {
-        "title": "Qo'llanma",
         "body": "Qo'llanmani istalgan payt qayta ko'ring"
       },
       "next": "Keyingi",
       "skip": "O'tkazib yuborish",
       "done": "Tushunarli",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Qo'llanma"
+      "help_btn": "Qo'llanma",
+      "practice_question": "Mashqda qo'shilgan mebel qoldirilsinmi?",
+      "practice_remove": "Olib tashlash",
+      "practice_keep": "Qoldirish"
     },
     "santexnika": {
       "title": "Santexnika",
@@ -1829,47 +1830,27 @@
       "subtitle": "Skanerlang, dizayn qiling va aniq smeta oling — kerakli materiallarni bitta ilovadan sotib oling.",
       "primary": "Bepul boshlash",
       "secondary": "Qanday ishlaydi?",
-      "note": "Ro'yxatdan o'tish bepul · Karta talab qilinmaydi"
-    },
-    "conveyor": {
-      "pairs": [
-        {
-          "problem": "Noaniq xarajat",
-          "problemTip": "Material va ish haqi qancha turishini oldindan bilib bo'lmaydi",
-          "solution": "Aniq smeta",
-          "solutionTip": "Har bir bosqich uchun aniq narx avtomatik hisoblanadi"
-        },
-        {
-          "problem": "Ko'p do'kon aylanish",
-          "problemTip": "Har xil narx uchun shahar bo'ylab yurishga to'g'ri keladi",
-          "solution": "Bitta do'kon",
-          "solutionTip": "100+ do'kon materiali bitta joyda, solishtirib xarid qiling"
-        },
-        {
-          "problem": "Ishonchsiz usta",
-          "problemTip": "Kim sifatli ishlashini oldindan bilish qiyin",
-          "solution": "Tekshirilgan usta",
-          "solutionTip": "Reyting va sharhlar bilan ishonchli ustalar"
-        },
-        {
-          "problem": "Uzoq rejalashtirish",
-          "problemTip": "Rejalashtirish haftalab cho'zilib ketadi",
-          "solution": "Tezkor 3D reja",
-          "solutionTip": "Bir necha daqiqada tayyor 3D reja va vizualizatsiya"
-        },
-        {
-          "problem": "Qo'lda hisob",
-          "problemTip": "Qo'lda hisob-kitob xatolarga to'la va sekin",
-          "solution": "Avtomatik hisob",
-          "solutionTip": "Material miqdori va narxi avtomatik hisoblanadi"
-        },
-        {
-          "problem": "Chalkash jarayon",
-          "problemTip": "Nimadan boshlashni va keyingi qadamni bilmaslik",
-          "solution": "Aniq bosqichlar",
-          "solutionTip": "Bosqichma-bosqich aniq reja bilan nazorat sizda"
-        }
-      ]
+      "note": "Ro'yxatdan o'tish bepul · Karta talab qilinmaydi",
+      "room": {
+        "label": "Xona bosqichma-bosqich yig'iladi: plan, devorlar, gulqog'oz va laminat, mebel, narxlar va smeta",
+        "tags": [
+          {
+            "name": "Gulqog'oz",
+            "qty": "9 rulon"
+          },
+          {
+            "name": "Laminat",
+            "qty": "14.3 m²"
+          },
+          {
+            "name": "Mebel",
+            "qty": "5 dona"
+          }
+        ],
+        "estimate": "Smeta (namuna)",
+        "currency": "so‘m",
+        "replay": "Qayta ko'rsatish"
+      }
     },
     "problem": {
       "heading": "Ta'mir og'riqli bo'lishi shart emas",
@@ -1990,20 +1971,20 @@
       "label": "Ilova qanday ishlaydi — bo'yoq hikoyasi",
       "cards": [
         {
-          "title": "Ijodiy dizayn",
-          "desc": "G'oyalaringiz uchun chiroyli va zamonaviy dizaynlar."
+          "title": "3D studiya",
+          "desc": "Devor, pol va mebelni tanlang, xona shu zahoti 3D da o'zgaradi."
         },
         {
-          "title": "Tezkor ishlash",
-          "desc": "Tezlik va silliq ish uchun optimallashtirilgan."
+          "title": "Daqiqalarda reja",
+          "desc": "Xonani telefon bilan skanerlang yoki o'lchamlarini kiriting."
         },
         {
-          "title": "Aqlli tahlil",
-          "desc": "Ma'lumotlaringizni tushuning va tezroq o'sing."
+          "title": "Aniq smeta",
+          "desc": "Har bir material va ish narxi avtomatik hisoblanadi."
         },
         {
-          "title": "Xavfsiz va ishonchli",
-          "desc": "Ma'lumotlaringiz biz bilan doim xavfsiz."
+          "title": "Ishonchli ustalar",
+          "desc": "Reyting va sharhlar bo'yicha usta tanlang."
         }
       ]
     },

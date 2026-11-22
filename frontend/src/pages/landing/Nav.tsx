@@ -22,12 +22,14 @@ export default function Nav() {
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="#top" className="flex items-center gap-2.5">
-          <img src="/icon.svg" alt="andoza.ai" className="h-9 w-9" />
-          <span className="text-lg font-bold tracking-tight">andoza.ai</span>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6">
+        <a href="#top" className="flex min-w-0 items-center gap-2.5">
+          <img src="/icon.svg" alt="andoza.ai" className="h-9 w-9 flex-shrink-0" />
+          {/* on phones the icon alone carries the brand; the word shows once there is room
+              for it and can never slide under the language switch (wider Safari fonts) */}
+          <span className="hidden truncate text-lg font-bold tracking-tight min-[480px]:inline">andoza.ai</span>
         </a>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
           <LanguageSwitcher />
           <Link
             to="/login"
@@ -37,7 +39,7 @@ export default function Nav() {
           </Link>
           <Link
             to="/login"
-            className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800"
+            className="whitespace-nowrap rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800"
           >
             {t("landing.nav.start")}
           </Link>

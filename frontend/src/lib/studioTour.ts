@@ -1,8 +1,20 @@
-export type StudioTourTarget = "scene" | "arc" | "menu" | "undo" | "lock" | "camera" | "help";
+export type StudioTourStepId = "surface" | "furniture" | "stage" | "menu" | "undo" | "lock" | "camera" | "help";
 
-export const STUDIO_TOUR_STEPS: readonly StudioTourTarget[] = ["scene", "arc", "menu", "undo", "lock", "camera", "help"];
+/** `targets` are `data-tour` values, shallowest first; a `do` step asks the user to act, a `show` step only points. */
+export type StudioTourStep = { id: StudioTourStepId; kind: "do" | "show"; targets: readonly string[] };
 
-export const STUDIO_TOUR_KEY = "studio.tour.v1.done";
+export const STUDIO_TOUR_STEPS: readonly StudioTourStep[] = [
+  { id: "surface", kind: "do", targets: ["scene"] },
+  { id: "furniture", kind: "do", targets: ["arc-mebel", "arc-mebel-ring-0", "arc-mebel-ring-1"] },
+  { id: "stage", kind: "do", targets: ["stage", "stage-list"] },
+  { id: "menu", kind: "show", targets: ["menu"] },
+  { id: "undo", kind: "show", targets: ["undo"] },
+  { id: "lock", kind: "show", targets: ["lock"] },
+  { id: "camera", kind: "show", targets: ["camera"] },
+  { id: "help", kind: "show", targets: ["help"] },
+];
+
+export const STUDIO_TOUR_KEY = "studio.tour.v2.done";
 
 const TAP_HINT_KEY = "studio.tapHint.seen";
 
@@ -23,12 +35,12 @@ export function markStudioTourDone(storage: Storage | null = defaultStorage()): 
   } catch { /* shown again next time */ }
 }
 
-/** The steps whose target is on screen right now, in order. */
+/** The steps whose first target is on screen right now, in order. */
 export function presentSteps(
-  steps: readonly StudioTourTarget[],
-  isPresent: (t: StudioTourTarget) => boolean,
-): StudioTourTarget[] {
-  return steps.filter(isPresent);
+  steps: readonly StudioTourStep[],
+  isPresent: (target: string) => boolean,
+): StudioTourStep[] {
+  return steps.filter((s) => isPresent(s.targets[0]));
 }
 
 export function shouldStartStudioTour(o: { done: boolean; compact: boolean; editingView: boolean }): boolean {

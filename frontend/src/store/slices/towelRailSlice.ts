@@ -21,7 +21,9 @@ export interface TowelRailSlice {
   /** Hangs a new rail beside the riser (lib/towelRail placeTowelRail). False when no wall can take one. */
   addTowelRail(): boolean
   /** Slides a rail along its wall, to the free place nearest `positionMm`. */
-  moveTowelRail(id: string, positionMm: number): void
+  /** 'no-room' when its wall has no free place for it at all (#370 a), 'no-room-this-way' when a rail dragged
+   *  out of a taken stretch has none the way it is dragged (QA #380): it stays, and the drag says why. */
+  moveTowelRail(id: string, positionMm: number): MoveRailResult
   removeTowelRail(id: string): void
   /** Heated by water or electric (2026-11-14). */
   setTowelRailKind(id: string, kind: 'water' | 'electric'): void
@@ -31,6 +33,9 @@ export interface TowelRailSlice {
   beginTowelRailDrag(): void
   endTowelRailDrag(): void
 }
+
+/** What a slide of a rail came to (moveTowelRail). */
+export type MoveRailResult = 'ok' | 'no-room' | 'no-room-this-way'
 
 /** The rails as they were when the drag in progress began. */
 let dragStart: TowelRail[] | null = null
@@ -66,13 +71,17 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
   },
 
   moveTowelRail(id, positionMm) {
-    set((state) => {
-      const rail = state.towelRails.find((r) => r.id === id)
-      // Mid-drag the rail keeps to the stretch of wall it is on: it does not jump a door.
-      const at = rail && nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined, machines(state, id), railHalf(rail))
-      if (!rail || at == null || at === rail.positionMm) return state
-      return { towelRails: state.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }
-    })
+    const state = get()
+    const rail = state.towelRails.find((r) => r.id === id)
+    if (!rail) return 'ok'
+    // Mid-drag the rail keeps to the stretch of wall it is on: it does not jump a door.
+    const taken = machines(state, id), half = railHalf(rail)
+    const at = nearestFree(state.geometry, rail.wallId, positionMm, dragStart ? rail.positionMm : undefined, taken, half)
+    if (at == null) {
+      return dragStart && nearestFree(state.geometry, rail.wallId, positionMm, undefined, taken, half) != null ? 'no-room-this-way' : 'no-room'
+    }
+    if (at !== rail.positionMm) set((s) => ({ towelRails: s.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }))
+    return 'ok'
   },
 
   setTowelRailKind(id, kind) {

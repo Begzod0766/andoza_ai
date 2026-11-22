@@ -1,8 +1,15 @@
 name: Deploy to server
 
+# Deploys only after CI ("CI", ci.yml) has passed for the same commit. Before this the
+# deploy ran on the push itself, in parallel with CI, so a red test still shipped to
+# andozaai.uz with its migrations. workflow_run always uses this file as it is on the
+# default branch, and runs with the repository's secrets.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [master]
+  # Manual deploy of the chosen ref; does not wait for CI.
   workflow_dispatch:
 
 # One deploy at a time; cancel superseded runs.
@@ -20,11 +27,55 @@ permissions:
 # The images live under the repository's owner (ghcr.io names are lower case), so the
 # workflow keeps working if the repository moves to another account.
 jobs:
+  # Decides whether this run deploys, and which commit.
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # `event == 'push'`: `branches: [master]` matches the head branch NAME, so a pull
+    # request from a fork whose branch is called master would also trigger this.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+      deploy: ${{ steps.tip.outputs.deploy }}
+    steps:
+      - id: sha
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      # CI runs for two quick merges can finish out of order. Deploying the older one last
+      # would put old code on top of the newer commit's migrations, so only master's tip
+      # deploys; an older commit is skipped (the tip's own CI run deploys it).
+      - id: tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = workflow_dispatch ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          tip="$(gh api "repos/$GITHUB_REPOSITORY/commits/master" --jq .sha)"
+          if [ "$tip" = "$SHA" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$SHA is no longer master's tip ($tip); skipping, the tip's CI run deploys it."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: gate
+    if: needs.gate.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - name: Image names
         run: |
@@ -47,7 +98,7 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+            ${{ env.BACKEND_IMAGE }}:${{ needs.gate.outputs.sha }}
             ${{ env.BACKEND_IMAGE }}:latest
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=backend
@@ -63,14 +114,14 @@ jobs:
           build-args: |
             VITE_API_URL=${{ vars.VITE_API_URL || '/api/v1' }}
           tags: |
-            ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+            ${{ env.FRONTEND_IMAGE }}:${{ needs.gate.outputs.sha }}
             ${{ env.FRONTEND_IMAGE }}:latest
           labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
   deploy:
-    needs: build
+    needs: [gate, build]
     runs-on: ubuntu-latest
     # The server pulls the images from ghcr.io over its own uplink. On 2026-11-09 that ran at
     # ~100 KB/s and the 30-minute limit cancelled the deploy mid-pull (the site stayed on the
@@ -81,6 +132,8 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - name: SSH setup
         env:
@@ -115,7 +168,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ needs.gate.outputs.sha }}
         run: |
           set -euo pipefail
           IMAGE_OWNER="${GITHUB_REPOSITORY_OWNER,,}"
