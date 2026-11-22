@@ -366,3 +366,17 @@ describe('dragging a rail by a washbasin (mobile QA 2026-11-21, #367)', () => {
     expect(r.positionMm - railHalf(r)).toBeGreaterThanOrEqual(1900)
   })
 })
+
+describe('moveTowelRail says when a rail has nowhere to go (#370 a)', () => {
+  it('true when it moved or could stay, false when its wall has no free place for it', () => {
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 800, heightMm: 1000 }] })
+    expect(st().moveTowelRail('r', 900)).toBe(true)
+    // A wall shorter than the rail is wide: no place on it at all.
+    useRoomStore.setState({
+      geometry: { walls: [{ id: 'A', length: 400, elements: [] }, ...geometry.walls.slice(1)] } as unknown as RoomGeometry,
+      towelRails: [{ id: 'r', wallId: 'A', positionMm: 200, heightMm: 1000 }],
+    })
+    expect(st().moveTowelRail('r', 300)).toBe(false)
+    expect(st().towelRails[0].positionMm).toBe(200)
+  })
+})
