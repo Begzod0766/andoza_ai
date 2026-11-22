@@ -37,7 +37,7 @@ vi.mock('@/lib/api', async (orig) => ({
 let sceneDraws = true
 let drawScene: (() => void) | null = null
 vi.mock('../three-d/ThreeDCanvasScene', () => ({
-  ThreeDCanvasScene: (p: { selectedWall: string | null; focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void }; onSceneDrawn?: () => void }) => {
+  ThreeDCanvasScene: (p: { selectedWall: string | null; focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void }; onSceneDrawn?: () => void; selectedFurId: string | null; selectFurniture: (id: string | null) => void }) => {
     drawScene = () => p.onSceneDrawn?.()
     // eslint-disable-next-line react-hooks/rules-of-hooks, react-hooks/exhaustive-deps
     useEffect(() => { if (sceneDraws) p.onSceneDrawn?.() }, [])
@@ -45,6 +45,8 @@ vi.mock('../three-d/ThreeDCanvasScene', () => ({
       <>
         <button onClick={() => { p.focusSurface('w1'); p.holdBind('wall', 'w1').onClick({ clientX: 5, clientY: 5 }) }}>wall</button>
         <p data-testid="selected-wall">{String(p.selectedWall)}</p>
+        <button onClick={() => p.selectFurniture('f1')}>chair</button>
+        <p data-testid="selected-fur">{String(p.selectedFurId)}</p>
       </>
     )
   },
@@ -307,12 +309,12 @@ describe('the studio tour, StudioPage side (task 7)', () => {
 
 describe('the studio tour, ThreeDPage side (task 7)', () => {
   const room = { id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }
-  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean; at?: string; setReady?: (r: boolean) => void; client?: QueryClient }
-  const page = ({ active = false, step = null, roomReady = true, at = '/studio/r1', setReady, client = new QueryClient({ defaultOptions: { queries: { retry: false } } }) }: Ctx = {}) => (
+  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean; at?: string; setReady?: (r: boolean) => void; client?: QueryClient; room?: typeof room }
+  const page = ({ active = false, step = null, roomReady = true, at = '/studio/r1', setReady, client = new QueryClient({ defaultOptions: { queries: { retry: false } } }), room: theRoom = room }: Ctx = {}) => (
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[at]}>
         <Routes>
-          <Route path="/studio/:roomId" element={<Outlet context={{ room, onSave: async () => {}, roomReady, studioTourActive: active, studioTourStep: step, setStudioTourReady: setReady } as unknown as StudioContext} />}>
+          <Route path="/studio/:roomId" element={<Outlet context={{ room: theRoom, onSave: async () => {}, roomReady, studioTourActive: active, studioTourStep: step, setStudioTourReady: setReady } as unknown as StudioContext} />}>
             <Route index element={<ThreeDPage />} />
             <Route path="mebel" element={<ThreeDPage />} />
           </Route>
@@ -521,6 +523,51 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     expect(wall()).toHaveTextContent('w1')
     rerender(page({ active: false, step: null }))
     expect(wall()).toHaveTextContent('null')
+  })
+
+  it('furniture_pick_on_surface_step (#2): a tap on furniture does the step too, and is let go once it moves on', async () => {
+    const picked = vi.fn()
+    const off = onTourEvent('surface-picked', picked)
+    const fur = () => screen.getByTestId('selected-fur')
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { rerender } = render(page({ active: true, step: 'surface', client }))
+    fireEvent.click(await screen.findByText('chair'))
+    expect(picked).toHaveBeenCalledTimes(1)
+    rerender(page({ active: true, step: 'furniture', client }))
+    expect(fur()).toHaveTextContent('null')
+    // on any other step a furniture pick is no surface pick
+    fireEvent.click(screen.getByText('chair'))
+    expect(picked).toHaveBeenCalledTimes(1)
+    off()
+  })
+
+  it('furniture_pick_without_a_tour selects it and says nothing', async () => {
+    const picked = vi.fn()
+    const off = onTourEvent('surface-picked', picked)
+    render(page())
+    fireEvent.click(await screen.findByText('chair'))
+    expect(screen.getByTestId('selected-fur')).toHaveTextContent('f1')
+    expect(picked).not.toHaveBeenCalled()
+    off()
+  })
+
+  it('hand_upper_scene (#2): the scene asks the tour hand for its upper part', async () => {
+    render(page())
+    await screen.findByText('wall')
+    expect(q('scene')).toHaveAttribute('data-tour-hand-y', '0.3')
+  })
+
+  it('scene_drawn_per_room (#5): switching rooms waits for the new room\'s first frame again', async () => {
+    const setReady = vi.fn()
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const { rerender } = render(page({ setReady, client }))
+    await screen.findByText('wall')
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+    rerender(page({ setReady, client, room: { ...room, id: 'r2' } }))
+    await act(async () => {})
+    expect(setReady).toHaveBeenLastCalledWith(false)
+    act(() => drawScene?.())
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
   })
 
   it('wall_selection_untouched_without_a_tour', async () => {

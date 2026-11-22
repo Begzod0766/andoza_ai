@@ -153,9 +153,11 @@ type CutExtras = Pick<RoomContent, 'furniture' | 'lights' | 'electricals' | 'des
 /** A room cut where the selected room grows into it (lib/clipRoom). */
 type RoomCut = { id: string; from: { x: number; z: number }; content: RoomContent };
 
-/** Calls `onDrawn` once, on the first frame it is rendered in. */
+/** Calls `onDrawn` once, on the first frame it is rendered in — and again on the next frame
+ *  after `onDrawn` changes (the page hands a new one for another room). */
 function FirstFrame({ onDrawn }: { onDrawn?: () => void }) {
   const done = useRef(false);
+  useEffect(() => { done.current = false; }, [onDrawn]);
   useFrame(() => {
     if (done.current) return;
     done.current = true;

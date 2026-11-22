@@ -500,8 +500,11 @@ export default function ThreeDPage() {
   const catalogWaitOver = useWaitOver(tourViewReady, catalogQuerySettled, CATALOG_WAIT_MS);
   // Nor does the tour open over a blank canvas: it waits for the scene's first frame with the
   // room in it — or, if WebGL never draws one, the same wait from the view being ready.
-  const [sceneDrawn, setSceneDrawn] = useState(false);
-  const onSceneDrawn = useCallback(() => setSceneDrawn(true), []);
+  // Per room: the page stays mounted across a room switch, and a "?" replay must not open
+  // before the new room's first frame. A new callback makes the scene report its next frame.
+  const [sceneDrawnFor, setSceneDrawnFor] = useState<string | null>(null);
+  const sceneDrawn = sceneDrawnFor === room.id;
+  const onSceneDrawn = useCallback(() => setSceneDrawnFor(room.id), [room.id]);
   const sceneWaitOver = useWaitOver(tourViewReady, sceneDrawn, CATALOG_WAIT_MS);
   useStudioTourWiring({
     active: studioTourActive,
@@ -561,6 +564,14 @@ export default function ThreeDPage() {
     setSelectedWall(id);
     // The tour's "tap a wall" step is done; its ring is closed by the effect beside the tour wiring.
     if (studioTourActive) { emitTourEvent("surface-picked"); closeRadial(); }
+  }
+
+  /** A furniture pick. On the tour's "tap a wall" step it does the step too: the scene's
+   *  middle is often a piece of furniture, and a tap there must not leave the step hanging. The
+   *  pick is let go with the wall once the step moves on (the effect beside the tour wiring). */
+  function pickFurniture(id: string | null) {
+    selectFurniture(id);
+    if (id && studioTourActive && studioTourStep === "surface") emitTourEvent("surface-picked");
   }
 
   /**
@@ -1017,6 +1028,9 @@ export default function ThreeDPage() {
           // The first tap on the view also closes the phone hint; it does not stop
           // the tap, so the surface's menu still opens.
           data-tour="scene"
+          // The tour's hand points at the upper part of the view, where the walls are (its
+          // middle is often furniture).
+          data-tour-hand-y="0.3"
           onPointerDownCapture={() => { if (tapHintShown) markTapHintSeen(); }}
         >
 
@@ -1212,7 +1226,7 @@ export default function ThreeDPage() {
             }}
             toolMode={toolMode}
             selectedFurId={selectedFurId}
-            selectFurniture={selectFurniture}
+            selectFurniture={pickFurniture}
             // Not while a camera station or the 360 is on: every render and saved frame is taken from one.
             onOpenFixtures={panorama || cameraStation != null ? undefined : openFixtures}
             onOpenPipes={panorama || cameraStation != null ? undefined : openPipes}
