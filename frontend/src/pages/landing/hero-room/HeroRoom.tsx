@@ -35,7 +35,8 @@ const TAG_OFFSETS: { dx: number; dy: number; align: "start" | "end" }[] = [
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-function useTimeline(target: React.RefObject<HTMLElement | null>, still: boolean) {
+/** Plays the room timeline once when `target` comes into view (at once when `still` or with reduced motion). */
+export function useRoomTimeline(target: React.RefObject<HTMLElement | null>, still: boolean) {
   const [t, setT] = useState(() => (still || prefersReducedMotion() ? END : 0));
   const raf = useRef(0);
 
@@ -124,15 +125,13 @@ function Tag({ anchor, name, qty, offset, opacity }: { anchor: Pt; name: string;
   );
 }
 
-/** `still` draws the finished room only: no build, no estimate bar, no replay (used as a closing picture). */
-export default function HeroRoom({ still = false }: { still?: boolean }) {
+/** The room drawn at moment `t` of the timeline (seconds, 0..END). */
+export function RoomSvg({ t, className = "hr-svg", viewBox = "-330 -300 720 720" }: { t: number; className?: string; viewBox?: string }) {
   const { t: tr } = useTranslation();
-  const ref = useRef<HTMLDivElement>(null);
-  // the hero and the closing card both draw a room: keep their pattern ids apart
+  // several rooms can be on the page: keep their pattern ids apart
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const wpId = `hr-wallpaper-${uid}`;
   const lamId = `hr-laminate-${uid}`;
-  const { t, play } = useTimeline(ref, still);
   const f = frameAt(t);
   const tags = tr("landing.hero.room.tags", { returnObjects: true }) as { name: string; qty: string }[];
   const m = tr("landing.story.m");
@@ -147,11 +146,9 @@ export default function HeroRoom({ still = false }: { still?: boolean }) {
   const dimsA = f.dims * (1 - f.finish);
   const front = iso(W / 2, D, 0);
   const right = iso(W, D / 2, 0);
-  const done = t >= END;
 
   return (
-    <div ref={ref} className={still ? "hr-card hr-card-still" : "hr-card"} {...(still ? { "aria-hidden": true } : { role: "img", "aria-label": tr("landing.hero.room.label") })}>
-      <svg viewBox="-330 -300 720 720" className="hr-svg" aria-hidden>
+      <svg viewBox={viewBox} className={className} aria-hidden>
         <defs>
           {/* wallpaper: soft vertical stripes, like the first sample in the story */}
           <pattern id={wpId} width="14" height="14" patternUnits="userSpaceOnUse">
@@ -198,6 +195,20 @@ export default function HeroRoom({ still = false }: { still?: boolean }) {
           tags[i] ? <Tag key={i} anchor={iso(a[0], a[1], a[2])} name={tags[i].name} qty={tags[i].qty} offset={TAG_OFFSETS[i]} opacity={f.tags[i]} /> : null,
         )}
       </svg>
+  );
+}
+
+/** `still` draws the finished room only: no build, no estimate bar, no replay (used as a closing picture). */
+export default function HeroRoom({ still = false }: { still?: boolean }) {
+  const { t: tr } = useTranslation();
+  const ref = useRef<HTMLDivElement>(null);
+  const { t, play } = useRoomTimeline(ref, still);
+  const f = frameAt(t);
+  const done = t >= END;
+
+  return (
+    <div ref={ref} className={still ? "hr-card hr-card-still" : "hr-card"} {...(still ? { "aria-hidden": true } : { role: "img", "aria-label": tr("landing.hero.room.label") })}>
+      <RoomSvg t={t} />
 
       {!still && (
         <div className="hr-total" style={{ opacity: f.total > 0 ? 1 : 0 }}>

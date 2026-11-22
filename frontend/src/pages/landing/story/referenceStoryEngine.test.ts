@@ -27,12 +27,12 @@ const labels: StoryLabels = {
 }
 
 /** A 2D context that does nothing but remember every text it was asked to draw. */
-function recordingContext(drawn: string[], at: { text: string; x: number }[]) {
+function recordingContext(drawn: string[], at: { text: string; x: number; y: number }[]) {
   const ctx: Record<string | symbol, unknown> = {
     measureText: (t: string) => ({ width: t.length * 7 }),
-    fillText: (t: string, x: number) => {
+    fillText: (t: string, x: number, y: number) => {
       drawn.push(t)
-      at.push({ text: t, x })
+      at.push({ text: t, x, y })
     },
     createLinearGradient: () => ({ addColorStop() {} }),
     createRadialGradient: () => ({ addColorStop() {} }),
@@ -55,7 +55,7 @@ afterEach(() => {
 /** Mounts the story and renders it at `progress` (0..1 of the scroll) on a canvas `size` px wide. */
 function renderAt(progress: number, size = { width: 700, height: 700 }) {
   const drawn: string[] = []
-  const at: { text: string; x: number }[] = []
+  const at: { text: string; x: number; y: number }[] = []
   vi.stubGlobal('Path2D', class { moveTo() {} lineTo() {} closePath() {} rect() {} arc() {} })
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(recordingContext(drawn, at) as never)
   document.body.innerHTML = storyHtml
@@ -94,5 +94,23 @@ describe('scroll story engine', () => {
       expect(x - half, text).toBeGreaterThanOrEqual(0)
       expect(x + half, text).toBeLessThanOrEqual(width)
     }
+  })
+
+  it.each([
+    ['plan, phone', 0.225, 343, 330],
+    ['plan, desktop', 0.225, 700, 700],
+  ])('never lets two wall lengths of the plan cover each other (%s)', (_, progress, width, height) => {
+    const { at } = renderAt(progress, { width, height })
+    const pills = at
+      .filter((d) => / MTR$/.test(d.text))
+      .map(({ text, x, y }) => ({ text, x, y, w: text.length * 7 + 20, h: 24 }))
+    expect(pills.length).toBeGreaterThan(1)
+    for (let i = 0; i < pills.length; i++)
+      for (let j = i + 1; j < pills.length; j++) {
+        const a = pills[i]
+        const b = pills[j]
+        const overlap = Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2
+        expect(overlap, `${a.text} / ${b.text}`).toBe(false)
+      }
   })
 })

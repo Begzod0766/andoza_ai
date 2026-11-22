@@ -186,6 +186,7 @@ function tag(a,dx,dy,l1,l2,alpha,VH){
   ctx.restore();
 }
 function planLabels(S,pts,fr,alpha,d1,size){
+  var out=[];
   for(var i=0;i<N;i++){
     var fi=fr[i];if(fi<=0)continue;
     var pa=pts[i],pb=pts[(i+1)%N],nl=LENS[i];
@@ -193,8 +194,20 @@ function planLabels(S,pts,fr,alpha,d1,size){
     var mxp=lerp(pa[0],pb[0],fi/2),myp=lerp(pa[1],pb[1],fi/2);
     var lc=S(mxp+nx*.4,myp+ny*.4,0);
     var len=Math.hypot(pb[0]-pa[0],pb[1]-pa[1])*fi;
-    pill(lc[0],lc[1],len.toFixed(2)+' '+L.m,alpha,size,fi<.999&&d1<1);
+    var text=len.toFixed(2)+' '+L.m;
+    ctx.save();ctx.font='500 '+size+'px '+MONO;var w=ctx.measureText(text).width+20;ctx.restore();
+    out.push({x:lc[0],y:lc[1],w:w,h:size+13,text:text,hot:fi<.999&&d1<1});
   }
+  /* short walls meeting at a corner put their labels on top of each other on small
+     canvases: move the later one up or down just enough for the two to part
+     (sideways it could be pushed off the canvas edge) */
+  for(var a=0;a<out.length;a++)for(var b=a+1;b<out.length;b++){
+    var p=out[a],q=out[b];
+    if(Math.abs(p.x-q.x)>=(p.w+q.w)/2+2)continue;
+    var need=(p.h+q.h)/2+2-Math.abs(p.y-q.y);
+    if(need>0)q.y+=(q.y>=p.y?1:-1)*need;
+  }
+  out.forEach(function(o){pill(o.x,o.y,o.text,alpha,size,o.hot);});
 }
 function areaLabel(S,alpha,val){
   if(alpha<=.01)return;
