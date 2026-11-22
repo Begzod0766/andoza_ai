@@ -96,9 +96,10 @@ a{color:inherit}
 .cap-stack{display:grid}
 .cap{
   grid-area:1/1;opacity:0;visibility:hidden;transform:translateY(16px);
-  transition:opacity .45s,transform .45s,visibility 0s linear .45s;min-width:0;
+  /* the outgoing caption leaves quickly and the next one waits for it, so two never overlap */
+  transition:opacity .16s,transform .16s,visibility 0s linear .16s;min-width:0;
 }
-.cap.on{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.cap.on{opacity:1;visibility:visible;transform:none;transition:opacity .34s .16s,transform .34s .16s,visibility 0s}
 .kicker{font:500 13px/1 var(--font-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent-text);margin:0 0 14px}
 .cap h2{
   margin:0 0 14px;font-family:var(--font-display);font-stretch:112%;font-weight:800;

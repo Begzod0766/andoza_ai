@@ -22,10 +22,11 @@ export default function Nav() {
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <a href="#top" className="flex items-center gap-2.5">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-4 sm:px-6">
+        <a href="#top" className="flex shrink-0 items-center gap-2.5">
           <img src="/icon.svg" alt="andoza.ai" className="h-9 w-9" />
-          <span className="text-lg font-bold tracking-tight">andoza.ai</span>
+          {/* on narrow phones the icon alone carries the brand so nothing gets cut off */}
+          <span className="hidden text-lg font-bold tracking-tight min-[420px]:inline">andoza.ai</span>
         </a>
         <div className="flex items-center gap-2 sm:gap-3">
           <LanguageSwitcher />
@@ -37,7 +38,7 @@ export default function Nav() {
           </Link>
           <Link
             to="/login"
-            className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800"
+            className="whitespace-nowrap rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-neutral-800"
           >
             {t("landing.nav.start")}
           </Link>

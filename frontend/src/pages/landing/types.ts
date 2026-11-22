@@ -7,10 +7,3 @@ export interface ProblemItem {
   fixTitle: string;
   fixDesc: string;
 }
-
-export interface ConveyorPair {
-  problem: string;
-  problemTip: string;
-  solution: string;
-  solutionTip: string;
-}
