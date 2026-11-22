@@ -116,20 +116,33 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     onStepChangeRef.current?.(null);
     onFinishRef.current(reason);
   };
-  // The practice furniture still in the room: added since the tour opened, not deleted since.
-  const practiceIds = () => newFurnitureIds(baseline.ids, useRoomStore.getState().furniture);
+  // The ids frozen when the question opens: furniture added while it is up is not practice.
+  const frozenRef = useRef<string[] | null>(null);
+  // The practice furniture still in the room: added since the tour opened (or, once asking,
+  // the frozen ids), not deleted since.
+  const practiceIds = () => {
+    const furniture = useRoomStore.getState().furniture;
+    const frozen = frozenRef.current;
+    if (!frozen) return newFurnitureIds(baseline.ids, furniture);
+    const present = new Set(furniture.map((f) => f.id));
+    return frozen.filter((i) => present.has(i));
+  };
   // Done or Skip waiting on the keep-or-remove question.
   const [asking, setAsking] = useState<"done" | "skip" | null>(null);
   const askingRef = useRef(false);
-  const finish = (reason: StudioTourFinishReason) => {
+  /** `pageGone`: a real unmount. The page's autosave is already disposed, so a removal here
+   *  never reaches the server; the record stays for the next Studio open to clean up. */
+  const finish = (reason: StudioTourFinishReason, pageGone = false) => {
     if (finishedRef.current) return;
     if (reason === "done" || reason === "skip") {
       if (askingRef.current) return;
       emitTourEvent("restore-view");
-      if (practiceIds().length === 0) {
+      const practice = practiceIds();
+      if (practice.length === 0) {
         clearPractice();
         close(reason);
       } else {
+        frozenRef.current = practice;
         askingRef.current = true;
         setAsking(reason);
       }
@@ -138,7 +151,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     emitTourEvent("restore-view");
     const practice = practiceIds();
     if (practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
-    clearPractice();
+    if (!pageGone) clearPractice();
     close(reason);
   };
   const answer = (remove: boolean) => {
@@ -221,7 +234,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     return () => {
       const job = { cancelled: false };
       pendingUnmount.current = job;
-      queueMicrotask(() => { if (!job.cancelled) finish("unmount"); });
+      queueMicrotask(() => { if (!job.cancelled) finish("unmount", true); });
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -240,7 +253,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // taken out again even if the app is killed mid-tour.
   const startFurniture = useRef(furniture);
   useEffect(() => {
-    if (furniture === startFurniture.current || finishedRef.current) return;
+    if (furniture === startFurniture.current || finishedRef.current || askingRef.current) return;
     savePractice({ roomId, ids: added });
   }, [furniture]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -282,6 +295,10 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     };
   }, [isDo, checked, id, spotTarget, replay]);
 
+  // The question takes the focus (the Done/Skip button that opened it is gone).
+  const removeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => { if (asking) removeRef.current?.focus(); }, [asking]);
+
   useLayoutEffect(() => {
     const h = cardRef.current?.getBoundingClientRect().height ?? 0;
     if (h !== cardH) setCardH(h);
@@ -289,13 +306,14 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
 
   if (over) return null;
   if (asking) {
-    // The question alone: no spotlight, no shade. The app still hears the tour as open.
+    // The question alone: no spotlight, no shade. The app still hears the tour as open. Not
+    // aria-modal: the Studio behind it stays live.
     return (
       <div className="pointer-events-none fixed inset-0 z-[300]">
         <div
           role="alertdialog"
-          aria-modal="true"
           aria-labelledby="studio-tour-practice-q"
+          aria-describedby="studio-tour-practice-q"
           className="pointer-events-auto fixed inset-x-4 bottom-6 mx-auto max-w-sm rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         >
           <p id="studio-tour-practice-q" className="text-sm font-medium">{t("studio.tour.practice_question")}</p>
@@ -308,6 +326,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
               {t("studio.tour.practice_keep")}
             </button>
             <button
+              ref={removeRef}
               type="button"
               onClick={() => answer(true)}
               className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white"

@@ -491,6 +491,30 @@ describe('StudioTour ending', () => {
     expect(onFinish).toHaveBeenCalledWith('done')
   })
 
+  it('question_takes_focus: a keyboard or screen-reader user lands in the question', () => {
+    open()
+    practise()
+    done()
+    const dialog = question()!
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
+    expect(dialog).not.toHaveAttribute('aria-modal')
+    const desc = document.getElementById(dialog.getAttribute('aria-describedby')!)
+    expect(desc).toHaveTextContent(i18n.t('studio.tour.practice_question'))
+  })
+
+  it('practice_frozen_at_question: furniture added while asking is neither removed nor recorded', () => {
+    const c: PlacedFurniture = { id: 'c', furniture_id: 'lamp', x: 3, y: 3, rotation: 0 }
+    open()
+    practise()
+    done()
+    act(() => { useRoomStore.setState({ furniture: [a, b, c] }) })
+    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
+    expect(ids()).toEqual(['a', 'c'])
+    expect(loadPractice()).toBeNull()
+  })
+
   it('user_deleted_practice_itself', () => {
     const { onFinish } = open()
     practise()
@@ -532,15 +556,19 @@ describe('StudioTour ending', () => {
     expect(question()).toBeNull()
   })
 
-  it('unmount_removes_silently', async () => {
+  it('unmount_removes_silently, and keeps the record for the next open (the page autosave is gone)', async () => {
     const onStepChange = vi.fn()
     const onFinish = vi.fn()
+    const restore = vi.fn()
+    const off = onTourEvent('restore-view', restore)
     const { unmount } = render(<StudioTour steps={tour('scene')} roomId="r1" onStepChange={onStepChange} onFinish={onFinish} />)
     practise()
     unmount()
     await flush()
+    off()
+    expect(restore).toHaveBeenCalledTimes(1)
     expect(ids()).toEqual(['a'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
     expect(onStepChange).toHaveBeenLastCalledWith(null)
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('unmount')
@@ -575,10 +603,12 @@ describe('StudioTour ending', () => {
   it('targets_vanish_removes_silently', () => {
     const { onFinish } = open()
     practise()
+    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
     rects.scene = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
     expect(question()).toBeNull()
     expect(ids()).toEqual(['a'])
+    expect(loadPractice()).toBeNull()
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('unmount')
   })
