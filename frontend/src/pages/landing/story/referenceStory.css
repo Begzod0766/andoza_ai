@@ -79,7 +79,7 @@ a{color:inherit}
 .tblock dd{margin:0;color:var(--ink);font-weight:500}
 
 /* story */
-.story{position:relative;height:920vh;height:920svh}
+.story{position:relative;height:690vh;height:690svh}
 .stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
 .stage-in{
   height:100%;display:grid;grid-template-columns:minmax(0,4.4fr) minmax(0,8fr);

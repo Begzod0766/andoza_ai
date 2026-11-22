@@ -2,6 +2,17 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Icon } from "./icons";
 import Reveal from "./Reveal";
+import "./landing-motion.css";
+
+/** Pro is not out yet, so its features carry a lock instead of a tick. */
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
 
 interface PricingTier {
   name: string;
@@ -62,16 +73,17 @@ export default function Pricing() {
             <p className="mt-3 text-4xl font-extrabold tracking-tight">{tier.price}</p>
 
             <ul className="mt-6 space-y-3">
-              {tier.features.map((f) => (
+              {tier.features.map((f, j) => (
                 <li key={f} className="flex items-center gap-3 text-sm">
                   <span
                     className={`grid h-5 w-5 flex-shrink-0 place-items-center rounded-full ${
-                      highlighted ? "bg-[#3b7fff]/20 text-[#7aa5ff]" : "bg-emerald-50 text-emerald-500"
+                      soon ? "bg-white/10 text-neutral-400" : "pricing-tick bg-emerald-50 text-emerald-500"
                     }`}
+                    style={soon ? undefined : ({ "--i": j } as React.CSSProperties)}
                   >
-                    <Icon name="check" className="h-3 w-3" strokeWidth={3} />
+                    {soon ? <LockIcon /> : <Icon name="check" className="h-3 w-3" strokeWidth={3} />}
                   </span>
-                  <span className={highlighted ? "text-neutral-200" : "text-neutral-600"}>{f}</span>
+                  <span className={soon ? "text-neutral-400" : highlighted ? "text-neutral-200" : "text-neutral-600"}>{f}</span>
                 </li>
               ))}
             </ul>

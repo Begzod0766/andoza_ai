@@ -71,4 +71,14 @@ describe('hero room', () => {
     rerender(<HeroRoom />)
     expect(container.querySelectorAll('.hr-tag')).toHaveLength(3)
   })
+
+  it('as a still picture shows the finished room only, hidden from screen readers', () => {
+    reducedMotion(false)
+    vi.stubGlobal('IntersectionObserver', undefined)
+    const { container } = render(<HeroRoom still />)
+    expect(container.querySelectorAll('.hr-tag')).toHaveLength(3)
+    expect(container.querySelector('.hr-total')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+  })
 })
