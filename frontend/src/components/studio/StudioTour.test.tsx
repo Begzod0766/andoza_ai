@@ -50,6 +50,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   document.body.innerHTML = ''
 })
@@ -123,19 +124,25 @@ describe('StudioTour', () => {
   })
 
   it('advances past a target that vanishes, and finishes when the last one does', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
     const onFinish = vi.fn()
     mount(['scene', 'menu'])
     render(<StudioTour steps={tour('scene', 'menu')} roomId="r1" onFinish={onFinish} />)
     rects.scene = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
+    act(() => { vi.advanceTimersByTime(600) })
     expect(screen.getByText(i18n.t('studio.tour.menu.body'))).toBeInTheDocument()
     expect(onFinish).not.toHaveBeenCalled()
     rects.menu = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
+    // the step runs out after 500 ms, then the scene, still gone, is judged for 500 ms more
+    act(() => { vi.advanceTimersByTime(600) })
+    act(() => { vi.advanceTimersByTime(600) })
     expect(onFinish).toHaveBeenCalledTimes(1)
   })
 
   it('a rotation (resize + orientationchange back to back) with a vanished target moves on once', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
     const onFinish = vi.fn()
     mount(['scene', 'menu', 'arc'])
     rects.arc = { left: 10, top: 300, width: 40, height: 40 }
@@ -145,6 +152,7 @@ describe('StudioTour', () => {
       window.dispatchEvent(new Event('resize'))
       window.dispatchEvent(new Event('orientationchange'))
     })
+    act(() => { vi.advanceTimersByTime(600) })
     // menu is still there: it must not be skipped, and the counter does not jump
     expect(screen.getByText(i18n.t('studio.tour.menu.body'))).toBeInTheDocument()
     expect(screen.getByText('1/2')).toBeInTheDocument()
@@ -166,6 +174,8 @@ describe('StudioTour', () => {
       window.dispatchEvent(new Event('resize'))
       window.dispatchEvent(new Event('orientationchange'))
     })
+    // 500 ms for the menu step, then 500 ms for the arc step
+    act(() => { vi.advanceTimersByTime(600) })
     act(() => { vi.advanceTimersByTime(600) })
     expect(onFinish).toHaveBeenCalledTimes(1)
     // the 3D view (scene) is still there: a normal end (R8), not an interruption
@@ -505,12 +515,15 @@ describe('StudioTour do steps', () => {
     expect((container.querySelector('[data-tour-hole]') as HTMLElement).style.height).toBe('56px')
   })
 
-  it('a do step whose targets are gone at a resize moves on at once', () => {
+  it('a do step whose targets are gone at a resize moves on after 500 ms', () => {
     const onStepChange = vi.fn()
     mount(['arc-mebel', 'stage'])
     render(<StudioTour steps={[STEP('furniture'), STEP('stage')]} roomId="r1" onStepChange={onStepChange} onFinish={() => {}} />)
     rects['arc-mebel'] = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(onStepChange).toHaveBeenLastCalledWith('furniture')
+    act(() => { vi.advanceTimersByTime(300) })
     expect(onStepChange).toHaveBeenLastCalledWith('stage')
   })
 
@@ -804,11 +817,14 @@ describe('StudioTour ending', () => {
   })
 
   it('targets_vanish_removes_silently', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
     const { onFinish } = open()
     practise()
     expect(loadPractice('r1')).toEqual({ roomId: 'r1', ids: ['b'] })
     rects.scene = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
+    act(() => { vi.advanceTimersByTime(600) })
+    act(() => { vi.advanceTimersByTime(600) })
     expect(question()).toBeNull()
     expect(ids()).toEqual(['a'])
     expect(loadPractice('r1')).toBeNull()
@@ -941,6 +957,8 @@ describe('StudioTour residual fixes', () => {
     practise()
     rects.scene = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
+    act(() => { vi.advanceTimersByTime(600) })
+    act(() => { vi.advanceTimersByTime(600) })
     expect(question()).toBeNull()
     expect(onFinish).toHaveBeenCalledWith('unmount')
   })
@@ -956,7 +974,7 @@ describe('StudioTour residual fixes', () => {
     expect(screen.getByText(i18n.t('studio.tour.help.body'))).toBeInTheDocument()
     rects.help = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
-    frame()
+    act(() => { vi.advanceTimersByTime(600) })
     expect(question()).not.toBeNull()
     expect(ids()).toEqual(['a', 'b'])
     expect(onFinish).not.toHaveBeenCalled()
@@ -971,7 +989,8 @@ describe('StudioTour residual fixes', () => {
     document.querySelector('[data-tour="scene"]')!.remove()
     document.querySelector('[data-tour="menu"]')!.remove()
     act(() => { window.dispatchEvent(new Event('resize')) })
-    act(() => { vi.advanceTimersByTime(700) })
+    act(() => { vi.advanceTimersByTime(600) })
+    act(() => { vi.advanceTimersByTime(600) })
     expect(question()).toBeNull()
     expect(ids()).toEqual(['a'])
     expect(onFinish).toHaveBeenCalledWith('unmount')
@@ -1026,7 +1045,8 @@ describe('StudioTour residual fixes', () => {
       window.dispatchEvent(new Event('resize'))
       window.dispatchEvent(new Event('orientationchange'))
     })
-    act(() => { vi.advanceTimersByTime(300) })
+    // the scene step is dropped at 500 ms; the menu step's own grace starts then
+    act(() => { vi.advanceTimersByTime(600) })
     rects.menu = savedMenu
     frame()
     expect(screen.getByText(i18n.t('studio.tour.menu.body'))).toBeInTheDocument()
@@ -1081,5 +1101,105 @@ describe('StudioTour residual fixes', () => {
     expect(hand).toHaveAttribute('data-from-above', 'false')
     const handBottom = parseFloat(hand.style.top) + 48
     expect(parseFloat(screen.getByRole('dialog').style.top)).toBeGreaterThanOrEqual(handBottom)
+  })
+})
+
+// --- phone QA of #377 (#383): a rotation dropped a show step whose target was still there ---
+
+describe('StudioTour rotation grace', () => {
+  const question = () => screen.queryByRole('alertdialog')
+  const ids = () => useRoomStore.getState().furniture.map((f) => f.id)
+  const practise = () => act(() => { useRoomStore.setState({ furniture: [a, b] }) })
+  const hole = (c: HTMLElement) => c.querySelector('[data-tour-hole]') as HTMLElement
+  const ZERO = { left: 0, top: 0, width: 0, height: 0 }
+  const rotate = () => act(() => {
+    window.dispatchEvent(new Event('resize'))
+    window.dispatchEvent(new Event('orientationchange'))
+  })
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
+    useRoomStore.getState().resetRoom()
+    useRoomStore.setState({ furniture: [a], viewStage: 'full' })
+    localStorage.clear()
+    rects.arc = { left: 10, top: 300, width: 40, height: 40 }
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    localStorage.clear()
+  })
+
+  it('rotate_keeps_show_step: a target measured 0×0 for a frame or two during a rotation keeps its step', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu', 'arc'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu', 'arc')} roomId="r1" onFinish={onFinish} />)
+    fireEvent.click(hole(container))
+    expect(screen.getByText('2/3')).toBeInTheDocument()
+    const saved = rects.menu
+    rects.menu = ZERO
+    rotate()
+    frame()
+    frame()
+    rects.menu = saved
+    frame()
+    act(() => { vi.advanceTimersByTime(1000) })
+    expect(screen.getByText(i18n.t('studio.tour.menu.body'))).toBeInTheDocument()
+    expect(screen.getByText('2/3')).toBeInTheDocument()
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('rotate_really_gone: a target still absent 500 ms after a rotation drops its step then, not before', () => {
+    mount(['scene', 'menu', 'arc'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu', 'arc')} roomId="r1" onFinish={() => {}} />)
+    fireEvent.click(hole(container))
+    rects.menu = ZERO
+    rotate()
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(screen.getByText('2/3')).toBeInTheDocument()
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(screen.getByText(i18n.t('studio.tour.furniture.body'))).toBeInTheDocument()
+    expect(screen.getByText('2/2')).toBeInTheDocument()
+  })
+
+  it('end_scene_blink: the scene 0×0 for a moment as the last step runs out asks, not removes', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    fireEvent.click(hole(container))
+    const saved = rects.scene
+    rects.menu = ZERO
+    // the scene blinks at the rotation itself and again as the step runs out (500 ms)
+    rects.scene = ZERO
+    rotate()
+    frame()
+    rects.scene = saved
+    act(() => { vi.advanceTimersByTime(480) })
+    rects.scene = ZERO
+    act(() => { vi.advanceTimersByTime(60) })
+    rects.scene = saved
+    act(() => { vi.advanceTimersByTime(600) })
+    expect(question()).not.toBeNull()
+    expect(ids()).toEqual(['a', 'b'])
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('end_scene_gone: the scene absent for 500 ms at the end removes the practice furniture silently', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    fireEvent.click(hole(container))
+    rects.menu = ZERO
+    rotate()
+    act(() => { vi.advanceTimersByTime(480) })
+    rects.scene = ZERO
+    act(() => { vi.advanceTimersByTime(100) })
+    expect(onFinish).not.toHaveBeenCalled()
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(question()).toBeNull()
+    expect(ids()).toEqual(['a'])
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('unmount')
   })
 })
