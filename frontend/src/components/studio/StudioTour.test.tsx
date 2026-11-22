@@ -522,8 +522,9 @@ describe('StudioTour ending', () => {
     expect(dialog.contains(document.activeElement)).toBe(true)
     expect(document.activeElement).toBe(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
     expect(dialog).not.toHaveAttribute('aria-modal')
-    const desc = document.getElementById(dialog.getAttribute('aria-describedby')!)
-    expect(desc).toHaveTextContent(i18n.t('studio.tour.practice_question'))
+    // named by the question once: no aria-describedby repeating the same text
+    expect(dialog).toHaveAccessibleName(i18n.t('studio.tour.practice_question'))
+    expect(dialog).not.toHaveAttribute('aria-describedby')
   })
 
   it('practice_frozen_at_question: furniture added while asking is neither removed nor recorded', () => {

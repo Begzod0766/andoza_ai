@@ -13,6 +13,14 @@ describe('TourHand', () => {
     expect(el.className).toContain('fixed')
   })
 
+  it('stays still under prefers-reduced-motion: the hand does not animate and the ripple is hidden', () => {
+    const { container } = render(<TourHand x={1} y={2} replayKey={0} />)
+    const ring = container.querySelector('span') as HTMLElement
+    const hand = container.querySelector('svg') as SVGElement
+    expect(hand.getAttribute('class')).toContain('motion-reduce:animate-none')
+    expect(ring.className).toContain('motion-reduce:hidden')
+  })
+
   it('remounts (new DOM node) when replayKey changes', () => {
     const { container, rerender } = render(<TourHand x={1} y={2} replayKey={0} />)
     const first = container.firstElementChild

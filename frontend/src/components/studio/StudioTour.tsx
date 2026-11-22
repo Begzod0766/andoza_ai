@@ -331,7 +331,6 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
         <div
           role="alertdialog"
           aria-labelledby="studio-tour-practice-q"
-          aria-describedby="studio-tour-practice-q"
           className="pointer-events-auto fixed inset-x-4 bottom-6 mx-auto max-w-sm rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         >
           <p id="studio-tour-practice-q" className="text-sm font-medium">{t("studio.tour.practice_question")}</p>
