@@ -196,30 +196,32 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
         while (k < ids.length && !locate(ids[k])) k++;
         return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
       });
-    // When a frame first found no target; a resize or rotation decides at once.
+    // When a check first found no target. A resize or rotation decides at once; every other
+    // miss — a frame, or the first check of a new step — gets VANISH_MS of grace: the page may
+    // still be revealing the step's target (it hides the arc and the stage pill until it hears
+    // the new step, which lands an effect later than this check).
     let missingSince: number | null = null;
-    const update = (frameTime?: number) => {
+    const update = (now: number | null) => {
       const found = locate(step);
       if (found) {
         missingSince = null;
         setSpot((prev) => (sameSpot(prev, found) ? prev : found));
-      } else if (frameTime === undefined) vanish();
-      else if (missingSince === null) missingSince = frameTime;
-      else if (frameTime - missingSince >= VANISH_MS) vanish();
+      } else if (now === null) vanish();
+      else if (missingSince === null) missingSince = now;
+      else if (now - missingSince >= VANISH_MS) vanish();
     };
-    const onViewChange = () => update();
-    onViewChange();
+    const onViewChange = () => update(null);
+    update(performance.now());
     window.addEventListener("resize", onViewChange);
     window.addEventListener("orientationchange", onViewChange);
-    // A `do` step's target changes as the user opens a menu or a list: follow it every frame.
+    // Followed every frame: a `do` step's target changes as the user opens a menu or a list,
+    // and any step's target may only appear a moment after the step starts.
     let raf = 0;
-    if (step.kind === "do") {
-      const loop = () => {
-        update(performance.now());
-        raf = requestAnimationFrame(loop);
-      };
+    const loop = () => {
+      update(performance.now());
       raf = requestAnimationFrame(loop);
-    }
+    };
+    raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onViewChange);
@@ -357,6 +359,16 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   }
 
   if (empty || !id || !spot) return null;
+  const shade = "pointer-events-auto fixed bg-black/55 backdrop-blur-sm";
+  // A new step whose target is not on screen yet (the page is still revealing it): the old
+  // spot is stale, so everything is covered until the target shows or the step is dropped.
+  if (!step.targets.includes(spot.target)) {
+    return (
+      <div className="pointer-events-none fixed inset-0 z-[300]">
+        <div data-tour-backdrop className={`${shade} inset-0`} />
+      </div>
+    );
+  }
   const { box } = spot;
 
   const vw = window.innerWidth;
@@ -383,7 +395,6 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     : cardTop + cardH <= top ? { top: cardTop + cardH, up: false }
     : null;
 
-  const shade = "pointer-events-auto fixed bg-black/55 backdrop-blur-sm";
   const body = t(`studio.tour.${id}.body`);
   const skip = (
     <button

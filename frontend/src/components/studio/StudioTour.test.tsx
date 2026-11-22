@@ -350,6 +350,43 @@ describe('StudioTour do steps', () => {
     expect(screen.getByText('1/1')).toBeInTheDocument()
   })
 
+  it('step_change_grace: a new step whose target shows a moment later is kept, everything covered meanwhile', () => {
+    const onStepChange = vi.fn()
+    mount(['scene', 'arc-mebel', 'stage'])
+    const { container } = render(
+      <StudioTour steps={[STEP('surface'), STEP('furniture'), STEP('stage')]} roomId="r1" onStepChange={onStepChange} onFinish={() => {}} />,
+    )
+    // the furniture step's arc is on screen as the tour opens, then hidden by the page on step 1
+    expect(screen.getByText('1/3')).toBeInTheDocument()
+    document.querySelector('[data-tour="arc-mebel"]')!.remove()
+    act(() => emitTourEvent('surface-picked'))
+    act(() => { vi.advanceTimersByTime(600) })
+    expect(onStepChange).toHaveBeenLastCalledWith('furniture')
+    // not on screen yet: all covered, no hole, no hand
+    expect(container.querySelectorAll('[data-tour-backdrop]')).toHaveLength(1)
+    expect(container.querySelector('[data-tour-ring]')).toBeNull()
+    expect(container.querySelector('[data-tour-hand]')).toBeNull()
+    act(() => { vi.advanceTimersByTime(200) })
+    mount(['arc-mebel'])
+    frame()
+    expect(onStepChange).toHaveBeenLastCalledWith('furniture')
+    expect(screen.getByText('2/3')).toBeInTheDocument()
+    expect(container.querySelector('[data-tour-ring]')).not.toBeNull()
+  })
+
+  it('step_change_grace: a new step whose target never shows is dropped after 500 ms', () => {
+    const onStepChange = vi.fn()
+    mount(['scene', 'arc-mebel', 'stage'])
+    render(<StudioTour steps={[STEP('surface'), STEP('furniture'), STEP('stage')]} roomId="r1" onStepChange={onStepChange} onFinish={() => {}} />)
+    document.querySelector('[data-tour="arc-mebel"]')!.remove()
+    act(() => emitTourEvent('surface-picked'))
+    act(() => { vi.advanceTimersByTime(600) })
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(onStepChange).toHaveBeenLastCalledWith('furniture')
+    act(() => { vi.advanceTimersByTime(300) })
+    expect(onStepChange).toHaveBeenLastCalledWith('stage')
+  })
+
   it('a do step whose targets are gone at a resize moves on at once', () => {
     const onStepChange = vi.fn()
     mount(['arc-mebel', 'stage'])

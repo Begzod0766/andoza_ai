@@ -45,7 +45,11 @@ vi.mock('@/components/studio/SurfaceRadialMenu', async (orig) => ({
   default: () => <div data-testid="radial" />,
 }))
 vi.mock('@/components/studio/QuarterArcMenu', () => ({
-  QuarterArcMenu: ({ tourId, closed }: { tourId?: string; closed?: boolean }) => <div data-tour={tourId} data-closed={String(!!closed)} />,
+  QuarterArcMenu: ({ tourId, closed, categories }: { tourId?: string; closed?: boolean; categories?: { key: string; tourKey?: string }[] }) => (
+    <div data-tour={tourId} data-closed={String(!!closed)}>
+      {categories?.filter((c) => c.tourKey).map((c) => <button key={c.key} data-tour={`arc-${c.tourKey}`} />)}
+    </div>
+  ),
 }))
 vi.mock('../three-d/DesignPanelDock', () => ({
   DesignPanelDock: ({ activePhase }: { activePhase: string }) => <div data-testid="dock" data-phase={activePhase} />,
@@ -589,5 +593,44 @@ describe('usePendingPracticeCleanup (task 7)', () => {
     rerender({ roomReady: false })
     rerender({ roomReady: true })
     expect(ids()).toEqual(['a', 'c'])
+  })
+})
+
+describe('the studio tour over the real 3D page (visual check #1)', () => {
+  const shopRow = (id: string) => ({ id, name_uz: 'Divan', category: 'divan', room_type: 'mehmonxona', store_id: null, store_name: null, placement: 'pol', price_uzs: null, glb_url: 'x.glb', thumbnail_url: null, footprint_w: 100, footprint_d: 50 }) as CatalogFurniture
+  const fullUi = () => (
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter initialEntries={['/studio/r1']}>
+        <Routes>
+          <Route path="/studio/:roomId" element={<StudioPage />}>
+            <Route index element={<ThreeDPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  )
+  beforeEach(() => {
+    useRoomStore.getState().resetRoom()
+    vi.mocked(listCatalogFurniture).mockResolvedValue({ items: [shopRow('sofa')], total: 1, page: 1, per_page: 100 } as Awaited<ReturnType<typeof listCatalogFurniture>>)
+  })
+  afterEach(() => {
+    vi.mocked(listCatalogFurniture).mockResolvedValue({ items: [], total: 0, page: 1, per_page: 100 })
+  })
+
+  it('surface done -> the furniture step shows (2/8), and once furniture is added the stage step (3/8)', async () => {
+    render(fullUi())
+    const surface = await screen.findByRole('dialog', { name: sceneTitle() })
+    expect(surface).toHaveTextContent('1/8')
+    act(() => emitTourEvent('surface-picked'))
+    const furniture = await screen.findByRole('dialog', { name: i18n.t('studio.tour.furniture.body') }, { timeout: 3000 })
+    expect(furniture).toHaveTextContent('2/8')
+    // still there after the vanish grace
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+    expect(screen.getByRole('dialog', { name: i18n.t('studio.tour.furniture.body') })).toHaveTextContent('2/8')
+    act(() => { useRoomStore.getState().placeFurniture({ id: 'new', furniture_id: 'sofa', x: 0, y: 0, rotation: 0 }) })
+    const stage = await screen.findByRole('dialog', { name: i18n.t('studio.tour.stage.body') }, { timeout: 3000 })
+    expect(stage).toHaveTextContent('3/8')
+    await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+    expect(screen.getByRole('dialog', { name: i18n.t('studio.tour.stage.body') })).toHaveTextContent('3/8')
   })
 })
