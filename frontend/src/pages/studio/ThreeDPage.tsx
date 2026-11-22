@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CameraBar } from "./three-d/CameraBar";
 import { useRoomMoveStore } from "@/store/roomMoveStore";
 import { beginRoomSwitch } from "@/lib/roomSwitch";
@@ -77,8 +77,9 @@ import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
-import { isStudioTourDone } from "@/lib/studioTour";
-import { studioTourReady, useStudioTourWiring } from "./three-d/useStudioTourWiring";
+import { isStudioTourDone, type StudioTourStepId } from "@/lib/studioTour";
+import { emitTourEvent } from "@/lib/studioTourEvents";
+import { studioTourReady, usePendingPracticeCleanup, useStudioTourWiring } from "./three-d/useStudioTourWiring";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -133,6 +134,8 @@ export interface StudioContext {
   roomReady?: boolean;
   /** The Studio tour is on screen (StudioPage owns it); rings and selections are put away. */
   studioTourActive?: boolean;
+  /** The tour's current step, null while none is on screen. */
+  studioTourStep?: StudioTourStepId | null;
   /** Tells StudioPage whether this is a live editing view the tour can run over. */
   setStudioTourReady?: (ready: boolean) => void;
 }
@@ -143,7 +146,7 @@ export type { PhaseKey } from "@/lib/phases"
 
 export default function ThreeDPage() {
   const { t } = useTranslation()
-  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, setStudioTourReady } = useOutletContext<StudioContext>();
+  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, studioTourStep = null, setStudioTourReady } = useOutletContext<StudioContext>();
   const compact = useCompactStudio();
   const geometry = useRoomStore((s) => s.geometry);
   const designState = useRoomStore((s) => s.designState);
@@ -490,7 +493,23 @@ export default function ThreeDPage() {
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
     onEnd: markTapHintSeen,
+    // The stage and panel the tour opened on come back when it ends (or before its practice question).
+    view: { roomId: room.id, viewStage, activePhase },
+    restoreView: (v) => {
+      if (v.roomId !== room.id) return;
+      setViewStage(v.viewStage);
+      setActivePhase(v.activePhase);
+    },
   });
+  // While the tour is on, a tap on a surface only does its step: the ring it opens (the group's
+  // click runs after the wall's own, focusSurface) is put away again before it paints.
+  useLayoutEffect(() => {
+    if (studioTourActive && radial) { closeRadial(); disarmOpening(); }
+  }, [studioTourActive, radial]); // eslint-disable-line react-hooks/exhaustive-deps
+  // On the "tap a wall" step only the 3D itself is there to tap: the buttons over it go.
+  const tourHidesFloating = studioTourStep === "surface";
+  // A tour cut off last time left practice furniture in this room: out it goes once the room is in.
+  usePendingPracticeCleanup({ roomId: room.id, roomReady, tourActive: studioTourActive });
   const tapHintShown = shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })
     && !studioTourActive && (!compact || isStudioTourDone());
 
@@ -509,6 +528,8 @@ export default function ThreeDPage() {
     // opens on the same click — so we no longer force the paint panel here.
     setSelOpening(null);
     setSelectedWall(id);
+    // The tour's "tap a wall" step is done; its ring is closed by the effect beside the tour wiring.
+    if (studioTourActive) { emitTourEvent("surface-picked"); closeRadial(); }
   }
 
   /**
@@ -976,8 +997,10 @@ export default function ThreeDPage() {
           {/* z-30 like the tap hint, under every sheet; while the stage list is open it goes over the
               3D's own floating buttons (drei <Html>, z 83) too. */}
           <div className={`pointer-events-none absolute inset-x-3 top-16 flex flex-col items-start gap-2 lg:top-3 lg:items-center ${stageListOpen ? 'z-[90]' : 'z-30'}`}>
-            <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
-            <StageBanner />
+            {!tourHidesFloating && <>
+              <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
+              <StageBanner />
+            </>}
           </div>
 
           {tapHintShown && (
@@ -1034,7 +1057,7 @@ export default function ThreeDPage() {
           )}
 
           {/* Mebelirovka quick actions — doors/windows editor + 3D model import */}
-          {isMebelTab && (
+          {isMebelTab && !tourHidesFloating && (
             // top-28 below sm: the 2D/3D + view-mode row (also at
             // top-16, right-anchored) spans nearly the whole width on phones
             // and would run over these pills; from sm up both tiers fit.
@@ -1066,7 +1089,7 @@ export default function ThreeDPage() {
 
           {/* Bottom-left: the cameras, the lock, "My renders" and the chosen
               camera's Render — see CameraBar. */}
-          <CameraBar
+          {!tourHidesFloating && <CameraBar
             listOpen={cameraListOpen}
             onToggleList={() => setCameraListOpen((open) => !open)}
             onPick={enterCamera}
@@ -1084,20 +1107,20 @@ export default function ThreeDPage() {
             moveRoomsOn={moveRoomsOn}
             onToggleMoveRooms={toggleMoveRooms}
             flatShown={(aptRooms?.length ?? 0) > 1}
-          />
+          />}
 
           {/* Bottom-right corner: the arc menu, mobile only — desktop reaches
               all of this from the design panel and the tools drawer, neither
               of which a phone shows without a detour. Sits beside the CTA
               above rather than replacing it: that button adds whatever suits
               the current phase, this one names the three outright. */}
-          {showsEditingCorners({ panorama, cameraStation }) && <div className="lg:hidden">
+          {showsEditingCorners({ panorama, cameraStation }) && !tourHidesFloating && <div className="lg:hidden">
             <QuarterArcMenu
               className="bottom-1 right-1"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
               tourId="arc"
-              closed={studioTourActive}
+              closed={studioTourActive && studioTourStep !== "furniture"}
             />
           </div>}
 
