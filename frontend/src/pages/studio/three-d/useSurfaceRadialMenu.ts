@@ -4,6 +4,7 @@ import type { RadialSurface } from "@/components/studio/SurfaceRadialMenu";
 import { armsForDragging } from "@/lib/doubleTapArm";
 import { createTrailingClickGuard } from "@/lib/trailingClick";
 import { multiTouchGuard } from "@/lib/multiTouchGuard";
+import { itemPressClaimed } from "./pressDrag";
 
 /**
  * One guard for the page: the click that trails a tap on the ring's backdrop
@@ -153,6 +154,9 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
     if (heldRef.current) { heldRef.current = false; return; }
     // The first finger of a pinch landed here: zooming is not a tap on the wall.
     if (pinch.multiTouchSince(pressAt.current)) return;
+    // The press was a towel rail's, a machine's or the riser's (mobile QA #372 d): the click r3f raycast
+    // again reached the wall behind it.
+    if (itemPressClaimed()) return;
     const x = e?.nativeEvent?.clientX ?? e?.clientX ?? 0;
     const y = e?.nativeEvent?.clientY ?? e?.clientY ?? 0;
     if (controlsRef.current) controlsRef.current.enabled = false;
@@ -187,6 +191,8 @@ export function useSurfaceRadialMenu(controlsRef: RefObject<OrbitControlsImpl | 
     holdTimer.current = window.setTimeout(() => {
       // A second finger joined: the user is zooming, not holding the wall.
       if (pinch.multiTouchSince(pressAt.current)) { clearHold(); return; }
+      // Held on a towel rail, a machine or the riser (#372 d): the hold is theirs.
+      if (itemPressClaimed()) { clearHold(); return; }
       heldRef.current = true;
       // Freeze the camera so menu taps don't orbit the room, and drop any
       // active selection highlight noise.
