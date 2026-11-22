@@ -1830,47 +1830,27 @@
       "subtitle": "Skanerlang, dizayn qiling va aniq smeta oling — kerakli materiallarni bitta ilovadan sotib oling.",
       "primary": "Bepul boshlash",
       "secondary": "Qanday ishlaydi?",
-      "note": "Ro'yxatdan o'tish bepul · Karta talab qilinmaydi"
-    },
-    "conveyor": {
-      "pairs": [
-        {
-          "problem": "Noaniq xarajat",
-          "problemTip": "Material va ish haqi qancha turishini oldindan bilib bo'lmaydi",
-          "solution": "Aniq smeta",
-          "solutionTip": "Har bir bosqich uchun aniq narx avtomatik hisoblanadi"
-        },
-        {
-          "problem": "Ko'p do'kon aylanish",
-          "problemTip": "Har xil narx uchun shahar bo'ylab yurishga to'g'ri keladi",
-          "solution": "Bitta do'kon",
-          "solutionTip": "100+ do'kon materiali bitta joyda, solishtirib xarid qiling"
-        },
-        {
-          "problem": "Ishonchsiz usta",
-          "problemTip": "Kim sifatli ishlashini oldindan bilish qiyin",
-          "solution": "Tekshirilgan usta",
-          "solutionTip": "Reyting va sharhlar bilan ishonchli ustalar"
-        },
-        {
-          "problem": "Uzoq rejalashtirish",
-          "problemTip": "Rejalashtirish haftalab cho'zilib ketadi",
-          "solution": "Tezkor 3D reja",
-          "solutionTip": "Bir necha daqiqada tayyor 3D reja va vizualizatsiya"
-        },
-        {
-          "problem": "Qo'lda hisob",
-          "problemTip": "Qo'lda hisob-kitob xatolarga to'la va sekin",
-          "solution": "Avtomatik hisob",
-          "solutionTip": "Material miqdori va narxi avtomatik hisoblanadi"
-        },
-        {
-          "problem": "Chalkash jarayon",
-          "problemTip": "Nimadan boshlashni va keyingi qadamni bilmaslik",
-          "solution": "Aniq bosqichlar",
-          "solutionTip": "Bosqichma-bosqich aniq reja bilan nazorat sizda"
-        }
-      ]
+      "note": "Ro'yxatdan o'tish bepul · Karta talab qilinmaydi",
+      "room": {
+        "label": "Xona bosqichma-bosqich yig'iladi: plan, devorlar, gulqog'oz va laminat, mebel, narxlar va smeta",
+        "tags": [
+          {
+            "name": "Gulqog'oz",
+            "qty": "9 rulon"
+          },
+          {
+            "name": "Laminat",
+            "qty": "14.3 m²"
+          },
+          {
+            "name": "Mebel",
+            "qty": "5 dona"
+          }
+        ],
+        "estimate": "Smeta (namuna)",
+        "currency": "so‘m",
+        "replay": "Qayta ko'rsatish"
+      }
     },
     "problem": {
       "heading": "Ta'mir og'riqli bo'lishi shart emas",
@@ -1991,20 +1971,20 @@
       "label": "Ilova qanday ishlaydi — bo'yoq hikoyasi",
       "cards": [
         {
-          "title": "Ijodiy dizayn",
-          "desc": "G'oyalaringiz uchun chiroyli va zamonaviy dizaynlar."
+          "title": "3D studiya",
+          "desc": "Devor, pol va mebelni tanlang, xona shu zahoti 3D da o'zgaradi."
         },
         {
-          "title": "Tezkor ishlash",
-          "desc": "Tezlik va silliq ish uchun optimallashtirilgan."
+          "title": "Daqiqalarda reja",
+          "desc": "Xonani telefon bilan skanerlang yoki o'lchamlarini kiriting."
         },
         {
-          "title": "Aqlli tahlil",
-          "desc": "Ma'lumotlaringizni tushuning va tezroq o'sing."
+          "title": "Aniq smeta",
+          "desc": "Har bir material va ish narxi avtomatik hisoblanadi."
         },
         {
-          "title": "Xavfsiz va ishonchli",
-          "desc": "Ma'lumotlaringiz biz bilan doim xavfsiz."
+          "title": "Ishonchli ustalar",
+          "desc": "Reyting va sharhlar bo'yicha usta tanlang."
         }
       ]
     },

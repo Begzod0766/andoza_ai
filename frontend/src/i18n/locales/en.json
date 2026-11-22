@@ -1830,47 +1830,27 @@
       "subtitle": "Scan, design and get an accurate estimate — buy all the materials you need from one app.",
       "primary": "Start for free",
       "secondary": "How does it work?",
-      "note": "Free to sign up · No card required"
-    },
-    "conveyor": {
-      "pairs": [
-        {
-          "problem": "Unclear costs",
-          "problemTip": "There's no way to know upfront what materials and labor will cost",
-          "solution": "Exact estimate",
-          "solutionTip": "An exact price for every stage, calculated automatically"
-        },
-        {
-          "problem": "Many shops",
-          "problemTip": "Driving across town chasing different prices for each material",
-          "solution": "One shop",
-          "solutionTip": "Materials from 100+ shops in one place — compare and buy"
-        },
-        {
-          "problem": "Unreliable craftsman",
-          "problemTip": "It's hard to know in advance who does quality work",
-          "solution": "Verified craftsman",
-          "solutionTip": "Trusted craftsmen with ratings and reviews"
-        },
-        {
-          "problem": "Slow planning",
-          "problemTip": "Planning drags on for weeks",
-          "solution": "Fast 3D plan",
-          "solutionTip": "A ready 3D plan and visualization in minutes"
-        },
-        {
-          "problem": "Manual math",
-          "problemTip": "Hand calculations are slow and full of mistakes",
-          "solution": "Auto calculation",
-          "solutionTip": "Material quantities and prices computed automatically"
-        },
-        {
-          "problem": "Messy process",
-          "problemTip": "Not knowing where to start or what comes next",
-          "solution": "Clear stages",
-          "solutionTip": "A step-by-step plan — you stay in control"
-        }
-      ]
+      "note": "Free to sign up · No card required",
+      "room": {
+        "label": "The room builds step by step: plan, walls, wallpaper and laminate, furniture, prices and the estimate",
+        "tags": [
+          {
+            "name": "Wallpaper",
+            "qty": "9 rolls"
+          },
+          {
+            "name": "Laminate",
+            "qty": "14.3 m²"
+          },
+          {
+            "name": "Furniture",
+            "qty": "5 items"
+          }
+        ],
+        "estimate": "Sample estimate",
+        "currency": "UZS",
+        "replay": "Play again"
+      }
     },
     "problem": {
       "heading": "Renovation doesn't have to be painful",
@@ -1991,20 +1971,20 @@
       "label": "How it works — paint story",
       "cards": [
         {
-          "title": "Creative Design",
-          "desc": "Beautiful and modern designs for your ideas."
+          "title": "3D studio",
+          "desc": "Pick walls, floors and furniture and watch the room change in 3D."
         },
         {
-          "title": "Fast Performance",
-          "desc": "Optimized for speed and a smooth experience."
+          "title": "A plan in minutes",
+          "desc": "Scan the room with your phone or type in its size."
         },
         {
-          "title": "Smart Analytics",
-          "desc": "Understand your data and grow faster."
+          "title": "Exact estimate",
+          "desc": "Every material and every job is priced automatically."
         },
         {
-          "title": "Secure & Reliable",
-          "desc": "Your data is always safe with us."
+          "title": "Vetted craftsmen",
+          "desc": "Choose a craftsman by ratings and reviews."
         }
       ]
     },

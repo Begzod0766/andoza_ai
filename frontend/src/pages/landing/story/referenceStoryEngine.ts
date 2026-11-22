@@ -57,7 +57,7 @@ var DOOR={y0:.6,y1:1.5,h:2.1};
 var WIN={w:1.4,z0:.9,z1:2.2,center:2.35};
 var PLAIN='#C6D1EA';
 var LENS=PTS.map(function(q,i){var b=PTS[(i+1)%N];return Math.hypot(b[0]-q[0],b[1]-q[1]);});
-var CUM=[];var PER=0;LENS.forEach(function(L){CUM.push(PER);PER+=L;});
+var CUM=[];var PER=0;LENS.forEach(function(len){CUM.push(PER);PER+=len;});
 var AREA=0;PTS.forEach(function(q,i){var b=PTS[(i+1)%N];AREA+=q[0]*b[1]-b[0]*q[1];});AREA=Math.abs(AREA)/2;
 var DT1=(3.3-DOOR.y1)/3.3,DT2=(3.3-DOOR.y0)/3.3;
 
@@ -190,8 +190,8 @@ function planLabels(S,pts,fr,alpha,d1,size){
     var nx=(PTS[(i+1)%N][1]-PTS[i][1])/nl,ny=-(PTS[(i+1)%N][0]-PTS[i][0])/nl;
     var mxp=lerp(pa[0],pb[0],fi/2),myp=lerp(pa[1],pb[1],fi/2);
     var lc=S(mxp+nx*.4,myp+ny*.4,0);
-    var L=Math.hypot(pb[0]-pa[0],pb[1]-pa[1])*fi;
-    pill(lc[0],lc[1],L.toFixed(2)+' '+L.m,alpha,size,fi<.999&&d1<1);
+    var len=Math.hypot(pb[0]-pa[0],pb[1]-pa[1])*fi;
+    pill(lc[0],lc[1],len.toFixed(2)+' '+L.m,alpha,size,fi<.999&&d1<1);
   }
 }
 function areaLabel(S,alpha,val){
