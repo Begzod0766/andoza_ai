@@ -1044,7 +1044,10 @@
       "skip": "O'tkazib yuborish",
       "done": "Tushunarli",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Qo'llanma"
+      "help_btn": "Qo'llanma",
+      "practice_question": "Mashqda qo'shilgan mebel qoldirilsinmi?",
+      "practice_remove": "Olib tashlash",
+      "practice_keep": "Qoldirish"
     },
     "santexnika": {
       "title": "Santexnika",

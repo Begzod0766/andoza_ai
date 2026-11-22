@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourStep, type StudioTourStepId } from "@/lib/studioTour";
-import { onTourEvent } from "@/lib/studioTourEvents";
-import { newFurnitureIds, savePractice } from "@/lib/tourPractice";
+import { emitTourEvent, onTourEvent } from "@/lib/studioTourEvents";
+import { clearPractice, newFurnitureIds, savePractice } from "@/lib/tourPractice";
 import { useRoomStore } from "@/store/roomStore";
 import { TourHand } from "./TourHand";
 
@@ -61,6 +61,11 @@ const sameSpot = (a: Spot | null, b: Spot) =>
  * step lets the tap through to the target and moves on by itself once the user has done it
  * (picked a surface, added furniture, changed the stage). It never marks itself done —
  * `onFinish` tells the page why it ended, and the page decides what to remember.
+ *
+ * Every end first restores the view. Done or Skip then asks whether to keep the furniture
+ * added while practising (if any is still there); every other end — the app's Back, the
+ * targets vanishing, an unmount — takes it out without asking. A change of room ends the tour
+ * without touching the store (it already holds the new room); the record stays for next time.
  */
 export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   steps: readonly StudioTourStep[];
@@ -101,18 +106,54 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   const onStepChangeRef = useRef(onStepChange);
   onStepChangeRef.current = onStepChange;
   const finishedRef = useRef(false);
-  const finish = (reason: StudioTourFinishReason) => {
+  // Once over, nothing is drawn while the page takes the tour away.
+  const [over, setOver] = useState(false);
+  const close = (reason: StudioTourFinishReason) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
+    setOver(true);
     notifyAppTour(false);
     onStepChangeRef.current?.(null);
     onFinishRef.current(reason);
+  };
+  // The practice furniture still in the room: added since the tour opened, not deleted since.
+  const practiceIds = () => newFurnitureIds(baseline.ids, useRoomStore.getState().furniture);
+  // Done or Skip waiting on the keep-or-remove question.
+  const [asking, setAsking] = useState<"done" | "skip" | null>(null);
+  const askingRef = useRef(false);
+  const finish = (reason: StudioTourFinishReason) => {
+    if (finishedRef.current) return;
+    if (reason === "done" || reason === "skip") {
+      if (askingRef.current) return;
+      emitTourEvent("restore-view");
+      if (practiceIds().length === 0) {
+        clearPractice();
+        close(reason);
+      } else {
+        askingRef.current = true;
+        setAsking(reason);
+      }
+      return;
+    }
+    emitTourEvent("restore-view");
+    const practice = practiceIds();
+    if (practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
+    clearPractice();
+    close(reason);
+  };
+  const answer = (remove: boolean) => {
+    if (finishedRef.current || !asking) return;
+    const practice = practiceIds();
+    if (remove && practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
+    clearPractice();
+    close(asking);
   };
   const last = index === ids.length - 1;
   const next = () => (last ? finish("done") : setPos((p) => ({ ...p, index: p.index + 1 })));
 
   useLayoutEffect(() => {
-    if (!step) return;
+    // While the question is up nothing is spotlit, so nothing is followed either.
+    if (!step || asking) return;
     // The target vanished: move to the next step still on screen (the updater only acts
     // while the position is still on this step, so resize + orientationchange together
     // advance once), or end when none is left.
@@ -152,7 +193,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
       window.removeEventListener("resize", onViewChange);
       window.removeEventListener("orientationchange", onViewChange);
     };
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, asking]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const empty = ids.length === 0;
 
@@ -170,6 +211,26 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // Past the last step (nothing left on screen after a rotation) ends the tour too.
   const spent = empty || index >= ids.length;
   useEffect(() => { if (spent) finish("unmount"); }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A real unmount mid-tour cleans up like an interruption. The work waits a microtask and is
+  // called off if the effect mounts again, so StrictMode's simulated unmount does nothing.
+  const pendingUnmount = useRef<{ cancelled: boolean } | null>(null);
+  useEffect(() => {
+    if (pendingUnmount.current) pendingUnmount.current.cancelled = true;
+    pendingUnmount.current = null;
+    return () => {
+      const job = { cancelled: false };
+      pendingUnmount.current = job;
+      queueMicrotask(() => { if (!job.cancelled) finish("unmount"); });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Another room: the store now holds that room, so nothing is removed here; the record of
+  // the old room's practice furniture stays in storage and is cleaned up when it next opens.
+  const openedRoom = useRef(roomId);
+  useEffect(() => {
+    if (roomId !== openedRoom.current) close("unmount");
+  }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (id && !finishedRef.current) onStepChangeRef.current?.(id);
@@ -225,6 +286,39 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     const h = cardRef.current?.getBoundingClientRect().height ?? 0;
     if (h !== cardH) setCardH(h);
   });
+
+  if (over) return null;
+  if (asking) {
+    // The question alone: no spotlight, no shade. The app still hears the tour as open.
+    return (
+      <div className="pointer-events-none fixed inset-0 z-[300]">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="studio-tour-practice-q"
+          className="pointer-events-auto fixed inset-x-4 bottom-6 mx-auto max-w-sm rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
+        >
+          <p id="studio-tour-practice-q" className="text-sm font-medium">{t("studio.tour.practice_question")}</p>
+          <div className="mt-3 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => answer(false)}
+              className="rounded-full px-4 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10"
+            >
+              {t("studio.tour.practice_keep")}
+            </button>
+            <button
+              type="button"
+              onClick={() => answer(true)}
+              className="rounded-full bg-brand px-4 py-1.5 text-sm font-semibold text-white"
+            >
+              {t("studio.tour.practice_remove")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (empty || !id || !spot) return null;
   const { box } = spot;

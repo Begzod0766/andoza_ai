@@ -3,8 +3,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import i18n from '@/i18n'
 import { StudioTour } from './StudioTour'
-import { STUDIO_TOUR_STEPS, type StudioTourStep, type StudioTourStepId } from '@/lib/studioTour'
-import { emitTourEvent } from '@/lib/studioTourEvents'
+import { STUDIO_TOUR_STEPS, TOUR_SKIP_EVENT, type StudioTourStep, type StudioTourStepId } from '@/lib/studioTour'
+import { emitTourEvent, onTourEvent } from '@/lib/studioTourEvents'
 import { loadPractice, clearPractice } from '@/lib/tourPractice'
 import { useRoomStore } from '@/store/roomStore'
 import type { PlacedFurniture } from '@/store/types'
@@ -410,5 +410,204 @@ describe('StudioTour texts', () => {
         expect(file.studio.tour[s.id]?.body, `${lang}: studio.tour.${s.id}.body`).toEqual(expect.any(String))
       }
     }
+  })
+})
+
+// --- the end: restore the view, ask about the practice furniture, clean up when interrupted ---
+
+describe('StudioTour ending', () => {
+  const removeSpy = () => vi.spyOn(useRoomStore.getState(), 'removeFurnitureMany')
+  const ids = () => useRoomStore.getState().furniture.map((f) => f.id)
+  const question = () => screen.queryByRole('alertdialog')
+  const flush = () => act(async () => { await Promise.resolve() })
+
+  beforeEach(() => {
+    useRoomStore.getState().resetRoom()
+    useRoomStore.setState({ furniture: [a], viewStage: 'full' })
+    clearPractice()
+    mount(['scene'])
+  })
+  afterEach(() => clearPractice())
+
+  const open = (onFinish = vi.fn(), roomId = 'r1') => {
+    const r = render(<StudioTour steps={tour('scene')} roomId={roomId} onFinish={onFinish} />)
+    return { ...r, onFinish }
+  }
+  const practise = () => act(() => { useRoomStore.setState({ furniture: [a, b] }) })
+  const done = () => fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.done') }))
+
+  it('done_without_practice_no_question', () => {
+    const { onFinish } = open()
+    done()
+    expect(question()).toBeNull()
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('done')
+  })
+
+  it('restore_before_question', () => {
+    const seen: (HTMLElement | null)[] = []
+    const off = onTourEvent('restore-view', () => seen.push(question()))
+    const { onFinish, container } = open()
+    practise()
+    done()
+    off()
+    expect(seen).toEqual([null])
+    expect(question()).toHaveTextContent(i18n.t('studio.tour.practice_question'))
+    // while asking: no spotlight, no backdrop, and the tour has not ended yet
+    expect(container.querySelector('[data-tour-backdrop]')).toBeNull()
+    expect(container.querySelector('[data-tour-hole]')).toBeNull()
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('skip asks too', () => {
+    const { onFinish } = open()
+    practise()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.skip') }))
+    expect(question()).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_keep') }))
+    expect(onFinish).toHaveBeenCalledWith('skip')
+  })
+
+  it('remove_answer', () => {
+    const { onFinish } = open()
+    practise()
+    done()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
+    expect(ids()).toEqual(['a'])
+    expect(loadPractice()).toBeNull()
+    expect(question()).toBeNull()
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('done')
+  })
+
+  it('keep_answer', () => {
+    const { onFinish } = open()
+    practise()
+    done()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_keep') }))
+    expect(ids()).toEqual(['a', 'b'])
+    expect(loadPractice()).toBeNull()
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('done')
+  })
+
+  it('user_deleted_practice_itself', () => {
+    const { onFinish } = open()
+    practise()
+    act(() => { useRoomStore.setState({ furniture: [a] }) })
+    done()
+    expect(question()).toBeNull()
+    expect(onFinish).toHaveBeenCalledWith('done')
+  })
+
+  it('app_back_removes_silently', () => {
+    const restore = vi.fn()
+    const off = onTourEvent('restore-view', restore)
+    const { onFinish } = open()
+    practise()
+    act(() => { window.dispatchEvent(new Event(TOUR_SKIP_EVENT)) })
+    off()
+    expect(restore).toHaveBeenCalledTimes(1)
+    expect(question()).toBeNull()
+    expect(ids()).toEqual(['a'])
+    expect(loadPractice()).toBeNull()
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('app')
+  })
+
+  it('app_back_during_question_once', () => {
+    const { onFinish } = open()
+    practise()
+    done()
+    expect(question()).not.toBeNull()
+    const spy = removeSpy()
+    act(() => {
+      window.dispatchEvent(new Event(TOUR_SKIP_EVENT))
+      window.dispatchEvent(new Event(TOUR_SKIP_EVENT))
+    })
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('app')
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(ids()).toEqual(['a'])
+    expect(question()).toBeNull()
+  })
+
+  it('unmount_removes_silently', async () => {
+    const onStepChange = vi.fn()
+    const onFinish = vi.fn()
+    const { unmount } = render(<StudioTour steps={tour('scene')} roomId="r1" onStepChange={onStepChange} onFinish={onFinish} />)
+    practise()
+    unmount()
+    await flush()
+    expect(ids()).toEqual(['a'])
+    expect(loadPractice()).toBeNull()
+    expect(onStepChange).toHaveBeenLastCalledWith(null)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('unmount during the question removes silently', async () => {
+    const { onFinish, unmount } = open()
+    practise()
+    done()
+    unmount()
+    await flush()
+    expect(ids()).toEqual(['a'])
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('unmount_strict_mode: the simulated remount neither removes furniture nor finishes', async () => {
+    const onFinish = vi.fn()
+    const { unmount } = render(<StrictMode><StudioTour steps={tour('scene')} roomId="r1" onFinish={onFinish} /></StrictMode>)
+    practise()
+    await flush()
+    expect(ids()).toEqual(['a', 'b'])
+    expect(onFinish).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    unmount()
+    await flush()
+    expect(ids()).toEqual(['a'])
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('targets_vanish_removes_silently', () => {
+    const { onFinish } = open()
+    practise()
+    rects.scene = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(question()).toBeNull()
+    expect(ids()).toEqual(['a'])
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('room_change_keeps_record', async () => {
+    const spy = removeSpy()
+    const onFinish = vi.fn()
+    const { rerender, unmount } = render(<StudioTour steps={tour('scene')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    rerender(<StudioTour steps={tour('scene')} roomId="r2" onFinish={onFinish} />)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+    unmount()
+    await flush()
+    expect(spy).not.toHaveBeenCalled()
+    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+  })
+})
+
+describe('StudioTour practice texts', () => {
+  it('the practice question is in all three languages', () => {
+    const files = { uz, ru, en } as unknown as Record<string, { studio: { tour: Record<string, unknown> } }>
+    for (const [lang, file] of Object.entries(files)) {
+      for (const k of ['practice_question', 'practice_remove', 'practice_keep']) {
+        expect(file.studio.tour[k], `${lang}: studio.tour.${k}`).toEqual(expect.any(String))
+      }
+    }
+    expect(uz.studio.tour.practice_question).toBe("Mashqda qo'shilgan mebel qoldirilsinmi?")
+    expect(uz.studio.tour.practice_remove).toBe('Olib tashlash')
+    expect(uz.studio.tour.practice_keep).toBe('Qoldirish')
   })
 })

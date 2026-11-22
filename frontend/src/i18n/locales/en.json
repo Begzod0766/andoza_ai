@@ -1044,7 +1044,10 @@
       "skip": "Skip",
       "done": "Got it",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Guide"
+      "help_btn": "Guide",
+      "practice_question": "Keep the furniture you added while practising?",
+      "practice_remove": "Remove",
+      "practice_keep": "Keep"
     },
     "santexnika": {
       "title": "Plumbing",

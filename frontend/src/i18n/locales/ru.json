@@ -1072,7 +1072,10 @@
       "skip": "Пропустить",
       "done": "Понятно",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Руководство"
+      "help_btn": "Руководство",
+      "practice_question": "Оставить мебель, добавленную во время практики?",
+      "practice_remove": "Убрать",
+      "practice_keep": "Оставить"
     },
     "santexnika": {
       "title": "Сантехника",
