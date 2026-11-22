@@ -65,7 +65,7 @@ describe('arc menu tour targets', () => {
     render(<QuarterArcMenu categories={c} tourOnly="mebel" />)
     const pol = screen.getByRole('button', { name: /Pol/ })
     expect(pol).toBeDisabled()
-    expect(pol.className).toMatch(/pointer-events-none/)
+    expect(pol).toHaveAttribute('aria-disabled', 'true')
     expect(pol.style.opacity).toBe('0.4')
     fireEvent.click(pol)
     expect(q('arc-mebel-ring-0')).toBeNull()
@@ -77,6 +77,29 @@ describe('arc menu tour targets', () => {
     expect(picked).toHaveBeenCalledTimes(1)
     // still locked with the ring open
     expect(screen.getByRole('button', { name: /Pol/ })).toBeDisabled()
+  })
+
+  it('tourOnly (#4): a tap on a locked category is absorbed — it neither falls through to the tap-outside close nor opens it', () => {
+    const outside = vi.fn()
+    render(
+      <div onPointerDown={outside} onPointerUp={outside} onClick={outside}>
+        <QuarterArcMenu categories={cats()} tourOnly="mebel" />
+      </div>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Mebel/ }))
+    expect(q('arc-mebel-ring-0')).not.toBeNull()
+    outside.mockClear()
+    const pol = screen.getByRole('button', { name: /Pol/ })
+    // it keeps its pointer events, so the finger lands on it and not on the scrim behind
+    expect(pol.className).not.toMatch(/pointer-events-none/)
+    expect(pol.className).toMatch(/pointer-events-auto/)
+    fireEvent.pointerDown(pol)
+    fireEvent.pointerUp(pol)
+    expect(outside).not.toHaveBeenCalled()
+    // (a browser fires no click on a disabled button; jsdom does, and it changes nothing)
+    fireEvent.click(pol)
+    expect(q('arc-mebel-ring-0')).not.toBeNull()
+    expect(screen.getByRole('button', { name: /Mebel/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('without tourOnly every category is live', () => {

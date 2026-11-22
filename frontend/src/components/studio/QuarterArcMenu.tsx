@@ -408,11 +408,15 @@ export function QuarterArcMenu({
           return (
             <button
               key={slotKey}
-              onPointerDown={(e) => { e.stopPropagation(); onDragStart(e) }}
-              onPointerMove={onDragMove}
-              onPointerUp={() => onDragEnd()}
+              // A locked category (the tour keeps the finger on another) keeps its pointer
+              // events and swallows the tap: let through, it fell on the tap-outside scrim
+              // behind and closed the open ring.
+              onPointerDown={(e) => { e.stopPropagation(); if (!locked) onDragStart(e) }}
+              onPointerMove={locked ? (e) => e.stopPropagation() : onDragMove}
+              onPointerUp={(e) => { if (locked) e.stopPropagation(); else onDragEnd() }}
               onClick={(e) => {
                 e.stopPropagation()
+                if (locked) return
                 if (didDrag.current) return
                 // A different category starts its own ring at the beginning.
                 setOffset((o) => ({ ...o, outer: 0 }))
@@ -431,8 +435,9 @@ export function QuarterArcMenu({
               }}
               aria-pressed={isActive}
               disabled={locked}
+              aria-disabled={locked || undefined}
               data-tour={cat.tourKey ? `arc-${cat.tourKey}` : undefined}
-              className={`${locked ? 'pointer-events-none saturate-0' : 'pointer-events-auto'} absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
+              className={`pointer-events-auto ${locked ? 'saturate-0' : ''} absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
                 isActive ? 'bg-brand text-white ring-brand/40' : 'bg-white text-brand ring-black/5'
               }`}
               style={{
