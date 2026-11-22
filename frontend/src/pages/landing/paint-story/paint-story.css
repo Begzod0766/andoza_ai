@@ -198,13 +198,18 @@
     --roller-w: 56vw;
     --roller-off-x: 46px;
     --roller-off-y: 96px;
-    --card-w: 230px;
-    --card-h-half: 86px;
+    /* a little wider and tighter on phones: shorter cards, so all four fit one
+       screen even when they have to stack (375 px, Russian) */
+    --card-w: min(260px, calc(100vw - 24px));
+    --card-h-half: 78px;
     --trail-height: 46%;
   }
   .ps-card {
-    padding: 16px 16px 18px;
+    padding: 13px 15px 15px;
     border-radius: 18px;
+  }
+  .ps-card__head {
+    margin-bottom: 8px;
   }
   .ps-card__title {
     font-size: 16px;

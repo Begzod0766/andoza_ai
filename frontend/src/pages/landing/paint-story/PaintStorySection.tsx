@@ -24,6 +24,7 @@ import PaintTrail from "./PaintTrail";
 import FeatureCard from "./FeatureCard";
 import PaintRoller from "./PaintRoller";
 import PaintSplashes from "./PaintSplashes";
+import { layoutCards } from "./layoutCards";
 import { BOX, CARDS, CONFIG, PATH_DESKTOP, PATH_MOBILE } from "./config";
 import "./paint-story.css";
 
@@ -66,10 +67,26 @@ export default function PaintStorySection() {
       rectW = r.width;
       sx = r.width / BOX.w;
       sy = r.height / BOX.h;
-      cardEls.forEach((el, i) => {
+      // where the path puts each card (left/top are its centre-x and its margin-shifted top)
+      const raw = cardEls.map((el, i) => {
         const p = at(CARDS[i].at);
-        el.style.left = `${p.x * sx}px`;
-        el.style.top = `${p.y * sy + (CARDS[i].place === "above" ? -CARD_OFFSET : CARD_OFFSET)}px`;
+        const w = el.offsetWidth;
+        const h = el.offsetHeight;
+        const lift = -parseFloat(getComputedStyle(el).marginTop) || 0; // card-h-half
+        const cx = p.x * sx;
+        const top = p.y * sy + (CARDS[i].place === "above" ? -CARD_OFFSET : CARD_OFFSET);
+        return { x: cx - w / 2, y: top - lift, w, h, lift };
+      });
+      // keep them on the stage, below the sticky menu, and off each other (narrow phones)
+      const inset = document.querySelector("header")?.getBoundingClientRect().height ?? 0;
+      const fitted = layoutCards(
+        raw.map((c) => ({ ...c, y: c.y - inset })),
+        { width: r.width, height: r.height - inset },
+        12,
+      );
+      cardEls.forEach((el, i) => {
+        el.style.left = `${fitted[i].x + fitted[i].w / 2}px`;
+        el.style.top = `${fitted[i].y + inset + raw[i].lift}px`;
       });
     }
 
