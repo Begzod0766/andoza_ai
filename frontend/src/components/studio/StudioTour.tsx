@@ -245,7 +245,6 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     // on the furniture step — so it is not judged now). The updater only acts while the
     // position is still on this step, so resize + orientationchange together advance once.
     // Past the last step the tour ends (see `spent`).
-    let seen = false;
     // The previous step's spot is not this step's: dropped, so the grace shows the full shade.
     setSpot((prev) => (prev && step.targets.includes(prev.target) ? prev : null));
     const vanish = () =>
@@ -254,26 +253,26 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
         return { index: p.index + 1, gone: p.gone + 1 };
       });
     const tail = ids.slice(ids.indexOf(step) + 1);
-    // When a check first found no target. A resize or rotation decides at once for a target that
-    // was on screen; every other miss — a frame, or a step not shown yet — gets VANISH_MS of
-    // grace: the page may still be revealing the step's target (it hides the arc and the stage
-    // pill until it hears the new step, which lands an effect later than this check).
+    // When a check first found no target. Every miss — a frame, a resize or rotation, a step not
+    // shown yet — gets VANISH_MS of grace: the page may still be revealing the step's target (it
+    // hides the arc and the stage pill until it hears the new step, which lands an effect later
+    // than this check), and mid-rotation a target can measure 0×0 for a frame or two while it is
+    // in fact still there (phone QA of #377: the camera step was dropped, 7/8 -> 7/7).
     let missingSince: number | null = null;
-    const update = (now: number | null) => {
+    const update = (now: number) => {
       const found = locate(step);
       if (step.kind === "show") {
         const shown = tail.some((s) => measure(s.targets[0]) !== null);
         setTailShown((prev) => (prev === shown ? prev : shown));
       }
       if (found) {
-        seen = true;
         missingSince = null;
         setSpot((prev) => (sameSpot(prev, found) ? prev : found));
-      } else if (now === null && seen) vanish();
-      else if (missingSince === null) missingSince = now ?? performance.now();
-      else if ((now ?? performance.now()) - missingSince >= VANISH_MS) vanish();
+      } else if (missingSince === null) missingSince = now;
+      else if (now - missingSince >= VANISH_MS) vanish();
     };
-    const onViewChange = () => update(null);
+    // Re-measured at once (the spotlight follows the new layout); judged like any other frame.
+    const onViewChange = () => update(performance.now());
     update(performance.now());
     window.addEventListener("resize", onViewChange);
     window.addEventListener("orientationchange", onViewChange);
@@ -307,11 +306,30 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
   // Past the last step ends the tour too — as a normal end, so practice furniture is asked
   // about (a rotation that took the last targets away included), unless the 3D view itself has
-  // gone (its scene target is off the page): that is an interruption, cleaned up without asking.
-  // With nothing to show at all, nothing was practised.
+  // gone (its scene target stays off the page for VANISH_MS — a rotation can blank it for a frame
+  // or two): that is an interruption, cleaned up without asking. With nothing to show at all,
+  // nothing was practised.
   const spent = empty || index >= ids.length;
   useEffect(() => {
-    if (spent) finish(!empty && isTourTargetShown("scene") ? "done" : "unmount");
+    if (!spent) return;
+    if (empty) return finish("unmount");
+    if (isTourTargetShown("scene")) return finish("done");
+    // Seen again on any frame: a normal end. Still gone after VANISH_MS: the 3D view went. The
+    // timer decides even if frames stop, so the tour never hangs.
+    let raf = 0;
+    const loop = () => {
+      if (isTourTargetShown("scene")) return finish("done");
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    const timer = setTimeout(() => {
+      cancelAnimationFrame(raf);
+      finish(isTourTargetShown("scene") ? "done" : "unmount");
+    }, VANISH_MS);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
   }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A real unmount mid-tour cleans up like an interruption. The work waits a microtask and is
