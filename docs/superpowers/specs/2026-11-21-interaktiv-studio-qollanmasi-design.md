@@ -152,9 +152,10 @@ Savol chiqmay tugagan har qanday holatda mashq mebeli **so'ramasdan olib tashlan
   o'chiriladi, bosqich qaytariladi. Flutter bilan shartnoma o'zgarmaydi;
 - 3D ko'rinishdan chiqish yoki boshqa xonaga o'tish: komponent yopilayotganda xuddi shunday tozalanadi;
 - ilova o'ldirilsa yoki sahifa yangilansa: qo'llanma davomida xona id'si va mashq mebeli id'lari
-  `localStorage` ga yoziladi (`studio.tour.practice`). Studio shu xonani keyingi ochganida bu id'lar
-  hali bor bo'lsa, ular o'chiriladi va yozuv tozalanadi. Savol javob berilgach yoki tozalash tugagach,
-  yozuv ham o'chiriladi.
+  `localStorage` ga har xona uchun alohida kalitda yoziladi (`studio.tour.practice.<roomId>`), shunda
+  boshqa xonadagi qo'llanma bu yozuvni o'chirmaydi ham, ustidan yozmaydi ham. Studio shu xonani keyingi
+  ochganida bu id'lar hali bor bo'lsa, ular o'chiriladi va yozuv tozalanadi. Savol javob berilgach yoki
+  tozalash tugagach, shu xonaning yozuvi ham o'chiriladi.
 
 ### Ishga tushish va eslab qolish
 

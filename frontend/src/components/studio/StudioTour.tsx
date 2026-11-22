@@ -99,6 +99,8 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   const furniture = useRoomStore((s) => s.furniture);
   const viewStage = useRoomStore((s) => s.viewStage);
   const added = useMemo(() => newFurnitureIds(baseline.ids, furniture), [baseline, furniture]);
+  // The room the tour opened in: its practice record is the only one this tour writes or clears.
+  const [tourRoom] = useState(roomId);
 
   // onFinish fires exactly once, whatever strict-mode effects or a double tap do.
   const onFinishRef = useRef(onFinish);
@@ -139,7 +141,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
       emitTourEvent("restore-view");
       const practice = practiceIds();
       if (practice.length === 0) {
-        clearPractice();
+        clearPractice(tourRoom);
         close(reason);
       } else {
         frozenRef.current = practice;
@@ -151,14 +153,14 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     emitTourEvent("restore-view");
     const practice = practiceIds();
     if (practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
-    if (!pageGone) clearPractice();
+    if (!pageGone) clearPractice(tourRoom);
     close(reason);
   };
   const answer = (remove: boolean) => {
     if (finishedRef.current || !asking) return;
     const practice = practiceIds();
     if (remove && practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
-    clearPractice();
+    clearPractice(tourRoom);
     close(asking);
   };
   const last = index === ids.length - 1;
@@ -240,9 +242,8 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
 
   // Another room: the store now holds that room, so nothing is removed here; the record of
   // the old room's practice furniture stays in storage and is cleaned up when it next opens.
-  const openedRoom = useRef(roomId);
   useEffect(() => {
-    if (roomId !== openedRoom.current) close("unmount");
+    if (roomId !== tourRoom) close("unmount");
   }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -254,7 +255,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   const startFurniture = useRef(furniture);
   useEffect(() => {
     if (furniture === startFurniture.current || finishedRef.current || askingRef.current) return;
-    savePractice({ roomId, ids: added });
+    savePractice({ roomId: tourRoom, ids: added });
   }, [furniture]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Whether the user has done the current `do` step (the surface step hears it as an event).

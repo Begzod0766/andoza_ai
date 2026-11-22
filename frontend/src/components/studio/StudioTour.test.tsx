@@ -5,7 +5,7 @@ import i18n from '@/i18n'
 import { StudioTour } from './StudioTour'
 import { STUDIO_TOUR_STEPS, TOUR_SKIP_EVENT, type StudioTourStep, type StudioTourStepId } from '@/lib/studioTour'
 import { emitTourEvent, onTourEvent } from '@/lib/studioTourEvents'
-import { loadPractice, clearPractice } from '@/lib/tourPractice'
+import { loadPractice, savePractice } from '@/lib/tourPractice'
 import { useRoomStore } from '@/store/roomStore'
 import type { PlacedFurniture } from '@/store/types'
 import uz from '@/i18n/locales/uz.json'
@@ -254,7 +254,7 @@ describe('StudioTour do steps', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
     useRoomStore.getState().resetRoom()
     useRoomStore.setState({ furniture: [a], viewStage: 'full' })
-    clearPractice()
+    localStorage.clear()
     Object.assign(rects, {
       'arc-mebel': { left: 300, top: 600, width: 50, height: 50 },
       'arc-mebel-ring-0': { left: 150, top: 450, width: 200, height: 200 },
@@ -263,7 +263,7 @@ describe('StudioTour do steps', () => {
   })
   afterEach(() => {
     vi.useRealTimers()
-    clearPractice()
+    localStorage.clear()
   })
 
   it('do_surface_hole_passes_click: no hole button, four backdrops, body only, no Next', () => {
@@ -349,7 +349,7 @@ describe('StudioTour do steps', () => {
     mount(['arc-mebel'])
     render(<StudioTour steps={[STEP('furniture'), STEP('stage')]} roomId="r1" onFinish={() => {}} />)
     act(() => { useRoomStore.setState({ furniture: [a, b] }) })
-    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+    expect(loadPractice('r1')).toEqual({ roomId: 'r1', ids: ['b'] })
   })
 
   it('stage_completes_on_change', () => {
@@ -424,10 +424,10 @@ describe('StudioTour ending', () => {
   beforeEach(() => {
     useRoomStore.getState().resetRoom()
     useRoomStore.setState({ furniture: [a], viewStage: 'full' })
-    clearPractice()
+    localStorage.clear()
     mount(['scene'])
   })
-  afterEach(() => clearPractice())
+  afterEach(() => localStorage.clear())
 
   const open = (onFinish = vi.fn(), roomId = 'r1') => {
     const r = render(<StudioTour steps={tour('scene')} roomId={roomId} onFinish={onFinish} />)
@@ -474,7 +474,7 @@ describe('StudioTour ending', () => {
     done()
     fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
     expect(ids()).toEqual(['a'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice('r1')).toBeNull()
     expect(question()).toBeNull()
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('done')
@@ -486,7 +486,7 @@ describe('StudioTour ending', () => {
     done()
     fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_keep') }))
     expect(ids()).toEqual(['a', 'b'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice('r1')).toBeNull()
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('done')
   })
@@ -509,10 +509,10 @@ describe('StudioTour ending', () => {
     practise()
     done()
     act(() => { useRoomStore.setState({ furniture: [a, b, c] }) })
-    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+    expect(loadPractice('r1')).toEqual({ roomId: 'r1', ids: ['b'] })
     fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
     expect(ids()).toEqual(['a', 'c'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice('r1')).toBeNull()
   })
 
   it('user_deleted_practice_itself', () => {
@@ -534,7 +534,7 @@ describe('StudioTour ending', () => {
     expect(restore).toHaveBeenCalledTimes(1)
     expect(question()).toBeNull()
     expect(ids()).toEqual(['a'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice('r1')).toBeNull()
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('app')
   })
@@ -568,7 +568,7 @@ describe('StudioTour ending', () => {
     off()
     expect(restore).toHaveBeenCalledTimes(1)
     expect(ids()).toEqual(['a'])
-    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+    expect(loadPractice('r1')).toEqual({ roomId: 'r1', ids: ['b'] })
     expect(onStepChange).toHaveBeenLastCalledWith(null)
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('unmount')
@@ -603,12 +603,12 @@ describe('StudioTour ending', () => {
   it('targets_vanish_removes_silently', () => {
     const { onFinish } = open()
     practise()
-    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+    expect(loadPractice('r1')).toEqual({ roomId: 'r1', ids: ['b'] })
     rects.scene = { left: 0, top: 0, width: 0, height: 0 }
     act(() => { window.dispatchEvent(new Event('resize')) })
     expect(question()).toBeNull()
     expect(ids()).toEqual(['a'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice('r1')).toBeNull()
     expect(onFinish).toHaveBeenCalledTimes(1)
     expect(onFinish).toHaveBeenCalledWith('unmount')
   })
@@ -624,7 +624,37 @@ describe('StudioTour ending', () => {
     unmount()
     await flush()
     expect(spy).not.toHaveBeenCalled()
-    expect(loadPractice()).toEqual({ roomId: 'r1', ids: ['b'] })
+    expect(loadPractice('r1')).toEqual({ roomId: 'r1', ids: ['b'] })
+  })
+
+  // A tour cut off in room A (app killed) leaves A's record; a later tour in room B must not
+  // clear or overwrite it, so A's next open still takes A's practice furniture out.
+  it('cross_room: a tour in another room ending with no practice leaves the first room\'s record', () => {
+    savePractice({ roomId: 'A', ids: ['x'] })
+    const { onFinish } = open(vi.fn(), 'B')
+    done()
+    expect(onFinish).toHaveBeenCalledWith('done')
+    expect(loadPractice('A')).toEqual({ roomId: 'A', ids: ['x'] })
+  })
+
+  it('cross_room: a tour in another room with practice (kept, removed, skipped, interrupted) leaves the first room\'s record', () => {
+    savePractice({ roomId: 'A', ids: ['x'] })
+    const first = open(vi.fn(), 'B')
+    practise()
+    expect(loadPractice('B')).toEqual({ roomId: 'B', ids: ['b'] })
+    expect(loadPractice('A')).toEqual({ roomId: 'A', ids: ['x'] })
+    done()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
+    expect(loadPractice('B')).toBeNull()
+    expect(loadPractice('A')).toEqual({ roomId: 'A', ids: ['x'] })
+    first.unmount()
+
+    useRoomStore.setState({ furniture: [a] })
+    open(vi.fn(), 'B')
+    practise()
+    act(() => { window.dispatchEvent(new Event(TOUR_SKIP_EVENT)) })
+    expect(loadPractice('B')).toBeNull()
+    expect(loadPractice('A')).toEqual({ roomId: 'A', ids: ['x'] })
   })
 })
 

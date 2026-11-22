@@ -365,7 +365,7 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     expect(ids()).toEqual(['a', 'b'])
     rerender(page({ roomReady: true }))
     expect(ids()).toEqual(['a'])
-    expect(loadPractice()).toBeNull()
+    expect(loadPractice(room.id)).toBeNull()
   })
 
   it('pending_practice_other_room: another room\'s record is left alone', async () => {
@@ -374,7 +374,18 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     render(page({ roomReady: true }))
     await screen.findByText('wall')
     expect(ids()).toEqual(['a', 'b'])
-    expect(loadPractice()).toEqual({ roomId: 'other', ids: ['b'] })
+    expect(loadPractice('other')).toEqual({ roomId: 'other', ids: ['b'] })
+  })
+
+  it('pending_practice_per_room: a record of another room written later does not hide this room\'s', async () => {
+    place('a'); place('b')
+    savePractice({ roomId: room.id, ids: ['b'] })
+    savePractice({ roomId: 'other', ids: ['z'] })
+    render(page({ roomReady: true }))
+    await screen.findByText('wall')
+    expect(ids()).toEqual(['a'])
+    expect(loadPractice(room.id)).toBeNull()
+    expect(loadPractice('other')).toEqual({ roomId: 'other', ids: ['z'] })
   })
 
   it('pending practice is not cleaned up while a tour is open', async () => {
@@ -383,7 +394,7 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     const { rerender } = render(page({ roomReady: true, active: true, step: 'surface' }))
     await screen.findByText('wall')
     expect(ids()).toEqual(['a', 'b'])
-    expect(loadPractice()).not.toBeNull()
+    expect(loadPractice(room.id)).not.toBeNull()
     rerender(page({ roomReady: true, active: false }))
     expect(ids()).toEqual(['a'])
   })

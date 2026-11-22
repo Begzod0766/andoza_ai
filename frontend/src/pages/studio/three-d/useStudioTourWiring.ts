@@ -74,8 +74,8 @@ export function useStudioTourWiring<V>({ active, ready, setReady, onStart, onEnd
 /**
  * Takes out the practice furniture a tour left behind when it was cut off (the page closed, the
  * app killed), once per room open: as soon as the server's copy of the room is in the store, so
- * the removal is saved, and never while a tour is open. A record of another room is left for
- * that room.
+ * the removal is saved, and never while a tour is open. Each room has its own record
+ * (tourPractice's per-room key), so another room's is left for that room.
  */
 export function usePendingPracticeCleanup({ roomId, roomReady, tourActive }: {
   roomId: string;
@@ -86,9 +86,9 @@ export function usePendingPracticeCleanup({ roomId, roomReady, tourActive }: {
   useEffect(() => {
     if (!roomReady || tourActive || doneFor.current === roomId) return;
     doneFor.current = roomId;
-    const record = loadPractice();
-    if (!record || record.roomId !== roomId) return;
+    const record = loadPractice(roomId);
+    if (!record) return;
     useRoomStore.getState().removeFurnitureMany(record.ids);
-    clearPractice();
+    clearPractice(roomId);
   }, [roomId, roomReady, tourActive]);
 }
