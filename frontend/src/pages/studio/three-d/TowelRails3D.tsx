@@ -145,10 +145,13 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
       const hit = new THREE.Vector3();
       if (!raycaster.ray.intersectPlane(h.plane, hit)) return;
       const at = dragToPositionMm(geometry, h.rail.wallId, hit.x, hit.z);
-      // Nowhere on its wall for it (#370 a): it stays, and says why, once a drag.
-      if (at != null && !moveTowelRail(h.rail.id, at) && !h.told) {
+      if (at == null) return;
+      // Nowhere on its wall for it (#370 a), or none the way it is dragged (QA #380): it stays, and says why, once a drag.
+      const moved = moveTowelRail(h.rail.id, at);
+      if (moved !== "ok" && !h.told) {
         h.told = true;
-        showToast({ variant: "warning", title: i18n.t("studio.three_d.quritgich_joy_yoq", { sm: Math.round(railSize(h.rail).w / 10) }) });
+        const sm = Math.round(railSize(h.rail).w / 10);
+        showToast({ variant: "warning", title: moved === "no-room" ? i18n.t("studio.three_d.quritgich_joy_yoq", { sm }) : i18n.t("studio.three_d.quritgich_bu_tomonga_joy_yoq", { sm }) });
       }
     },
     onEnd: (started) => {

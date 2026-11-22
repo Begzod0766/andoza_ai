@@ -134,7 +134,8 @@ export function cutSpans(spans: Array<[number, number]>, wallId: string, others:
  * The free place on the wall nearest to `positionMm`, or null when the wall has none. With
  * `stayNearMm` (where a rail being dragged is now) only the free stretch that holds it is looked at,
  * so a drag stops at a door's edge instead of jumping to its far side (mobile QA 2026-11-11 #3).
- * A rail keeps clear of `others` too: the washing machines (2026-11-14).
+ * A rail keeps clear of `others` too: the washing machines (2026-11-14). Null when the wall has no free
+ * place, or (dragged out of a taken stretch) none the way it is dragged.
  */
 export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: number, stayNearMm?: number, others: readonly WallTaken[] = [], halfMm: number = HALF): number | null {
   let best: number | null = null
@@ -148,7 +149,8 @@ export function nearestFree(geometry: RoomGeometry, wallId: string, positionMm: 
     if (way && (at - stayNearMm!) * way < 0) continue
     if (best == null || Math.abs(at - positionMm) < Math.abs(best - positionMm)) best = at
   }
-  if (best == null && way) return nearestFree(geometry, wallId, positionMm, undefined, others, halfMm)
+  // Nothing free that way: null, so the rail stays (QA #380). Falling back to the nearest free place anywhere
+  // sent a rail dragged left off a basin to the wall's far right end, the only free stretch (221 sm).
   return best
 }
 

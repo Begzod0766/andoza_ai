@@ -104,10 +104,10 @@ export function DesignPanelDock({
              its pipe runs in view above (mobile QA 2026-11-09 #1); every other stage takes the right
              half, so the wall being finished stays in view. */
           isPlumbingPhase(activePhase)
-            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-hidden flex flex-col bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full'}`
-            : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full'}`,
+            ? `fixed inset-x-0 bottom-0 z-50 w-full max-h-[60vh] rounded-t-3xl shadow-2xl transition-transform duration-300 ease-in-out overflow-hidden flex flex-col bg-card ${showPanel ? 'translate-y-0' : 'translate-y-full pointer-events-none'}`
+            : `fixed top-0 right-0 bottom-0 z-50 w-1/2 shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto bg-card ${showPanel ? 'translate-x-0' : 'translate-x-full pointer-events-none'}`,
           /* desktop override */
-          'lg:static lg:block lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto lg:border-l lg:border-line',
+          'lg:static lg:block lg:pointer-events-auto lg:translate-x-0 lg:translate-y-0 lg:w-auto lg:h-full lg:max-h-none lg:rounded-none lg:shadow-none lg:z-auto lg:overflow-auto lg:border-l lg:border-line',
         ].join(' ')}
       >
         {/* Mobile close button — replaces the old drag-to-dismiss handle,
