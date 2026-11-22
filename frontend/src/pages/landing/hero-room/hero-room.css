@@ -123,3 +123,23 @@
   outline: 2px solid #ff9340;
   outline-offset: 2px;
 }
+
+/* "How it works": the same blue sheet, small, one per step */
+.how-board {
+  overflow: hidden;
+  border-radius: 22px;
+  background-color: #0f2766;
+  background-image:
+    linear-gradient(rgba(190, 208, 255, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(190, 208, 255, 0.075) 1px, transparent 1px);
+  background-size: 20px 20px;
+  box-shadow: 0 30px 60px -34px rgba(15, 39, 102, 0.6);
+  aspect-ratio: 1 / 0.86;
+  transition: opacity 0.4s;
+}
+.how-svg {
+  height: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .how-board { transition: none; }
+}
