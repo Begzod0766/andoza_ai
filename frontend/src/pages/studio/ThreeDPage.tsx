@@ -496,7 +496,8 @@ export default function ThreeDPage() {
     ready: studioTourReady({ compact, panorama, cameraStation, planShown }) && catalogSettled,
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
-    onEnd: markTapHintSeen,
+    // The wall picked on the first step goes when the tour does (the spec closes it at the end).
+    onEnd: () => { setSelectedWall(null); clearAllSelections(); markTapHintSeen(); },
     // The stage and panel the tour opened on come back when it ends (or before its practice question).
     view: { roomId: room.id, viewStage, activePhase },
     restoreView: (v) => {
@@ -510,6 +511,17 @@ export default function ThreeDPage() {
   useLayoutEffect(() => {
     if (studioTourActive && radial) { closeRadial(); disarmOpening(); }
   }, [studioTourActive, radial]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The wall picked on the "tap a wall" step stays lit while its ✓ shows, and is let go once
+  // the tour moves on: it is practice, not a choice the later steps act on.
+  const prevTourStep = useRef(studioTourStep);
+  useEffect(() => {
+    const was = prevTourStep.current;
+    prevTourStep.current = studioTourStep;
+    if (was === "surface" && studioTourStep !== "surface" && studioTourActive) {
+      setSelectedWall(null);
+      clearAllSelections();
+    }
+  }, [studioTourStep, studioTourActive]); // eslint-disable-line react-hooks/exhaustive-deps
   // On the "tap a wall" step only the 3D itself is there to tap: the buttons over it go. On the
   // furniture step too, all but the arc (its target): the ring's spotlight is a big square
   // bottom-right that, on a narrow phone, would leave the camera bar and its buttons tappable.

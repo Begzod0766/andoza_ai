@@ -32,8 +32,11 @@ vi.mock('@/lib/api', async (orig) => ({
 // ThreeDPage with its R3F scene swapped for a wall button. A tap on a wall reaches the wall
 // mesh first (focusSurface) and then its group (the radial menu's onClick), as r3f bubbles it.
 vi.mock('../three-d/ThreeDCanvasScene', () => ({
-  ThreeDCanvasScene: (p: { focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void } }) => (
-    <button onClick={() => { p.focusSurface('w1'); p.holdBind('wall', 'w1').onClick({ clientX: 5, clientY: 5 }) }}>wall</button>
+  ThreeDCanvasScene: (p: { selectedWall: string | null; focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void } }) => (
+    <>
+      <button onClick={() => { p.focusSurface('w1'); p.holdBind('wall', 'w1').onClick({ clientX: 5, clientY: 5 }) }}>wall</button>
+      <p data-testid="selected-wall">{String(p.selectedWall)}</p>
+    </>
   ),
 }))
 vi.mock('@/components/studio/SurfaceRadialMenu', async (orig) => ({
@@ -383,6 +386,29 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     expect(picked).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('radial')).toBeNull()
     off()
+  })
+
+  it('wall_unselected_after_surface_step: the wall picked on step 1 is let go once the step is done, and at the end', async () => {
+    const wall = () => screen.getByTestId('selected-wall')
+    const { rerender } = render(page({ active: true, step: 'surface' }))
+    fireEvent.click(await screen.findByText('wall'))
+    // still selected while the step shows its check
+    expect(wall()).toHaveTextContent('w1')
+    rerender(page({ active: true, step: 'furniture' }))
+    expect(wall()).toHaveTextContent('null')
+
+    // the tour ending on the surface step lets it go too
+    rerender(page({ active: true, step: 'surface' }))
+    fireEvent.click(screen.getByText('wall'))
+    expect(wall()).toHaveTextContent('w1')
+    rerender(page({ active: false, step: null }))
+    expect(wall()).toHaveTextContent('null')
+  })
+
+  it('wall_selection_untouched_without_a_tour', async () => {
+    render(page())
+    fireEvent.click(await screen.findByText('wall'))
+    expect(screen.getByTestId('selected-wall')).toHaveTextContent('w1')
   })
 
   it('arc_open_only_on_furniture_step', async () => {
