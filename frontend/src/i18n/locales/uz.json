@@ -1007,39 +1007,38 @@
     "dizayn_bekor_izoh": "Xona dizayni boshlang'ich holatga qaytadi. Bu amalni ortga qaytarib bo'lmaydi.",
     "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
     "tour": {
-      "scene": {
-        "title": "Sahna",
-        "body": "Devor yoki polga bosing: shu joy uchun asboblar chiqadi (rang, plitka, oboy va boshqalar)"
+      "surface": {
+        "body": "Devor yoki polga bosing"
       },
-      "arc": {
-        "title": "Bo'limlar",
-        "body": "Bo'limlar: Mebel, Santexnika, Rang, Chiroq"
+      "furniture": {
+        "body": "Mebel qo'shing: Mebel → xona → buyum"
+      },
+      "stage": {
+        "body": "Bosqichni almashtiring"
       },
       "menu": {
-        "title": "Menyu",
-        "body": "⋮ → Smeta: narxlar, material va ish ro'yxati, PDF"
+        "body": "Smeta va PDF shu yerda"
       },
       "undo": {
-        "title": "Bekor qilish",
-        "body": "Oxirgi amalni bekor qilish va qaytarish"
+        "body": "Oxirgi amalni bekor qilish"
       },
       "lock": {
-        "title": "Qulf",
-        "body": "Kamerani qotiradi: ekranni surganda xona aylanmaydi"
+        "body": "Kamerani qotirish"
       },
       "camera": {
-        "title": "Kamera",
-        "body": "Tayyor kameralar va realistik render"
+        "body": "Tayyor kameralar va render"
       },
       "help": {
-        "title": "Qo'llanma",
         "body": "Qo'llanmani istalgan payt qayta ko'ring"
       },
       "next": "Keyingi",
       "skip": "O'tkazib yuborish",
       "done": "Tushunarli",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Qo'llanma"
+      "help_btn": "Qo'llanma",
+      "practice_question": "Mashqda qo'shilgan mebel qoldirilsinmi?",
+      "practice_remove": "Olib tashlash",
+      "practice_keep": "Qoldirish"
     },
     "santexnika": {
       "title": "Santexnika",

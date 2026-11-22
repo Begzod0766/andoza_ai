@@ -25,7 +25,7 @@ import { focusFraming } from "@/lib/focusFraming";
 import { RoomSwitchCamera } from "./RoomSwitchCamera";
 import { OpeningLeaves } from "@/components/studio/DoorLeaves";
 import { ViewLockGate } from "./ViewLockGate";
-import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import {
   OrbitControls,
   PerformanceMonitor,
@@ -153,6 +153,19 @@ type CutExtras = Pick<RoomContent, 'furniture' | 'lights' | 'electricals' | 'des
 /** A room cut where the selected room grows into it (lib/clipRoom). */
 type RoomCut = { id: string; from: { x: number; z: number }; content: RoomContent };
 
+/** Calls `onDrawn` once, on the first frame it is rendered in — and again on the next frame
+ *  after `onDrawn` changes (the page hands a new one for another room). */
+function FirstFrame({ onDrawn }: { onDrawn?: () => void }) {
+  const done = useRef(false);
+  useEffect(() => { done.current = false; }, [onDrawn]);
+  useFrame(() => {
+    if (done.current) return;
+    done.current = true;
+    onDrawn?.();
+  });
+  return null;
+}
+
 /**
  * The 3D studio's R3F <Canvas> tree: lighting/environment, the room shell
  * (walls/floor/ceiling), every draggable overlay layer (furniture, lights,
@@ -178,7 +191,7 @@ export function ThreeDCanvasScene({
   selectedLightId, selectLight,
   topMinDist, maxPolarAngle,
   cam, presetVersion, setPresetVersion,
-  setDpr, setDeclineCount,
+  setDpr, setDeclineCount, onSceneDrawn,
 }: {
   glAttempt: number;
   setGlAttempt: Dispatch<SetStateAction<number>>;
@@ -252,6 +265,8 @@ export function ThreeDCanvasScene({
   maxPolarAngle: number;
   setDpr: Dispatch<SetStateAction<number | [number, number]>>;
   setDeclineCount: Dispatch<SetStateAction<number>>;
+  /** Called once, on the first frame drawn with the room in it (the Studio tour waits for it). */
+  onSceneDrawn?: () => void;
 }) {
   /** Which room the user is looking at alone, or null for the whole flat.
    *  Local to the canvas: nothing outside it cares which room is focused. */
@@ -1270,6 +1285,9 @@ export function ThreeDCanvasScene({
           controlsRef={controlsRef}
           onEmpty={() => setPresetVersion((n) => n + 1)}
         />
+        {/* Last in the Suspense: it mounts once everything above has loaded, so its first
+            frame is the first one with the room drawn. */}
+        <FirstFrame onDrawn={onSceneDrawn} />
       </Suspense>
     </Canvas>
     </CanvasErrorBoundary>

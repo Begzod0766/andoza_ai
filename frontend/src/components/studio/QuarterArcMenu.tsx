@@ -51,6 +51,9 @@ export interface ArcCategory {
   items: ArcItem[]
   /** Shown in place of an empty outer ring, as a single button. */
   emptyItem?: ArcItem
+  /** Names this category for the Studio tour: its button gets `data-tour="arc-<tourKey>"`
+   *  and the open ring `arc-<tourKey>-ring-<depth>`. */
+  tourKey?: string
 }
 
 /** Finger travel, in slot units, past which a drag stops counting as a tap. */
@@ -75,6 +78,7 @@ export function QuarterArcMenu({
   onOpenChange,
   tourId,
   closed = false,
+  tourOnly,
 }: {
   categories: ArcCategory[]
   /** Accessible name for the group of corner buttons. */
@@ -88,6 +92,9 @@ export function QuarterArcMenu({
   tourId?: string
   /** While true the menu is folded away (the Studio tour runs over it). */
   closed?: boolean
+  /** The Studio tour's furniture step: only the category with this `tourKey` (and its rings)
+   *  can be tapped; every other category is dimmed and disabled. */
+  tourOnly?: string
 }) {
   const { t } = useTranslation()
   const buttonLabel = label ?? t('studio.arc.add')
@@ -251,9 +258,18 @@ export function QuarterArcMenu({
     if (item.closesMenu) closeAll()
   }
 
+  // The Studio tour's hand goes on a real button of the open ring: the first that opens a ring
+  // of its own (the room's own type comes first under Mebel, but may have no models), else the
+  // first. Its label is at its foot, so the hand comes from above.
+  const handFor = open && active?.tourKey ? `arc-${active.tourKey}-ring-${trail.length}` : null
+  const handIndex = Math.max(0, outer.findIndex((it) => it.items?.length))
+
   function renderOuterButton(item: ArcItem, pos: { dx: number; dy: number }, opacity: number, i: number, slotKey: number | string) {
+    const hand = handFor !== null && i === handIndex && opacity >= 0.5
     return (
       <button
+        data-tour-hand-for={hand ? handFor : undefined}
+        data-tour-hand-from={hand ? 'above' : undefined}
         key={`${activeKey}:${trail.map((t) => t.key).join('/')}:${slotKey}`}
         onPointerDown={(e) => { e.stopPropagation(); onDragStart(e) }}
         onPointerMove={onDragMove}
@@ -340,6 +356,36 @@ export function QuarterArcMenu({
             }}
           />
         )}
+        {/* The open outer ring's footprint, for the tour: the ring the finger is
+            on is `ring-<depth>` (rooms 0, a room's models 1). */}
+        {open && active?.tourKey && (
+          <div
+            data-tour={`arc-${active.tourKey}-ring-${trail.length}`}
+            aria-hidden="true"
+            className="absolute pointer-events-none"
+            style={{
+              right: 0,
+              bottom: 0,
+              width: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
+              height: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
+            }}
+          >
+            {/* Where the tour's hand points when its button (data-tour-hand-for below)
+                is scrolled off the ring: on the outer ring itself, halfway round (225
+                degrees from the arc's centre). The footprint's centre is on the category
+                ring, so a hand there pointed at the wrong ring. */}
+            <span
+              data-tour-hand-at
+              className="absolute"
+              style={{
+                right: ANCHOR / 2 + ARC_RADIUS_OUTER * Math.SQRT1_2 - 1,
+                bottom: ANCHOR / 2 + ARC_RADIUS_OUTER * Math.SQRT1_2 - 1,
+                width: 2,
+                height: 2,
+              }}
+            />
+          </div>
+        )}
         {/* Outer ring — the active category's own things. Rendered first so
             the category buttons paint over it where the rings crowd. */}
         {open && outerRing.slots
@@ -358,14 +404,19 @@ export function QuarterArcMenu({
         ).map(({ cat, pos, i, opacity, slotKey }) => {
           const { dx, dy } = pos
           const isActive = cat.key === activeKey
+          const locked = tourOnly !== undefined && cat.tourKey !== tourOnly
           return (
             <button
               key={slotKey}
-              onPointerDown={(e) => { e.stopPropagation(); onDragStart(e) }}
-              onPointerMove={onDragMove}
-              onPointerUp={() => onDragEnd()}
+              // A locked category (the tour keeps the finger on another) keeps its pointer
+              // events and swallows the tap: let through, it fell on the tap-outside scrim
+              // behind and closed the open ring.
+              onPointerDown={(e) => { e.stopPropagation(); if (!locked) onDragStart(e) }}
+              onPointerMove={locked ? (e) => e.stopPropagation() : onDragMove}
+              onPointerUp={(e) => { if (locked) e.stopPropagation(); else onDragEnd() }}
               onClick={(e) => {
                 e.stopPropagation()
+                if (locked) return
                 if (didDrag.current) return
                 // A different category starts its own ring at the beginning.
                 setOffset((o) => ({ ...o, outer: 0 }))
@@ -383,7 +434,10 @@ export function QuarterArcMenu({
                 setActiveKey((k) => (k === cat.key ? null : cat.key))
               }}
               aria-pressed={isActive}
-              className={`pointer-events-auto absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
+              disabled={locked}
+              aria-disabled={locked || undefined}
+              data-tour={cat.tourKey ? `arc-${cat.tourKey}` : undefined}
+              className={`pointer-events-auto ${locked ? 'saturate-0' : ''} absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
                 isActive ? 'bg-brand text-white ring-brand/40' : 'bg-white text-brand ring-black/5'
               }`}
               style={{
@@ -392,7 +446,8 @@ export function QuarterArcMenu({
                 width: catSize,
                 height: catSize,
                 transform: 'translate(-50%, -50%)',
-                opacity,
+                // Dimmed while the tour keeps the finger on another category.
+                opacity: locked ? opacity * 0.4 : opacity,
                 // Grows and slides out of the corner on open, back in on
                 // close — but not while a drag is turning the ring, which it
                 // would only lag behind. Staggered along the arc so the fan

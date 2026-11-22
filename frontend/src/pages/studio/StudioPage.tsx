@@ -33,10 +33,10 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { StudioMenu } from "@/components/studio/StudioMenu";
 import { useAppThemeAttribute } from "@/hooks/useAppThemeAttribute";
 import { DiscardDesignMenuItem } from "@/components/studio/DiscardDesignMenuItem";
-import { StudioTour, isTourTargetShown } from "@/components/studio/StudioTour";
+import { StudioTour, isTourTargetShown, type StudioTourFinishReason } from "@/components/studio/StudioTour";
 import {
   STUDIO_TOUR_STEPS, isStudioTourDone, markStudioTourDone, presentSteps, shouldStartStudioTour,
-  type StudioTourTarget,
+  type StudioTourStep, type StudioTourStepId,
 } from "@/lib/studioTour";
 
 // Read live at navigation time (not from the last render): a save marks the
@@ -111,7 +111,9 @@ export default function StudioPage() {
   // It opens only with at least one target on screen, so a tour that showed nothing is never
   // remembered as seen.
   const [tourReady, setStudioTourReady] = useState(false);
-  const [tourSteps, setTourSteps] = useState<StudioTourTarget[] | null>(null);
+  const [tourSteps, setTourSteps] = useState<StudioTourStep[] | null>(null);
+  // The step on screen, for the 3D view (it hides its buttons on the "tap a wall" step).
+  const [tourStep, setTourStep] = useState<StudioTourStepId | null>(null);
   // Once the tour has been on screen it never starts on its own again here: with a storage that
   // will not keep "done", it would reopen the moment Skip closed it.
   const tourShownRef = useRef(false);
@@ -127,23 +129,11 @@ export default function StudioPage() {
     setTourSteps(steps);
   };
   const tourOpen = tourSteps !== null;
-  useEffect(() => {
-    if (tourOpen || !tourReady) return;
-    if (tourReplayPending) {
-      setTourReplayPending(false);
-      openTour();
-      return;
-    }
-    if (!tourShownRef.current && shouldStartStudioTour({ done: isStudioTourDone(), compact, editingView: tourReady })) openTour();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- openTour reads only setters and the DOM
-  }, [compact, tourReady, tourOpen, tourReplayPending]);
-  const onTourHelp = () => {
-    if (tourReady) openTour();
-    else setTourReplayPending(true);
-  };
-  const finishTour = () => {
+  // Every ending is remembered for now; the reason matters once the tour cleans up after itself.
+  const finishTour = (_reason: StudioTourFinishReason) => {
     markStudioTourDone();
     setTourSteps(null);
+    setTourStep(null);
   };
 
   // "Ulashish" (Share) — a room-level action like Save, hence living in the
@@ -589,6 +579,26 @@ export default function StudioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiRoom]);
 
+  // The tour (see above) opens once the room has finished loading — its server copy is in the
+  // store, or there is none to wait for (offline, an error): the tour counts furniture added
+  // after it opened as practice, so furniture still arriving must not be.
+  const roomLoaded = settledRoomId === roomId || apiRoom === null || !!error;
+  const tourCanOpen = tourReady && roomLoaded;
+  useEffect(() => {
+    if (tourOpen || !tourCanOpen) return;
+    if (tourReplayPending) {
+      setTourReplayPending(false);
+      openTour();
+      return;
+    }
+    if (!tourShownRef.current && shouldStartStudioTour({ done: isStudioTourDone(), compact, editingView: tourCanOpen })) openTour();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- openTour reads only setters and the DOM
+  }, [compact, tourCanOpen, tourOpen, tourReplayPending]);
+  const onTourHelp = () => {
+    if (tourCanOpen) openTour();
+    else setTourReplayPending(true);
+  };
+
   // 404 with no local data → show not-found
   if (fetchStatus === "notfound" && !isDirty) {
     return (
@@ -608,8 +618,11 @@ export default function StudioPage() {
           space back. Three columns: [back+title] auto-width and left-aligned,
           [tabs] takes the remaining space and centers within it, [save+menu]
           auto-width on the right. */}
+      {/* data-tour-cover: the Studio tour keeps the header in its shade, even where it floats
+          over the scene the first step spotlights (StudioTour's `uncovered`). */}
       <header
         ref={headerRef}
+        data-tour-cover
         className={
           floatingHeader
             ? // Clicks through the empty parts reach the scene; the buttons keep theirs.
@@ -856,11 +869,11 @@ export default function StudioPage() {
             </div>
           }
         >
-          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId, studioTourActive: tourOpen, setStudioTourReady }} />
+          <Outlet context={{ room, onSave: handleSave, tabSlot: tabSlotEl, menuSlot: menuSlotEl, closeMenu: () => setMenuOpen(false), setOverlayHeader, roomReady: settledRoomId === roomId, studioTourActive: tourOpen, studioTourStep: tourStep, setStudioTourReady }} />
         </Suspense>
       </main>
 
-      {tourSteps && <StudioTour steps={tourSteps} onFinish={finishTour} />}
+      {tourSteps && <StudioTour steps={tourSteps} roomId={roomId ?? "local"} onStepChange={setTourStep} onFinish={finishTour} />}
     </div>
   );
 }

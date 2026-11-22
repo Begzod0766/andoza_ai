@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CameraBar } from "./three-d/CameraBar";
 import { useRoomMoveStore } from "@/store/roomMoveStore";
 import { beginRoomSwitch } from "@/lib/roomSwitch";
@@ -76,8 +76,9 @@ import { ThreeDCanvasScene } from "./three-d/ThreeDCanvasScene";
 import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
-import { isStudioTourDone } from "@/lib/studioTour";
-import { studioTourReady, useStudioTourWiring } from "./three-d/useStudioTourWiring";
+import { isStudioTourDone, type StudioTourStepId } from "@/lib/studioTour";
+import { emitTourEvent } from "@/lib/studioTourEvents";
+import { studioTourReady, usePendingPracticeCleanup, useStudioTourWiring, useWaitOver } from "./three-d/useStudioTourWiring";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -132,6 +133,8 @@ export interface StudioContext {
   roomReady?: boolean;
   /** The Studio tour is on screen (StudioPage owns it); rings and selections are put away. */
   studioTourActive?: boolean;
+  /** The tour's current step, null while none is on screen. */
+  studioTourStep?: StudioTourStepId | null;
   /** Tells StudioPage whether this is a live editing view the tour can run over. */
   setStudioTourReady?: (ready: boolean) => void;
 }
@@ -140,9 +143,12 @@ export interface StudioContext {
 
 export type { PhaseKey } from "@/lib/phases"
 
+/** How long the tour waits for the furniture catalog (or the scene's first frame) before opening without it. */
+const CATALOG_WAIT_MS = 8_000;
+
 export default function ThreeDPage() {
   const { t } = useTranslation()
-  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, setStudioTourReady } = useOutletContext<StudioContext>();
+  const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, studioTourStep = null, setStudioTourReady } = useOutletContext<StudioContext>();
   const compact = useCompactStudio();
   const geometry = useRoomStore((s) => s.geometry);
   const designState = useRoomStore((s) => s.designState);
@@ -161,7 +167,7 @@ export default function ThreeDPage() {
   // Only pieces with a 3-D model: photo-only shop listings (the demo stores)
   // cannot be placed, and must not push real models out of these 100.
   const setCatalogFurniture = useRoomStore((s) => s.setCatalogFurniture);
-  const { data: catalogFurniturePage } = useQuery({
+  const { data: catalogFurniturePage, isSuccess: catalogLoaded, isError: catalogFailed, fetchStatus: catalogFetchStatus } = useQuery({
     queryKey: ['catalog-furniture'],
     queryFn: () => listCatalogFurniture({ per_page: 100, has_model: true }),
     staleTime: 60_000,
@@ -169,6 +175,10 @@ export default function ThreeDPage() {
   useEffect(() => {
     if (catalogFurniturePage) setCatalogFurniture(catalogFurniturePage.items);
   }, [catalogFurniturePage, setCatalogFurniture]);
+  // The tour's furniture step is there only if the arc has furniture to show (read from the
+  // store), and its step list is fixed as it opens: it waits while the catalog query is still
+  // pending — loaded, failed or paused offline all count as settled.
+  const catalogQuerySettled = catalogLoaded || catalogFailed || catalogFetchStatus === "paused";
 
   // Same orientation the scene uses: X is wall A, Z is wall B
   const { W, D } = roomExtents(geometry, { W: room.length, D: room.width });
@@ -483,13 +493,56 @@ export default function ThreeDPage() {
   // The Studio tour (StudioPage owns it) runs over the live editing view on a phone — lock or
   // no lock — and finds nothing stranded on screen when it starts. TapHint says what its first
   // step says, so it is folded in: hidden until the tour is done, and seen when it ends.
+  // A catalog that never answers must not hold the tour (or its "?" replay) back for good: it
+  // counts as settled CATALOG_WAIT_MS after the view first became ready for the tour.
+  const tourViewReady = studioTourReady({ compact, panorama, cameraStation, planShown });
+  const catalogWaitOver = useWaitOver(tourViewReady, catalogQuerySettled, CATALOG_WAIT_MS);
+  // Nor does the tour open over a blank canvas: it waits for the scene's first frame with the
+  // room in it — or, if WebGL never draws one, the same wait from the view being ready.
+  // Per room: the page stays mounted across a room switch, and a "?" replay must not open
+  // before the new room's first frame. A new callback makes the scene report its next frame.
+  const [sceneDrawnFor, setSceneDrawnFor] = useState<string | null>(null);
+  const sceneDrawn = sceneDrawnFor === room.id;
+  const onSceneDrawn = useCallback(() => setSceneDrawnFor(room.id), [room.id]);
+  const sceneWaitOver = useWaitOver(tourViewReady, sceneDrawn, CATALOG_WAIT_MS);
   useStudioTourWiring({
     active: studioTourActive,
-    ready: studioTourReady({ compact, panorama, cameraStation, planShown }),
+    ready: tourViewReady && (catalogQuerySettled || catalogWaitOver) && (sceneDrawn || sceneWaitOver),
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
-    onEnd: markTapHintSeen,
+    // The wall picked on the first step goes when the tour does (the spec closes it at the end).
+    onEnd: () => { setSelectedWall(null); clearAllSelections(); markTapHintSeen(); },
+    // The stage and panel the tour opened on come back when it ends (or before its practice question).
+    view: { roomId: room.id, viewStage, activePhase },
+    restoreView: (v) => {
+      if (v.roomId !== room.id) return;
+      setViewStage(v.viewStage);
+      setActivePhase(v.activePhase);
+    },
   });
+  // While the tour is on, a tap on a surface only does its step: the ring it opens (the group's
+  // click runs after the wall's own, focusSurface) is put away again before it paints.
+  useLayoutEffect(() => {
+    if (studioTourActive && radial) { closeRadial(); disarmOpening(); }
+  }, [studioTourActive, radial]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The wall picked on the "tap a wall" step stays lit while its ✓ shows, and is let go once
+  // the tour moves on: it is practice, not a choice the later steps act on.
+  const prevTourStep = useRef(studioTourStep);
+  useEffect(() => {
+    const was = prevTourStep.current;
+    prevTourStep.current = studioTourStep;
+    if (was === "surface" && studioTourStep !== "surface" && studioTourActive) {
+      setSelectedWall(null);
+      clearAllSelections();
+    }
+  }, [studioTourStep, studioTourActive]); // eslint-disable-line react-hooks/exhaustive-deps
+  // On the "tap a wall" step only the 3D itself is there to tap: the buttons over it go. On the
+  // furniture step too, all but the arc (its target): the ring's spotlight is a big square
+  // bottom-right that, on a narrow phone, would leave the camera bar and its buttons tappable.
+  const tourHidesFloating = studioTourStep === "surface" || studioTourStep === "furniture";
+  const tourHidesArc = studioTourStep === "surface";
+  // A tour cut off last time left practice furniture in this room: out it goes once the room is in.
+  usePendingPracticeCleanup({ roomId: room.id, roomReady, tourActive: studioTourActive });
   const tapHintShown = shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })
     && !studioTourActive && (!compact || isStudioTourDone());
 
@@ -508,6 +561,16 @@ export default function ThreeDPage() {
     // opens on the same click — so we no longer force the paint panel here.
     setSelOpening(null);
     setSelectedWall(id);
+    // The tour's "tap a wall" step is done; its ring is closed by the effect beside the tour wiring.
+    if (studioTourActive) { emitTourEvent("surface-picked"); closeRadial(); }
+  }
+
+  /** A furniture pick. On the tour's "tap a wall" step it does the step too: the scene's
+   *  middle is often a piece of furniture, and a tap there must not leave the step hanging. The
+   *  pick is let go with the wall once the step moves on (the effect beside the tour wiring). */
+  function pickFurniture(id: string | null) {
+    selectFurniture(id);
+    if (id && studioTourActive && studioTourStep === "surface") emitTourEvent("surface-picked");
   }
 
   /**
@@ -916,7 +979,7 @@ export default function ThreeDPage() {
             viewport ('3d', the default). z-20 matches the other corner
             controls: above the canvas and z-10 clusters, below the drop
             overlay (z-40). */}
-        {(isMebelTab || isChiroqTab) && (
+        {(isMebelTab || isChiroqTab) && !tourHidesFloating && (
           <div className="absolute top-16 right-3 z-20 flex items-center gap-2">
             <PlanViewToggle
               view={isMebelTab ? mebelView : chiroqView}
@@ -964,6 +1027,9 @@ export default function ThreeDPage() {
           // The first tap on the view also closes the phone hint; it does not stop
           // the tap, so the surface's menu still opens.
           data-tour="scene"
+          // The tour's hand points at the upper part of the view, where the walls are (its
+          // middle is often furniture).
+          data-tour-hand-y="0.3"
           onPointerDownCapture={() => { if (tapHintShown) markTapHintSeen(); }}
         >
 
@@ -975,8 +1041,10 @@ export default function ThreeDPage() {
           {/* z-30 like the tap hint, under every sheet; while the stage list is open it goes over the
               3D's own floating buttons (drei <Html>, z 83) too. */}
           <div className={`pointer-events-none absolute inset-x-3 top-16 flex flex-col items-start gap-2 lg:top-3 lg:items-center ${stageListOpen ? 'z-[90]' : 'z-30'}`}>
-            <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
-            <StageBanner />
+            {!tourHidesFloating && <>
+              <MobileStagePicker stages={stages} view={viewStage} onPick={pickStage} onFull={() => setViewStage('full')} onOpenChange={setStageListOpen} />
+              <StageBanner />
+            </>}
           </div>
 
           {tapHintShown && (
@@ -1033,7 +1101,7 @@ export default function ThreeDPage() {
           )}
 
           {/* Mebelirovka quick actions — doors/windows editor + 3D model import */}
-          {isMebelTab && (
+          {isMebelTab && !tourHidesFloating && (
             // top-28 below sm: the 2D/3D + view-mode row (also at
             // top-16, right-anchored) spans nearly the whole width on phones
             // and would run over these pills; from sm up both tiers fit.
@@ -1065,7 +1133,7 @@ export default function ThreeDPage() {
 
           {/* Bottom-left: the cameras, the lock, "My renders" and the chosen
               camera's Render — see CameraBar. */}
-          <CameraBar
+          {!tourHidesFloating && <CameraBar
             listOpen={cameraListOpen}
             onToggleList={() => setCameraListOpen((open) => !open)}
             onPick={enterCamera}
@@ -1083,20 +1151,22 @@ export default function ThreeDPage() {
             moveRoomsOn={moveRoomsOn}
             onToggleMoveRooms={toggleMoveRooms}
             flatShown={(aptRooms?.length ?? 0) > 1}
-          />
+          />}
 
           {/* Bottom-right corner: the arc menu, mobile only — desktop reaches
               all of this from the design panel and the tools drawer, neither
               of which a phone shows without a detour. Sits beside the CTA
               above rather than replacing it: that button adds whatever suits
               the current phase, this one names the three outright. */}
-          {showsEditingCorners({ panorama, cameraStation }) && <div className="lg:hidden">
+          {showsEditingCorners({ panorama, cameraStation }) && !tourHidesArc && <div className="lg:hidden">
             <QuarterArcMenu
               className="bottom-1 right-1"
               label={t("studio.qoshish_menyusi")}
               categories={arcCategories}
               tourId="arc"
-              closed={studioTourActive}
+              closed={studioTourActive && studioTourStep !== "furniture"}
+              // The furniture step's hole holds the whole arc: only Mebel may be tapped in it.
+              tourOnly={studioTourActive && studioTourStep === "furniture" ? "mebel" : undefined}
             />
           </div>}
 
@@ -1155,7 +1225,7 @@ export default function ThreeDPage() {
             }}
             toolMode={toolMode}
             selectedFurId={selectedFurId}
-            selectFurniture={selectFurniture}
+            selectFurniture={pickFurniture}
             // Not while a camera station or the 360 is on: every render and saved frame is taken from one.
             onOpenFixtures={panorama || cameraStation != null ? undefined : openFixtures}
             onOpenPipes={panorama || cameraStation != null ? undefined : openPipes}
@@ -1176,6 +1246,7 @@ export default function ThreeDPage() {
             maxPolarAngle={maxPolarAngle}
             setDpr={setDpr}
             setDeclineCount={setDeclineCount}
+            onSceneDrawn={onSceneDrawn}
           />
         </div>
         </div>

@@ -1007,39 +1007,38 @@
     "dizayn_bekor_izoh": "The room's design goes back to the start. This cannot be undone.",
     "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
     "tour": {
-      "scene": {
-        "title": "Scene",
-        "body": "Tap a wall or the floor: tools for that spot appear (colour, tile, wallpaper and more)"
+      "surface": {
+        "body": "Tap a wall or the floor"
       },
-      "arc": {
-        "title": "Sections",
-        "body": "Sections: Furniture, Plumbing, Paint, Lighting"
+      "furniture": {
+        "body": "Add furniture: Furniture → room → item"
+      },
+      "stage": {
+        "body": "Change the stage"
       },
       "menu": {
-        "title": "Menu",
-        "body": "⋮ → Estimate: prices, materials and work list, PDF"
+        "body": "Estimate and PDF are here"
       },
       "undo": {
-        "title": "Undo",
-        "body": "Undo and redo the last action"
+        "body": "Undo the last action"
       },
       "lock": {
-        "title": "Lock",
-        "body": "Locks the camera: the room does not rotate when you drag the screen"
+        "body": "Lock the camera"
       },
       "camera": {
-        "title": "Camera",
-        "body": "Preset cameras and realistic render"
+        "body": "Preset cameras and render"
       },
       "help": {
-        "title": "Guide",
         "body": "Watch the guide again any time"
       },
       "next": "Next",
       "skip": "Skip",
       "done": "Got it",
       "step_of": "{{current}}/{{total}}",
-      "help_btn": "Guide"
+      "help_btn": "Guide",
+      "practice_question": "Keep the furniture you added while practising?",
+      "practice_remove": "Remove",
+      "practice_keep": "Keep"
     },
     "santexnika": {
       "title": "Plumbing",
