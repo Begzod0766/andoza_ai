@@ -763,6 +763,9 @@ export function ThreeDCanvasScene({
         // and on a phone a long press is the ONLY way to that menu, so it
         // fires on every single hold. These stop it being offered; the
         // handler below stops it being shown where it still is.
+        // The 3D view's gestures are the app's, the labels and buttons drawn over the canvas included:
+        // a pinch begun on one zoomed the whole page (mobile QA #372 5).
+        touchAction: "none",
         WebkitTouchCallout: "none",
         WebkitUserSelect: "none",
         userSelect: "none",

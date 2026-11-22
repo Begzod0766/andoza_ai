@@ -126,6 +126,9 @@
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
+    /* No double-tap zoom (mobile QA #372 3): iOS kept every tap waiting on a possible second one, and the
+       first gesture after a sheet or the wall ring closed was lost. Pinch-zoom of pages stays. */
+    touch-action: manipulation;
     -moz-osx-font-smoothing: grayscale;
   }
 

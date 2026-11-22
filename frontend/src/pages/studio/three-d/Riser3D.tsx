@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import type { ViewStage } from "@/lib/stageView";
 import * as THREE from "three";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
@@ -8,6 +8,7 @@ import type { RoomGeometry } from "@/store/types";
 import { plumbingLayerShown } from "@/lib/plumbingStageOn";
 import { riserPose, riserSpot, roomRiser, RISER_OFF_WALL_M, RISER_RADIUS_M, type RiserAt } from "@/lib/plumbingRuns";
 import { raycastInFront, railPointerHandlers } from "./TowelRails3D";
+import { usePressDrag } from "./pressDrag";
 
 export { riserPose, RISER_OFF_WALL_M };
 
@@ -46,43 +47,24 @@ export function Riser3D({ controlsRef, hiddenWalls }: {
   const setPlumbingRiser = useRoomStore((s) => s.setPlumbingRiser);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
-  const [dragging, setDragging] = useState(false);
-
-  useEffect(() => {
-    if (!dragging) return;
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -DRAG_PLANE_Y);
-    const hit = new THREE.Vector3();
-    const move = (e: PointerEvent) => {
+  // A press on the riser is a drag only once it moves, so a pinch on it zooms (QA #372 6; as a rail's).
+  const drag = usePressDrag(controlsRef, camera, {
+    onBegin: () => {
+      useRoomStore.getState().beginRiserDrag();
+      document.body.style.cursor = "grabbing";
+    },
+    onMove: (e) => {
       const r = gl.domElement.getBoundingClientRect();
       raycaster.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-      if (!raycaster.ray.intersectPlane(plane, hit)) return;
+      const hit = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -DRAG_PLANE_Y), hit)) return;
       setPlumbingRiser(riserDragTo(geometry, hit.x, hit.z));
-    };
-    const end = () => {
-      useRoomStore.getState().endRiserDrag();
-      setDragging(false);
-      if (controlsRef.current) controlsRef.current.enabled = true;
+    },
+    onEnd: (started) => {
+      if (started) useRoomStore.getState().endRiserDrag();
       document.body.style.cursor = "";
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", end);
-    window.addEventListener("pointercancel", end);
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
-    };
-  }, [dragging, geometry, camera, gl, raycaster, setPlumbingRiser, controlsRef]);
-
-  // The scene can go away mid-drag: the drag ends with it, or undo stays paused and the camera locked.
-  const draggingRef = useRef(false);
-  draggingRef.current = dragging;
-  useEffect(() => () => {
-    if (!draggingRef.current) return;
-    useRoomStore.getState().endRiserDrag();
-    if (controlsRef.current) controlsRef.current.enabled = true;
-    document.body.style.cursor = "";
-  }, [controlsRef]);
+    },
+  });
 
   const riser = roomRiser(geometry, manual);
   const pose = riserPose(riser, geometry);
@@ -92,10 +74,7 @@ export function Riser3D({ controlsRef, hiddenWalls }: {
   const start = (e: ThreeEvent<PointerEvent>) => {
     if (e.button !== 0) return;   // a right-click is not a drag
     e.stopPropagation();
-    useRoomStore.getState().beginRiserDrag();
-    setDragging(true);
-    if (controlsRef.current) controlsRef.current.enabled = false;
-    document.body.style.cursor = "grabbing";
+    drag.press({ pointerId: e.pointerId, clientX: e.nativeEvent.clientX, clientY: e.nativeEvent.clientY });
   };
 
   return (
