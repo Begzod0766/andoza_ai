@@ -144,6 +144,9 @@ export interface StudioContext {
 
 export type { PhaseKey } from "@/lib/phases"
 
+/** How long the tour waits for the furniture catalog before opening without it. */
+const CATALOG_WAIT_MS = 8_000;
+
 export default function ThreeDPage() {
   const { t } = useTranslation()
   const { room, onSave, tabSlot, menuSlot, closeMenu, setOverlayHeader, roomReady = false, studioTourActive = false, studioTourStep = null, setStudioTourReady } = useOutletContext<StudioContext>();
@@ -165,7 +168,7 @@ export default function ThreeDPage() {
   // Only pieces with a 3-D model: photo-only shop listings (the demo stores)
   // cannot be placed, and must not push real models out of these 100.
   const setCatalogFurniture = useRoomStore((s) => s.setCatalogFurniture);
-  const { data: catalogFurniturePage, isError: catalogFailed } = useQuery({
+  const { data: catalogFurniturePage, isSuccess: catalogLoaded, isError: catalogFailed, fetchStatus: catalogFetchStatus } = useQuery({
     queryKey: ['catalog-furniture'],
     queryFn: () => listCatalogFurniture({ per_page: 100, has_model: true }),
     staleTime: 60_000,
@@ -173,10 +176,10 @@ export default function ThreeDPage() {
   useEffect(() => {
     if (catalogFurniturePage) setCatalogFurniture(catalogFurniturePage.items);
   }, [catalogFurniturePage, setCatalogFurniture]);
-  // The tour's furniture step is there only if the arc has furniture to show, and its step list is
-  // fixed as it opens: it waits until the catalog has loaded (and reached the store) or failed.
-  const storeCatalog = useRoomStore((s) => s.catalogFurniture);
-  const catalogSettled = catalogFailed || (catalogFurniturePage !== undefined && storeCatalog === catalogFurniturePage.items);
+  // The tour's furniture step is there only if the arc has furniture to show (read from the
+  // store), and its step list is fixed as it opens: it waits while the catalog query is still
+  // pending — loaded, failed or paused offline all count as settled.
+  const catalogQuerySettled = catalogLoaded || catalogFailed || catalogFetchStatus === "paused";
 
   // Same orientation the scene uses: X is wall A, Z is wall B
   const { W, D } = roomExtents(geometry, { W: room.length, D: room.width });
@@ -491,9 +494,20 @@ export default function ThreeDPage() {
   // The Studio tour (StudioPage owns it) runs over the live editing view on a phone — lock or
   // no lock — and finds nothing stranded on screen when it starts. TapHint says what its first
   // step says, so it is folded in: hidden until the tour is done, and seen when it ends.
+  // A catalog that never answers must not hold the tour (or its "?" replay) back for good: it
+  // counts as settled CATALOG_WAIT_MS after the view first became ready for the tour.
+  const tourViewReady = studioTourReady({ compact, panorama, cameraStation, planShown });
+  const [catalogWaitOver, setCatalogWaitOver] = useState(false);
+  // Started once, not restarted when the view stops being ready for a while; cleared on unmount.
+  const catalogWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!tourViewReady || catalogQuerySettled || catalogWaitTimer.current) return;
+    catalogWaitTimer.current = setTimeout(() => setCatalogWaitOver(true), CATALOG_WAIT_MS);
+  }, [tourViewReady, catalogQuerySettled]);
+  useEffect(() => () => { if (catalogWaitTimer.current) clearTimeout(catalogWaitTimer.current); }, []);
   useStudioTourWiring({
     active: studioTourActive,
-    ready: studioTourReady({ compact, panorama, cameraStation, planShown }) && catalogSettled,
+    ready: tourViewReady && (catalogQuerySettled || catalogWaitOver),
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
     // The wall picked on the first step goes when the tour does (the spec closes it at the end).

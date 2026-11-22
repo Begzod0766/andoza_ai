@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, act, renderHook, waitFor } from '@testing-library/react'
 import { useEffect } from 'react'
 import { MemoryRouter, Outlet, Route, Routes, useOutletContext } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
 import i18n from '@/i18n'
 import type { StudioContext } from '../ThreeDPage'
 import { STUDIO_TOUR_KEY } from '@/lib/studioTour'
@@ -10,7 +10,7 @@ import { studioTourReady, useStudioTourWiring, usePendingPracticeCleanup } from 
 import { emitTourEvent, onTourEvent } from '@/lib/studioTourEvents'
 import { loadPractice, savePractice } from '@/lib/tourPractice'
 import { useRoomStore } from '@/store/roomStore'
-import { getRoom, listCatalogFurniture } from '@/lib/api'
+import { getRoom, getCatalogFurniture, listCatalogFurniture, type CatalogFurniture } from '@/lib/api'
 import type { StudioTourStepId } from '@/lib/studioTour'
 
 let compact = true
@@ -27,6 +27,7 @@ vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   getRoom: vi.fn().mockResolvedValue({ id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }),
   listCatalogFurniture: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, per_page: 100 }),
+  getCatalogFurniture: vi.fn(),
 }))
 
 // ThreeDPage with its R3F scene swapped for a wall button. A tap on a wall reaches the wall
@@ -371,6 +372,62 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     expect(setReady).not.toHaveBeenCalledWith(true)
     await act(async () => { reject(new Error('offline')) })
     await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  const shopRow = (id: string) => ({ id, name_uz: 'Divan', category: 'divan', room_type: 'mehmonxona', store_id: null, store_name: null, placement: 'pol', price_uzs: null, glb_url: 'x.glb', thumbnail_url: null, footprint_w: 100, footprint_d: 50 }) as CatalogFurniture
+
+  it('catalog_settled: a model placed from a link (?place=) that is not in the catalog does not block the tour', async () => {
+    const placeId = '11111111-2222-4333-8444-555555555555'
+    vi.mocked(listCatalogFurniture).mockResolvedValueOnce({ items: [shopRow('sofa')], total: 1, page: 1, per_page: 100 } as Awaited<ReturnType<typeof listCatalogFurniture>>)
+    vi.mocked(getCatalogFurniture).mockResolvedValueOnce(shopRow(placeId))
+    const setReady = vi.fn()
+    render(page({ setReady, at: `/studio/r1?place=${placeId}` }))
+    await screen.findByText('wall')
+    await waitFor(() => expect(useRoomStore.getState().catalogFurniture.map((f) => f.id)).toEqual(['sofa', placeId]))
+    await act(async () => {})
+    expect(setReady).toHaveBeenLastCalledWith(true)
+  })
+
+  it('catalog_settled: offline (the catalog query paused) the tour opens', async () => {
+    onlineManager.setOnline(false)
+    try {
+      const setReady = vi.fn()
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+    } finally {
+      onlineManager.setOnline(true)
+    }
+  })
+
+  describe('a slow catalog', () => {
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true }) })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('under 8 s: the tour waits, and when it opens the catalog (the furniture step) is in the store', async () => {
+      let resolve: (v: unknown) => void = () => {}
+      vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise((r) => { resolve = r }) as ReturnType<typeof listCatalogFurniture>)
+      const catalogAtReady: number[] = []
+      const setReady = vi.fn((r: boolean) => { if (r) catalogAtReady.push(useRoomStore.getState().catalogFurniture.length) })
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(5000) })
+      expect(setReady).not.toHaveBeenCalledWith(true)
+      await act(async () => { resolve({ items: [shopRow('sofa')], total: 1, page: 1, per_page: 100 }) })
+      await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+      expect(catalogAtReady[0]).toBe(1)
+    })
+
+    it('never answering: the tour is let open 8 s after the view was ready', async () => {
+      vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise(() => {}) as ReturnType<typeof listCatalogFurniture>)
+      const setReady = vi.fn()
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(7500) })
+      expect(setReady).not.toHaveBeenCalledWith(true)
+      await act(async () => { vi.advanceTimersByTime(600) })
+      expect(setReady).toHaveBeenLastCalledWith(true)
+    })
   })
 
   it('surface_pick_emits_and_closes_radial', async () => {
