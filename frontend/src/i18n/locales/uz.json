@@ -1007,7 +1007,6 @@
     "tap_hint": "Devor, pol yoki shiftni bosing — rang va materialni tanlang.",
     "tour": {
       "surface": {
-        "title": "Sahna",
         "body": "Devor yoki polga bosing"
       },
       "furniture": {
@@ -1016,28 +1015,19 @@
       "stage": {
         "body": "Bosqichni almashtiring"
       },
-      "arc": {
-        "title": "Bo'limlar",
-        "body": "Bo'limlar: Mebel, Santexnika, Rang, Chiroq"
-      },
       "menu": {
-        "title": "Menyu",
-        "body": "⋮ → Smeta: narxlar, material va ish ro'yxati, PDF"
+        "body": "Smeta va PDF shu yerda"
       },
       "undo": {
-        "title": "Bekor qilish",
-        "body": "Oxirgi amalni bekor qilish va qaytarish"
+        "body": "Oxirgi amalni bekor qilish"
       },
       "lock": {
-        "title": "Qulf",
-        "body": "Kamerani qotiradi: ekranni surganda xona aylanmaydi"
+        "body": "Kamerani qotirish"
       },
       "camera": {
-        "title": "Kamera",
-        "body": "Tayyor kameralar va realistik render"
+        "body": "Tayyor kameralar va render"
       },
       "help": {
-        "title": "Qo'llanma",
         "body": "Qo'llanmani istalgan payt qayta ko'ring"
       },
       "next": "Keyingi",

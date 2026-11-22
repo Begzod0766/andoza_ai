@@ -19,11 +19,12 @@ export function MobileStagePicker({ stages, view, onPick, onFull, onOpenChange }
 }) {
   const { t } = useTranslation();
   const [open, setOpenState] = useState(false);
-  const setOpen = (next: boolean | ((v: boolean) => boolean)) => setOpenState((v) => {
-    const value = typeof next === "function" ? next(v) : next;
-    if (value !== v) onOpenChange?.(value);
-    return value;
-  });
+  const setOpen = (next: boolean | ((v: boolean) => boolean)) => {
+    const value = typeof next === "function" ? next(open) : next;
+    if (value === open) return;
+    setOpenState(value);
+    onOpenChange?.(value);
+  };
   const full = t("studio.stage_view.full");
   const current = view === "full" ? full : t(stages.find((s) => s.key === view)?.labelKey ?? "studio.stage_view.full");
   const item = (active: boolean) =>

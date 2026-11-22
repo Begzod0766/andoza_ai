@@ -1007,7 +1007,6 @@
     "tap_hint": "Tap a wall, the floor or the ceiling to pick a colour and material.",
     "tour": {
       "surface": {
-        "title": "Scene",
         "body": "Tap a wall or the floor"
       },
       "furniture": {
@@ -1016,28 +1015,19 @@
       "stage": {
         "body": "Change the stage"
       },
-      "arc": {
-        "title": "Sections",
-        "body": "Sections: Furniture, Plumbing, Paint, Lighting"
-      },
       "menu": {
-        "title": "Menu",
-        "body": "⋮ → Estimate: prices, materials and work list, PDF"
+        "body": "Estimate and PDF are here"
       },
       "undo": {
-        "title": "Undo",
-        "body": "Undo and redo the last action"
+        "body": "Undo the last action"
       },
       "lock": {
-        "title": "Lock",
-        "body": "Locks the camera: the room does not rotate when you drag the screen"
+        "body": "Lock the camera"
       },
       "camera": {
-        "title": "Camera",
-        "body": "Preset cameras and realistic render"
+        "body": "Preset cameras and render"
       },
       "help": {
-        "title": "Guide",
         "body": "Watch the guide again any time"
       },
       "next": "Next",

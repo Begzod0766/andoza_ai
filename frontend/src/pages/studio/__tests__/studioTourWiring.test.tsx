@@ -42,6 +42,9 @@ vi.mock('@/components/studio/SurfaceRadialMenu', async (orig) => ({
 vi.mock('@/components/studio/QuarterArcMenu', () => ({
   QuarterArcMenu: ({ tourId, closed }: { tourId?: string; closed?: boolean }) => <div data-tour={tourId} data-closed={String(!!closed)} />,
 }))
+vi.mock('../three-d/DesignPanelDock', () => ({
+  DesignPanelDock: ({ activePhase }: { activePhase: string }) => <div data-testid="dock" data-phase={activePhase} />,
+}))
 
 import StudioPage from '../StudioPage'
 import ThreeDPage from '../ThreeDPage'
@@ -343,11 +346,15 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     await screen.findByText('wall')
     expect(useRoomStore.getState().viewStage).toBe('full')
     rerender(page({ active: true, step: 'stage' }))
+    const openedOn = screen.getByTestId('dock').getAttribute('data-phase')
     fireEvent.click(q('stage') as HTMLElement)
-    fireEvent.click((q('stage-list') as HTMLElement).querySelector('button') as HTMLElement)
+    const buttons = (q('stage-list') as HTMLElement).querySelectorAll('button')
+    fireEvent.click(buttons[0])
     expect(useRoomStore.getState().viewStage).not.toBe('full')
+    expect(screen.getByTestId('dock')).not.toHaveAttribute('data-phase', openedOn)
     act(() => emitTourEvent('restore-view'))
     expect(useRoomStore.getState().viewStage).toBe('full')
+    expect(screen.getByTestId('dock')).toHaveAttribute('data-phase', openedOn)
   })
 
   it('pending_practice_same_room: the furniture an interrupted tour left is taken out once the room is ready', async () => {
