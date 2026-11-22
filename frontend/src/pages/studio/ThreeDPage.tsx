@@ -506,8 +506,11 @@ export default function ThreeDPage() {
   useLayoutEffect(() => {
     if (studioTourActive && radial) { closeRadial(); disarmOpening(); }
   }, [studioTourActive, radial]); // eslint-disable-line react-hooks/exhaustive-deps
-  // On the "tap a wall" step only the 3D itself is there to tap: the buttons over it go.
-  const tourHidesFloating = studioTourStep === "surface";
+  // On the "tap a wall" step only the 3D itself is there to tap: the buttons over it go. On the
+  // furniture step too, all but the arc (its target): the ring's spotlight is a big square
+  // bottom-right that, on a narrow phone, would leave the camera bar and its buttons tappable.
+  const tourHidesFloating = studioTourStep === "surface" || studioTourStep === "furniture";
+  const tourHidesArc = studioTourStep === "surface";
   // A tour cut off last time left practice furniture in this room: out it goes once the room is in.
   usePendingPracticeCleanup({ roomId: room.id, roomReady, tourActive: studioTourActive });
   const tapHintShown = shouldShowTapHint({ seen: tapHintSeen, locked: viewLocked })
@@ -938,7 +941,7 @@ export default function ThreeDPage() {
             viewport ('3d', the default). z-20 matches the other corner
             controls: above the canvas and z-10 clusters, below the drop
             overlay (z-40). */}
-        {(isMebelTab || isChiroqTab) && (
+        {(isMebelTab || isChiroqTab) && !tourHidesFloating && (
           <div className="absolute top-16 right-3 z-20 flex items-center gap-2">
             <PlanViewToggle
               view={isMebelTab ? mebelView : chiroqView}
@@ -1114,7 +1117,7 @@ export default function ThreeDPage() {
               of which a phone shows without a detour. Sits beside the CTA
               above rather than replacing it: that button adds whatever suits
               the current phase, this one names the three outright. */}
-          {showsEditingCorners({ panorama, cameraStation }) && !tourHidesFloating && <div className="lg:hidden">
+          {showsEditingCorners({ panorama, cameraStation }) && !tourHidesArc && <div className="lg:hidden">
             <QuarterArcMenu
               className="bottom-1 right-1"
               label={t("studio.qoshish_menyusi")}

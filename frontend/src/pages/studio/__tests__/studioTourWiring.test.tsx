@@ -278,13 +278,14 @@ describe('the studio tour, StudioPage side (task 7)', () => {
 
 describe('the studio tour, ThreeDPage side (task 7)', () => {
   const room = { id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }
-  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean }
-  const page = ({ active = false, step = null, roomReady = true }: Ctx = {}) => (
+  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean; at?: string }
+  const page = ({ active = false, step = null, roomReady = true, at = '/studio/r1' }: Ctx = {}) => (
     <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={['/studio/r1']}>
+      <MemoryRouter initialEntries={[at]}>
         <Routes>
           <Route path="/studio/:roomId" element={<Outlet context={{ room, onSave: async () => {}, roomReady, studioTourActive: active, studioTourStep: step } as unknown as StudioContext} />}>
             <Route index element={<ThreeDPage />} />
+            <Route path="mebel" element={<ThreeDPage />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -311,9 +312,37 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     expect(q('arc')).toBeNull()
     expect(q('stage')).toBeNull()
     expect(q('scene')).not.toBeNull()
-    rerender(page({ active: true, step: 'furniture' }))
+    rerender(page({ active: true, step: 'menu' }))
     expect(q('lock')).not.toBeNull()
     expect(q('arc')).not.toBeNull()
+  })
+
+  it('furniture_step_hides_floating_buttons but keeps the arc (its spotlight would leave them tappable)', async () => {
+    const { rerender } = render(page())
+    await screen.findByText('wall')
+    rerender(page({ active: true, step: 'furniture' }))
+    expect(q('lock')).toBeNull()
+    expect(q('camera')).toBeNull()
+    expect(q('stage')).toBeNull()
+    expect(q('arc')).not.toBeNull()
+    expect(q('scene')).not.toBeNull()
+  })
+
+  it('surface_and_furniture_steps_hide_the_mebel_pills and the 2D/3D toggle', async () => {
+    const toggle = () => screen.queryByRole('switch', { name: i18n.t('studio.plan_toggle.aria') })
+    const doors = () => screen.queryByTitle(i18n.t('studio.eshik_deraza_tahrirlash'))
+    const { rerender } = render(page({ at: '/studio/r1/mebel' }))
+    await screen.findByText('wall')
+    expect(toggle()).not.toBeNull()
+    expect(doors()).not.toBeNull()
+    for (const step of ['surface', 'furniture'] as const) {
+      rerender(page({ at: '/studio/r1/mebel', active: true, step }))
+      expect(toggle()).toBeNull()
+      expect(doors()).toBeNull()
+    }
+    rerender(page({ at: '/studio/r1/mebel', active: true, step: 'menu' }))
+    expect(toggle()).not.toBeNull()
+    expect(doors()).not.toBeNull()
   })
 
   it('surface_pick_emits_and_closes_radial', async () => {
