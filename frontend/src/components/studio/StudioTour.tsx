@@ -9,6 +9,10 @@ import { TourHand } from "./TourHand";
 const PAD = 8;
 const GAP = 12;
 const ARROW = 8;
+/** The card's side gutters. */
+const GUTTER = 16;
+/** The ✓ badge (h-12): beside a target smaller than this, not over its text. */
+const CHECK = 48;
 /** How long the ✓ of a finished `do` step shows before the next step. */
 const CHECK_MS = 600;
 /** The hand shows the gesture again after this long without a tap. */
@@ -413,28 +417,40 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // (a big target can leave no room either side, and the card then sits over its edge).
   const wanted = vh - bottom >= top ? bottom + GAP : top - GAP - cardH;
   const cardTop = Math.max(PAD, Math.min(wanted, vh - cardH - PAD));
-  const cardStyle = { top: cardTop, maxHeight: vh - 2 * PAD };
   const cx = box.left + box.width / 2;
   const cy = box.top + box.height / 2;
   const handX = spot.hand?.x ?? cx;
   const handY = spot.hand?.y ?? cy;
 
-  // A show step's arrow: a CSS triangle on the card's edge, pointing at the target, when the
-  // card sits clear of it. The card is `inset-x-4 mx-auto max-w-sm` (16px gutters, 384px max).
-  const cardW = Math.min(vw - 32, 384);
-  const cardLeft = (vw - cardW) / 2;
+  // The card: 16px gutters, 384px at most, centred under (or over) the target as far as the
+  // view allows — in landscape a centred card left its arrow ~190px short of a corner button.
+  const cardW = Math.min(vw - 2 * GUTTER, 384);
+  const cardLeft = Math.max(GUTTER, Math.min(cx - cardW / 2, vw - GUTTER - cardW));
+  const cardStyle = { top: cardTop, left: cardLeft, width: cardW, maxHeight: vh - 2 * PAD };
+  // A show step's arrow: a CSS triangle on the card's edge, pointing at the target's centre
+  // (clear of the card's rounded corners), when the card sits clear of the target.
   const arrowLeft = Math.max(cardLeft + 16, Math.min(cx, cardLeft + cardW - 16)) - ARROW;
   const arrow = isDo ? null
     : cardTop >= bottom ? { top: cardTop - ARROW, up: true }
     : cardTop + cardH <= top ? { top: cardTop + cardH, up: false }
     : null;
 
+  // The ✓ of a done step: over a big target's centre (the scene), beside a small one (the
+  // stage pill), so it does not hide the text the user has just changed.
+  const small = box.width < 3 * CHECK && box.height < 3 * CHECK;
+  const check = !small ? { left: cx, top: cy }
+    : right + GAP + CHECK <= vw ? { left: right + GAP + CHECK / 2, top: cy }
+    : { left: Math.max(CHECK / 2, left - GAP - CHECK / 2), top: cy };
+
   const body = t(`studio.tour.${id}.body`);
+  // On a do step Skip is a small text link, so the counter row stays one compact line.
   const skip = (
     <button
       type="button"
       onClick={() => finish("skip")}
-      className="shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10"
+      className={isDo
+        ? "shrink-0 rounded px-1 py-0.5 text-xs font-medium text-ink-muted underline-offset-2 hover:underline"
+        : "shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-ink-muted hover:bg-ink/10"}
     >
       {t("studio.tour.skip")}
     </button>
@@ -479,33 +495,45 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
           data-tour-check
           aria-hidden="true"
           className="fixed flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-brand text-2xl font-bold text-white shadow-lg"
-          style={{ left: cx, top: cy }}
+          style={check}
         >
           ✓
         </div>
       )}
       {arrow && (
-        <div
-          data-tour-arrow
-          aria-hidden="true"
-          className={`fixed h-0 w-0 border-x-8 border-x-transparent ${arrow.up ? "border-b-8 border-b-card" : "border-t-8 border-t-card"}`}
-          style={{ left: arrowLeft, top: arrow.top }}
-        />
+        <>
+          {/* An outline in the card ring's colour, a pixel larger, so the notch reads against
+              a light scene as well as the card does. */}
+          <div
+            data-tour-arrow-outline
+            aria-hidden="true"
+            className={`fixed h-0 w-0 border-x-[9px] border-x-transparent drop-shadow-md ${arrow.up ? "border-b-[9px] border-b-line" : "border-t-[9px] border-t-line"}`}
+            style={{ left: arrowLeft - 1, top: arrow.up ? arrow.top - 1 : arrow.top }}
+          />
+          <div
+            data-tour-arrow
+            aria-hidden="true"
+            className={`fixed h-0 w-0 border-x-8 border-x-transparent ${arrow.up ? "border-b-8 border-b-card" : "border-t-8 border-t-card"}`}
+            style={{ left: arrowLeft, top: arrow.top }}
+          />
+        </>
       )}
       <div
         ref={cardRef}
         role="dialog"
         aria-modal={isDo ? undefined : "true"}
         aria-label={body}
-        className="pointer-events-auto fixed inset-x-4 mx-auto max-w-sm overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
+        className="pointer-events-auto fixed overflow-y-auto rounded-2xl bg-card p-4 text-ink shadow-lg ring-1 ring-line"
         style={cardStyle}
       >
         {isDo ? (
-          <div className="flex items-center gap-3">
-            {counter}
-            <p className="min-w-0 flex-1 text-sm font-medium">{body}</p>
-            {skip}
-          </div>
+          <>
+            <p className="text-sm font-medium">{body}</p>
+            <div className="mt-1.5 flex items-center justify-between gap-3">
+              {counter}
+              {skip}
+            </div>
+          </>
         ) : (
           <>
             <p className="text-sm">{body}</p>

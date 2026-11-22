@@ -197,6 +197,51 @@ describe('StudioTour', () => {
   })
 })
 
+describe('StudioTour card placement (visual check #6)', () => {
+  const size = { w: window.innerWidth, h: window.innerHeight }
+  const setView = (w: number, h: number) => {
+    Object.defineProperty(window, 'innerWidth', { value: w, configurable: true, writable: true })
+    Object.defineProperty(window, 'innerHeight', { value: h, configurable: true, writable: true })
+  }
+  afterEach(() => setView(size.w, size.h))
+
+  it('landscape: the arrow points at a target near the right edge, the card staying in the view', () => {
+    setView(844, 390)
+    rects.menu = { left: 790, top: 10, width: 40, height: 40 }
+    mount(['menu'])
+    const { container } = render(<StudioTour steps={tour('menu')} roomId="r1" onFinish={() => {}} />)
+    const arrow = container.querySelector('[data-tour-arrow]') as HTMLElement
+    expect(arrow).not.toBeNull()
+    const arrowCentre = parseFloat(arrow.style.left) + 8
+    expect(Math.abs(arrowCentre - 810)).toBeLessThanOrEqual(1)
+    const card = screen.getByRole('dialog')
+    const left = parseFloat(card.style.left)
+    const width = parseFloat(card.style.width)
+    expect(left).toBeGreaterThanOrEqual(16)
+    expect(left + width).toBeLessThanOrEqual(844 - 16)
+    // the arrow sits on the card's edge, inside its rounded corners
+    expect(arrowCentre).toBeGreaterThanOrEqual(left + 16)
+    expect(arrowCentre).toBeLessThanOrEqual(left + width - 16)
+  })
+
+  it('portrait phone: the card spans the width less the 16 px gutters', () => {
+    setView(390, 844)
+    mount(['menu'])
+    render(<StudioTour steps={tour('menu')} roomId="r1" onFinish={() => {}} />)
+    const card = screen.getByRole('dialog')
+    expect(card.style.left).toBe('16px')
+    expect(card.style.width).toBe('358px')
+  })
+
+  it('the arrow has an outline in the card ring\'s colour behind it', () => {
+    mount(['menu'])
+    const { container } = render(<StudioTour steps={tour('menu')} roomId="r1" onFinish={() => {}} />)
+    const outline = container.querySelector('[data-tour-arrow-outline]') as HTMLElement
+    expect(outline).not.toBeNull()
+    expect(outline.className).toMatch(/border-b-line|border-t-line/)
+  })
+})
+
 describe('StudioTour app bridge', () => {
   let posted: string[]
   beforeEach(() => {
@@ -505,6 +550,30 @@ describe('StudioTour do steps', () => {
     act(() => { vi.advanceTimersByTime(1100) })
     expect(hand()).not.toBeNull()
     expect(hand()).not.toBe(first)
+  })
+
+  it('do_card_layout: the body has its own line; the counter and a small Skip link share the row under it', () => {
+    mount(['scene'])
+    render(<StudioTour steps={[STEP('surface')]} roomId="r1" onFinish={() => {}} />)
+    const card = screen.getByRole('dialog')
+    const body = screen.getByText(i18n.t('studio.tour.surface.body'))
+    expect(card.firstElementChild).toBe(body)
+    const row = body.nextElementSibling as HTMLElement
+    const skip = screen.getByRole('button', { name: i18n.t('studio.tour.skip') })
+    expect(row.contains(skip)).toBe(true)
+    expect(row.contains(screen.getByText('1/1'))).toBe(true)
+    expect(skip.className).toMatch(/text-xs/)
+  })
+
+  it('check_beside_small_target: the check of a small target sits beside it, not over its text', () => {
+    mount(['stage'])
+    const { container } = render(<StudioTour steps={[STEP('stage'), STEP('furniture')]} roomId="r1" onFinish={() => {}} />)
+    act(() => { useRoomStore.setState({ viewStage: 'suvoq' }) })
+    const check = container.querySelector('[data-tour-check]') as HTMLElement
+    const r = rects.stage
+    const left = parseFloat(check.style.left)
+    // a 48 px badge centred at `left`: clear of the pill's box
+    expect(left - 24 >= r.left + r.width || left + 24 <= r.left).toBe(true)
   })
 
   it('show_step_keeps_next: the hole of a show step is a Next button', () => {
