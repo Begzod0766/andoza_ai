@@ -14,6 +14,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { CameraBar, type CameraBarProps } from '../CameraBar'
 import { RENDER_ASPECTS } from '@/lib/roomCameras'
+import i18n from '@/i18n'
 
 function props(over: Partial<CameraBarProps> = {}): CameraBarProps {
   return {
@@ -24,6 +25,7 @@ function props(over: Partial<CameraBarProps> = {}): CameraBarProps {
     savedCount: 3, onOpenGallery: vi.fn(),
     viewLocked: false, onToggleLock: vi.fn(),
     showMoveRooms: true, moveRoomsOn: false, onToggleMoveRooms: vi.fn(),
+    onOpenAi: vi.fn(),
     flatShown: true,
     ...over,
   }
@@ -109,5 +111,31 @@ describe('CameraBar', () => {
     expect(row().children[0].className).not.toMatch(/\binvisible\b/)
     expect(row().children[0]).toContainElement(screen.getByTestId('camera-list'))
     for (const el of others()) expect(el.getAttribute('class')).toMatch(/\binvisible\b/)
+  })
+})
+
+// The AI designer came out of the ⋮ menu to stand beside the move-rooms button (2026-11-22).
+describe('the AI designer button', () => {
+  const ai = () => screen.getByRole('button', { name: i18n.t('ai.builder_title') })
+
+  it('stands right after the move-rooms button and opens the designer', () => {
+    const p = props()
+    render(<CameraBar {...p} />)
+    const buttons = Array.from(row().children)
+    const aiIdx = buttons.findIndex((el) => el === ai())
+    expect(aiIdx).toBeGreaterThan(0)
+    expect(buttons[aiIdx - 1].getAttribute('aria-pressed')).not.toBeNull() // the move-rooms toggle
+    fireEvent.click(ai())
+    expect(p.onOpenAi).toHaveBeenCalled()
+  })
+
+  it('follows the lock when there is no move-rooms button (a one-room flat)', () => {
+    render(<CameraBar {...props({ showMoveRooms: false })} />)
+    expect(ai()).toBeInTheDocument()
+  })
+
+  it('steps aside with the rest of the row while the camera list is open', () => {
+    render(<CameraBar {...props({ listOpen: true })} />)
+    expect(ai().className).toMatch(/\binvisible\b/)
   })
 })

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { CAMERA_CHOICES, cameraLabel, cameraTitle, RENDER_ASPECTS, type RenderAspect } from "@/lib/roomCameras";
-import { CameraButton, LockButton } from "./CanvasButtons";
+import { AiDesignerButton, CameraButton, LockButton } from "./CanvasButtons";
 import { MoveRoomsButton } from "./RoomSlide";
 import { cameraRowRightInset, showsEditingCorners } from "./cameraViewChrome";
 
@@ -28,6 +28,8 @@ export interface CameraBarProps {
   showMoveRooms: boolean;
   moveRoomsOn: boolean;
   onToggleMoveRooms(): void;
+  /** Opens the AI designer — its button stands right after move-rooms. */
+  onOpenAi(): void;
   /** Whether the Flat toggle stands in the bottom-right corner (a flat of several rooms). */
   flatShown: boolean;
 }
@@ -132,6 +134,9 @@ export function CameraBar(p: CameraBarProps) {
 
         {/* Move rooms: X / Z arrows on a tapped room (RoomSlide.tsx). */}
         {p.showMoveRooms && <MoveRoomsButton active={p.moveRoomsOn} onClick={p.onToggleMoveRooms} className={hide} />}
+
+        {/* The AI designer, out of the ⋮ menu (2026-11-22). */}
+        <AiDesignerButton onClick={p.onOpenAi} className={hide} />
 
         {/* The pictures already made for this room, from any camera: looking
             at one again must not cost another render. */}

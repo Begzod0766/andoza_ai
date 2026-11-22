@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ToolsDrawerPanel } from './ToolsDrawerPanel'
+import i18n from '@/i18n'
 
 function renderPanel(onOpenSmeta?: () => void) {
   const slot = document.createElement('div')
@@ -15,7 +16,6 @@ function renderPanel(onOpenSmeta?: () => void) {
       sceneLightOn={false}
       sunHour={12}
       setSunHour={vi.fn()}
-      setShowAiSheet={vi.fn()}
       setShowPanel={vi.fn()}
       activeRoomId="r1"
       onOpenRoom={vi.fn()}
@@ -37,5 +37,12 @@ describe('the ⋮ menu smeta row', () => {
   it('is not there in a browser, where the header strip leads to it', () => {
     renderPanel()
     expect(screen.queryByRole('button', { name: 'Smeta' })).toBeNull()
+  })
+})
+
+describe('the ⋮ menu and the AI designer', () => {
+  it('no longer lists it: it is a button at the foot of the 3D view now (2026-11-22)', () => {
+    renderPanel()
+    expect(screen.queryByRole('button', { name: i18n.t('ai.builder_title') })).toBeNull()
   })
 })

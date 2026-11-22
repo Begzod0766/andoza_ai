@@ -40,3 +40,22 @@ export function LockButton({ locked, onClick, className = "", tourId }: { locked
     </button>
   );
 }
+
+/**
+ * The AI designer, beside the move-rooms button at the foot of the 3D view —
+ * it came out of the ⋮ menu at the user's request (2026-11-22), with the
+ * user's own icon. The icon is drawn as a mask in the button's text colour, so
+ * it follows the theme like the other icons here instead of a black picture
+ * vanishing on the dark card.
+ */
+export function AiDesignerButton({ onClick, className = "" }: { onClick: () => void; className?: string }) {
+  const { t } = useTranslation();
+  const label = t("ai.builder_title");
+  const mask = "url(/icons/ai-designer.png) center / contain no-repeat";
+  return (
+    <button onClick={onClick} title={label} aria-label={label} className={`${round} ${off} ${className}`}>
+      <span aria-hidden="true" className="block h-6 w-6 bg-current" style={{ mask, WebkitMask: mask }} />
+      <span className="hidden text-sm font-semibold md:inline" aria-hidden="true">{label}</span>
+    </button>
+  );
+}

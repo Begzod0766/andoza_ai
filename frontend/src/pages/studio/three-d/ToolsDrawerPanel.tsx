@@ -103,7 +103,6 @@ export function ToolsDrawerPanel({
   showQibla, setShowQibla,
   sceneLightOn,
   sunHour, setSunHour,
-  setShowAiSheet,
   rooms,
   activeRoomId,
   onOpenRoom,
@@ -119,7 +118,6 @@ export function ToolsDrawerPanel({
   sceneLightOn: boolean;
   sunHour: number;
   setSunHour: (hour: number) => void;
-  setShowAiSheet: Dispatch<SetStateAction<boolean>>;
   setShowPanel: Dispatch<SetStateAction<boolean>>;
   /** Every room of the flat, for the room list; absent while loading. */
   rooms?: readonly { id: string; name?: string | null }[];
@@ -251,22 +249,8 @@ export function ToolsDrawerPanel({
           </div>
           )}
 
-          {/* AI builder: a one-shot action rather than a toggle, told apart by
-              its orange (the app's warning accent) icon instead of a big
-              button of its own. */}
-          <button
-            onClick={() => { closeMenu?.(); setShowAiSheet(true); }}
-            title={t("ai.builder_title")}
-            aria-label={t("ai.builder_title")}
-            className={MENU_ROW}
-          >
-            <span className="w-[18px] h-[18px] shrink-0 rounded-full bg-warning text-white flex items-center justify-center" aria-hidden>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
-              </svg>
-            </span>
-            <span>{t("ai.builder_title")}</span>
-          </button>
+          {/* The AI designer moved out of this menu to a button at the foot
+              of the 3D view, beside move-rooms (2026-11-22) — see CameraBar. */}
     </div>,
     menuSlot,
   );

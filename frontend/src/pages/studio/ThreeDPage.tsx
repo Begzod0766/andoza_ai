@@ -941,7 +941,6 @@ export default function ThreeDPage() {
           sceneLightOn={sceneLightOn}
           sunHour={sunHour}
           setSunHour={setSunHour}
-          setShowAiSheet={setShowAiSheet}
           setShowPanel={setShowPanel}
           rooms={aptRooms}
           activeRoomId={room.id}
@@ -1150,6 +1149,7 @@ export default function ThreeDPage() {
             showMoveRooms={!viewLocked && (aptRooms?.length ?? 0) > 1}
             moveRoomsOn={moveRoomsOn}
             onToggleMoveRooms={toggleMoveRooms}
+            onOpenAi={() => setShowAiSheet(true)}
             flatShown={(aptRooms?.length ?? 0) > 1}
           />}
 
