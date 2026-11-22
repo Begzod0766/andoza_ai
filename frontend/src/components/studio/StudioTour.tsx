@@ -62,9 +62,31 @@ function locate(step: StudioTourStep): Spot | null {
   const deepest = step.kind === "do" ? step.targets.length - 1 : 0;
   for (let i = deepest; i >= 0; i--) {
     const found = boxOf(step.targets[i]);
-    if (found) return { target: step.targets[i], box: found.box, hand: handAt(found.el) };
+    if (found) return { target: step.targets[i], box: uncovered(found.el, found.box), hand: handAt(found.el) };
   }
   return null;
+}
+
+/**
+ * The target's box with every `[data-tour-cover]` element that lies over its top or bottom edge
+ * cut away (the Studio's floating header sits over the scene): the hole then stops at the
+ * header's foot and the shades cover the header too, so its buttons cannot be tapped mid-step.
+ * A cover holding the target itself (a header button's own step) is left alone.
+ */
+function uncovered(el: Element, box: Box): Box {
+  let top = box.top;
+  let bottom = box.top + box.height;
+  document.querySelectorAll("[data-tour-cover]").forEach((cover) => {
+    if (cover.contains(el)) return;
+    const r = cover.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return;
+    if (r.right <= box.left || r.left >= box.left + box.width) return;
+    // Over the top edge: the hole starts below it (PAD above the box is the hole's margin).
+    if (r.top <= top && r.bottom > top) top = Math.max(top, r.bottom + PAD);
+    else if (r.bottom >= bottom && r.top < bottom) bottom = Math.min(bottom, r.top - PAD);
+  });
+  if (top === box.top && bottom === box.top + box.height) return box;
+  return { ...box, top, height: Math.max(0, bottom - top) };
 }
 
 const sameSpot = (a: Spot | null, b: Spot) =>

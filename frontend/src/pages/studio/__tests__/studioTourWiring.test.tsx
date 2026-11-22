@@ -216,6 +216,15 @@ describe('the studio tour in StudioPage', () => {
     expect(document.querySelector('[data-tour="undo"]')).not.toBeNull()
     expect(document.querySelector('[data-tour="menu"]')).toHaveAttribute('aria-label', i18n.t('studio.menu.more'))
   })
+
+  it('header_covered: the header is marked for the tour to keep it in the shade on every step', async () => {
+    render(ui(true))
+    await screen.findByRole('dialog', { name: sceneTitle() })
+    const header = document.querySelector('header') as HTMLElement
+    expect(header).toHaveAttribute('data-tour-cover')
+    // its buttons (Back, "?", the menu) are under a shade, not in the surface step's hole
+    expect(header.contains(document.querySelector('[data-tour="help"]'))).toBe(true)
+  })
 })
 
 describe('studioTourReady (ThreeDPage)', () => {

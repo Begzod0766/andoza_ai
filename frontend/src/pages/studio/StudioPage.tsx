@@ -618,8 +618,11 @@ export default function StudioPage() {
           space back. Three columns: [back+title] auto-width and left-aligned,
           [tabs] takes the remaining space and centers within it, [save+menu]
           auto-width on the right. */}
+      {/* data-tour-cover: the Studio tour keeps the header in its shade, even where it floats
+          over the scene the first step spotlights (StudioTour's `uncovered`). */}
       <header
         ref={headerRef}
+        data-tour-cover
         className={
           floatingHeader
             ? // Clicks through the empty parts reach the scene; the buttons keep theirs.

@@ -39,7 +39,8 @@ beforeEach(() => {
   }
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     // A ring's hand anchor (QuarterArcMenu) is measured as `@hand`.
-    const id = this.getAttribute('data-tour') ?? (this.hasAttribute('data-tour-hand-at') ? '@hand' : null)
+    const id = this.getAttribute('data-tour')
+      ?? (this.hasAttribute('data-tour-hand-at') ? '@hand' : this.hasAttribute('data-tour-cover') ? '@cover' : null)
     if (this.getAttribute('role') === 'dialog') return rectOf({ left: 0, top: 0, width: 300, height: 200 })
     const r = id ? rects[id] : undefined
     return rectOf(r ?? { left: 0, top: 0, width: 0, height: 0 })
@@ -385,6 +386,36 @@ describe('StudioTour do steps', () => {
     expect(onStepChange).toHaveBeenLastCalledWith('furniture')
     act(() => { vi.advanceTimersByTime(300) })
     expect(onStepChange).toHaveBeenLastCalledWith('stage')
+  })
+
+  it('header_covered: a target under the floating header leaves the header in the shade', () => {
+    rects.scene = { left: 0, top: 0, width: 1024, height: 768 }
+    rects['@cover'] = { left: 0, top: 0, width: 1024, height: 60 }
+    const header = document.createElement('header')
+    header.setAttribute('data-tour-cover', '')
+    const back = document.createElement('button')
+    back.setAttribute('data-tour', 'menu')
+    header.appendChild(back)
+    document.body.appendChild(header)
+    mount(['scene'])
+    const { container } = render(<StudioTour steps={[STEP('surface'), STEP('menu')]} roomId="r1" onFinish={() => {}} />)
+    const shades = container.querySelectorAll('[data-tour-backdrop]') as NodeListOf<HTMLElement>
+    // the top shade runs down to the header's foot, and the hole starts there
+    expect(shades[0].style.height).toBe('60px')
+    expect((container.querySelector('[data-tour-ring]') as HTMLElement).style.top).toBe('60px')
+  })
+
+  it('header_covered: a show step on a header button keeps its hole', () => {
+    rects['@cover'] = { left: 0, top: 0, width: 1024, height: 60 }
+    const header = document.createElement('header')
+    header.setAttribute('data-tour-cover', '')
+    const menu = document.createElement('button')
+    menu.setAttribute('data-tour', 'menu')
+    header.appendChild(menu)
+    document.body.appendChild(header)
+    const { container } = render(<StudioTour steps={[STEP('menu')]} roomId="r1" onFinish={() => {}} />)
+    expect((container.querySelector('[data-tour-hole]') as HTMLElement).style.top).toBe('2px')
+    expect((container.querySelector('[data-tour-hole]') as HTMLElement).style.height).toBe('56px')
   })
 
   it('a do step whose targets are gone at a resize moves on at once', () => {
