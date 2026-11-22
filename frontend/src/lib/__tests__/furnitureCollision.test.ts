@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   footprintsOverlap, footprintInside, footprintFree, slideTo,
-  resolveFurnitureMove, resolveFurnitureRotation,
+  resolveFurnitureMove, resolveFurnitureRotation, obstaclesClearOf,
   type OrientedFootprint, type Obstacle,
 } from '../furnitureCollision'
 import { halfExtentsToBounds, type RoomBounds } from '../furnitureBounds'
@@ -205,5 +205,28 @@ describe('resolveFurnitureRotation', () => {
     const got = resolveFurnitureRotation(at, box(300, 600), 90 * DEG, POLY_ROOM, [neighbour])
     expect(got).not.toBeNull()
     expect(footprintFree(got!.at, box(300, 600, 90 * DEG), POLY_ROOM, [neighbour])).toBe(true)
+  })
+})
+
+/**
+ * A model standing on a rug, or already touching the next piece, could not be
+ * turned at all: every angle overlapped that piece, the resolver refused them
+ * all, and a two-finger twist did nothing (2026-11-22). What it already
+ * overlaps is not in its way; only what it would newly run into is.
+ */
+describe('obstaclesClearOf', () => {
+  const at = { x: 2500, z: 2000 }
+  const rug: Obstacle = { at, box: box(1000, 800) }
+  const sofa: Obstacle = { at: { x: 4000, z: 2000 }, box: box(400, 400) }
+
+  it('drops the pieces the model already overlaps and keeps the rest', () => {
+    expect(obstaclesClearOf(at, TABLE, [rug, sofa])).toEqual([sofa])
+  })
+
+  it('lets a table standing on a rug turn, where the full list refused every angle', () => {
+    const turned = TABLE.rotation + 30 * DEG
+    expect(resolveFurnitureRotation(at, box(600, 300, turned), turned, POLY_ROOM, [rug, sofa])).toBeNull()
+    const solved = resolveFurnitureRotation(at, box(600, 300, turned), turned, POLY_ROOM, obstaclesClearOf(at, TABLE, [rug, sofa]))
+    expect(solved?.rotation).toBeCloseTo(turned)
   })
 })

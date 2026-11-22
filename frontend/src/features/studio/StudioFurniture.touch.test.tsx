@@ -62,10 +62,13 @@ function touch(type: string, id: number, x: number, y: number): MouseEvent {
   return ev
 }
 
-function mountRoom(selected: string | null) {
+function mountRoom(selected: string | null, extra: { id: string; x: number; y: number }[] = []) {
   useBox()
   useRoomStore.setState({
-    furniture: [{ id: 'f1', furniture_id: 'shop-chair', x: 0, y: 0, rotation: 0 }],
+    furniture: [
+      { id: 'f1', furniture_id: 'shop-chair', x: 0, y: 0, rotation: 0 },
+      ...extra.map((e) => ({ ...e, furniture_id: 'shop-chair', rotation: 0 })),
+    ],
     userFurniture: [],
     catalogFurniture: [{ id: 'shop-chair', name_uz: 'Stul', glb_url: '/fake-chair.glb', footprint_w: 100, footprint_d: 100, price_uzs: 1 }] as never,
   })
@@ -137,6 +140,8 @@ describe('a finger on a model', () => {
   it('a one-finger drag moves it even when it was not selected first', () => {
     const r = mountRoom(null)
     send(r.canvas, touch('pointerdown', 1, cx, cy))
+    send(window, touch('pointermove', 1, cx + 30, cy))
+    // Past the tap threshold it is a drag: the camera is held off it.
     expect(r.controls.enabled).toBe(false)
     send(window, touch('pointermove', 1, cx + 60, cy))
     send(window, touch('pointerup', 1, cx + 60, cy))
@@ -146,8 +151,8 @@ describe('a finger on a model', () => {
     r.unmount()
   })
 
-  it('two fingers that start on it twist it, and the camera stays out of it', () => {
-    const r = mountRoom(null)
+  it('two fingers that start on it twist it when it is selected, and the camera stays out of it', () => {
+    const r = mountRoom('f1')
     send(r.canvas, touch('pointerdown', 1, cx, cy))
     send(r.canvas, touch('pointerdown', 2, cx + 100, cy))
     expect(r.controls.enabled).toBe(false)
@@ -163,6 +168,57 @@ describe('a finger on a model', () => {
     expect(Math.abs(stored().y)).toBeLessThan(1)
     expect(r.selections).toContain('f1')
     expect(r.controls.enabled).toBe(true)
+    r.unmount()
+  })
+
+  it('two fingers on a model that is NOT selected turn nothing and leave the camera free', () => {
+    const r = mountRoom(null)
+    send(r.canvas, touch('pointerdown', 1, cx, cy))
+    // Not selected: the press does not take the camera — it may be a pinch.
+    expect(r.controls.enabled).toBe(true)
+    send(r.canvas, touch('pointerdown', 2, cx + 100, cy))
+    send(window, touch('pointermove', 2, cx, cy + 100))
+    send(window, touch('pointerup', 2, cx, cy + 100))
+    send(window, touch('pointerup', 1, cx, cy))
+    act(() => { advance(performance.now()) })
+    expect(stored()).toMatchObject({ x: 0, y: 0, rotation: 0 })
+    expect(r.selections).toEqual([])
+    expect(r.controls.enabled).toBe(true)
+    r.unmount()
+  })
+
+  it('one finger off the model and the second on the selected model still twists it', () => {
+    const r = mountRoom('f1')
+    // The first finger lands on empty floor — the camera's, for now.
+    send(r.canvas, touch('pointerdown', 1, cx - 250, cy))
+    send(r.canvas, touch('pointerdown', 2, cx, cy))
+    expect(r.controls.enabled).toBe(false)
+    // The finger on the model swings a quarter turn clockwise round the other.
+    send(window, touch('pointermove', 2, cx - 73, cy + 177))
+    send(window, touch('pointermove', 2, cx - 250, cy + 250))
+    send(window, touch('pointerup', 2, cx - 250, cy + 250))
+    send(window, touch('pointerup', 1, cx - 250, cy))
+    expect(stored().rotation).toBeCloseTo(-Math.PI / 2, 2)
+    expect(r.controls.enabled).toBe(true)
+    r.unmount()
+  })
+
+  // 2026-11-22: a piece standing on another (a table on a rug) overlapped it at every angle, the
+  // rotation resolver refused them all, and the twist did nothing.
+  it('a piece that already overlaps another can still be twisted', () => {
+    const r = mountRoom('f1', [{ id: 'f2', x: 600, y: 0 }])
+    const at = cx - 25 // on f1, clear of f2
+    send(r.canvas, touch('pointerdown', 1, at, cy))
+    send(r.canvas, touch('pointerdown', 2, at + 100, cy))
+    send(window, touch('pointermove', 2, at + 71, cy + 71))
+    send(window, touch('pointermove', 2, at, cy + 100))
+    send(window, touch('pointerup', 2, at, cy + 100))
+    send(window, touch('pointerup', 1, at, cy))
+    const f1 = useRoomStore.getState().furniture.find((f) => f.id === 'f1')!
+    expect(f1.rotation).toBeCloseTo(-Math.PI / 2, 2)
+    // Turned where it stands, not shoved off the piece it overlaps to make room.
+    expect(Math.abs(f1.x)).toBeLessThan(1)
+    expect(Math.abs(f1.y)).toBeLessThan(1)
     r.unmount()
   })
 

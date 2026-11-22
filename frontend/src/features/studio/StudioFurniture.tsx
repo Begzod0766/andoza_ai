@@ -16,7 +16,7 @@ import { FurniturePlaceholder, appearScale, placeholderSize, type PlaceholderSiz
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { useRoomStore } from "@/store/roomStore";
 import {
-  resolveFurnitureMove, resolveFurnitureRotation,
+  resolveFurnitureMove, resolveFurnitureRotation, obstaclesClearOf,
   type Obstacle, type OrientedFootprint,
 } from '@/lib/furnitureCollision'
 import { swallowPickClick } from '@/lib/pickEvents'
@@ -33,7 +33,7 @@ import { FURNITURE_CATALOG } from "@/lib/furnitureCatalog";
 import { resolveCatalogEntry } from "@/lib/furnitureEntry";
 import {
   halfExtentsToBounds,
-  worldToPlan, planToWorld, type RoomBounds,
+  worldToPlan, planToWorld, type RoomBounds, type PlanPoint,
 } from "@/lib/furnitureBounds";
 import { extractSceneInfo } from "@/lib/modelConverter";
 import {
@@ -779,6 +779,24 @@ export function DraggableFurnitureModels({
   const dragPointerRef = useRef<{ id: number | undefined; at: number }>({ id: undefined, at: 0 })
   // Made on mount, so the guard is already counting when the first finger of a pinch lands.
   const pinch = useMemo(() => multiTouchGuard(), [])
+  useEffect(() => {
+    const touches = touchesRef.current
+    const track = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+    const moved = (e: PointerEvent) => { if (touches.has(e.pointerId)) track(e) }
+    const gone = (e: PointerEvent) => { touches.delete(e.pointerId) }
+    window.addEventListener('pointerdown', track, true)
+    window.addEventListener('pointermove', moved, true)
+    window.addEventListener('pointerup', gone, true)
+    window.addEventListener('pointercancel', gone, true)
+    return () => {
+      window.removeEventListener('pointerdown', track, true)
+      window.removeEventListener('pointermove', moved, true)
+      window.removeEventListener('pointerup', gone, true)
+      window.removeEventListener('pointercancel', gone, true)
+    }
+  }, [])
   const furnitureRef = useRef(furniture)
   furnitureRef.current = furniture
   /** The dragged model's own half-extents, metres, UNROTATED. The resolver
@@ -795,6 +813,18 @@ export function DraggableFurnitureModels({
    *  and moves nothing, so a finger's jitter does not nudge the piece. */
   const pressAtRef = useRef({ x: 0, y: 0 })
   const movedRef = useRef(false)
+  /** The press is on a model that was not selected yet, by a finger. It may be
+   *  the first finger of a pinch, so it takes nothing — not the selection, not
+   *  the camera — until it travels (a drag) or lifts (a tap). */
+  const tentativeRef = useRef(false)
+  /** The piece was already selected when this press began: only then may a
+   *  second finger twist it (the user selects a model, then turns it). */
+  const twistableRef = useRef(false)
+  /** Every finger down on the page right now, and where it last was — so a
+   *  finger landing on the selected model can twist round one that landed
+   *  elsewhere first. Kept on the window, in the capture phase, so nothing
+   *  that stops propagation can hide a finger from it. */
+  const touchesRef = useRef(new Map<number, { x: number; y: number }>())
   /** The drag finger's latest screen position — where a twist's first finger
    *  is when a second one lands. */
   const lastPosRef = useRef({ x: 0, y: 0 })
@@ -921,8 +951,12 @@ export function DraggableFurnitureModels({
     return { ...halfExtentsToBounds(w * 1000, d * 1000), rotation }
   }
 
-  function activateDrag(item: PlacedFurniture, clientX: number, clientY = 0, pointerId?: number) {
-    onSelectItem(item.id)
+  function activateDrag(
+    item: PlacedFurniture, clientX: number, clientY = 0, pointerId?: number, tentative = false,
+  ) {
+    tentativeRef.current = tentative
+    twistableRef.current = selectedId === item.id
+    if (!tentative) onSelectItem(item.id)
     dragPointerRef.current = { id: pointerId, at: Date.now() }
     pressAtRef.current = { x: clientX, y: clientY }
     lastPosRef.current = { x: clientX, y: clientY }
@@ -972,6 +1006,14 @@ export function DraggableFurnitureModels({
     dragRotRef.current = item.rotation
     draggingIdRef.current = item.id
     setDraggingId(item.id)
+    if (!tentative && controlsRef.current) controlsRef.current.enabled = false
+  }
+
+  /** A tentative press has become the user's: select the piece, take the camera off it. */
+  function claimPress() {
+    if (!tentativeRef.current) return
+    tentativeRef.current = false
+    if (draggingIdRef.current) onSelectItem(draggingIdRef.current)
     if (controlsRef.current) controlsRef.current.enabled = false
   }
 
@@ -985,13 +1027,43 @@ export function DraggableFurnitureModels({
     // The second finger of a twist lands on the model too: the live gesture
     // already owns it, and starting a fresh drag would throw that away.
     if (draggingIdRef.current) return
+    const touch = e.pointerType === 'touch'
+    if (touch) {
+      // A finger already down somewhere else — on the floor, a wall, empty
+      // space — and this one lands on the model. On the SELECTED model that is
+      // a twist round the other finger; on any other it is the camera's pinch.
+      const other = [...touchesRef.current].find(([id]) => id !== e.pointerId)
+      if (other) {
+        if (selectedId === item.id) startTwist(item, { id: other[0], ...other[1] }, e)
+        return
+      }
+    }
     // Hold to delete rides along with the drag: it gives way as soon as the
     // finger travels, so this still drags exactly as it did.
     holdBind({
       label: resolveDisplayInfo(item).name,
       onDelete: () => onDelete(item.id),
     }).onPointerDown(e)
-    activateDrag(item, e.clientX, e.clientY, e.pointerId)
+    // A finger on a piece that is not selected yet may be starting a pinch:
+    // it waits to see (tentativeRef). A mouse has no second finger to wait for.
+    activateDrag(item, e.clientX, e.clientY, e.pointerId, touch && selectedId !== item.id)
+  }
+
+  /** Twist `item` with `first` (already down elsewhere) and the finger of `e`, on the model. */
+  function startTwist(item: PlacedFurniture, first: { id: number; x: number; y: number }, e: { pointerId: number; clientX: number; clientY: number }) {
+    cancelHold()
+    activateDrag(item, first.x, first.y, first.id)
+    beginTwist(first, { id: e.pointerId, x: e.clientX, y: e.clientY })
+  }
+
+  function beginTwist(a: { id: number; x: number; y: number }, b: { id: number; x: number; y: number }) {
+    twistRef.current = {
+      a: { ...a }, b: { ...b },
+      lastAngle: Math.atan2(b.y - a.y, b.x - a.x),
+      total: 0,
+      startRot: dragRotRef.current,
+    }
+    invalidate()
   }
 
   function startDragFromButton(item: PlacedFurniture, e: React.PointerEvent) {
@@ -1010,6 +1082,8 @@ export function DraggableFurnitureModels({
   function commitDrag() {
     const id = draggingIdRef.current
     if (!id) return
+    // A tentative press that lifted without travelling was a tap: it selects.
+    if (tentativeRef.current) { tentativeRef.current = false; onSelectItem(id) }
     const item = furnitureRef.current.find((f) => f.id === id)
     if (item) {
       if (twistRef.current) {
@@ -1034,6 +1108,7 @@ export function DraggableFurnitureModels({
   function endDrag() {
     draggingIdRef.current = null
     twistRef.current = null
+    tentativeRef.current = false
     setDraggingId(null)
     if (controlsRef.current) controlsRef.current.enabled = true
     document.body.style.cursor = ''
@@ -1047,6 +1122,16 @@ export function DraggableFurnitureModels({
       dragPointerRef.current.id !== undefined && e.pointerId !== dragPointerRef.current.id
     /** Two fingers were down since the press: it is a pinch now, and the drag is called off. */
     const pinched = () => pinch.multiTouchSince(dragPointerRef.current.at)
+
+    /**
+     * What a turn must keep clear of: every other piece EXCEPT those this one
+     * already overlaps where it stands. A table on a rug overlapped the rug at
+     * every angle, so with the rug in the list no angle was ever allowed and
+     * the twist did nothing — or the piece was shoved off the rug to make
+     * room (2026-11-22).
+     */
+    const turnObstacles = (at: PlanPoint) =>
+      obstaclesClearOf(at, dragBox(dragRotRef.current), obstaclesFor(draggingIdRef.current!))
 
     /** Turns the piece by the angle the two fingers have swung through. */
     const twistMove = (e: PointerEvent) => {
@@ -1065,14 +1150,10 @@ export function DraggableFurnitureModels({
       // clockwise turn is a negative one about +y — hence the minus.
       const step = 5 * (Math.PI / 180)
       const wantRot = Math.round((tw.startRot - tw.total) / step) * step
-      // Same rule as the rotate drag: only into room the piece can occupy.
-      const solved = resolveFurnitureRotation(
-        worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds),
-        dragBox(wantRot),
-        wantRot,
-        roomBounds,
-        obstaclesFor(draggingIdRef.current!),
-      )
+      // Same rule as the rotate drag: only into room the piece can occupy —
+      // leaving out what it already overlaps (see turnObstacles).
+      const at = worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds)
+      const solved = resolveFurnitureRotation(at, dragBox(wantRot), wantRot, roomBounds, turnObstacles(at))
       if (solved) {
         dragRotRef.current = solved.rotation
         const w = planToWorld(solved.at, roomBounds)
@@ -1092,6 +1173,7 @@ export function DraggableFurnitureModels({
           const p = pressAtRef.current
           if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < TAP_SLOP_PX) return
           movedRef.current = true
+          claimPress()
         }
         if (!floorHitAt(e.clientX, e.clientY, hitPoint.current)) return
         // Where the finger asks the centre to be: its floor point plus the grab offset.
@@ -1121,13 +1203,8 @@ export function DraggableFurnitureModels({
         // in place would put a corner through a wall or into the next model,
         // the resolver shifts it off by as little as will do; if nothing will,
         // it keeps the angle it had rather than letting it sweep through.
-        const solved = resolveFurnitureRotation(
-          worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds),
-          dragBox(wantRot),
-          wantRot,
-          roomBounds,
-          obstaclesFor(draggingIdRef.current!),
-        )
+        const at = worldToPlan({ x: dragPosRef.current.x, z: dragPosRef.current.z }, roomBounds)
+        const solved = resolveFurnitureRotation(at, dragBox(wantRot), wantRot, roomBounds, turnObstacles(at))
         if (solved) {
           dragRotRef.current = solved.rotation
           const w = planToWorld(solved.at, roomBounds)
@@ -1172,17 +1249,13 @@ export function DraggableFurnitureModels({
       if (twistRef.current) return // a third finger changes nothing
       cancelHold()
       const firstId = dragPointerRef.current.id
-      if ((toolMode === 'move' || toolMode === 'select') && firstId !== undefined) {
-        // A second finger on the piece in hand: twist it round the first.
-        const a = { id: firstId, ...lastPosRef.current }
-        const b = { id: e.pointerId, x: e.clientX, y: e.clientY }
-        twistRef.current = {
-          a, b,
-          lastAngle: Math.atan2(b.y - a.y, b.x - a.x),
-          total: 0,
-          startRot: dragRotRef.current,
-        }
-        invalidate()
+      // A second finger while the first is on the piece: a twist — but only
+      // of a piece that was already selected, and only while the press has
+      // not gone tentative-then-dropped. On a piece that was not selected the
+      // press never took the camera, and the camera gets its pinch.
+      if ((toolMode === 'move' || toolMode === 'select') && firstId !== undefined && twistableRef.current) {
+        claimPress()
+        beginTwist({ id: firstId, ...lastPosRef.current }, { id: e.pointerId, x: e.clientX, y: e.clientY })
       } else {
         endDrag()
       }

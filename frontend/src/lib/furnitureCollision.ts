@@ -262,3 +262,22 @@ export function resolveFurnitureRotation(
   }
   return null
 }
+
+/**
+ * The obstacles a model is NOT already overlapping where it stands.
+ *
+ * A model on a rug, or one placed touching the next piece, overlaps it at
+ * every angle — so a turn checked against the full list was refused at every
+ * angle, and the model could not be rotated at all (2026-11-22). What it
+ * already overlaps is not what is in its way; turning is still kept out of
+ * walls and out of anything it does not already touch. The move resolver has
+ * the same escape for the same reason (see `resolveFurnitureMove`).
+ */
+export function obstaclesClearOf(
+  at: PlanPoint,
+  box: OrientedFootprint,
+  others: readonly Obstacle[],
+  gap = 0,
+): Obstacle[] {
+  return others.filter((o) => !footprintsOverlap(box, at, o.box, o.at, gap))
+}
