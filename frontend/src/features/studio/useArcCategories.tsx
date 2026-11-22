@@ -195,6 +195,10 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
       })),
     ]
 
+    // The tour's furniture step needs something to show: with an empty catalog (and no uploads) it is skipped.
+    const hasFurniture = uploads.length > 0
+      || Object.keys(RING_ROOM).some((k) => modelsForRoom(RING_ROOM[k]).length > 0)
+
     return [
       {
         // Mebel opens the rooms first, and a room opens its models: the whole
@@ -202,6 +206,7 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
         // a bed. Uploads keep a room of their own, since they have no room
         // type in the catalog and would otherwise have nowhere to appear.
         key: 'mebel',
+        tourKey: hasFurniture ? 'mebel' : undefined,
         label: t('studio.shared.mebel'),
         icon: <Sofa size={19} strokeWidth={1.8} />,
         items: [

@@ -30,7 +30,7 @@ export function MobileStagePicker({ stages, view, onPick, onFull, onOpenChange }
     `block w-full rounded-lg px-3 py-1.5 text-left text-[12px] ${active ? "bg-brand text-white" : "text-ink hover:bg-card-soft"}`;
   return (
     <div className="pointer-events-auto relative z-10 lg:hidden">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-tour="stage"
         aria-label={`${t("studio.stage_view.stage")}: ${current}`}
         className="flex items-center gap-1 rounded-full border border-line bg-card/95 px-3 py-1.5 text-[12px] font-semibold text-ink shadow-md backdrop-blur">
         <span className="text-ink-muted">{t("studio.stage_view.stage")}:</span> {current}
@@ -38,7 +38,7 @@ export function MobileStagePicker({ stages, view, onPick, onFull, onOpenChange }
           style={{ transform: open ? "rotate(180deg)" : undefined }}><path d="M2 3.5l3 3 3-3" /></svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-44 space-y-0.5 rounded-xl border border-line bg-card p-1 shadow-xl">
+        <div data-tour="stage-list" className="absolute left-0 top-full mt-1 w-44 space-y-0.5 rounded-xl border border-line bg-card p-1 shadow-xl">
           {stages.map((s) => (
             <button key={s.key} type="button" className={item(view === s.key)}
               onClick={() => { onPick(s.key); setOpen(false); }}>{t(s.labelKey)}</button>

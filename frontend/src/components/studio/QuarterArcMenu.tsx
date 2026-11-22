@@ -51,6 +51,9 @@ export interface ArcCategory {
   items: ArcItem[]
   /** Shown in place of an empty outer ring, as a single button. */
   emptyItem?: ArcItem
+  /** Names this category for the Studio tour: its button gets `data-tour="arc-<tourKey>"`
+   *  and the open ring `arc-<tourKey>-ring-<depth>`. */
+  tourKey?: string
 }
 
 /** Finger travel, in slot units, past which a drag stops counting as a tap. */
@@ -340,6 +343,21 @@ export function QuarterArcMenu({
             }}
           />
         )}
+        {/* The open outer ring's footprint, for the tour: the ring the finger is
+            on is `ring-<depth>` (rooms 0, a room's models 1). */}
+        {open && active?.tourKey && (
+          <div
+            data-tour={`arc-${active.tourKey}-ring-${trail.length}`}
+            aria-hidden="true"
+            className="absolute pointer-events-none"
+            style={{
+              right: 0,
+              bottom: 0,
+              width: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
+              height: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
+            }}
+          />
+        )}
         {/* Outer ring — the active category's own things. Rendered first so
             the category buttons paint over it where the rings crowd. */}
         {open && outerRing.slots
@@ -383,6 +401,7 @@ export function QuarterArcMenu({
                 setActiveKey((k) => (k === cat.key ? null : cat.key))
               }}
               aria-pressed={isActive}
+              data-tour={cat.tourKey ? `arc-${cat.tourKey}` : undefined}
               className={`pointer-events-auto absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
                 isActive ? 'bg-brand text-white ring-brand/40' : 'bg-white text-brand ring-black/5'
               }`}

@@ -43,4 +43,11 @@ describe('MobileStagePicker (phone, spec 2026-11-18)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tayyor xona' }))
     expect(onFull).toHaveBeenCalled()
   })
+  it('marks the pill for the tour, and the list once open', () => {
+    const { container } = render(<MobileStagePicker stages={stages} view="full" onPick={() => {}} onFull={() => {}} />)
+    expect(container.querySelector('[data-tour="stage"]')).not.toBeNull()
+    expect(container.querySelector('[data-tour="stage-list"]')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Bosqich:/ }))
+    expect(container.querySelector('[data-tour="stage-list"]')).not.toBeNull()
+  })
 })
