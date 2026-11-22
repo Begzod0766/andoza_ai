@@ -33,4 +33,28 @@ describe('riserBoxHandlers (mobile QA 2026-11-21, #365): the boxed-in riser in t
   it('none while a frame is taken (a camera station or the 360)', () => {
     expect(riserBoxHandlers(undefined)).toEqual({})
   })
+  it('a drag on the box turns the camera and does not open the panel (QA #380 6c)', () => {
+    // R3F hands the box the click that ends a drag, however far the finger went.
+    const open = vi.fn()
+    const h = riserBoxHandlers(open, { multiTouchSince: () => false }, () => 100)
+    h.onPointerDown!({} as never)
+    h.onClick!({ stopPropagation: vi.fn(), delta: 40 } as never)
+    expect(open).not.toHaveBeenCalled()
+  })
+  it('a tap that moved a little still opens it', () => {
+    const open = vi.fn()
+    const h = riserBoxHandlers(open, { multiTouchSince: () => false }, () => 100)
+    h.onPointerDown!({} as never)
+    h.onClick!({ stopPropagation: vi.fn(), delta: 3 } as never)
+    expect(open).toHaveBeenCalledTimes(1)
+  })
+  it('a pinch begun on the box zooms and does not open the panel (QA #380 6b)', () => {
+    const open = vi.fn()
+    const since = vi.fn((at: number) => at === 100)
+    const h = riserBoxHandlers(open, { multiTouchSince: since }, () => 100)
+    h.onPointerDown!({} as never)
+    h.onClick!({ stopPropagation: vi.fn(), delta: 0 } as never)
+    expect(since).toHaveBeenCalledWith(100)
+    expect(open).not.toHaveBeenCalled()
+  })
 })

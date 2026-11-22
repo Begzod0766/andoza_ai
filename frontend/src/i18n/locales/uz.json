@@ -207,6 +207,7 @@
       "qoshni_shakli_matn": "Bu xona qo'shni xonaga kiradi va u xonaning shakli o'zgaradi. Davom etasizmi?",
       "qoshni_saqlanmadi": "Qo'shni xonaning yangi shakli saqlanmadi, shuning uchun o'lcham o'zgartirilmadi.",
       "quritgich_joy_yoq": "Quritgichni surib bo'lmaydi: bu devorda {{sm}} sm bo'sh joy yo'q.",
+      "quritgich_bu_tomonga_joy_yoq": "Quritgichni bu tomonga surib bo'lmaydi: u tomonda {{sm}} sm bo'sh joy yo'q.",
       "orqasida_xona_bor": "Bu devor orqasida allaqachon xona bor: \"{{name}}\".",
       "boshqa_devor": "Yangi xonani boshqa devor orqasiga qo'shing.",
       "eshik_deraza": "Eshik / Deraza",

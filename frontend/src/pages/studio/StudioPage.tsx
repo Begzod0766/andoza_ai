@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { riserToSave } from "@/lib/plumbingRuns";
 import { createAutosave, roomContentChanged } from "@/lib/autosave";
+import { SaveStatus, type SaveStatusValue } from "@/components/studio/SaveStatus";
 import { formatDecimal } from '@/lib/utils'
 import { defaultApartmentName, defaultRoomName } from '@/lib/defaultNames';
 import { storeGeometryToApiGeometry } from "@/lib/apiRoomGeometry";
@@ -75,7 +76,7 @@ export default function StudioPage() {
   // DesignPanel) so uploaded models reappear on reload without opening panels
   useRestoreUserModels();
   const isDirty = useRoomStore((s) => s.isDirty);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'deleted'>('idle');
+  const [saveStatus, setSaveStatus] = useState<SaveStatusValue>('idle');
   /** The room this page opened was deleted elsewhere (2026-11-19): nothing more is saved, and it is never made again. */
   const deletedRef = useRef(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -691,28 +692,8 @@ export default function StudioPage() {
             <div data-tour="undo" className="flex-shrink-0">
               <UndoRedoButtons />
             </div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold" aria-live="polite">
-              {saveStatus === 'saving' && (
-                <span className="text-ink-muted">{t('studio.page.saqlanmoqda')}</span>
-              )}
-              {saveStatus === 'saved' && (
-                <span className="text-emerald-600">✓ {t('studio.page.saqlandi')}</span>
-              )}
-              {saveStatus === 'deleted' && (
-                <span role="alert" className="text-red-600">{t('studio.page.ochirilgan')}</span>
-              )}
-              {saveStatus === 'error' && (
-                <>
-                  <span className="text-red-600">{t('studio.page.saqlanmadi')}</span>
-                  <button
-                    onClick={() => void saveNow()}
-                    className="px-2.5 py-1 rounded-lg bg-red-600 text-white"
-                  >
-                    {t('studio.page.qayta_urinish')}
-                  </button>
-                </>
-              )}
-            </div>
+            {/* Below the row, not in it: its changes moved undo/redo under the finger (QA #380). */}
+            <SaveStatus status={saveStatus} onRetry={() => void saveNow()} />
             {/* The tour again. On every phone view, so the row never shifts; away from the
                 live 3D view the tour waits for it (onTourHelp). */}
             {compact && (
