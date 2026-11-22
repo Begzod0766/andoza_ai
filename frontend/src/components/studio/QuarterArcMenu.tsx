@@ -78,6 +78,7 @@ export function QuarterArcMenu({
   onOpenChange,
   tourId,
   closed = false,
+  tourOnly,
 }: {
   categories: ArcCategory[]
   /** Accessible name for the group of corner buttons. */
@@ -91,6 +92,9 @@ export function QuarterArcMenu({
   tourId?: string
   /** While true the menu is folded away (the Studio tour runs over it). */
   closed?: boolean
+  /** The Studio tour's furniture step: only the category with this `tourKey` (and its rings)
+   *  can be tapped; every other category is dimmed and disabled. */
+  tourOnly?: string
 }) {
   const { t } = useTranslation()
   const buttonLabel = label ?? t('studio.arc.add')
@@ -390,6 +394,7 @@ export function QuarterArcMenu({
         ).map(({ cat, pos, i, opacity, slotKey }) => {
           const { dx, dy } = pos
           const isActive = cat.key === activeKey
+          const locked = tourOnly !== undefined && cat.tourKey !== tourOnly
           return (
             <button
               key={slotKey}
@@ -415,8 +420,9 @@ export function QuarterArcMenu({
                 setActiveKey((k) => (k === cat.key ? null : cat.key))
               }}
               aria-pressed={isActive}
+              disabled={locked}
               data-tour={cat.tourKey ? `arc-${cat.tourKey}` : undefined}
-              className={`pointer-events-auto absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
+              className={`${locked ? 'pointer-events-none saturate-0' : 'pointer-events-auto'} absolute flex flex-col items-center justify-center gap-0.5 rounded-full shadow-lg ring-1 active:scale-95 overflow-hidden ${
                 isActive ? 'bg-brand text-white ring-brand/40' : 'bg-white text-brand ring-black/5'
               }`}
               style={{
@@ -425,7 +431,8 @@ export function QuarterArcMenu({
                 width: catSize,
                 height: catSize,
                 transform: 'translate(-50%, -50%)',
-                opacity,
+                // Dimmed while the tour keeps the finger on another category.
+                opacity: locked ? opacity * 0.4 : opacity,
                 // Grows and slides out of the corner on open, back in on
                 // close — but not while a drag is turning the ring, which it
                 // would only lag behind. Staggered along the arc so the fan

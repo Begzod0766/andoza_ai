@@ -1,5 +1,5 @@
 /** Tour targets on the corner arc: the Mebel button and the open ring's footprint (StudioTour). */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QuarterArcMenu, type ArcCategory } from './QuarterArcMenu'
 import { ARC_RADIUS_OUTER } from '@/lib/arcMenu'
@@ -56,5 +56,31 @@ describe('arc menu tour targets', () => {
     render(<QuarterArcMenu categories={cats(false)} />)
     fireEvent.click(screen.getByRole('button', { name: /Mebel/ }))
     expect(document.querySelector('[data-tour^="arc-"]')).toBeNull()
+  })
+
+  it('tourOnly: every other category is dimmed and untappable; the Mebel rings stay tappable', () => {
+    const picked = vi.fn()
+    const c = cats()
+    c[0].items[0].items![0].onSelect = picked
+    render(<QuarterArcMenu categories={c} tourOnly="mebel" />)
+    const pol = screen.getByRole('button', { name: /Pol/ })
+    expect(pol).toBeDisabled()
+    expect(pol.className).toMatch(/pointer-events-none/)
+    expect(pol.style.opacity).toBe('0.4')
+    fireEvent.click(pol)
+    expect(q('arc-mebel-ring-0')).toBeNull()
+    const mebel = screen.getByRole('button', { name: /Mebel/ })
+    expect(mebel).not.toBeDisabled()
+    fireEvent.click(mebel)
+    fireEvent.click(screen.getByRole('button', { name: /Mehmonxona/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Divan/ }))
+    expect(picked).toHaveBeenCalledTimes(1)
+    // still locked with the ring open
+    expect(screen.getByRole('button', { name: /Pol/ })).toBeDisabled()
+  })
+
+  it('without tourOnly every category is live', () => {
+    render(<QuarterArcMenu categories={cats()} />)
+    expect(screen.getByRole('button', { name: /Pol/ })).not.toBeDisabled()
   })
 })

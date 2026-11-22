@@ -54,8 +54,8 @@ vi.mock('@/components/studio/SurfaceRadialMenu', async (orig) => ({
   default: () => <div data-testid="radial" />,
 }))
 vi.mock('@/components/studio/QuarterArcMenu', () => ({
-  QuarterArcMenu: ({ tourId, closed, categories }: { tourId?: string; closed?: boolean; categories?: { key: string; tourKey?: string }[] }) => (
-    <div data-tour={tourId} data-closed={String(!!closed)}>
+  QuarterArcMenu: ({ tourId, closed, categories, tourOnly }: { tourId?: string; closed?: boolean; categories?: { key: string; tourKey?: string }[]; tourOnly?: string }) => (
+    <div data-tour={tourId} data-closed={String(!!closed)} data-tour-only={tourOnly}>
       {categories?.filter((c) => c.tourKey).map((c) => <button key={c.key} data-tour={`arc-${c.tourKey}`} />)}
     </div>
   ),
@@ -537,6 +537,16 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     expect(q('arc')).toHaveAttribute('data-closed', 'true')
     rerender(page({ active: false, step: null }))
     expect(q('arc')).toHaveAttribute('data-closed', 'false')
+  })
+
+  it('arc_only_mebel_on_furniture_step: the other categories are locked only on the furniture step', async () => {
+    const { rerender } = render(page({ active: true, step: 'furniture' }))
+    await screen.findByText('wall')
+    expect(q('arc')).toHaveAttribute('data-tour-only', 'mebel')
+    rerender(page({ active: true, step: 'stage' }))
+    expect(q('arc')).not.toHaveAttribute('data-tour-only')
+    rerender(page({ active: false, step: null }))
+    expect(q('arc')).not.toHaveAttribute('data-tour-only')
   })
 
   it('restore_view: the stage picked during the tour goes back to the one it opened on', async () => {

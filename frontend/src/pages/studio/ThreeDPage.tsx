@@ -1152,6 +1152,8 @@ export default function ThreeDPage() {
               categories={arcCategories}
               tourId="arc"
               closed={studioTourActive && studioTourStep !== "furniture"}
+              // The furniture step's hole holds the whole arc: only Mebel may be tapped in it.
+              tourOnly={studioTourActive && studioTourStep === "furniture" ? "mebel" : undefined}
             />
           </div>}
 
