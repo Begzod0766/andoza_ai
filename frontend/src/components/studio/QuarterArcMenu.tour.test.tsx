@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QuarterArcMenu, type ArcCategory } from './QuarterArcMenu'
+import { ARC_RADIUS_OUTER } from '@/lib/arcMenu'
 
 function cats(withKey = true): ArcCategory[] {
   return [
@@ -34,6 +35,21 @@ describe('arc menu tour targets', () => {
     fireEvent.click(screen.getByRole('button', { name: /Mehmonxona/ }))
     expect(q('arc-mebel-ring-1')).not.toBeNull()
     expect(q('arc-mebel-ring-0')).toBeNull()
+  })
+
+  it('the ring footprint carries a hand anchor on the outer ring, at 225 degrees from the arc centre', () => {
+    render(<QuarterArcMenu categories={cats()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Mebel/ }))
+    const at = q('arc-mebel-ring-0')!.querySelector('[data-tour-hand-at]') as HTMLElement
+    expect(at).not.toBeNull()
+    // The footprint is anchored at the 40 px anchor box's bottom-right; the arc centre is 20 px in.
+    const off = 20 + ARC_RADIUS_OUTER * Math.SQRT1_2 - 1
+    expect(parseFloat(at.style.right)).toBeCloseTo(off, 3)
+    expect(parseFloat(at.style.bottom)).toBeCloseTo(off, 3)
+    expect(at.style.width).toBe('2px')
+    expect(at.style.height).toBe('2px')
+    // the category button itself has none: the hand goes to its centre
+    expect(q('arc-mebel')!.querySelector('[data-tour-hand-at]')).toBeNull()
   })
 
   it('a category without a tourKey has no arc targets', () => {

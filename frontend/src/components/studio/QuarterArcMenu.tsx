@@ -356,7 +356,21 @@ export function QuarterArcMenu({
               width: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
               height: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
             }}
-          />
+          >
+            {/* Where the tour's hand points: on the outer ring itself, halfway round
+                (225 degrees from the arc's centre). The footprint's centre is on the
+                category ring, so a hand there pointed at the wrong ring. */}
+            <span
+              data-tour-hand-at
+              className="absolute"
+              style={{
+                right: ANCHOR / 2 + ARC_RADIUS_OUTER * Math.SQRT1_2 - 1,
+                bottom: ANCHOR / 2 + ARC_RADIUS_OUTER * Math.SQRT1_2 - 1,
+                width: 2,
+                height: 2,
+              }}
+            />
+          </div>
         )}
         {/* Outer ring — the active category's own things. Rendered first so
             the category buttons paint over it where the rings crowd. */}

@@ -38,7 +38,8 @@ beforeEach(() => {
     menu: { left: 300, top: 10, width: 40, height: 40 },
   }
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
-    const id = this.getAttribute('data-tour')
+    // A ring's hand anchor (QuarterArcMenu) is measured as `@hand`.
+    const id = this.getAttribute('data-tour') ?? (this.hasAttribute('data-tour-hand-at') ? '@hand' : null)
     if (this.getAttribute('role') === 'dialog') return rectOf({ left: 0, top: 0, width: 300, height: 200 })
     const r = id ? rects[id] : undefined
     return rectOf(r ?? { left: 0, top: 0, width: 0, height: 0 })
@@ -304,6 +305,28 @@ describe('StudioTour do steps', () => {
     document.querySelector('[data-tour="arc-mebel-ring-0"]')!.remove()
     frame()
     expect(ring().style.left).toBe('292px')
+  })
+
+  it('hand_at_ring_anchor: on a ring the hand points at its anchor (the outer ring), else at the target centre', () => {
+    mount(['arc-mebel'])
+    const { container } = render(<StudioTour steps={[STEP('furniture')]} roomId="r1" onFinish={() => {}} />)
+    const hand = () => container.querySelector('[data-tour-hand] > div') as HTMLElement
+    // the category button: its centre
+    expect(hand().style.left).toBe('325px')
+    expect(hand().style.top).toBe('625px')
+    mount(['arc-mebel-ring-0'])
+    const at = document.createElement('span')
+    at.setAttribute('data-tour-hand-at', '')
+    document.querySelector('[data-tour="arc-mebel-ring-0"]')!.appendChild(at)
+    rects['@hand'] = { left: 199, top: 499, width: 2, height: 2 }
+    frame()
+    expect(hand().style.left).toBe('200px')
+    expect(hand().style.top).toBe('500px')
+    // an anchor with no box (not laid out) falls back to the centre
+    rects['@hand'] = { left: 0, top: 0, width: 0, height: 0 }
+    frame()
+    expect(hand().style.left).toBe('250px')
+    expect(hand().style.top).toBe('550px')
   })
 
   it('do_step_survives_a_brief_vanish: under 500 ms without any target is not a vanish; 500 ms or more is', () => {

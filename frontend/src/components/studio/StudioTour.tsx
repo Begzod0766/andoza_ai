@@ -20,16 +20,32 @@ const VANISH_MS = 500;
 export type StudioTourFinishReason = "done" | "skip" | "app" | "unmount";
 
 type Box = { left: number; top: number; width: number; height: number };
-type Spot = { target: string; box: Box };
+type Point = { x: number; y: number };
+/** `hand`: where the hand points, when the target names a spot of its own (see `handAt`). */
+type Spot = { target: string; box: Box; hand: Point | null };
 
-function measure(id: string): Box | null {
+function boxOf(id: string): { el: Element; box: Box } | null {
   const el = document.querySelector(`[data-tour="${id}"]`);
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width <= 0 || r.height <= 0) return null;
   // Entirely off-screen counts as absent: a spotlight over nothing would just hang the tour.
   if (r.right <= 0 || r.bottom <= 0 || r.left >= window.innerWidth || r.top >= window.innerHeight) return null;
-  return { left: r.left, top: r.top, width: r.width, height: r.height };
+  return { el, box: { left: r.left, top: r.top, width: r.width, height: r.height } };
+}
+
+function measure(id: string): Box | null {
+  return boxOf(id)?.box ?? null;
+}
+
+/** A target can name where the hand should point with a `[data-tour-hand-at]` child (an arc
+ *  ring points at the ring itself, not its footprint's centre); null when it has none laid out. */
+function handAt(el: Element): Point | null {
+  const at = el.querySelector("[data-tour-hand-at]");
+  if (!at) return null;
+  const r = at.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
 /** Whether the tour would show this target right now (in the DOM, with a box, on screen). */
@@ -45,15 +61,16 @@ export function isTourTargetShown(target: string): boolean {
 function locate(step: StudioTourStep): Spot | null {
   const deepest = step.kind === "do" ? step.targets.length - 1 : 0;
   for (let i = deepest; i >= 0; i--) {
-    const box = measure(step.targets[i]);
-    if (box) return { target: step.targets[i], box };
+    const found = boxOf(step.targets[i]);
+    if (found) return { target: step.targets[i], box: found.box, hand: handAt(found.el) };
   }
   return null;
 }
 
 const sameSpot = (a: Spot | null, b: Spot) =>
   !!a && a.target === b.target && a.box.left === b.box.left && a.box.top === b.box.top &&
-  a.box.width === b.box.width && a.box.height === b.box.height;
+  a.box.width === b.box.width && a.box.height === b.box.height &&
+  a.hand?.x === b.hand?.x && a.hand?.y === b.hand?.y;
 
 /**
  * First-run tour of the Studio: a spotlight over each target in turn, the rest of the view
@@ -410,7 +427,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
       )}
       {isDo && !checked && (
         <div data-tour-hand>
-          <TourHand key={spot.target} x={cx} y={cy} replayKey={replay} />
+          <TourHand key={spot.target} x={spot.hand?.x ?? cx} y={spot.hand?.y ?? cy} replayKey={replay} />
         </div>
       )}
       {checked && (
