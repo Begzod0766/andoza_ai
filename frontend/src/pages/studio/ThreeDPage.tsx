@@ -79,7 +79,7 @@ import { usePlaceFromLink } from "./three-d/usePlaceFromLink";
 import { TapHint, shouldShowTapHint, useTapHintSeen } from "@/components/studio/TapHint";
 import { isStudioTourDone, type StudioTourStepId } from "@/lib/studioTour";
 import { emitTourEvent } from "@/lib/studioTourEvents";
-import { studioTourReady, usePendingPracticeCleanup, useStudioTourWiring } from "./three-d/useStudioTourWiring";
+import { studioTourReady, usePendingPracticeCleanup, useStudioTourWiring, useWaitOver } from "./three-d/useStudioTourWiring";
 export { RoomScene, SceneLighting, BrandedSky, PlacedLights };
 
 /**
@@ -144,7 +144,7 @@ export interface StudioContext {
 
 export type { PhaseKey } from "@/lib/phases"
 
-/** How long the tour waits for the furniture catalog before opening without it. */
+/** How long the tour waits for the furniture catalog (or the scene's first frame) before opening without it. */
 const CATALOG_WAIT_MS = 8_000;
 
 export default function ThreeDPage() {
@@ -497,17 +497,15 @@ export default function ThreeDPage() {
   // A catalog that never answers must not hold the tour (or its "?" replay) back for good: it
   // counts as settled CATALOG_WAIT_MS after the view first became ready for the tour.
   const tourViewReady = studioTourReady({ compact, panorama, cameraStation, planShown });
-  const [catalogWaitOver, setCatalogWaitOver] = useState(false);
-  // Started once, not restarted when the view stops being ready for a while; cleared on unmount.
-  const catalogWaitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!tourViewReady || catalogQuerySettled || catalogWaitTimer.current) return;
-    catalogWaitTimer.current = setTimeout(() => setCatalogWaitOver(true), CATALOG_WAIT_MS);
-  }, [tourViewReady, catalogQuerySettled]);
-  useEffect(() => () => { if (catalogWaitTimer.current) clearTimeout(catalogWaitTimer.current); }, []);
+  const catalogWaitOver = useWaitOver(tourViewReady, catalogQuerySettled, CATALOG_WAIT_MS);
+  // Nor does the tour open over a blank canvas: it waits for the scene's first frame with the
+  // room in it — or, if WebGL never draws one, the same wait from the view being ready.
+  const [sceneDrawn, setSceneDrawn] = useState(false);
+  const onSceneDrawn = useCallback(() => setSceneDrawn(true), []);
+  const sceneWaitOver = useWaitOver(tourViewReady, sceneDrawn, CATALOG_WAIT_MS);
   useStudioTourWiring({
     active: studioTourActive,
-    ready: tourViewReady && (catalogQuerySettled || catalogWaitOver),
+    ready: tourViewReady && (catalogQuerySettled || catalogWaitOver) && (sceneDrawn || sceneWaitOver),
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
     // The wall picked on the first step goes when the tour does (the spec closes it at the end).
@@ -1233,6 +1231,7 @@ export default function ThreeDPage() {
             maxPolarAngle={maxPolarAngle}
             setDpr={setDpr}
             setDeclineCount={setDeclineCount}
+            onSceneDrawn={onSceneDrawn}
           />
         </div>
         </div>

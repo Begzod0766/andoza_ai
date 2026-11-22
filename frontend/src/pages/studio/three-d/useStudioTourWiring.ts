@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { showsEditingCorners } from "./cameraViewChrome";
 import { onTourEvent } from "@/lib/studioTourEvents";
 import { clearPractice, loadPractice } from "@/lib/tourPractice";
@@ -16,6 +16,26 @@ export function studioTourReady({ compact, panorama, cameraStation, planShown }:
   planShown: boolean;
 }): boolean {
   return compact && showsEditingCorners({ panorama, cameraStation }) && !planShown;
+}
+
+/**
+ * Whether something the tour waits on may be given up on: false until `start` has been true
+ * for `ms` while `done` stayed false. The timer starts once (not again when `start` drops for
+ * a while) and is cleared on unmount — and its ref nulled, so StrictMode's simulated remount
+ * starts it again instead of finding a cleared timer and never firing.
+ */
+export function useWaitOver(start: boolean, done: boolean, ms: number): boolean {
+  const [over, setOver] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!start || done || over || timer.current) return;
+    timer.current = setTimeout(() => setOver(true), ms);
+  }, [start, done, over, ms]);
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  }, []);
+  return over;
 }
 
 /**

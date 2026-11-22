@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, act, renderHook, waitFor } from '@testing-library/react'
-import { useEffect } from 'react'
+import { StrictMode, useEffect } from 'react'
 import { MemoryRouter, Outlet, Route, Routes, useOutletContext } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query'
 import i18n from '@/i18n'
@@ -32,13 +32,22 @@ vi.mock('@/lib/api', async (orig) => ({
 
 // ThreeDPage with its R3F scene swapped for a wall button. A tap on a wall reaches the wall
 // mesh first (focusSurface) and then its group (the radial menu's onClick), as r3f bubbles it.
+// The scene reports its first drawn frame on mount, unless a test holds it back (`sceneDraws`)
+// and draws it later through `drawScene`.
+let sceneDraws = true
+let drawScene: (() => void) | null = null
 vi.mock('../three-d/ThreeDCanvasScene', () => ({
-  ThreeDCanvasScene: (p: { selectedWall: string | null; focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void } }) => (
-    <>
-      <button onClick={() => { p.focusSurface('w1'); p.holdBind('wall', 'w1').onClick({ clientX: 5, clientY: 5 }) }}>wall</button>
-      <p data-testid="selected-wall">{String(p.selectedWall)}</p>
-    </>
-  ),
+  ThreeDCanvasScene: (p: { selectedWall: string | null; focusSurface: (id: string) => void; holdBind: (s: string, w?: string) => { onClick: (e: unknown) => void }; onSceneDrawn?: () => void }) => {
+    drawScene = () => p.onSceneDrawn?.()
+    // eslint-disable-next-line react-hooks/rules-of-hooks, react-hooks/exhaustive-deps
+    useEffect(() => { if (sceneDraws) p.onSceneDrawn?.() }, [])
+    return (
+      <>
+        <button onClick={() => { p.focusSurface('w1'); p.holdBind('wall', 'w1').onClick({ clientX: 5, clientY: 5 }) }}>wall</button>
+        <p data-testid="selected-wall">{String(p.selectedWall)}</p>
+      </>
+    )
+  },
 }))
 vi.mock('@/components/studio/SurfaceRadialMenu', async (orig) => ({
   ...(await orig<typeof import('@/components/studio/SurfaceRadialMenu')>()),
@@ -92,6 +101,8 @@ const tourCard = () => screen.queryByRole('dialog', { name: sceneTitle() })
 
 beforeEach(() => {
   compact = true
+  sceneDraws = true
+  drawScene = null
   localStorage.clear()
   // jsdom lays nothing out: every tour target gets a box on screen.
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
@@ -430,6 +441,43 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
       await act(async () => { vi.advanceTimersByTime(7500) })
       expect(setReady).not.toHaveBeenCalledWith(true)
       await act(async () => { vi.advanceTimersByTime(600) })
+      expect(setReady).toHaveBeenLastCalledWith(true)
+    })
+  })
+
+  it('scene_drawn: the tour is not ready until the 3D scene has drawn its first frame', async () => {
+    sceneDraws = false
+    const setReady = vi.fn()
+    render(page({ setReady }))
+    await screen.findByText('wall')
+    await act(async () => {})
+    expect(setReady).not.toHaveBeenCalledWith(true)
+    act(() => drawScene?.())
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  describe('a scene that never draws', () => {
+    beforeEach(() => { vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true }) })
+    afterEach(() => { vi.useRealTimers() })
+
+    it('scene_drawn: the tour is let open 8 s after the view was ready', async () => {
+      sceneDraws = false
+      const setReady = vi.fn()
+      render(page({ setReady }))
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(7500) })
+      expect(setReady).not.toHaveBeenCalledWith(true)
+      await act(async () => { vi.advanceTimersByTime(600) })
+      expect(setReady).toHaveBeenLastCalledWith(true)
+    })
+
+    it('scene_drawn: StrictMode\'s simulated remount does not lose the 8 s fallback', async () => {
+      sceneDraws = false
+      vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise(() => {}) as ReturnType<typeof listCatalogFurniture>)
+      const setReady = vi.fn()
+      render(<StrictMode>{page({ setReady })}</StrictMode>)
+      await screen.findByText('wall')
+      await act(async () => { vi.advanceTimersByTime(8100) })
       expect(setReady).toHaveBeenLastCalledWith(true)
     })
   })
