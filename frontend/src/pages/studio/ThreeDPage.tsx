@@ -165,7 +165,7 @@ export default function ThreeDPage() {
   // Only pieces with a 3-D model: photo-only shop listings (the demo stores)
   // cannot be placed, and must not push real models out of these 100.
   const setCatalogFurniture = useRoomStore((s) => s.setCatalogFurniture);
-  const { data: catalogFurniturePage } = useQuery({
+  const { data: catalogFurniturePage, isError: catalogFailed } = useQuery({
     queryKey: ['catalog-furniture'],
     queryFn: () => listCatalogFurniture({ per_page: 100, has_model: true }),
     staleTime: 60_000,
@@ -173,6 +173,10 @@ export default function ThreeDPage() {
   useEffect(() => {
     if (catalogFurniturePage) setCatalogFurniture(catalogFurniturePage.items);
   }, [catalogFurniturePage, setCatalogFurniture]);
+  // The tour's furniture step is there only if the arc has furniture to show, and its step list is
+  // fixed as it opens: it waits until the catalog has loaded (and reached the store) or failed.
+  const storeCatalog = useRoomStore((s) => s.catalogFurniture);
+  const catalogSettled = catalogFailed || (catalogFurniturePage !== undefined && storeCatalog === catalogFurniturePage.items);
 
   // Same orientation the scene uses: X is wall A, Z is wall B
   const { W, D } = roomExtents(geometry, { W: room.length, D: room.width });
@@ -489,7 +493,7 @@ export default function ThreeDPage() {
   // step says, so it is folded in: hidden until the tour is done, and seen when it ends.
   useStudioTourWiring({
     active: studioTourActive,
-    ready: studioTourReady({ compact, panorama, cameraStation, planShown }),
+    ready: studioTourReady({ compact, panorama, cameraStation, planShown }) && catalogSettled,
     setReady: setStudioTourReady,
     onStart: () => { closeRadial(); clearAllSelections(); disarmOpening(); setSelectedWall(null); setCameraListOpen(false); },
     onEnd: markTapHintSeen,

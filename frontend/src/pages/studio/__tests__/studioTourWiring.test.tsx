@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, act, renderHook } from '@testing-library/react'
+import { render, screen, fireEvent, act, renderHook, waitFor } from '@testing-library/react'
 import { useEffect } from 'react'
 import { MemoryRouter, Outlet, Route, Routes, useOutletContext } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -10,7 +10,7 @@ import { studioTourReady, useStudioTourWiring, usePendingPracticeCleanup } from 
 import { emitTourEvent, onTourEvent } from '@/lib/studioTourEvents'
 import { loadPractice, savePractice } from '@/lib/tourPractice'
 import { useRoomStore } from '@/store/roomStore'
-import { getRoom } from '@/lib/api'
+import { getRoom, listCatalogFurniture } from '@/lib/api'
 import type { StudioTourStepId } from '@/lib/studioTour'
 
 let compact = true
@@ -26,6 +26,7 @@ vi.mock('@/hooks/useRestoreUserModels', () => ({ useRestoreUserModels: () => {} 
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
   getRoom: vi.fn().mockResolvedValue({ id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }),
+  listCatalogFurniture: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, per_page: 100 }),
 }))
 
 // ThreeDPage with its R3F scene swapped for a wall button. A tap on a wall reaches the wall
@@ -278,12 +279,12 @@ describe('the studio tour, StudioPage side (task 7)', () => {
 
 describe('the studio tour, ThreeDPage side (task 7)', () => {
   const room = { id: 'r1', apartment_id: 'a1', name: 'Zal', length: 4, width: 3, ceiling_height: 2.7, area: 12 }
-  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean; at?: string }
-  const page = ({ active = false, step = null, roomReady = true, at = '/studio/r1' }: Ctx = {}) => (
-    <QueryClientProvider client={new QueryClient()}>
+  type Ctx = { active?: boolean; step?: StudioTourStepId | null; roomReady?: boolean; at?: string; setReady?: (r: boolean) => void; client?: QueryClient }
+  const page = ({ active = false, step = null, roomReady = true, at = '/studio/r1', setReady, client = new QueryClient({ defaultOptions: { queries: { retry: false } } }) }: Ctx = {}) => (
+    <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[at]}>
         <Routes>
-          <Route path="/studio/:roomId" element={<Outlet context={{ room, onSave: async () => {}, roomReady, studioTourActive: active, studioTourStep: step } as unknown as StudioContext} />}>
+          <Route path="/studio/:roomId" element={<Outlet context={{ room, onSave: async () => {}, roomReady, studioTourActive: active, studioTourStep: step, setStudioTourReady: setReady } as unknown as StudioContext} />}>
             <Route index element={<ThreeDPage />} />
             <Route path="mebel" element={<ThreeDPage />} />
           </Route>
@@ -343,6 +344,30 @@ describe('the studio tour, ThreeDPage side (task 7)', () => {
     rerender(page({ at: '/studio/r1/mebel', active: true, step: 'menu' }))
     expect(toggle()).not.toBeNull()
     expect(doors()).not.toBeNull()
+  })
+
+  it('catalog_settled: the tour is not ready until the furniture catalog has loaded (its arc key decides the furniture step)', async () => {
+    let resolve: (v: unknown) => void = () => {}
+    vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise((r) => { resolve = r }) as ReturnType<typeof listCatalogFurniture>)
+    const setReady = vi.fn()
+    render(page({ setReady }))
+    await screen.findByText('wall')
+    await act(async () => {})
+    expect(setReady).not.toHaveBeenCalledWith(true)
+    await act(async () => { resolve({ items: [], total: 0, page: 1, per_page: 100 }) })
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
+  })
+
+  it('catalog_settled: a catalog that fails to load lets the tour open too', async () => {
+    let reject: (e: unknown) => void = () => {}
+    vi.mocked(listCatalogFurniture).mockImplementationOnce(() => new Promise((_, r) => { reject = r }) as ReturnType<typeof listCatalogFurniture>)
+    const setReady = vi.fn()
+    render(page({ setReady }))
+    await screen.findByText('wall')
+    await act(async () => {})
+    expect(setReady).not.toHaveBeenCalledWith(true)
+    await act(async () => { reject(new Error('offline')) })
+    await waitFor(() => expect(setReady).toHaveBeenLastCalledWith(true))
   })
 
   it('surface_pick_emits_and_closes_radial', async () => {

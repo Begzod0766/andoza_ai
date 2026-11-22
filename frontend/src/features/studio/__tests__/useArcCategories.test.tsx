@@ -57,6 +57,14 @@ describe('the arc menu Mebel tour key', () => {
     useRoomStore.setState({ catalogFurniture: [row('sofa', 'Divan 1', 'divan', 'mehmonxona')] })
     expect(mebel().tourKey).toBe('mebel')
   })
+
+  it('is set by the user\'s own uploads alone, with an empty catalog (the catalog failed to load)', () => {
+    useRoomStore.setState({
+      catalogFurniture: [],
+      userFurniture: [{ id: 'u1', name: 'Kreslo', emoji: '🪑', blobId: 'b', modelPath: 'blob:x', scale: 1, sizeM: { w: 1, d: 1, h: 1 }, hasTextures: false }],
+    })
+    expect(mebel().tourKey).toBe('mebel')
+  })
 })
 
 describe('the arc menu Jihozlar category (spec 2026-11-08, renamed 2026-11-18)', () => {
