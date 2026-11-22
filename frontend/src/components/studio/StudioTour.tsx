@@ -145,11 +145,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // The targets on screen when the tour opens; a step whose target is missing is dropped.
   const [ids] = useState(() => steps.filter((s) => measure(s.targets[0]) !== null));
   // `gone` counts the steps dropped along the way, so the counter reads "2/6", not "3/7".
-  // `via`: how the tour came to this step — "next" after a Next or a done step's ✓ (and kept
-  // while steps never shown are dropped after it), "vanish" once a step that was on screen lost
-  // its target. Running past the end after "next" is a normal end (the question is asked);
-  // after "vanish" the Studio view itself has gone, an interruption.
-  const [pos, setPos] = useState<{ index: number; gone: number; via: "next" | "vanish" }>({ index: 0, gone: 0, via: "vanish" });
+  const [pos, setPos] = useState({ index: 0, gone: 0 });
   const { index, gone } = pos;
   const step = ids[index];
   const id = step?.id;
@@ -239,7 +235,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // can take the rest away, and the step then reads Done instead of running past the end.
   const [tailShown, setTailShown] = useState(true);
   const last = index === ids.length - 1 || (!isDo && !tailShown);
-  const next = () => (last ? finish("done") : setPos((p) => ({ ...p, index: p.index + 1, via: "next" })));
+  const next = () => (last ? finish("done") : setPos((p) => ({ ...p, index: p.index + 1 })));
 
   useLayoutEffect(() => {
     // While the question is up nothing is spotlit, so nothing is followed either.
@@ -250,10 +246,12 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     // position is still on this step, so resize + orientationchange together advance once.
     // Past the last step the tour ends (see `spent`).
     let seen = false;
+    // The previous step's spot is not this step's: dropped, so the grace shows the full shade.
+    setSpot((prev) => (prev && step.targets.includes(prev.target) ? prev : null));
     const vanish = () =>
       setPos((p) => {
         if (ids[p.index] !== step) return p;
-        return { index: p.index + 1, gone: p.gone + 1, via: seen ? "vanish" : p.via };
+        return { index: p.index + 1, gone: p.gone + 1 };
       });
     const tail = ids.slice(ids.indexOf(step) + 1);
     // When a check first found no target. A resize or rotation decides at once for a target that
@@ -307,12 +305,13 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
       notifyAppTour(false);
     };
   }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Past the last step ends the tour too: after a Next or a ✓ (the rest dropped as never on
-  // screen) as a normal end, so practice furniture is asked about; after a step that was on
-  // screen vanished (the 3D view went), or with nothing to show at all, without asking.
+  // Past the last step ends the tour too — as a normal end, so practice furniture is asked
+  // about (a rotation that took the last targets away included), unless the 3D view itself has
+  // gone (its scene target is off the page): that is an interruption, cleaned up without asking.
+  // With nothing to show at all, nothing was practised.
   const spent = empty || index >= ids.length;
   useEffect(() => {
-    if (spent) finish(!empty && pos.via === "next" ? "done" : "unmount");
+    if (spent) finish(!empty && isTourTargetShown("scene") ? "done" : "unmount");
   }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A real unmount mid-tour cleans up like an interruption. The work waits a microtask and is
@@ -362,7 +361,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     const i = index;
     const timer = setTimeout(() => {
       if (i === ids.length - 1) finish("done");
-      else setPos((p) => (p.index === i ? { ...p, index: i + 1, via: "next" } : p));
+      else setPos((p) => (p.index === i ? { ...p, index: i + 1 } : p));
     }, CHECK_MS);
     return () => clearTimeout(timer);
   }, [checked, index]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -427,11 +426,12 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     );
   }
 
-  if (empty || !id || !spot) return null;
+  if (empty || !id) return null;
   const shade = "pointer-events-auto fixed bg-black/55 backdrop-blur-sm";
-  // A new step whose target is not on screen yet (the page is still revealing it): the old
-  // spot is stale, so everything is covered until the target shows or the step is dropped.
-  if (!step.targets.includes(spot.target)) {
+  // A new step whose target is not on screen yet (the page is still revealing it): no spot of
+  // its own, so everything is covered — no hole, no card — until the target shows or the step
+  // is dropped.
+  if (!spot || !step.targets.includes(spot.target)) {
     return (
       <div className="pointer-events-none fixed inset-0 z-[300]">
         <div data-tour-backdrop className={`${shade} inset-0`} />
@@ -458,10 +458,22 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // fully inside the view (a big target can leave no room either side, and the card then sits
   // over its edge).
   const below = vh - bottom >= top;
-  let wanted = below ? bottom + GAP : top - GAP - cardH;
-  if (showHand && below && !handAbove) wanted = Math.max(wanted, handY + HAND_H + HAND_GAP);
-  if (showHand && !below && handAbove) wanted = Math.min(wanted, handY - HAND_H - HAND_GAP - cardH);
-  const cardTop = Math.max(PAD, Math.min(wanted, vh - cardH - PAD));
+  const clamp = (y: number) => Math.max(PAD, Math.min(y, vh - cardH - PAD));
+  let cardTop = clamp(below ? bottom + GAP : top - GAP - cardH);
+  if (showHand) {
+    // The hand's reach on screen; a card over it moves just past it — the preferred side first,
+    // else the other — when the card fits there, and stays put when it fits on neither side.
+    const handTop = handAbove ? handY - HAND_H : handY;
+    const handBottom = handAbove ? handY : handY + HAND_H;
+    if (cardTop < handBottom + HAND_GAP && cardTop + cardH > handTop - HAND_GAP) {
+      const over = handTop - HAND_GAP - cardH;
+      const under = handBottom + HAND_GAP;
+      const fits = (y: number) => y >= PAD && y + cardH <= vh - PAD;
+      const order = below ? [under, over] : [over, under];
+      const clear = order.find(fits);
+      if (clear !== undefined) cardTop = clear;
+    }
+  }
 
   // The card: 16px gutters, 384px at most, centred under (or over) the target as far as the
   // view allows — in landscape a centred card left its arrow ~190px short of a corner button.

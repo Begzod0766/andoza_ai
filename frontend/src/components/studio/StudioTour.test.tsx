@@ -168,8 +168,8 @@ describe('StudioTour', () => {
     })
     act(() => { vi.advanceTimersByTime(600) })
     expect(onFinish).toHaveBeenCalledTimes(1)
-    // the menu was on screen when it vanished: an interruption, not a normal end
-    expect(onFinish).toHaveBeenCalledWith('unmount')
+    // the 3D view (scene) is still there: a normal end (R8), not an interruption
+    expect(onFinish).toHaveBeenCalledWith('done')
     vi.useRealTimers()
   })
 
@@ -934,7 +934,7 @@ describe('StudioTour residual fixes', () => {
     expect(onFinish).not.toHaveBeenCalled()
   })
 
-  it('a shown step whose target vanishes at the end still ends without asking (the 3D view is gone)', () => {
+  it('R8: the 3D view itself gone (scene target vanished) at the end ends without asking', () => {
     const onFinish = vi.fn()
     mount(['scene'])
     render(<StudioTour steps={tour('scene')} roomId="r1" onFinish={onFinish} />)
@@ -943,6 +943,77 @@ describe('StudioTour residual fixes', () => {
     act(() => { window.dispatchEvent(new Event('resize')) })
     expect(question()).toBeNull()
     expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('R8: rotating on the help step (the landscape header has no "?") runs out as done and asks', () => {
+    const onFinish = vi.fn()
+    rects.help = { left: 300, top: 10, width: 40, height: 40 }
+    mount(['scene', 'help'])
+    const steps: StudioTourStep[] = [{ id: 'menu', kind: 'show', targets: ['scene'] }, STEP('help')]
+    const { container } = render(<StudioTour steps={steps} roomId="r1" onFinish={onFinish} />)
+    practise()
+    fireEvent.click(hole(container))
+    expect(screen.getByText(i18n.t('studio.tour.help.body'))).toBeInTheDocument()
+    rects.help = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    frame()
+    expect(question()).not.toBeNull()
+    expect(ids()).toEqual(['a', 'b'])
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('R8: leaving the 3D view (scene target removed) mid-tour removes the practice furniture silently', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    fireEvent.click(hole(container))
+    document.querySelector('[data-tour="scene"]')!.remove()
+    document.querySelector('[data-tour="menu"]')!.remove()
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    act(() => { vi.advanceTimersByTime(700) })
+    expect(question()).toBeNull()
+    expect(ids()).toEqual(['a'])
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('grace_no_stale_hole (small 1): while a new step waits for its target there is no hole and no tappable Next', () => {
+    mount(['scene', 'menu'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu')} roomId="r1" onFinish={() => {}} />)
+    rects.menu = { left: 0, top: 0, width: 0, height: 0 }
+    fireEvent.click(hole(container))
+    act(() => { vi.advanceTimersByTime(200) })
+    expect(container.querySelector('[data-tour-hole]')).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('studio.tour.next') })).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('studio.tour.done') })).toBeNull()
+    expect(container.querySelectorAll('[data-tour-backdrop]')).toHaveLength(1)
+  })
+
+  it('card_clear_of_hand (small 2): landscape surface step, card clamped to the top, keeps clear of the hand', () => {
+    const CARD_H = 160
+    Object.defineProperty(window, 'innerWidth', { value: 844, configurable: true, writable: true })
+    Object.defineProperty(window, 'innerHeight', { value: 390, configurable: true, writable: true })
+    // a tall card (long text): clamped to the top it would reach past the hand's fingertip
+    const impl = vi.mocked(Element.prototype.getBoundingClientRect).getMockImplementation()!
+    vi.mocked(Element.prototype.getBoundingClientRect).mockImplementation(function (this: Element) {
+      if (this.getAttribute('role') === 'dialog') return rectOf({ left: 0, top: 0, width: 384, height: CARD_H })
+      return impl.call(this)
+    })
+    rects.scene = { left: 0, top: 60, width: 844, height: 330 }
+    mount(['menu'])
+    const scene = document.createElement('div')
+    scene.setAttribute('data-tour', 'scene')
+    scene.setAttribute('data-tour-hand-y', '0.3')
+    document.body.appendChild(scene)
+    const { container } = render(<StudioTour steps={[STEP('surface'), STEP('menu')]} roomId="r1" onFinish={() => {}} />)
+    const hand = container.querySelector('[data-tour-hand] > div') as HTMLElement
+    const y = parseFloat(hand.style.top)
+    const [handTop, handBottom] = hand.getAttribute('data-from-above') === 'true' ? [y - 48, y] : [y, y + 48]
+    const cardTop = parseFloat(screen.getByRole('dialog').style.top)
+    const cardBottom = cardTop + CARD_H
+    expect(cardBottom <= handTop || cardTop >= handBottom).toBe(true)
+    expect(cardTop).toBeGreaterThanOrEqual(8)
+    expect(cardBottom).toBeLessThanOrEqual(390 - 8)
   })
 
   it('vanish_one_step (#3): a resize drops only the vanished step; a later one hidden just then gets its own grace', () => {
