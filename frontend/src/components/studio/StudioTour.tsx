@@ -23,6 +23,13 @@ const HAND_FLIP_BOTTOM = 120;
 /** A do step's targets must be missing this long, frame after frame, to count as vanished
  *  (an arc re-render or a remounting sheet can drop them for a frame or two). */
 const VANISH_MS = 500;
+/** The highlight ring's width (ring-2): a target at the view's edge gets its ring inset by this
+ *  much, so it is not cut off. */
+const RING = 2;
+/** How far the hand reaches from its fingertip (TourHand's 48 px tall finger). */
+const HAND_H = 48;
+/** The space kept between the hand and the card. */
+const HAND_GAP = 4;
 
 export type StudioTourFinishReason = "done" | "skip" | "app" | "unmount";
 
@@ -49,16 +56,20 @@ function measure(id: string): Box | null {
  * Where the hand should point, when the target names a spot of its own: a real button marked
  * `[data-tour-hand-for="<target>"]` anywhere on the page (an arc ring's buttons sit beside its
  * footprint, not in it), else a `[data-tour-hand-at]` child (a stage-list row; a ring's fallback
- * spot on the ring itself). `above` when the anchor asks for the hand from above
+ * spot on the ring itself), else a height given by `data-tour-hand-y`. `above` when the anchor asks for the hand from above
  * (`data-tour-hand-from="above"`: its label is at its foot). Null when none is laid out.
  */
-function handAt(el: Element, target: string): Hand | null {
+function handAt(el: Element, target: string, box: Box): Hand | null {
   for (const at of [document.querySelector(`[data-tour-hand-for="${target}"]`), el.querySelector("[data-tour-hand-at]")]) {
     if (!at) continue;
     const r = at.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) continue;
     return { x: r.left + r.width / 2, y: r.top + r.height / 2, above: at.getAttribute("data-tour-hand-from") === "above" };
   }
+  // `data-tour-hand-y="0.3"`: that far down the (uncovered) box, centred across it — the scene,
+  // whose centre is often a piece of furniture while its upper part is wall.
+  const y = parseFloat(el.getAttribute("data-tour-hand-y") ?? "");
+  if (Number.isFinite(y)) return { x: box.left + box.width / 2, y: box.top + y * box.height, above: false };
   return null;
 }
 
@@ -76,7 +87,10 @@ function locate(step: StudioTourStep): Spot | null {
   const deepest = step.kind === "do" ? step.targets.length - 1 : 0;
   for (let i = deepest; i >= 0; i--) {
     const found = boxOf(step.targets[i]);
-    if (found) return { target: step.targets[i], box: uncovered(found.el, found.box), hand: handAt(found.el, step.targets[i]) };
+    if (found) {
+      const box = uncovered(found.el, found.box);
+      return { target: step.targets[i], box, hand: handAt(found.el, step.targets[i], box) };
+    }
   }
   return null;
 }
@@ -115,9 +129,10 @@ const sameSpot = (a: Spot | null, b: Spot) =>
  * (picked a surface, added furniture, changed the stage). It never marks itself done —
  * `onFinish` tells the page why it ended, and the page decides what to remember.
  *
- * Every end first restores the view. Done or Skip then asks whether to keep the furniture
- * added while practising (if any is still there); every other end — the app's Back, the
- * targets vanishing, an unmount — takes it out without asking. A change of room ends the tour
+ * Every end first restores the view. Done or Skip — or running past the last step after a Next
+ * or a ✓ (the steps left had nothing on screen) — then asks whether to keep the furniture added
+ * while practising (if any is still there); every other end — the app's Back, the targets of a
+ * step on screen vanishing (the 3D view went), an unmount — takes it out without asking. A change of room ends the tour
  * without touching the store (it already holds the new room); the record stays for next time.
  */
 export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
@@ -130,7 +145,11 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   // The targets on screen when the tour opens; a step whose target is missing is dropped.
   const [ids] = useState(() => steps.filter((s) => measure(s.targets[0]) !== null));
   // `gone` counts the steps dropped along the way, so the counter reads "2/6", not "3/7".
-  const [pos, setPos] = useState({ index: 0, gone: 0 });
+  // `via`: how the tour came to this step — "next" after a Next or a done step's ✓ (and kept
+  // while steps never shown are dropped after it), "vanish" once a step that was on screen lost
+  // its target. Running past the end after "next" is a normal end (the question is asked);
+  // after "vanish" the Studio view itself has gone, an interruption.
+  const [pos, setPos] = useState<{ index: number; gone: number; via: "next" | "vanish" }>({ index: 0, gone: 0, via: "vanish" });
   const { index, gone } = pos;
   const step = ids[index];
   const id = step?.id;
@@ -216,35 +235,45 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     clearPractice(tourRoom);
     close(asking);
   };
-  const last = index === ids.length - 1;
-  const next = () => (last ? finish("done") : setPos((p) => ({ ...p, index: p.index + 1 })));
+  // Whether a later step's target is on screen (followed every frame on a show step): a rotation
+  // can take the rest away, and the step then reads Done instead of running past the end.
+  const [tailShown, setTailShown] = useState(true);
+  const last = index === ids.length - 1 || (!isDo && !tailShown);
+  const next = () => (last ? finish("done") : setPos((p) => ({ ...p, index: p.index + 1, via: "next" })));
 
   useLayoutEffect(() => {
     // While the question is up nothing is spotlit, so nothing is followed either.
     if (!step || asking) return;
-    // The target vanished: move to the next step still on screen (the updater only acts
-    // while the position is still on this step, so resize + orientationchange together
-    // advance once), or end when none is left.
+    // The target vanished: drop this step and move to the next one, which then gets its own
+    // grace (the page may hide its target for the current step — the stage pill and camera bar
+    // on the furniture step — so it is not judged now). The updater only acts while the
+    // position is still on this step, so resize + orientationchange together advance once.
+    // Past the last step the tour ends (see `spent`).
+    let seen = false;
     const vanish = () =>
       setPos((p) => {
         if (ids[p.index] !== step) return p;
-        let k = p.index + 1;
-        while (k < ids.length && !locate(ids[k])) k++;
-        return { index: k, gone: p.gone + 1 + (k - p.index - 1) };
+        return { index: p.index + 1, gone: p.gone + 1, via: seen ? "vanish" : p.via };
       });
-    // When a check first found no target. A resize or rotation decides at once; every other
-    // miss — a frame, or the first check of a new step — gets VANISH_MS of grace: the page may
-    // still be revealing the step's target (it hides the arc and the stage pill until it hears
-    // the new step, which lands an effect later than this check).
+    const tail = ids.slice(ids.indexOf(step) + 1);
+    // When a check first found no target. A resize or rotation decides at once for a target that
+    // was on screen; every other miss — a frame, or a step not shown yet — gets VANISH_MS of
+    // grace: the page may still be revealing the step's target (it hides the arc and the stage
+    // pill until it hears the new step, which lands an effect later than this check).
     let missingSince: number | null = null;
     const update = (now: number | null) => {
       const found = locate(step);
+      if (step.kind === "show") {
+        const shown = tail.some((s) => measure(s.targets[0]) !== null);
+        setTailShown((prev) => (prev === shown ? prev : shown));
+      }
       if (found) {
+        seen = true;
         missingSince = null;
         setSpot((prev) => (sameSpot(prev, found) ? prev : found));
-      } else if (now === null) vanish();
-      else if (missingSince === null) missingSince = now;
-      else if (now - missingSince >= VANISH_MS) vanish();
+      } else if (now === null && seen) vanish();
+      else if (missingSince === null) missingSince = now ?? performance.now();
+      else if ((now ?? performance.now()) - missingSince >= VANISH_MS) vanish();
     };
     const onViewChange = () => update(null);
     update(performance.now());
@@ -278,9 +307,13 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
       notifyAppTour(false);
     };
   }, [empty]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Past the last step (nothing left on screen after a rotation) ends the tour too.
+  // Past the last step ends the tour too: after a Next or a ✓ (the rest dropped as never on
+  // screen) as a normal end, so practice furniture is asked about; after a step that was on
+  // screen vanished (the 3D view went), or with nothing to show at all, without asking.
   const spent = empty || index >= ids.length;
-  useEffect(() => { if (spent) finish("unmount"); }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (spent) finish(!empty && pos.via === "next" ? "done" : "unmount");
+  }, [spent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A real unmount mid-tour cleans up like an interruption. The work waits a microtask and is
   // called off if the effect mounts again, so StrictMode's simulated unmount does nothing.
@@ -329,7 +362,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     const i = index;
     const timer = setTimeout(() => {
       if (i === ids.length - 1) finish("done");
-      else setPos((p) => (p.index === i ? { ...p, index: i + 1 } : p));
+      else setPos((p) => (p.index === i ? { ...p, index: i + 1, via: "next" } : p));
     }, CHECK_MS);
     return () => clearTimeout(timer);
   }, [checked, index]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -409,18 +442,26 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const left = Math.max(0, box.left - PAD);
-  const top = Math.max(0, box.top - PAD);
-  const right = Math.min(vw, box.left + box.width + PAD);
-  const bottom = Math.min(vh, box.top + box.height + PAD);
-  // Below the target if there is more room there, else above; then kept fully inside the view
-  // (a big target can leave no room either side, and the card then sits over its edge).
-  const wanted = vh - bottom >= top ? bottom + GAP : top - GAP - cardH;
-  const cardTop = Math.max(PAD, Math.min(wanted, vh - cardH - PAD));
+  // The hole and its ring, inset RING px from the view's edges so the ring is never cut off.
+  const left = Math.max(RING, box.left - PAD);
+  const top = Math.max(RING, box.top - PAD);
+  const right = Math.min(vw - RING, box.left + box.width + PAD);
+  const bottom = Math.min(vh - RING, box.top + box.height + PAD);
   const cx = box.left + box.width / 2;
   const cy = box.top + box.height / 2;
   const handX = spot.hand?.x ?? cx;
   const handY = spot.hand?.y ?? cy;
+  const handAbove = !!spot.hand?.above || handY > vh - HAND_FLIP_BOTTOM;
+  const showHand = isDo && !checked;
+  // Below the target if there is more room there, else above; clear of the hand, which reaches
+  // HAND_H past its fingertip (up from a hand pointing from above, down otherwise); then kept
+  // fully inside the view (a big target can leave no room either side, and the card then sits
+  // over its edge).
+  const below = vh - bottom >= top;
+  let wanted = below ? bottom + GAP : top - GAP - cardH;
+  if (showHand && below && !handAbove) wanted = Math.max(wanted, handY + HAND_H + HAND_GAP);
+  if (showHand && !below && handAbove) wanted = Math.min(wanted, handY - HAND_H - HAND_GAP - cardH);
+  const cardTop = Math.max(PAD, Math.min(wanted, vh - cardH - PAD));
 
   // The card: 16px gutters, 384px at most, centred under (or over) the target as far as the
   // view allows — in landscape a centred card left its arrow ~190px short of a corner button.
@@ -457,7 +498,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   );
   const counter = (
     <span className="shrink-0 text-xs tabular-nums text-ink-muted">
-      {t("studio.tour.step_of", { current: index + 1 - gone, total: ids.length - gone })}
+      {t("studio.tour.step_of", { current: index + 1 - gone, total: last ? index + 1 - gone : ids.length - gone })}
     </span>
   );
 
@@ -485,9 +526,9 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
           style={{ left, top, width: right - left, height: bottom - top }}
         />
       )}
-      {isDo && !checked && (
+      {showHand && (
         <div data-tour-hand>
-          <TourHand key={spot.target} x={handX} y={handY} above={spot.hand?.above || handY > vh - HAND_FLIP_BOTTOM} replayKey={replay} />
+          <TourHand key={spot.target} x={handX} y={handY} above={handAbove} replayKey={replay} />
         </div>
       )}
       {checked && (

@@ -152,6 +152,8 @@ describe('StudioTour', () => {
   })
 
   it('a rotation that takes the remaining targets away finishes once instead of hanging', () => {
+    // The step after the vanished one gets its own 500 ms grace (residual #3), then is dropped too.
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
     const onFinish = vi.fn()
     mount(['scene', 'menu', 'arc'])
     rects.arc = { left: 10, top: 300, width: 40, height: 40 }
@@ -164,7 +166,11 @@ describe('StudioTour', () => {
       window.dispatchEvent(new Event('resize'))
       window.dispatchEvent(new Event('orientationchange'))
     })
+    act(() => { vi.advanceTimersByTime(600) })
     expect(onFinish).toHaveBeenCalledTimes(1)
+    // the menu was on screen when it vanished: an interruption, not a normal end
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+    vi.useRealTimers()
   })
 
   it('the card is a modal dialog', () => {
@@ -866,5 +872,143 @@ describe('StudioTour practice texts', () => {
     expect(uz.studio.tour.practice_question).toBe("Mashqda qo'shilgan mebel qoldirilsinmi?")
     expect(uz.studio.tour.practice_remove).toBe('Olib tashlash')
     expect(uz.studio.tour.practice_keep).toBe('Qoldirish')
+  })
+})
+
+// --- residual findings after the second visual check (head 27057240) ---
+
+describe('StudioTour residual fixes', () => {
+  const question = () => screen.queryByRole('alertdialog')
+  const ids = () => useRoomStore.getState().furniture.map((f) => f.id)
+  const practise = () => act(() => { useRoomStore.setState({ furniture: [a, b] }) })
+  const hole = (c: HTMLElement) => c.querySelector('[data-tour-hole]') as HTMLElement
+  const size = { w: window.innerWidth, h: window.innerHeight }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance'] })
+    useRoomStore.getState().resetRoom()
+    useRoomStore.setState({ furniture: [a], viewStage: 'full' })
+    localStorage.clear()
+    rects.arc = { left: 10, top: 300, width: 40, height: 40 }
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    localStorage.clear()
+    Object.defineProperty(window, 'innerWidth', { value: size.w, configurable: true, writable: true })
+    Object.defineProperty(window, 'innerHeight', { value: size.h, configurable: true, writable: true })
+  })
+
+  it('last_from_present (#1): a step with no later target left on screen reads Done, and Done asks', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu', 'arc'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu', 'arc')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    fireEvent.click(hole(container))
+    expect(screen.getByText('2/3')).toBeInTheDocument()
+    // a rotation takes the last step's target away (the landscape header has no "?")
+    rects.arc = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    frame()
+    expect(screen.getByRole('button', { name: i18n.t('studio.tour.done') })).toBeInTheDocument()
+    expect(screen.getByText('2/2')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.done') }))
+    expect(question()).not.toBeNull()
+    expect(ids()).toEqual(['a', 'b'])
+    expect(onFinish).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') }))
+    expect(onFinish).toHaveBeenCalledWith('done')
+    expect(ids()).toEqual(['a'])
+  })
+
+  it('past_end_after_next (#1): Next onto a step whose target is gone runs past the end as done, asking first', () => {
+    const onFinish = vi.fn()
+    mount(['scene', 'menu'])
+    const { container } = render(<StudioTour steps={tour('scene', 'menu')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    // gone between two frames: the Next button still read Next
+    rects.menu = { left: 0, top: 0, width: 0, height: 0 }
+    fireEvent.click(hole(container))
+    act(() => { vi.advanceTimersByTime(700) })
+    expect(question()).not.toBeNull()
+    expect(ids()).toEqual(['a', 'b'])
+    expect(onFinish).not.toHaveBeenCalled()
+  })
+
+  it('a shown step whose target vanishes at the end still ends without asking (the 3D view is gone)', () => {
+    const onFinish = vi.fn()
+    mount(['scene'])
+    render(<StudioTour steps={tour('scene')} roomId="r1" onFinish={onFinish} />)
+    practise()
+    rects.scene = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => { window.dispatchEvent(new Event('resize')) })
+    expect(question()).toBeNull()
+    expect(onFinish).toHaveBeenCalledWith('unmount')
+  })
+
+  it('vanish_one_step (#3): a resize drops only the vanished step; a later one hidden just then gets its own grace', () => {
+    mount(['scene', 'menu', 'arc'])
+    render(<StudioTour steps={tour('scene', 'menu', 'arc')} roomId="r1" onFinish={() => {}} />)
+    const savedMenu = rects.menu
+    rects.scene = { left: 0, top: 0, width: 0, height: 0 }
+    rects.menu = { left: 0, top: 0, width: 0, height: 0 }
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+      window.dispatchEvent(new Event('orientationchange'))
+    })
+    act(() => { vi.advanceTimersByTime(300) })
+    rects.menu = savedMenu
+    frame()
+    expect(screen.getByText(i18n.t('studio.tour.menu.body'))).toBeInTheDocument()
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+  })
+
+  it('hand_upper_scene (#2): on a target marked data-tour-hand-y the hand points 30% down its box, centred', () => {
+    mount(['menu'])
+    const scene = document.createElement('div')
+    scene.setAttribute('data-tour', 'scene')
+    scene.setAttribute('data-tour-hand-y', '0.3')
+    document.body.appendChild(scene)
+    const { container } = render(<StudioTour steps={[STEP('surface'), STEP('menu')]} roomId="r1" onFinish={() => {}} />)
+    const hand = container.querySelector('[data-tour-hand] > div') as HTMLElement
+    expect(hand.style.left).toBe('120px')
+    expect(hand.style.top).toBe('130px')
+  })
+
+  it('ring_inside_view (#6): a target at the top-left corner keeps its ring inside the view', () => {
+    rects.menu = { left: 0, top: 0, width: 40, height: 40 }
+    mount(['menu'])
+    const { container } = render(<StudioTour steps={tour('menu')} roomId="r1" onFinish={() => {}} />)
+    const ring = hole(container)
+    expect(parseFloat(ring.style.top)).toBeGreaterThanOrEqual(2)
+    expect(parseFloat(ring.style.left)).toBeGreaterThanOrEqual(2)
+  })
+
+  it('ring_inside_view (#6): a target at the right edge keeps its ring inside the view', () => {
+    rects.menu = { left: window.innerWidth - 40, top: 10, width: 40, height: 40 }
+    mount(['menu'])
+    const { container } = render(<StudioTour steps={tour('menu')} roomId="r1" onFinish={() => {}} />)
+    const ring = hole(container)
+    expect(parseFloat(ring.style.left) + parseFloat(ring.style.width)).toBeLessThanOrEqual(window.innerWidth - 2)
+  })
+
+  it('card_clear_of_hand (#7): a card above a hand pointing from above stops over the hand', () => {
+    rects['arc-mebel'] = { left: 300, top: window.innerHeight - 60, width: 50, height: 46 }
+    mount(['arc-mebel'])
+    const { container } = render(<StudioTour steps={[STEP('furniture')]} roomId="r1" onFinish={() => {}} />)
+    const hand = container.querySelector('[data-tour-hand] > div') as HTMLElement
+    expect(hand).toHaveAttribute('data-from-above', 'true')
+    const handTop = parseFloat(hand.style.top) - 48
+    const cardBottom = parseFloat(screen.getByRole('dialog').style.top) + 200
+    expect(cardBottom).toBeLessThanOrEqual(handTop)
+  })
+
+  it('card_clear_of_hand (#7): a card below a hand pointing up starts under the hand', () => {
+    rects.stage = { left: 10, top: 70, width: 60, height: 40 }
+    mount(['stage'])
+    const { container } = render(<StudioTour steps={[STEP('stage')]} roomId="r1" onFinish={() => {}} />)
+    const hand = container.querySelector('[data-tour-hand] > div') as HTMLElement
+    expect(hand).toHaveAttribute('data-from-above', 'false')
+    const handBottom = parseFloat(hand.style.top) + 48
+    expect(parseFloat(screen.getByRole('dialog').style.top)).toBeGreaterThanOrEqual(handBottom)
   })
 })
