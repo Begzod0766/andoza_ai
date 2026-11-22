@@ -29,4 +29,11 @@ describe('TourHand', () => {
     rerender(<TourHand x={1} y={2} replayKey={1} />)
     expect(container.firstElementChild).not.toBe(first)
   })
+
+  it('above: the hand is mirrored to point down at x/y from above', () => {
+    const { container } = render(<TourHand x={1} y={2} replayKey={0} above />)
+    const el = container.firstElementChild as HTMLElement
+    expect(el).toHaveAttribute('data-from-above', 'true')
+    expect((el.firstElementChild as HTMLElement).style.transform).toBe('scaleY(-1)')
+  })
 })

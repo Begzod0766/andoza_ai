@@ -13,6 +13,9 @@ const ARROW = 8;
 const CHECK_MS = 600;
 /** The hand shows the gesture again after this long without a tap. */
 const IDLE_MS = 10_000;
+/** A hand pointing at something this close to the foot of the screen points down from above
+ *  instead: below its fingertip there is no room for it. */
+const HAND_FLIP_BOTTOM = 120;
 /** A do step's targets must be missing this long, frame after frame, to count as vanished
  *  (an arc re-render or a remounting sheet can drop them for a frame or two). */
 const VANISH_MS = 500;
@@ -20,9 +23,9 @@ const VANISH_MS = 500;
 export type StudioTourFinishReason = "done" | "skip" | "app" | "unmount";
 
 type Box = { left: number; top: number; width: number; height: number };
-type Point = { x: number; y: number };
+type Hand = { x: number; y: number; above: boolean };
 /** `hand`: where the hand points, when the target names a spot of its own (see `handAt`). */
-type Spot = { target: string; box: Box; hand: Point | null };
+type Spot = { target: string; box: Box; hand: Hand | null };
 
 function boxOf(id: string): { el: Element; box: Box } | null {
   const el = document.querySelector(`[data-tour="${id}"]`);
@@ -38,14 +41,21 @@ function measure(id: string): Box | null {
   return boxOf(id)?.box ?? null;
 }
 
-/** A target can name where the hand should point with a `[data-tour-hand-at]` child (an arc
- *  ring points at the ring itself, not its footprint's centre); null when it has none laid out. */
-function handAt(el: Element): Point | null {
-  const at = el.querySelector("[data-tour-hand-at]");
-  if (!at) return null;
-  const r = at.getBoundingClientRect();
-  if (r.width <= 0 || r.height <= 0) return null;
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+/**
+ * Where the hand should point, when the target names a spot of its own: a real button marked
+ * `[data-tour-hand-for="<target>"]` anywhere on the page (an arc ring's buttons sit beside its
+ * footprint, not in it), else a `[data-tour-hand-at]` child (a stage-list row; a ring's fallback
+ * spot on the ring itself). `above` when the anchor asks for the hand from above
+ * (`data-tour-hand-from="above"`: its label is at its foot). Null when none is laid out.
+ */
+function handAt(el: Element, target: string): Hand | null {
+  for (const at of [document.querySelector(`[data-tour-hand-for="${target}"]`), el.querySelector("[data-tour-hand-at]")]) {
+    if (!at) continue;
+    const r = at.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, above: at.getAttribute("data-tour-hand-from") === "above" };
+  }
+  return null;
 }
 
 /** Whether the tour would show this target right now (in the DOM, with a box, on screen). */
@@ -62,7 +72,7 @@ function locate(step: StudioTourStep): Spot | null {
   const deepest = step.kind === "do" ? step.targets.length - 1 : 0;
   for (let i = deepest; i >= 0; i--) {
     const found = boxOf(step.targets[i]);
-    if (found) return { target: step.targets[i], box: uncovered(found.el, found.box), hand: handAt(found.el) };
+    if (found) return { target: step.targets[i], box: uncovered(found.el, found.box), hand: handAt(found.el, step.targets[i]) };
   }
   return null;
 }
@@ -92,7 +102,7 @@ function uncovered(el: Element, box: Box): Box {
 const sameSpot = (a: Spot | null, b: Spot) =>
   !!a && a.target === b.target && a.box.left === b.box.left && a.box.top === b.box.top &&
   a.box.width === b.box.width && a.box.height === b.box.height &&
-  a.hand?.x === b.hand?.x && a.hand?.y === b.hand?.y;
+  a.hand?.x === b.hand?.x && a.hand?.y === b.hand?.y && a.hand?.above === b.hand?.above;
 
 /**
  * First-run tour of the Studio: a spotlight over each target in turn, the rest of the view
@@ -406,6 +416,8 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
   const cardStyle = { top: cardTop, maxHeight: vh - 2 * PAD };
   const cx = box.left + box.width / 2;
   const cy = box.top + box.height / 2;
+  const handX = spot.hand?.x ?? cx;
+  const handY = spot.hand?.y ?? cy;
 
   // A show step's arrow: a CSS triangle on the card's edge, pointing at the target, when the
   // card sits clear of it. The card is `inset-x-4 mx-auto max-w-sm` (16px gutters, 384px max).
@@ -459,7 +471,7 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
       )}
       {isDo && !checked && (
         <div data-tour-hand>
-          <TourHand key={spot.target} x={spot.hand?.x ?? cx} y={spot.hand?.y ?? cy} replayKey={replay} />
+          <TourHand key={spot.target} x={handX} y={handY} above={spot.hand?.above || handY > vh - HAND_FLIP_BOTTOM} replayKey={replay} />
         </div>
       )}
       {checked && (

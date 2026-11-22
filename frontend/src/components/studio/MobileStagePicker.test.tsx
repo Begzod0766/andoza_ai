@@ -50,4 +50,18 @@ describe('MobileStagePicker (phone, spec 2026-11-18)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Bosqich:/ }))
     expect(container.querySelector('[data-tour="stage-list"]')).not.toBeNull()
   })
+
+  it('hand_on_row: the tour\'s hand anchor is the first stage row other than the current one', () => {
+    const { rerender } = render(<MobileStagePicker stages={stages} view={stages[0].key} onPick={() => {}} onFull={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: /Bosqich:/ }))
+    const list = document.querySelector('[data-tour="stage-list"]') as HTMLElement
+    let at = list.querySelectorAll('[data-tour-hand-at]')
+    expect(at).toHaveLength(1)
+    expect(at[0].tagName).toBe('BUTTON')
+    expect(at[0].textContent).toBe(screen.getAllByRole('button')[2].textContent)
+    rerender(<MobileStagePicker stages={stages} view="full" onPick={() => {}} onFull={() => {}} />)
+    at = list.querySelectorAll('[data-tour-hand-at]')
+    expect(at).toHaveLength(1)
+    expect(at[0]).toBe(screen.getAllByRole('button')[1])
+  })
 })

@@ -27,6 +27,7 @@ export function MobileStagePicker({ stages, view, onPick, onFull, onOpenChange }
   };
   const full = t("studio.stage_view.full");
   const current = view === "full" ? full : t(stages.find((s) => s.key === view)?.labelKey ?? "studio.stage_view.full");
+  const handKey = stages.find((s) => s.key !== view)?.key;
   const item = (active: boolean) =>
     `block w-full rounded-lg px-3 py-1.5 text-left text-[12px] ${active ? "bg-brand text-white" : "text-ink hover:bg-card-soft"}`;
   return (
@@ -41,7 +42,8 @@ export function MobileStagePicker({ stages, view, onPick, onFull, onOpenChange }
       {open && (
         <div data-tour="stage-list" className="absolute left-0 top-full mt-1 w-44 space-y-0.5 rounded-xl border border-line bg-card p-1 shadow-xl">
           {stages.map((s) => (
-            <button key={s.key} type="button" className={item(view === s.key)}
+            // The Studio tour's hand points at the first stage that is not the one shown.
+            <button key={s.key} type="button" className={item(view === s.key)} data-tour-hand-at={s.key === handKey ? "" : undefined}
               onClick={() => { onPick(s.key); setOpen(false); }}>{t(s.labelKey)}</button>
           ))}
           <button type="button" className={item(view === "full")}

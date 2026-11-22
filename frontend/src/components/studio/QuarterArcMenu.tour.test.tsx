@@ -83,4 +83,34 @@ describe('arc menu tour targets', () => {
     render(<QuarterArcMenu categories={cats()} />)
     expect(screen.getByRole('button', { name: /Pol/ })).not.toBeDisabled()
   })
+
+  it('hand_on_button: ring 0 marks the first room with models (the room\'s own comes first), ring 1 the first model', () => {
+    const c: ArcCategory[] = [{
+      key: 'mebel', label: 'Mebel', icon: null, tourKey: 'mebel',
+      items: [
+        { key: 'room:own', label: 'Oshxona', onSelect: () => {}, items: [] },
+        { key: 'room:a', label: 'Mehmonxona', onSelect: () => {}, items: [
+          { key: 'm1', label: 'Divan', onSelect: () => {} },
+          { key: 'm2', label: 'Stol', onSelect: () => {} },
+        ] },
+      ],
+    }]
+    render(<QuarterArcMenu categories={c} />)
+    fireEvent.click(screen.getByRole('button', { name: /Mebel/ }))
+    const at0 = document.querySelector('[data-tour-hand-for="arc-mebel-ring-0"]') as HTMLElement
+    expect(at0.tagName).toBe('BUTTON')
+    expect(at0).toHaveAttribute('title', 'Mehmonxona')
+    expect(at0).toHaveAttribute('data-tour-hand-from', 'above')
+    fireEvent.click(at0)
+    const at1 = document.querySelector('[data-tour-hand-for="arc-mebel-ring-1"]') as HTMLElement
+    expect(at1.tagName).toBe('BUTTON')
+    expect(at1).toHaveAttribute('title', 'Divan')
+    expect(document.querySelectorAll('[data-tour-hand-for]')).toHaveLength(1)
+  })
+
+  it('hand_on_button: the room\'s own type gets the hand when it has models', () => {
+    render(<QuarterArcMenu categories={cats()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Mebel/ }))
+    expect(document.querySelector('[data-tour-hand-for="arc-mebel-ring-0"]')).toHaveAttribute('title', 'Mehmonxona')
+  })
 })

@@ -258,9 +258,18 @@ export function QuarterArcMenu({
     if (item.closesMenu) closeAll()
   }
 
+  // The Studio tour's hand goes on a real button of the open ring: the first that opens a ring
+  // of its own (the room's own type comes first under Mebel, but may have no models), else the
+  // first. Its label is at its foot, so the hand comes from above.
+  const handFor = open && active?.tourKey ? `arc-${active.tourKey}-ring-${trail.length}` : null
+  const handIndex = Math.max(0, outer.findIndex((it) => it.items?.length))
+
   function renderOuterButton(item: ArcItem, pos: { dx: number; dy: number }, opacity: number, i: number, slotKey: number | string) {
+    const hand = handFor !== null && i === handIndex && opacity >= 0.5
     return (
       <button
+        data-tour-hand-for={hand ? handFor : undefined}
+        data-tour-hand-from={hand ? 'above' : undefined}
         key={`${activeKey}:${trail.map((t) => t.key).join('/')}:${slotKey}`}
         onPointerDown={(e) => { e.stopPropagation(); onDragStart(e) }}
         onPointerMove={onDragMove}
@@ -361,9 +370,10 @@ export function QuarterArcMenu({
               height: ANCHOR / 2 + ARC_RADIUS_OUTER + ARC_ITEM_OUTER / 2,
             }}
           >
-            {/* Where the tour's hand points: on the outer ring itself, halfway round
-                (225 degrees from the arc's centre). The footprint's centre is on the
-                category ring, so a hand there pointed at the wrong ring. */}
+            {/* Where the tour's hand points when its button (data-tour-hand-for below)
+                is scrolled off the ring: on the outer ring itself, halfway round (225
+                degrees from the arc's centre). The footprint's centre is on the category
+                ring, so a hand there pointed at the wrong ring. */}
             <span
               data-tour-hand-at
               className="absolute"

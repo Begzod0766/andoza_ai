@@ -40,7 +40,9 @@ beforeEach(() => {
   vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     // A ring's hand anchor (QuarterArcMenu) is measured as `@hand`.
     const id = this.getAttribute('data-tour')
-      ?? (this.hasAttribute('data-tour-hand-at') ? '@hand' : this.hasAttribute('data-tour-cover') ? '@cover' : null)
+      ?? (this.hasAttribute('data-tour-hand-at') ? '@hand'
+        : this.hasAttribute('data-tour-hand-for') ? '@handfor'
+        : this.hasAttribute('data-tour-cover') ? '@cover' : null)
     if (this.getAttribute('role') === 'dialog') return rectOf({ left: 0, top: 0, width: 300, height: 200 })
     const r = id ? rects[id] : undefined
     return rectOf(r ?? { left: 0, top: 0, width: 0, height: 0 })
@@ -328,6 +330,40 @@ describe('StudioTour do steps', () => {
     frame()
     expect(hand().style.left).toBe('250px')
     expect(hand().style.top).toBe('550px')
+  })
+
+  it('hand_on_button: a button marked data-tour-hand-for the ring gets the hand, pointing from above when it says so', () => {
+    mount(['arc-mebel', 'arc-mebel-ring-0'])
+    const room = document.createElement('button')
+    room.setAttribute('data-tour-hand-for', 'arc-mebel-ring-0')
+    room.setAttribute('data-tour-hand-from', 'above')
+    document.body.appendChild(room)
+    rects['@handfor'] = { left: 180, top: 480, width: 44, height: 44 }
+    const { container } = render(<StudioTour steps={[STEP('furniture')]} roomId="r1" onFinish={() => {}} />)
+    const hand = container.querySelector('[data-tour-hand] > div') as HTMLElement
+    expect(hand.style.left).toBe('202px')
+    expect(hand.style.top).toBe('502px')
+    expect(hand).toHaveAttribute('data-from-above', 'true')
+    // the fingertip is inside the button's box
+    const r = rects['@handfor']
+    expect(parseFloat(hand.style.left)).toBeGreaterThan(r.left)
+    expect(parseFloat(hand.style.left)).toBeLessThan(r.left + r.width)
+    expect(parseFloat(hand.style.top)).toBeGreaterThan(r.top)
+    expect(parseFloat(hand.style.top)).toBeLessThan(r.top + r.height)
+  })
+
+  it('hand_near_bottom: a target in the bottom 120 px gets the hand from above, so it stays on screen', () => {
+    rects['arc-mebel'] = { left: 960, top: window.innerHeight - 50, width: 50, height: 46 }
+    mount(['arc-mebel'])
+    const { container } = render(<StudioTour steps={[STEP('furniture')]} roomId="r1" onFinish={() => {}} />)
+    const hand = container.querySelector('[data-tour-hand] > div') as HTMLElement
+    expect(hand).toHaveAttribute('data-from-above', 'true')
+  })
+
+  it('hand_mid_screen: a target well above the bottom keeps the hand below its fingertip', () => {
+    mount(['arc-mebel'])
+    const { container } = render(<StudioTour steps={[STEP('furniture')]} roomId="r1" onFinish={() => {}} />)
+    expect(container.querySelector('[data-tour-hand] > div')).toHaveAttribute('data-from-above', 'false')
   })
 
   it('do_step_survives_a_brief_vanish: under 500 ms without any target is not a vanish; 500 ms or more is', () => {
