@@ -12,6 +12,8 @@ import { showToast } from '@/components/ui/Toast'
 
 /** A model of unknown size is taken as this, metres. */
 const UNKNOWN = { w: 0.6, d: 0.6, h: 0.8 }
+/** A shower's height when its shop row gives none, metres. */
+const SHOWER_H = 2.0
 
 /**
  * The pieces standing in the open room, as boxes (mm centres, metre sizes, as drawn: a model taller
@@ -29,7 +31,9 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
     // A shop row with no height reads as 0 m tall (mobile QA 2026-11-18, #298: a toilet then touched no
     // machine at any height): an unknown height is the usual one, not none.
     const raw = row?.height_cm ? row.height_cm / 100 : (size as { h?: number }).h
-    const h = raw && raw > 0 ? raw : UNKNOWN.h
+    // A glass shower is a room's height, not a cabinet's (mobile QA #381): read as 0.8 m, the towel rails hidden
+    // inside one at 1 m touched nothing, and the panel never said so.
+    const h = raw && raw > 0 ? raw : roleOf(id) === 'shower' ? SHOWER_H : UNKNOWN.h
     return { ...fit, h: h * (size.w > 0 ? fit.w / size.w : 1) }
   }
   const nameOf = (f: { furniture_id: string; name?: string }) =>
