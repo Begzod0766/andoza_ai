@@ -107,7 +107,8 @@ export function buildRadialItems(
     if (!placeFixture || !r.wallId || !visibleStages(kind).some((st) => st.key === 'jihozlar')) return [];
     const icon = (I: typeof Droplets) => <I size={20} strokeWidth={1.8} />;
     const item = (what: RingFixture, label: string, I: typeof Droplets): RadialItem => ({
-      key: `sx:${what}`, label, icon: icon(I), onSelect: () => placeFixture(r.wallId!, r.point, what),
+      // Closes the ring: the new piece is selected with its card where the ring stood (phone QA #392, 13).
+      key: `sx:${what}`, label, icon: icon(I), closesMenu: true, onSelect: () => placeFixture(r.wallId!, r.point, what),
     });
     return [{
       key: 'santexnika', label: i18n.t('studio.radial.santexnika'), icon: icon(Droplets),
