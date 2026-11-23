@@ -2,13 +2,13 @@ import type { VitePWAOptions } from "vite-plugin-pwa";
 
 /** The service worker's caching (vite.config.ts VitePWA), kept here so it can be tested. */
 export const PWA_WORKBOX: NonNullable<Partial<VitePWAOptions>["workbox"]> = {
-  // Activate a freshly-deployed service worker immediately and take
-  // control of open tabs, instead of waiting for every tab to close.
-  // Combined with registerType:"autoUpdate" above, this means a new
-  // deploy reaches users on their next load — no stale cached build,
-  // no manual hard refresh.
+  // A new deploy's worker WAITS (registerType "prompt" in vite.config.ts): one that took over at
+  // once made vite-plugin-pwa reload the open page by itself, and the studio lost its undo history
+  // and stage (phone QA 2026-11-24 #12). The page decides (lib/appUpdate, main.tsx): left alone if
+  // it already runs the new build, taken at once outside the studio, offered in it. A new deploy
+  // still reaches every next load: the page comes from the network first (below).
   clientsClaim: true,
-  skipWaiting: true,
+  skipWaiting: false,
   // Not the page itself: a precached index.html answered every navigation, so the first open after a
   // deploy ran the old build (mobile QA 2026-11-16: the Studio WebView). The page goes to the network
   // first (runtimeCaching below; nginx serves it no-cache), the cached copy only offline or when slow.

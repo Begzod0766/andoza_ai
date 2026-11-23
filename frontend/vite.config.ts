@@ -9,7 +9,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // Not "autoUpdate": that reloads the open page itself once a new worker takes over (pwaWorkbox.ts).
+      registerType: "prompt",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
       manifest: {
         name: "andoza.ai",

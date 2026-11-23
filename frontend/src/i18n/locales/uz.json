@@ -3338,5 +3338,10 @@
     "banner": "Server yangilanmoqda, bir daqiqa…",
     "retry": "Qayta urinish",
     "error": "Server yangilanmoqda. Birozdan keyin qayta urinib ko'ring."
+  },
+  "app_update": {
+    "banner": "Yangi versiya tayyor.",
+    "apply": "Saqlab yangilash",
+    "not_saved": "Xona saqlanmadi, yangilanmadi. Birozdan keyin qayta bosing."
   }
 }

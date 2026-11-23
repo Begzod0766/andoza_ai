@@ -3338,5 +3338,10 @@
     "banner": "The server is updating, one moment…",
     "retry": "Try again",
     "error": "The server is updating. Please try again in a moment."
+  },
+  "app_update": {
+    "banner": "A new version is ready.",
+    "apply": "Save and update",
+    "not_saved": "The room was not saved, so it did not update. Tap again in a moment."
   }
 }

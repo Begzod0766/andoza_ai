@@ -17,7 +17,11 @@ describe('PWA_WORKBOX', () => {
     expect((nav!.urlPattern as (o: { request: { mode: string } }) => boolean)({ request: { mode: 'cors' } })).toBe(false)
   })
 
-  it('a new deploy still takes over at once, and the old caches go', () => {
-    expect([PWA_WORKBOX.skipWaiting, PWA_WORKBOX.clientsClaim, PWA_WORKBOX.cleanupOutdatedCaches]).toEqual([true, true, true])
+  // Phone QA 2026-11-24 #12: a worker that took over at once reloaded the open studio by itself
+  // (vite-plugin-pwa autoUpdate) and lost its undo history. A new one waits; the page decides
+  // (lib/appUpdate). The page itself still comes from the network first, so the next open is new.
+  it('a new deploy waits instead of taking over the open pages, and the old caches go once it does', () => {
+    expect(PWA_WORKBOX.skipWaiting).toBe(false)
+    expect(PWA_WORKBOX.cleanupOutdatedCaches).toBe(true)
   })
 })
