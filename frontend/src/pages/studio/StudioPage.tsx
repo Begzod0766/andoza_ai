@@ -1,6 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { riserToSave } from "@/lib/plumbingRuns";
 import { createAutosave, roomContentChanged } from "@/lib/autosave";
+import { onBeforeReload } from "@/lib/safeReload";
+import { restoreStudioHistory, writeStudioResume } from "@/lib/studioResume";
 import { SaveStatus, type SaveStatusValue } from "@/components/studio/SaveStatus";
 import { formatDecimal } from '@/lib/utils'
 import { defaultApartmentName, defaultRoomName } from '@/lib/defaultNames';
@@ -416,6 +418,19 @@ export default function StudioPage() {
       autosave.dispose();
     };
   }, []);
+  // A reload of the app's own (a new version, a chunk of the old build gone: lib/safeReload) waits
+  // for the room to be saved, and keeps the stage and the undo history for after it (phone QA
+  // 2026-11-24 #12: they were lost). A save that failed stops the reload.
+  useEffect(() => onBeforeReload(async () => {
+    if (deletedRef.current) return true;
+    const s = useRoomStore.getState();
+    if (s.isDirty || inFlight.current) {
+      if (!(await saveNowRef.current())) return false;
+    }
+    const id = useRoomStore.getState().roomId;
+    if (id) writeStudioResume(id, loadedAtRef.current);
+    return true;
+  }), [loadedAtRef]);
   // The leave-page warning is for changes a save FAILED to keep; a change the
   // autosave simply has not got to yet is saved on the way out.
   const saveFailedRef = useRef(false);
@@ -558,6 +573,8 @@ export default function StudioPage() {
       // Saved before plumbing existed: the fixtures get their points (and the autosave writes them).
       if (state && !("plumbing" in state)) useRoomStore.getState().seedFixturePoints();
       loadedAtRef.current = apiRoom.updated_at ?? null;
+      // Back from a reload of the app's own: its undo history, if the room is the copy saved before.
+      restoreStudioHistory(apiRoom.id, apiRoom.updated_at ?? null);
       if (useRoomStore.getState().userFurniture.length === 0 && keepUserFurniture.length > 0) {
         useRoomStore.setState({ userFurniture: keepUserFurniture });
       }

@@ -10,6 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { AppShell } from "@/components/layout/AppShell";
 import { RootLayout } from "@/components/layout/RootLayout";
 import { BrandLoader } from "@/components/BrandLoader";
+import { untilReload } from "@/lib/untilReload";
 import { LandingIntro } from "@/components/LandingIntro";
 
 // ---------- Auth guard ----------
@@ -73,31 +74,31 @@ function NotFoundPage() {
 
 // ---------- Lazy pages ----------
 
-const WizardPage = lazy(() => import("@/pages/wizard/WizardPage"));
-const StudioPage = lazy(() => import("@/pages/studio/StudioPage"));
-const ThreeDPage = lazy(() => import("@/pages/studio/ThreeDPage"));
-const PlacementPage = lazy(() => import("@/pages/studio/PlacementPage"));
-const IsometricPage = lazy(() => import("@/pages/studio/IsometricPage"));
-const WalkthroughPage = lazy(() => import("@/pages/studio/WalkthroughPage"));
-const SmetaPage = lazy(() => import("@/pages/smeta/SmetaPage"));
-const ProjectsPage = lazy(() => import("@/pages/projects/ProjectsPage"));
-const DokonPage = lazy(() => import("@/pages/dokon/DokonPage"));
-const UstalarPage = lazy(() => import("@/pages/ustalar/UstalarPage"));
-const ProfilePage = lazy(() => import("@/pages/profile/ProfilePage"));
-const RendersPage = lazy(() => import("@/pages/renders/RendersPage"));
-const SellerPage = lazy(() => import("@/pages/seller/SellerPage"));
-const LoginPage = lazy(() => import("@/pages/auth/LoginPage"));
-const SharedRoomPage = lazy(() => import("@/pages/share/SharedRoomPage"));
-const WorkshopPartPage = lazy(() => import("@/pages/mebel/WorkshopPartPage"));
-const LidarPage = lazy(() => import("@/pages/scan/LidarPage"));
-const Photo360Page = lazy(() => import("@/pages/scan/Photo360Page"));
-const DrawRoomPage = lazy(() => import("@/pages/scan/DrawRoomPage"));
-const LandingPage = lazy(() => import("@/pages/LandingPage"));
-const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
-const DeleteAccountPage = lazy(() => import("@/pages/DeleteAccountPage"));
-const MebelListPage = lazy(() => import("@/pages/mebel/MebelListPage"));
-const MebelOffcutsPage = lazy(() => import("@/pages/mebel/MebelOffcutsPage"));
-const MebelProjectPage = lazy(() => import("@/pages/mebel/MebelProjectPage"));
+const WizardPage = lazy(untilReload(() => import("@/pages/wizard/WizardPage")));
+const StudioPage = lazy(untilReload(() => import("@/pages/studio/StudioPage")));
+const ThreeDPage = lazy(untilReload(() => import("@/pages/studio/ThreeDPage")));
+const PlacementPage = lazy(untilReload(() => import("@/pages/studio/PlacementPage")));
+const IsometricPage = lazy(untilReload(() => import("@/pages/studio/IsometricPage")));
+const WalkthroughPage = lazy(untilReload(() => import("@/pages/studio/WalkthroughPage")));
+const SmetaPage = lazy(untilReload(() => import("@/pages/smeta/SmetaPage")));
+const ProjectsPage = lazy(untilReload(() => import("@/pages/projects/ProjectsPage")));
+const DokonPage = lazy(untilReload(() => import("@/pages/dokon/DokonPage")));
+const UstalarPage = lazy(untilReload(() => import("@/pages/ustalar/UstalarPage")));
+const ProfilePage = lazy(untilReload(() => import("@/pages/profile/ProfilePage")));
+const RendersPage = lazy(untilReload(() => import("@/pages/renders/RendersPage")));
+const SellerPage = lazy(untilReload(() => import("@/pages/seller/SellerPage")));
+const LoginPage = lazy(untilReload(() => import("@/pages/auth/LoginPage")));
+const SharedRoomPage = lazy(untilReload(() => import("@/pages/share/SharedRoomPage")));
+const WorkshopPartPage = lazy(untilReload(() => import("@/pages/mebel/WorkshopPartPage")));
+const LidarPage = lazy(untilReload(() => import("@/pages/scan/LidarPage")));
+const Photo360Page = lazy(untilReload(() => import("@/pages/scan/Photo360Page")));
+const DrawRoomPage = lazy(untilReload(() => import("@/pages/scan/DrawRoomPage")));
+const LandingPage = lazy(untilReload(() => import("@/pages/LandingPage")));
+const PrivacyPage = lazy(untilReload(() => import("@/pages/PrivacyPage")));
+const DeleteAccountPage = lazy(untilReload(() => import("@/pages/DeleteAccountPage")));
+const MebelListPage = lazy(untilReload(() => import("@/pages/mebel/MebelListPage")));
+const MebelOffcutsPage = lazy(untilReload(() => import("@/pages/mebel/MebelOffcutsPage")));
+const MebelProjectPage = lazy(untilReload(() => import("@/pages/mebel/MebelProjectPage")));
 
 // ---------- Routes ----------
 

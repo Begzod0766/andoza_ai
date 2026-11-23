@@ -1,9 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { useServerUpdating } from "@/lib/api/serverStatus";
+import { reloadSafely } from "@/lib/safeReload";
 
 /**
  * A strip at the top while the server is being updated (a deploy), in place of requests that just
- * fail: the page stays as it is, and the strip goes once the server answers again.
+ * fail: the page stays as it is, and the strip goes once the server answers again. Its retry reloads
+ * only once the open work is kept (lib/safeReload); a room that could not be saved stays open.
  */
 export function ServerUpdatingBanner() {
   const { t } = useTranslation();
@@ -19,7 +21,7 @@ export function ServerUpdatingBanner() {
       <button
         type="button"
         className="rounded-md border border-current px-2 py-0.5 font-medium"
-        onClick={() => window.location.reload()}
+        onClick={() => { void reloadSafely(); }}
       >
         {t("server_updating.retry")}
       </button>

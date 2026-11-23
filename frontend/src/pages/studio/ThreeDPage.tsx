@@ -46,6 +46,7 @@ import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
 import { initialPhaseFor, initialViewStage, visibleStages, type PhaseKey } from "@/lib/phases";
+import { clearStudioPhase, forgetStudioPhase, peekStudioPhase, rememberStudioPhase } from "@/lib/studioResume";
 import { stageAfterPlacing } from "@/lib/stageView";
 import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
@@ -334,7 +335,11 @@ export default function ThreeDPage() {
   // (its walls are still bare plaster — nothing has been done to them yet).
   // With no link it opens at the last stage, Mebel, on the finished room (spec 2026-11-18; it was
   // Bo'yoq) — REOPENING a room (projects list, tab switches, direct links).
-  const phaseParam = new URLSearchParams(location.search).get('phase')
+  // Back from a reload of the app's own (a new version, lib/safeReload): the stage the user was on,
+  // over the link's (phone QA 2026-11-24 #12: it went back to the link's ?phase=quvurlar).
+  const [resumed] = useState(() => peekStudioPhase(room.id))
+  useEffect(() => { clearStudioPhase() }, [])
+  const phaseParam = resumed?.phase ?? new URLSearchParams(location.search).get('phase')
   const openArgs = {
     phaseParam,
     roomKind: catalogRoomType(effectiveRoomType(room.room_type, room.name)),
@@ -342,6 +347,11 @@ export default function ThreeDPage() {
   }
   const initialPhase: PhaseKey = initialPhaseFor(openArgs)
   const [activePhase, setActivePhase] = useState<PhaseKey>(initialPhase)
+  // Kept for such a reload (lib/studioResume writes it before one).
+  useEffect(() => {
+    rememberStudioPhase(room.id, activePhase)
+  }, [room.id, activePhase])
+  useEffect(() => () => forgetStudioPhase(room.id), [room.id])
   // The stage the 3D draws (lib/stageView, spec 2026-11-18) is separate from the panel's: only the
   // stage list (and a ?phase= link) changes it. Every quick path — the radial ring, placing from it,
   // the render cameras — goes back to the finished room, so a user repainting the wall beside the
@@ -351,7 +361,9 @@ export default function ThreeDPage() {
   /** The phone's stage list is open (MobileStagePicker). */
   const [stageListOpen, setStageListOpen] = useState(false);
   useEffect(() => {
-    setViewStage(initialViewStage(openArgs));
+    setViewStage(resumed
+      ? initialViewStage({ ...openArgs, tab: undefined, phaseParam: resumed.viewStage })
+      : initialViewStage(openArgs));
     return () => setViewStage('full');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.id]);
