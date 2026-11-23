@@ -45,20 +45,13 @@ describe('SantexnikaSection: Jihozlar, short', () => {
     expect(screen.getByRole('listitem', { name: 'Sochiq quritgich 2' })).toBeInTheDocument()
   })
 
-  it('removing is a × named for what it removes, big enough for a finger', () => {
+  it('a row is the name alone: kind, size and delete are on the card in the 3D (PR2)', () => {
     render(<SantexnikaSection part="jihozlar" bathroom />)
     fireEvent.click(screen.getByRole('button', { name: "Kir yuvish mashinasi qo'shish" }))
-    const x = screen.getByRole('button', { name: 'Olib tashlash: Kir yuvish mashinasi' })
-    expect(x.className).toMatch(/\bh-9\b/)
-    fireEvent.click(x)
-    expect(useRoomStore.getState().washers).toHaveLength(0)
-  })
-
-  it('the rail kind and size buttons are finger-sized too', () => {
-    render(<SantexnikaSection part="jihozlar" bathroom />)
     fireEvent.click(screen.getByRole('button', { name: "Sochiq quritgich qo'shish" }))
-    expect(screen.getByRole('button', { name: 'Suvli' }).className).toMatch(/\bh-9\b/)
-    expect(screen.getByRole('combobox', { name: "O'lchami" }).className).toMatch(/\bh-9\b/)
+    expect(screen.queryByRole('button', { name: /olib tashlash/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Suvli' })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: "O'lchami" })).toBeNull()
   })
 })
 

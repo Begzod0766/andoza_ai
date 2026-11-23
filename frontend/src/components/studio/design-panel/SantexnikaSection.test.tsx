@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { CatalogFurniture } from '@/lib/api'
 import { roomModel } from '@/lib/aiDesignLayout'
@@ -182,8 +182,8 @@ describe('SantexnikaSection', () => {
       const s = useRoomStore.getState()
       expect(s.washers).toHaveLength(1)
       expect(screen.getAllByText('(mashinaniki)')).toHaveLength(2)
-      const row = screen.getByRole('listitem', { name: /^Kir yuvish mashinasi/ })
-      fireEvent.click(within(row).getByRole('button', { name: /olib tashlash/i }))
+      expect(screen.getByRole('listitem', { name: /^Kir yuvish mashinasi/ })).toBeInTheDocument()
+      act(() => useRoomStore.getState().removeWasher(s.washers[0].id))
       expect(useRoomStore.getState().washers).toEqual([])
       expect(screen.queryAllByText('(mashinaniki)')).toHaveLength(0)
     })

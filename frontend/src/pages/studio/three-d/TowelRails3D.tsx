@@ -12,6 +12,10 @@ import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import { showToast } from "@/components/ui/Toast";
 import i18n from "@/i18n";
 import { usePressDrag } from "./pressDrag";
+import { useTranslation } from "react-i18next";
+import { useHoldToDelete } from "@/hooks/useHoldToDelete";
+import { useFixtureSelection, type FixtureSel } from "@/features/studio/fixtureSelection";
+import { BarOutline, FixtureCard3D, fixtureHoldItem } from "./FixtureCard";
 
 /** A rail's width and height, metres (its size, 2026-11-15). */
 const dims = (rail?: TowelRail) => {
@@ -80,22 +84,39 @@ export function raycastInFront(this: THREE.Mesh, raycaster: THREE.Raycaster, int
   for (const hit of own) intersects.push({ ...hit, distance: 0 });
 }
 
+/** A press-and-hold for the delete menu (useHoldToDelete): started by the press, and its release is no tap. */
+export interface FixtureHold {
+  down: (e: ThreeEvent<PointerEvent>) => void;
+  wasHeld: () => boolean;
+}
+
 /**
  * A rail's pointer handlers. In a plumbing stage a press starts the drag, and a tap ends at the
  * rail: its hit area is the nearest thing on the ray but had no click handler, so a tap that moved
  * nothing went on to the wall behind and opened the wall's menu (mobile re-check 2026-11-11). In any
  * other stage there are none and a touch goes through.
+ *
+ * `open` is what a tap does: it selects the rail or machine (PR2, 2026-11-24), as a tap on furniture does;
+ * it opened the fixtures panel before. With `hold`, a press held still also brings up the delete menu, and
+ * the release of that hold selects nothing.
  */
-export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void, open?: () => void, dragged?: () => boolean): {
+export function railPointerHandlers(active: boolean, start: (e: ThreeEvent<PointerEvent>) => void, open?: () => void, dragged?: () => boolean, hold?: FixtureHold): {
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
 } {
-  // A tap that moved nothing opens the fixtures panel here too (mobile QA 2026-11-21, #370 b): with a phone's
-  // sheet closed by ×, the stage stays Jihozlar, and a tap on the rail had stopped at it and reopened nothing.
-  if (active) return { onPointerDown: start, onClick: (e) => { e.stopPropagation(); if (open && !dragged?.()) open(); } };
-  // In any other stage a tap opens the fixtures panel (mobile QA 2026-11-21, #359): in the finished room
-  // a tap on a machine went to the floor behind it and opened the floor's ring, as if nothing were there.
-  if (open) return { onClick: (e) => { e.stopPropagation(); open(); } };
+  const tap = (e: ThreeEvent<MouseEvent>, moved: boolean) => {
+    e.stopPropagation();
+    if (open && !moved && !hold?.wasHeld()) open();
+  };
+  // A tap that moved nothing acts here too (mobile QA 2026-11-21, #370 b): with a phone's sheet closed by ×,
+  // the stage stays Jihozlar, and a tap on the rail had stopped at it and done nothing.
+  if (active) return {
+    onPointerDown: hold ? (e) => { hold.down(e); start(e); } : start,
+    onClick: (e) => tap(e, !!dragged?.()),
+  };
+  // In any other stage a tap acts too (mobile QA 2026-11-21, #359): in the finished room a tap on a machine
+  // went to the floor behind it and opened the floor's ring, as if nothing were there.
+  if (open) return { ...(hold && { onPointerDown: hold.down }), onClick: (e) => tap(e, false) };
   return {};
 }
 
@@ -112,12 +133,15 @@ export function railRaycast(active: boolean, tappable: boolean): THREE.Mesh['ray
  * The heated towel rails on the walls (spec 2026-11-10): a chrome ladder each, drawn in code. A rail
  * slides along its wall by drag; the store keeps it off doors, windows and the wall's ends.
  */
-export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
+export function TowelRails3D({ controlsRef, hiddenWalls, onSelect }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   hiddenWalls?: ReadonlySet<string>;
-  /** Opens the fixtures panel: a tap outside a plumbing stage (#359). None while capturing a frame. */
-  onOpen?: () => void;
+  /** Selects a rail, as a tap selects furniture (PR2; it opened the fixtures panel, #359). None while capturing a frame. */
+  onSelect?: (sel: FixtureSel) => void;
 }) {
+  const { t } = useTranslation();
+  const { bind: holdBind, wasHeld } = useHoldToDelete();
+  const selected = useFixtureSelection((s) => (s.sel?.kind === "rail" ? s.sel.id : null));
   const towelRails = useRoomStore((s) => s.towelRails);
   const geometry = useRoomStore((s) => s.geometry);
   const moveTowelRail = useRoomStore((s) => s.moveTowelRail);
@@ -181,9 +205,10 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
         const { W, H } = dims(rail);
         const bars = ladderBars(rail);
         return (
-          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e), onOpen, drag.dragged)}>
+          <group key={rail.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(rail, e), onSelect && (() => onSelect({ kind: "rail", id: rail.id })), drag.dragged,
+              onSelect && { down: (e) => holdBind(fixtureHoldItem({ kind: "rail", id: rail.id }, t)).onPointerDown(e), wasHeld })}>
             {/* An unseen slab over the whole rail: thin bars alone are hard to catch with a finger. */}
-            <mesh raycast={railRaycast(draggable, !!onOpen)}>
+            <mesh raycast={railRaycast(draggable, !!onSelect)}>
               <boxGeometry args={[W + HIT_MARGIN, H + HIT_MARGIN, 0.05]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
@@ -202,6 +227,11 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onOpen }: {
                 <meshStandardMaterial color={clashColor(CHROME, active, !!clashes[rail.id])} metalness={0.9} roughness={0.25} />
               </mesh>
             ))}
+            {/* Selected (PR2): furniture's blue line round each bar, and its card over the rail. */}
+            {selected === rail.id && onSelect && (<>
+              {bars.map((b, i) => <BarOutline key={`o${i}`} x={b.x} y={b.y} r={b.vertical ? UPRIGHT_R : RUNG_R} length={b.length} vertical={b.vertical} />)}
+              <FixtureCard3D sel={{ kind: "rail", id: rail.id }} y={H / 2 + 0.22} />
+            </>)}
           </group>
         );
       })}

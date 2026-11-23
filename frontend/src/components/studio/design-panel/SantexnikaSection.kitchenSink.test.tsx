@@ -1,7 +1,7 @@
 /** A kitchen sink in the plumbing panels (kitchen QA 2026-11-18 K1, K5): the catalog sells none, so a
  * kitchen adds one here; and a point added by hand goes where the user says along the wall. */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/types'
 import { SantexnikaSection } from './SantexnikaSection'
@@ -28,12 +28,11 @@ describe('SantexnikaSection: kitchen sink', () => {
     expect(screen.queryByText(/katalogda santexnika yo'q/i)).toBeNull()
   })
 
-  it('Jihozlar lists it, removable; it is not a washing machine', () => {
+  it('Jihozlar lists it; it is not a washing machine', () => {
     useRoomStore.setState({ washers: [{ id: 's', wallId: 'A', positionMm: 1750, kind: 'kitchen_sink' }] })
     render(<SantexnikaSection part="jihozlar" />)
     expect(screen.queryByRole('listitem', { name: /^kir yuvish/i })).toBeNull()
-    fireEvent.click(within(screen.getByRole('listitem', { name: /^moyka/i })).getByRole('button', { name: /olib tashlash/i }))
-    expect(useRoomStore.getState().washers).toEqual([])
+    expect(screen.getByRole('listitem', { name: /^moyka/i })).toBeInTheDocument()
   })
 
   it('a bathroom does not offer it', () => {

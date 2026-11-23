@@ -56,6 +56,7 @@ import { TowelRails3D } from "./TowelRails3D";
 import { Backsplashes3D } from "./Backsplashes3D";
 import { Riser3D } from "./Riser3D";
 import { Washers3D } from "./Washers3D";
+import type { FixtureSel } from "@/features/studio/fixtureSelection";
 import { VentFan3D } from "./VentFan3D";
 import { BathroomBoxes3D } from "./BathroomBoxes3D";
 import { ShowerScreens3D } from "./ShowerScreens3D";
@@ -185,7 +186,7 @@ export function ThreeDCanvasScene({
   controlsRef,
   addingRoom, handleAddRoom, aptRooms, activeLayoutPos,
   handleDeleteSibling, onSwitchRoom, onSaveRoom,
-  toolMode, selectedFurId, selectFurniture, selectedPart, selectFurniturePart, onOpenFixtures, onOpenPipes,
+  toolMode, selectedFurId, selectFurniture, selectedPart, selectFurniturePart, onSelectFixture, onOpenPipes,
   showScan, showQibla, replacedGhosts, setScanSwap,
   selectedDoorId, selectDoor,
   selectedLightId, selectLight,
@@ -244,8 +245,8 @@ export function ThreeDCanvasScene({
   toolMode: ToolMode;
   selectedFurId: string | null;
   selectFurniture: (id: string | null) => void;
-  /** A tap on a towel rail or machine outside a plumbing stage opens the fixtures panel (#359). */
-  onOpenFixtures?: () => void;
+  /** A tap on a towel rail or machine selects it, with its card (PR2; it opened the fixtures panel, #359). */
+  onSelectFixture?: (sel: FixtureSel) => void;
   /** A tap on the boxed-in riser opens the pipes panel, where it drags (#365). */
   onOpenPipes?: () => void;
   selectedPart: SelectedPart | null;
@@ -1049,10 +1050,10 @@ export function ThreeDCanvasScene({
         <QiblaMarker W={W} D={D} visible={showQibla} />
         {drawn('montaj') && <DraggableElectricalModels controlsRef={controlsRef} W={W} D={D} hiddenWalls={behind} />}
         <PlumbingPoints3D controlsRef={controlsRef} hiddenWalls={behind} />
-        {drawn('jihozlar') && <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} onOpen={onOpenFixtures} />}
+        {drawn('jihozlar') && <TowelRails3D controlsRef={controlsRef} hiddenWalls={behind} onSelect={onSelectFixture} />}
         {drawn('boyoq') && <Backsplashes3D hiddenWalls={behind} />}
         <Riser3D controlsRef={controlsRef} hiddenWalls={behind} />
-        {drawn('jihozlar') && <Washers3D controlsRef={controlsRef} hiddenWalls={behind} onOpen={onOpenFixtures} />}
+        {drawn('jihozlar') && <Washers3D controlsRef={controlsRef} hiddenWalls={behind} onSelect={onSelectFixture} />}
         {drawn('jihozlar') && <VentFan3D hiddenWalls={behind} />}
         <BathroomBoxes3D hiddenWalls={behind} onOpenRiser={onOpenPipes} />
         {drawn('jihozlar') && <ShowerScreens3D />}

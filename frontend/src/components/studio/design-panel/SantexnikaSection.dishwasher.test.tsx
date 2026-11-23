@@ -1,6 +1,6 @@
 /** A dishwasher in the plumbing panel (2026-11-16): offered in a kitchen, listed with its width. */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/types'
 import { SantexnikaSection } from './SantexnikaSection'
@@ -29,18 +29,11 @@ describe('SantexnikaSection: dishwasher', () => {
     render(<Both />)
     fireEvent.click(addButton()!)
     expect(useRoomStore.getState().washers[0]).toMatchObject({ kind: 'dishwasher', widthMm: 600 })
-    const select = within(dishRow()).getByRole('combobox', { name: "Eni" }) as HTMLSelectElement
-    expect(select.value).toBe('600')
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['60 sm', '45 sm'])
+    expect(dishRow()).toBeInTheDocument()
     expect(screen.getAllByText("(idish mashinasiniki)")).toHaveLength(2)
   })
 
-  it('the width select changes it', () => {
-    render(<Both />)
-    fireEvent.click(addButton()!)
-    fireEvent.change(within(dishRow()).getByRole('combobox', { name: "Eni" }), { target: { value: '450' } })
-    expect(useRoomStore.getState().washers[0].widthMm).toBe(450)
-  })
+  // Its width is picked on its card (PR2): fixtureCard.test.tsx.
 
   it('it is not listed with the washing machines, and a bathroom does not offer it', () => {
     useRoomStore.setState({ washers: [{ id: 'd', wallId: 'A', positionMm: 1000, kind: 'dishwasher', widthMm: 600 }] })

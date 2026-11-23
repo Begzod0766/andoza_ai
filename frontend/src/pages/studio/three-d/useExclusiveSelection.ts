@@ -1,6 +1,10 @@
 import { useRef, useState } from "react";
 import type { SelectedPart } from "@/features/studio/StudioFurniture";
 import type { OpeningSel } from "@/components/studio/WallOpenings";
+import { useFixtureSelection, type FixtureSel } from "@/features/studio/fixtureSelection";
+
+/** A rail's or machine's selection (PR2) lives in a store, the canvas's meshes set it: dropped with the rest. */
+const dropFixture = () => useFixtureSelection.getState().select(null);
 
 /**
  * Mutually-exclusive selection across object types. Five independent
@@ -35,23 +39,29 @@ export function useExclusiveSelection() {
 
   function selectFurniture(id: string | null) {
     setSelectedFurId(id);
-    if (id !== null) { setSelectedPart(null); setSelectedDoorId(null); setSelectedLightId(null); setSelOpening(null); }
+    if (id !== null) { setSelectedPart(null); setSelectedDoorId(null); setSelectedLightId(null); setSelOpening(null); dropFixture(); }
   }
   function selectFurniturePart(part: SelectedPart | null) {
     setSelectedPart(part);
-    if (part !== null) { setSelectedFurId(null); setSelectedDoorId(null); setSelectedLightId(null); setSelOpening(null); }
+    if (part !== null) { setSelectedFurId(null); setSelectedDoorId(null); setSelectedLightId(null); setSelOpening(null); dropFixture(); }
   }
   function selectDoor(id: string | null) {
     setSelectedDoorId(id);
-    if (id !== null) { setSelectedFurId(null); setSelectedPart(null); setSelectedLightId(null); setSelOpening(null); }
+    if (id !== null) { setSelectedFurId(null); setSelectedPart(null); setSelectedLightId(null); setSelOpening(null); dropFixture(); }
   }
   function selectLight(id: string | null) {
     setSelectedLightId(id);
-    if (id !== null) { setSelectedFurId(null); setSelectedPart(null); setSelectedDoorId(null); setSelOpening(null); }
+    if (id !== null) { setSelectedFurId(null); setSelectedPart(null); setSelectedDoorId(null); setSelOpening(null); dropFixture(); }
   }
   function selectOpening(sel: OpeningSel | null) {
     setSelOpening(sel);
-    if (sel !== null) { setSelectedFurId(null); setSelectedPart(null); setSelectedDoorId(null); setSelectedLightId(null); }
+    if (sel !== null) { setSelectedFurId(null); setSelectedPart(null); setSelectedDoorId(null); setSelectedLightId(null); dropFixture(); }
+  }
+
+  /** A towel rail or machine (PR2): a tap selects it as one selects furniture. */
+  function selectFixture(sel: FixtureSel) {
+    setSelectedFurId(null); setSelectedPart(null); setSelectedDoorId(null); setSelectedLightId(null); setSelOpening(null);
+    useFixtureSelection.getState().select(sel);
   }
 
   /** Clears every selection at once — used by the canvas's onPointerMissed. */
@@ -61,6 +71,7 @@ export function useExclusiveSelection() {
     setSelectedDoorId(null);
     setSelectedLightId(null);
     setSelOpening(null);
+    dropFixture();
   }
 
   return {
@@ -69,7 +80,7 @@ export function useExclusiveSelection() {
     selectedDoorId, setSelectedDoorId,
     selectedLightId, setSelectedLightId,
     selOpening, setSelOpening,
-    selectFurniture, selectFurniturePart, selectDoor, selectLight, selectOpening,
+    selectFurniture, selectFurniturePart, selectDoor, selectLight, selectOpening, selectFixture,
     clearAll,
   };
 }
