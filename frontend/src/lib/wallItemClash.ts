@@ -44,3 +44,9 @@ export const CLASH_COLOR = '#F87171'
 export function clashColor(base: string, plumbingStage: boolean, clashing: boolean): string {
   return plumbingStage && clashing ? CLASH_COLOR : base
 }
+
+/** How metallic a touching item is drawn: matt while it is red, so the red reads as a warning and not as
+ *  a dark reflection (phone QA #392 5: a chrome rail at 0.9 inside a shower did not look red at all). */
+export function clashMetalness(base: number, plumbingStage: boolean, clashing: boolean): number {
+  return plumbingStage && clashing ? 0.15 : base
+}

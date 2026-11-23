@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RoomGeometry } from '@/store/types'
 import { wallWalk } from '@/lib/plumbingRuns'
-import { CLASH_COLOR, clashColor, clashingPieces, railSolid, washerSolid, type FurnitureSolid } from '@/lib/wallItemClash'
+import { CLASH_COLOR, clashColor, clashMetalness, clashingPieces, railSolid, washerSolid, type FurnitureSolid } from '@/lib/wallItemClash'
 
 const g = { walls: [
   { id: 'A', length: 2500, elements: [] }, { id: 'B', length: 2000, elements: [] },
@@ -64,5 +64,16 @@ describe('a dishwasher as a solid (2026-11-16)', () => {
   it('its own width, depth and 820 mm height', () => {
     const s = washerSolid(g, { id: 'd', wallId: 'A', positionMm: 800, kind: 'dishwasher', widthMm: 450 })!
     expect([s.rect.w, s.rect.d, s.y0, s.y1]).toEqual([0.45, 0.57, 0, 0.82])
+  })
+})
+
+describe('clashMetalness (phone QA #392 5)', () => {
+  it('a rail touching furniture in the plumbing stage is matt enough for its red to read', () => {
+    // At chrome's 0.9 the red was a dark reflection, not a warning.
+    expect(clashMetalness(0.9, true, true)).toBeLessThanOrEqual(0.2)
+  })
+  it('chrome otherwise', () => {
+    expect(clashMetalness(0.9, true, false)).toBe(0.9)
+    expect(clashMetalness(0.9, false, true)).toBe(0.9)
   })
 })
