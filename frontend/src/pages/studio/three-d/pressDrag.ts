@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 import { multiTouchGuard, type MultiTouchGuard } from "@/lib/multiTouchGuard";
+import { cancelHoldToDelete } from "@/hooks/useHoldToDelete";
 
 /** How far, px, a press moves before it is a drag (#370 c). Until then a second finger makes it a pinch. */
 export const DRAG_SLOP_PX = 6;
@@ -98,6 +99,8 @@ export function createPressDrag(opts: {
   };
   const begin = () => {
     dragged = true;
+    // Moving it is not holding it: no delete menu at the end of a slow drag (phone QA #392 4d).
+    cancelHoldToDelete();
     const c = opts.controls();
     if (c) {
       // Spend what damping has left, then put the camera back: nothing turns it after this.

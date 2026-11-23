@@ -46,6 +46,9 @@ export interface HoldTracker<T> {
    *  the click that would otherwise follow. */
   up(): boolean
   cancel(): void
+  /** A pointer went down: another finger than the holding one is a pinch, and calls the hold off
+   *  (phone QA #392 4d: a slow pinch begun on a rail brought the menu up under it). */
+  otherDown(pointerId: number): void
   readonly holding: boolean
 }
 
@@ -110,6 +113,10 @@ export function createHoldTracker<T>(opts: {
     cancel() {
       stop()
       fired = false
+    },
+
+    otherDown(pointerId) {
+      if (timer != null && holdingPointer != null && pointerId !== holdingPointer) { stop(); fired = false }
     },
   }
 }

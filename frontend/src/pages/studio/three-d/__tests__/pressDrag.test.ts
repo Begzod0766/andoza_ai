@@ -6,6 +6,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import * as THREE from 'three'
 import { OrbitControls } from 'three-stdlib'
+import { renderHook } from '@testing-library/react'
+import { useHoldToDelete, resetHoldToDelete } from '@/hooks/useHoldToDelete'
+import { HOLD_DELETE_MS } from '@/lib/holdToDelete'
 import { createPressDrag, claimItemPress, itemPressClaimed, DRAG_SLOP_PX } from '../pressDrag'
 
 function pointer(type: string, id: number, x: number, y: number, buttons = 1) {
@@ -147,5 +150,26 @@ describe('createPressDrag: the camera does not turn under a drag (#372 4)', () =
     s.canvas.dispatchEvent(pointer('pointermove', 2, 250, 450))
     for (let i = 0; i < 30; i++) s.controls.update()
     expect(s.camera.position.distanceTo(s.controls.target)).toBeLessThan(dist - 0.01)
+  })
+})
+
+describe('createPressDrag and hold-to-delete (phone QA #392 4d)', () => {
+  afterEach(() => { resetHoldToDelete(); vi.useRealTimers() })
+
+  it('a drag that has started calls the hold off, however slowly the finger goes', () => {
+    vi.useFakeTimers()
+    const s = scene()
+    const d = s.make()
+    const onDelete = vi.fn()
+    const { result } = renderHook(() => useHoldToDelete())
+    // As a rail's press does: the hold and the drag from the same pointerdown.
+    result.current.bind({ label: 'Sochiq quritgich', onDelete }).onPointerDown({ clientX: 100, clientY: 300, pointerId: 1 })
+    d.press({ pointerId: 1, clientX: 100, clientY: 300 })
+    // Past the drag's slop, still inside the hold's own tolerance: a slow drag.
+    window.dispatchEvent(pointer('pointermove', 1, 100 + DRAG_SLOP_PX + 2, 300))
+    expect(s.onBegin).toHaveBeenCalled()
+    vi.advanceTimersByTime(HOLD_DELETE_MS + 100)
+    window.dispatchEvent(pointer('pointerup', 1, 100 + DRAG_SLOP_PX + 2, 300, 0))
+    expect(result.current.wasHeld()).toBe(false)
   })
 })
