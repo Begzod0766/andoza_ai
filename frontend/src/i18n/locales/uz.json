@@ -3331,5 +3331,10 @@
     "yuklab_olish": "Yuklab olish",
     "xonaga_otish": "Xonaga o'tish",
     "xato": "Renderlarni yuklab bo'lmadi. Qayta urinib ko'ring."
+  },
+  "server_updating": {
+    "banner": "Server yangilanmoqda, bir daqiqa…",
+    "retry": "Qayta urinish",
+    "error": "Server yangilanmoqda. Birozdan keyin qayta urinib ko'ring."
   }
 }

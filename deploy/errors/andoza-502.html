@@ -1,0 +1,84 @@
+<!doctype html>
+<!--
+  Shown by the HOST nginx for 502/503/504 while a deploy recreates the containers (phone QA
+  2026-11-23 #1: the Studio WebView showed nginx's raw "502 Bad Gateway"). Served straight from the
+  checkout at /opt/andoza_ai/deploy/errors, so it is there while every container is down: nothing
+  external, everything inline. Setup: docs/WEB_PROD_DEPLOY.md §4.
+-->
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>AndozaAI</title>
+<style>
+  :root { --bg: #f7f5f0; --fg: #1f2933; --muted: #5f6b76; --accent: #2f6f4f; --card: #ffffff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #12161a; --fg: #eef1f3; --muted: #a3adb6; --accent: #6fcf97; --card: #1c2228; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  main { background: var(--card); border-radius: 16px; padding: 28px 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+  .spin { width: 36px; height: 36px; margin: 0 auto 16px; border-radius: 50%; border: 3px solid var(--muted); border-top-color: var(--accent); animation: r 1s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { margin: 0 0 20px; color: var(--muted); }
+  button { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 10px; padding: 12px 24px; min-height: 44px; cursor: pointer; }
+  small { display: block; margin-top: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="spin" aria-hidden="true"></div>
+  <h1 id="title">Yangilanmoqda, bir daqiqa…</h1>
+  <p id="body">AndozaAI yangi versiyaga o'tmoqda. Sahifa o'zi qayta ochiladi.</p>
+  <button type="button" id="retry">Qayta urinish</button>
+  <small id="count" aria-live="polite"></small>
+</main>
+<script>
+  (function () {
+    var T = {
+      uz: { title: "Yangilanmoqda, bir daqiqa…", body: "AndozaAI yangi versiyaga o'tmoqda. Sahifa o'zi qayta ochiladi.", retry: "Qayta urinish", count: "{n} soniyadan keyin qayta urinamiz" },
+      ru: { title: "Обновляемся, одну минуту…", body: "AndozaAI переходит на новую версию. Страница откроется сама.", retry: "Повторить", count: "Повторим через {n} с" },
+      en: { title: "Updating, one moment…", body: "AndozaAI is moving to a new version. The page will reopen by itself.", retry: "Try again", count: "Trying again in {n} s" }
+    };
+    // The language the app asked for (?lang= from the mobile app), else the site's saved choice
+    // (frontend/src/i18n: "andoza.lang"), else the device's.
+    var lang = "uz";
+    try {
+      var asked = new URLSearchParams(location.search).get("lang") || "";
+      var saved = "";
+      try { saved = localStorage.getItem("andoza.lang") || ""; } catch (e) { /* storage blocked */ }
+      var nav = (navigator.languages && navigator.languages[0]) || navigator.language || "";
+      var pick = [asked, saved, nav.slice(0, 2)].map(function (l) { return l.toLowerCase(); }).filter(function (l) { return T[l]; })[0];
+      if (pick) lang = pick;
+    } catch (e) { /* Uzbek */ }
+    var t = T[lang];
+    document.documentElement.lang = lang;
+    document.getElementById("title").textContent = t.title;
+    document.getElementById("body").textContent = t.body;
+    document.getElementById("retry").textContent = t.retry;
+    document.getElementById("retry").onclick = function () { location.reload(); };
+
+    // Tries again by itself, a little later each time (5, 10, 15, then every 20 s).
+    var tries = 0;
+    try { tries = Number(sessionStorage.getItem("andoza502") || 0); sessionStorage.setItem("andoza502", String(tries + 1)); } catch (e) {}
+    var n = Math.min(5 * (tries + 1), 20);
+    var count = document.getElementById("count");
+    (function tick() {
+      count.textContent = t.count.replace("{n}", String(n));
+      if (n <= 0) { location.reload(); return; }
+      n -= 1;
+      setTimeout(tick, 1000);
+    })();
+  })();
+</script>
+</body>
+</html>

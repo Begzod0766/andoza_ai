@@ -194,6 +194,17 @@ server {
     # USDZ/GLB/model uploads (API caps at 50 MB) — headroom over nginx default 1M.
     client_max_body_size 60M;
 
+    # While a deploy recreates the containers (1-3 min) the upstreams are down and nginx itself
+    # answers 502/504: our page (uz/ru/en, retries by itself) instead of nginx's raw one. Read
+    # straight from the checkout, which every deploy's `git reset` keeps current, so it is there
+    # with every container down. Only nginx's own errors: a 503 the api answers passes through.
+    error_page 502 503 504 /andoza-502.html;
+    location = /andoza-502.html {
+        root /opt/andoza_ai/deploy/errors;
+        internal;
+        add_header Cache-Control "no-store" always;
+    }
+
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;

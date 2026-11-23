@@ -3331,5 +3331,10 @@
     "yuklab_olish": "Download",
     "xonaga_otish": "Go to the room",
     "xato": "Couldn't load your renders. Try again."
+  },
+  "server_updating": {
+    "banner": "The server is updating, one moment…",
+    "retry": "Try again",
+    "error": "The server is updating. Please try again in a moment."
   }
 }

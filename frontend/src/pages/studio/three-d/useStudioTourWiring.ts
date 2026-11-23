@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { showsEditingCorners } from "./cameraViewChrome";
 import { onTourEvent } from "@/lib/studioTourEvents";
 import { clearPractice, loadPractice } from "@/lib/tourPractice";
-import { useRoomStore } from "@/store/roomStore";
+import { removePracticeOutOfHistory } from "@/lib/tourHistory";
 
 /**
  * Whether the 3D view is one the tour can run over: a phone's live editing view — no 360 camera,
@@ -108,7 +108,7 @@ export function usePendingPracticeCleanup({ roomId, roomReady, tourActive }: {
     doneFor.current = roomId;
     const record = loadPractice(roomId);
     if (!record) return;
-    useRoomStore.getState().removeFurnitureMany(record.ids);
+    removePracticeOutOfHistory(record.ids);
     clearPractice(roomId);
   }, [roomId, roomReady, tourActive]);
 }

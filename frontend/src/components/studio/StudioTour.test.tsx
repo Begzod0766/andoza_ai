@@ -1203,3 +1203,75 @@ describe('StudioTour rotation grace', () => {
     expect(onFinish).toHaveBeenCalledWith('unmount')
   })
 })
+
+// Phone QA 2026-11-23 #2: after the tour took the practice table out, undo brought it back.
+describe('StudioTour practice and the undo history', () => {
+  const ids = () => useRoomStore.getState().furniture.map((f) => f.id)
+  const history = () => useRoomStore.temporal.getState()
+  const pastIds = () => history().pastStates.map((s) => (s.furniture ?? []).map((f) => f.id))
+  // Ahead of any real clock reading the throttle may have kept.
+  let now = Date.now() + 3_600_000
+  // Each step a beat apart, so the store's 400 ms coalescing keeps them as separate undo steps.
+  const step = (fn: () => void) => { now += 1000; vi.setSystemTime(now); act(fn) }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(now)
+    useRoomStore.getState().resetRoom()
+    useRoomStore.setState({ furniture: [], viewStage: 'full' })
+    history().clear()
+    localStorage.clear()
+    mount(['scene'])
+    // The user's own step before the tour: the sofa added.
+    step(() => { useRoomStore.setState({ furniture: [a] }) })
+    expect(pastIds()).toEqual([[]])
+  })
+  afterEach(() => localStorage.clear())
+
+  const open = () => render(<StudioTour steps={tour('scene')} roomId="r1" onFinish={vi.fn()} />)
+  const practise = () => step(() => { useRoomStore.setState({ furniture: [a, b] }) })
+  const done = () => fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.done') }))
+
+  it('practice_out_of_history_on_app_back: the history is the one from before the tour', () => {
+    open()
+    practise()
+    step(() => { window.dispatchEvent(new Event(TOUR_SKIP_EVENT)) })
+    expect(ids()).toEqual(['a'])
+    expect(pastIds()).toEqual([[]])
+    expect(history().futureStates).toHaveLength(0)
+    act(() => { history().undo() })
+    expect(ids()).toEqual([])
+    act(() => { history().redo() })
+    expect(ids()).toEqual(['a'])
+  })
+
+  it('practice_out_of_history_on_remove_answer', () => {
+    open()
+    practise()
+    done()
+    step(() => { fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_remove') })) })
+    expect(ids()).toEqual(['a'])
+    expect(pastIds()).toEqual([[]])
+  })
+
+  it('practice_out_of_history keeps the other steps taken during the tour', () => {
+    const a2 = { ...a, x: 4 }
+    open()
+    practise()
+    step(() => { useRoomStore.setState({ furniture: [a2, b] }) })
+    step(() => { window.dispatchEvent(new Event(TOUR_SKIP_EVENT)) })
+    expect(useRoomStore.getState().furniture).toEqual([a2])
+    expect(pastIds()).toEqual([[], ['a']])
+    act(() => { history().undo() })
+    expect(useRoomStore.getState().furniture).toEqual([a])
+  })
+
+  it('keep_answer: the kept practice is an ordinary step, undone like any other', () => {
+    open()
+    practise()
+    done()
+    step(() => { fireEvent.click(screen.getByRole('button', { name: i18n.t('studio.tour.practice_keep') })) })
+    expect(ids()).toEqual(['a', 'b'])
+    expect(pastIds()).toEqual([[], ['a']])
+  })
+})
