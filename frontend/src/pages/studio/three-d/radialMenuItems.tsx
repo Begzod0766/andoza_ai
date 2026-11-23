@@ -22,6 +22,12 @@ import { CEILING_DESIGNS, type CeilingDesignId } from "@/lib/ceilingDesigns";
 import { CeilingPreview } from "@/lib/ceilingPreview";
 import { LightPreview } from "@/lib/lightPreview";
 import { FaceplatePreview } from "@/lib/faceplatePreview";
+import { Droplets, Heater, Rows3, Square, WashingMachine } from "lucide-react";
+import { visibleStages } from "@/lib/phases";
+import { catalogRoomType } from "@/lib/roomType";
+
+/** What the wall ring's Santexnika puts on the tapped wall (PR3, 2026-11-24). */
+export type RingFixture = 'rail' | 'washer' | 'dish' | 'sink' | 'heater' | 'cold' | 'hot' | 'drain';
 
 /**
  * The context actions offered by the surface radial ("aylana") menu for
@@ -77,14 +83,47 @@ export function buildRadialItems(
     setCeilingDesign: (id: CeilingDesignId) => void;
     /** The room's kind (lib/roomType effectiveRoomType): a kitchen's sockets go over the worktop. */
     roomType?: string;
+    /** Puts a towel rail, a machine or a point on the tapped wall at the tapped spot, as a socket is, or
+     *  switches the boiler on (PR3). Undefined where nothing can be placed: no Santexnika then. */
+    placeFixture?: (wallId: string, point: { x: number; y: number; z: number } | undefined, what: RingFixture) => void;
+    /** The room already has its boiler: it is not offered again. */
+    waterHeater?: boolean;
   },
 ): RadialItem[] {
   const {
     setSelectedWall, setActivePhase, setShowPanel, createOpening,
     placeElectrical, placeLight, setCornice, wallpapers, applyWallpaper, applyWallColor, applyWallTile, addRoomThroughWall,
     createWindowStyled, createDoorStyled,
-    setFloorPattern, setSkirting, setCeilingDesign, restyleOpening, roomType,
+    setFloorPattern, setSkirting, setCeilingDesign, restyleOpening, roomType, placeFixture, waterHeater,
   } = deps;
+
+  /**
+   * The plumbing a wall takes (PR3, 2026-11-24), as Elektr offers sockets: each goes on this wall at the
+   * spot tapped, where the panel's buttons put it by the riser (QA: a rail always went on wall D). Only in a
+   * room with a Jihozlar stage; a rail in a bathroom, a sink and a dishwasher in a kitchen, as the corner menu.
+   */
+  const santexnika = (): RadialItem[] => {
+    const kind = catalogRoomType(roomType);
+    if (!placeFixture || !r.wallId || !visibleStages(kind).some((st) => st.key === 'jihozlar')) return [];
+    const icon = (I: typeof Droplets) => <I size={20} strokeWidth={1.8} />;
+    const item = (what: RingFixture, label: string, I: typeof Droplets): RadialItem => ({
+      key: `sx:${what}`, label, icon: icon(I), onSelect: () => placeFixture(r.wallId!, r.point, what),
+    });
+    return [{
+      key: 'santexnika', label: i18n.t('studio.radial.santexnika'), icon: icon(Droplets),
+      childLabel: i18n.t('studio.radial.santexnika'),
+      onSelect: () => {},
+      children: [
+        ...(kind === 'hammom' ? [item('rail', i18n.t('studio.santexnika.rail'), Rows3)] : []),
+        ...(kind === 'oshxona' ? [item('sink', i18n.t('studio.santexnika.sink'), Droplets), item('dish', i18n.t('studio.santexnika.dish'), Square)] : []),
+        item('washer', i18n.t('studio.santexnika.washer'), WashingMachine),
+        ...(waterHeater === true ? [] : [item('heater', i18n.t('studio.santexnika.heater_short'), Heater)]),
+        item('cold', i18n.t('studio.santexnika.cold'), Droplets),
+        item('hot', i18n.t('studio.santexnika.hot'), Droplets),
+        item('drain', i18n.t('studio.santexnika.drain'), Droplets),
+      ],
+    }];
+  };
 
   /** Sends the user to the full panel — what a ring with nothing in it can
    *  still usefully offer, and where a new paper gets uploaded. */
@@ -235,6 +274,7 @@ export function buildRadialItems(
           onSelect: () => { if (r.wallId) placeElectrical(r.wallId, r.point, entry.type, entry.height); },
         })),
       },
+      ...santexnika(),
     ];
   }
   // A door or a window tapped in the room offers the designs it could be —

@@ -560,3 +560,38 @@ describe('the keys the ring remembers choices by', () => {
     }
   })
 })
+
+describe('the wall ring Santexnika (PR3, 2026-11-24)', () => {
+  const ring = (roomType: string, extra: Record<string, unknown> = {}) => {
+    const { calls, deps } = harness()
+    const placed: unknown[][] = []
+    const items = buildRadialItems(WALL!, { ...deps, roomType, placeFixture: (...a: unknown[]) => placed.push(a), ...extra } as never)
+    return { calls, placed, sx: items.find((i) => i.key === 'santexnika') }
+  }
+
+  it('a bathroom wall offers the rail, the machine, the boiler and the three kinds of point, after Elektr', () => {
+    const { deps } = harness()
+    const items = buildRadialItems(WALL!, { ...deps, roomType: 'hammom', placeFixture: () => {} } as never)
+    expect(items.map((i) => i.key).slice(-2)).toEqual(['elektr', 'santexnika'])
+    expect(ring('hammom').sx!.children!.map((c) => c.key)).toEqual(['sx:rail', 'sx:washer', 'sx:heater', 'sx:cold', 'sx:hot', 'sx:drain'])
+  })
+
+  it('a kitchen wall offers the sink and the dishwasher, not the rail', () => {
+    expect(ring('oshxona').sx!.children!.map((c) => c.key)).toEqual(['sx:sink', 'sx:dish', 'sx:washer', 'sx:heater', 'sx:cold', 'sx:hot', 'sx:drain'])
+  })
+
+  it('a living room has none, as it has no Jihozlar stage', () => {
+    expect(ring('mehmonxona').sx).toBeUndefined()
+  })
+
+  it('a room with its boiler on is not offered another', () => {
+    expect(ring('hammom', { waterHeater: true }).sx!.children!.map((c) => c.key)).not.toContain('sx:heater')
+  })
+
+  it('each puts its piece on the tapped wall, at the tapped point', () => {
+    const r = ring('hammom')
+    r.sx!.children!.find((c) => c.key === 'sx:rail')!.onSelect()
+    r.sx!.children!.find((c) => c.key === 'sx:drain')!.onSelect()
+    expect(r.placed).toEqual([['A', WALL!.point, 'rail'], ['A', WALL!.point, 'drain']])
+  })
+})

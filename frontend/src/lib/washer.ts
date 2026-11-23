@@ -174,6 +174,31 @@ export function placeWasher(geometry: RoomGeometry, riser: RiserAt, others: read
 }
 
 /**
+ * Where a machine stood from the wall ring goes (PR3, 2026-11-24): on the tapped wall, at the free place
+ * nearest the tap whose floor box is inside the room and clear of `taken` (the furniture). Null when that
+ * wall has none: the ring says so rather than putting it on another wall.
+ */
+export function placeWasherAt(geometry: RoomGeometry, m: Washer, others: readonly WallTaken[], taken: readonly Rect[]): number | null {
+  const model = roomModel(geometry)
+  const fits = (p: number) => {
+    const box = washerBox(geometry, { ...m, positionMm: p })
+    return !!box && model.inside(box) && !taken.some((t) => overlaps(box, t, 0))
+  }
+  let best: number | null = null
+  const consider = (p: number) => {
+    if (fits(p) && (best == null || Math.abs(p - m.positionMm) < Math.abs(best - m.positionMm))) best = p
+  }
+  for (const [lo, hi] of washerSpans(geometry, m.wallId, others, machineHalf(m))) {
+    consider(Math.min(hi, Math.max(lo, Math.round(m.positionMm))))
+    for (let p = lo; ; p = Math.min(hi, p + STEP_MM)) {
+      consider(p)
+      if (p >= hi) break
+    }
+  }
+  return best
+}
+
+/**
  * The machines a room can still hold after its shape changed: one whose wall is gone, or that has no
  * free place left, is dropped; one now past a wall's end or in an opening, on a rail or on the
  * riser, is moved to the nearest free place. The same list when nothing changed.

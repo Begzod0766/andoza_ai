@@ -411,3 +411,24 @@ describe('a rail keeps off a shower (mobile QA #381, 2026-11-22)', () => {
     expect(r.positionMm + half <= 1000 || r.positionMm - half >= 2000).toBe(true)
   })
 })
+
+describe('a rail hung from the wall ring (PR3, 2026-11-24)', () => {
+  it('goes on the wall that was tapped, where it was tapped: it had always gone by the riser (QA: always wall D)', () => {
+    expect(st().addTowelRailAt('B', 900)).toBe(true)
+    expect(st().towelRails).toEqual([expect.objectContaining({ wallId: 'B', positionMm: 900, heightMm: TOWEL_RAIL_HEIGHT_MM })])
+  })
+
+  it('a tap on a taken spot goes to the nearest free one on that wall', () => {
+    st().addTowelRailAt('B', 900)
+    expect(st().addTowelRailAt('B', 900)).toBe(true)
+    const [a, b] = st().towelRails
+    expect(b.wallId).toBe('B')
+    expect(Math.abs(b.positionMm - a.positionMm)).toBeGreaterThanOrEqual(railHalf(a) + railHalf(b))
+  })
+
+  it('a wall with no room for one says so and adds nothing', () => {
+    useRoomStore.setState({ geometry: { walls: [{ id: 'A', length: 300, elements: [] }, ...geometry.walls.slice(1)] } as unknown as RoomGeometry })
+    expect(st().addTowelRailAt('A', 150)).toBe(false)
+    expect(st().towelRails).toEqual([])
+  })
+})

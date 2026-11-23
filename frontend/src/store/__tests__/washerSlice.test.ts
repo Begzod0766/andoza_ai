@@ -195,3 +195,43 @@ describe('a machine keeps off the riser box (2026-11-18)', () => {
     expect(st().washers[0].positionMm).toBe(400 + 300)
   })
 })
+
+describe('a machine stood from the wall ring (PR3, 2026-11-24)', () => {
+  const a = () => roomModel(geometry).walls.find((w) => w.id === 'A')!
+  const piece = (id: string, w: number, name = 'Komod') => ({
+    id, name_uz: name, category: 'boshqa', room_type: null, store_id: 's', store_name: 'H',
+    placement: 'pol', price_uzs: null, glb_url: 'x.glb', thumbnail_url: null, footprint_w: w, footprint_d: 50,
+  })
+  const against = (id: string, d: number) => ({ id: 'f', furniture_id: id, x: (a().midX + a().nx * (d / 2 + 0.04)) * 1000, y: (a().midZ + a().nz * (d / 2 + 0.04)) * 1000, rotation: Math.atan2(a().nx, a().nz) })
+
+  it('goes on the wall that was tapped, where it was tapped', () => {
+    expect(st().addWasherAt('B', 1000)).toBe(true)
+    expect(st().washers).toEqual([expect.objectContaining({ wallId: 'B', positionMm: 1000 })])
+    expect(st().washers[0].kind).toBeUndefined()
+  })
+
+  it('a dishwasher keeps its kind and width', () => {
+    expect(st().addWasherAt('B', 1000, { kind: 'dishwasher', widthMm: 600 })).toBe(true)
+    expect(st().washers[0]).toMatchObject({ wallId: 'B', positionMm: 1000, kind: 'dishwasher', widthMm: 600 })
+  })
+
+  it('a tap on a piece of furniture stands it beside the piece, on the same wall', () => {
+    useRoomStore.setState({ catalogFurniture: [piece('k', 100) as never], furniture: [against('k', 0.5)] })
+    expect(st().addWasherAt('A', 1250)).toBe(true)
+    const m = st().washers[0]
+    expect(m.wallId).toBe('A')
+    expect(Math.abs(m.positionMm - 1250)).toBeGreaterThanOrEqual(800)
+  })
+
+  it('a wall with no clear place says so and adds nothing', () => {
+    useRoomStore.setState({ catalogFurniture: [piece('k', 240) as never], furniture: [against('k', 0.5)] })
+    expect(st().addWasherAt('A', 1250)).toBe(false)
+    expect(st().washers).toEqual([])
+  })
+
+  it("a kitchen sink stands in the kitchen set's cabinets", () => {
+    useRoomStore.setState({ catalogFurniture: [piece('set', 200, "Oshxona to'plami 2") as never], furniture: [against('set', 0.63)] })
+    expect(st().addWasherAt('A', 1250, { kind: 'kitchen_sink' })).toBe(true)
+    expect(st().washers[0]).toMatchObject({ wallId: 'A', positionMm: 1250, kind: 'kitchen_sink' })
+  })
+})

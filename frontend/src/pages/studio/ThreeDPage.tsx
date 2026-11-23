@@ -55,7 +55,9 @@ import { SceneLighting, BrandedSky } from "./three-d/SceneEnvironment";
 import { RoomScene } from "./three-d/RoomShell";
 import { useExclusiveSelection } from "./three-d/useExclusiveSelection";
 import { useSurfaceRadialMenu } from "./three-d/useSurfaceRadialMenu";
-import { buildRadialItems } from "./three-d/radialMenuItems";
+import { buildRadialItems, type RingFixture } from "./three-d/radialMenuItems";
+import { dragToPositionMm } from "./three-d/TowelRails3D";
+import { wallWalk } from "@/lib/plumbingRuns";
 import { useOpeningCreation } from "./three-d/useOpeningCreation";
 import { useRoomThumbnailCapture } from "./three-d/useCanvasCapture";
 import { useCanvasFraming } from "./three-d/useCanvasFraming";
@@ -625,6 +627,36 @@ export default function ThreeDPage() {
     setViewStage(stageAfterPlacing('montaj', useRoomStore.getState().viewStage, visibleStages(stageRoomKind).map((st) => st.key)));
   }
 
+  /**
+   * The wall ring's Santexnika (PR3, 2026-11-24): a rail, a machine or a point on the tapped wall at the
+   * tapped spot, or the nearest free place on that wall; a wall with none says so. The 3D goes forward to
+   * the stage that draws it, and a rail or machine is selected, with its card, as a tap on it would.
+   */
+  function placeFixtureAt(wallId: string, point: { x: number; y: number; z: number } | undefined, what: RingFixture) {
+    const store = useRoomStore.getState();
+    if (what === 'heater') { store.setDesignState({ waterHeater: true }); return; }
+    const lengthMm = (wallWalk(store.geometry).find((w) => w.id === wallId)?.lengthM ?? 0) * 1000;
+    const along = point ? dragToPositionMm(store.geometry, wallId, point.x, point.z) : null;
+    const positionMm = Math.min(lengthMm, Math.max(0, along ?? lengthMm / 2));
+    const stages = visibleStages(stageRoomKind).map((st) => st.key);
+    if (what === 'cold' || what === 'hot' || what === 'drain') {
+      store.addPlumbing({
+        id: nanoid(), kind: what, wallId, positionMm: Math.round(positionMm),
+        heightMm: Math.max(0, Math.round((point?.y ?? 0.5) * 1000)), diameterMm: what === 'drain' ? 50 : 20,
+      });
+      setViewStage(stageAfterPlacing('quvurlar', useRoomStore.getState().viewStage, stages));
+      return;
+    }
+    const placed = what === 'rail' ? store.addTowelRailAt(wallId, positionMm)
+      : store.addWasherAt(wallId, positionMm, what === 'dish' ? { kind: 'dishwasher', widthMm: 600 } : what === 'sink' ? { kind: 'kitchen_sink' } : {});
+    const name = t(what === 'rail' ? 'studio.santexnika.rail' : what === 'dish' ? 'studio.santexnika.dish' : what === 'sink' ? 'studio.santexnika.sink' : 'studio.santexnika.washer');
+    if (!placed) { toast({ variant: 'warning', title: t('studio.santexnika.wall_no_room', { name }) }); return; }
+    setViewStage(stageAfterPlacing('jihozlar', useRoomStore.getState().viewStage, stages));
+    const now = useRoomStore.getState();
+    const added = what === 'rail' ? now.towelRails[now.towelRails.length - 1] : now.washers[now.washers.length - 1];
+    if (added) selectFixture({ kind: what === 'rail' ? 'rail' : 'machine', id: added.id });
+  }
+
   /** The window the ring last made, so picking another style changes that one
    *  instead of adding a second window on top of it. */
   const lastStyledWindow = useRef<StyledWindow | null>(null);
@@ -902,6 +934,8 @@ export default function ThreeDPage() {
   useEffect(() => { setSelectedPart(null); }, [room.id, setSelectedPart]);
 
   // The room's stages: Quvurlar and Jihozlar only in a bathroom or kitchen (spec 2026-11-08, 2026-11-18).
+  // The ring's Santexnika offers the boiler until the room has one (PR3).
+  const ringWaterHeater = useRoomStore((s) => s.designState.waterHeater === true);
   const stageRoomKind = catalogRoomType(effectiveRoomType(useRoomStore((s) => s.roomType), useRoomStore((s) => s.name)));
   const stages = visibleStages(stageRoomKind);
   const activeIdx = stages.findIndex(s => s.key === activePhase);
@@ -1331,6 +1365,8 @@ export default function ThreeDPage() {
           roomType: effectiveRoomType(room.room_type, room.name),
           setSelectedWall, setActivePhase: openPhasePanel, setShowPanel, createOpening,
           placeElectrical: placeElectricalAt,
+          placeFixture: placeFixtureAt,
+          waterHeater: ringWaterHeater,
           placeLight: placeLightAt,
           setCornice: (trim) => useRoomStore.getState().setDesignState({ cornice: trim }),
           setSkirting: (trim) => useRoomStore.getState().setDesignState({ skirting: trim }),
