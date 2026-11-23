@@ -588,6 +588,12 @@ describe('the wall ring Santexnika (PR3, 2026-11-24)', () => {
     expect(ring('hammom', { waterHeater: true }).sx!.children!.map((c) => c.key)).not.toContain('sx:heater')
   })
 
+  it('each closes the ring once picked: left open, it covered the new piece\'s card (phone QA #392, 13)', () => {
+    for (const room of ['hammom', 'oshxona']) {
+      for (const c of ring(room).sx!.children!) expect(c.closesMenu, c.key).toBe(true)
+    }
+  })
+
   it('each puts its piece on the tapped wall, at the tapped point', () => {
     const r = ring('hammom')
     r.sx!.children!.find((c) => c.key === 'sx:rail')!.onSelect()
