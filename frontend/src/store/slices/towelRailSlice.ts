@@ -20,6 +20,8 @@ export interface TowelRailSlice {
 
   /** Hangs a new rail beside the riser (lib/towelRail placeTowelRail). False when no wall can take one. */
   addTowelRail(): boolean
+  /** Hangs a new rail on `wallId`, at the free place nearest `positionMm` (the wall ring, PR3). False when that wall has none. */
+  addTowelRailAt(wallId: string, positionMm: number): boolean
   /** Slides a rail along its wall, to the free place nearest `positionMm`. */
   /** 'no-room' when its wall has no free place for it at all (#370 a), 'no-room-this-way' when a rail dragged
    *  out of a taken stretch has none the way it is dragged (QA #380): it stays, and the drag says why. */
@@ -68,6 +70,14 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
     const at = placeTowelRail(geometry, roomRiser(geometry, get().plumbingRiser), machines(get()))
     if (!at) return false
     set((state) => ({ towelRails: [...state.towelRails, { id: nanoid(), ...at, heightMm: TOWEL_RAIL_HEIGHT_MM }], isDirty: true }))
+    return true
+  },
+
+  addTowelRailAt(wallId, positionMm) {
+    const state = get()
+    const at = nearestFree(state.geometry, wallId, positionMm, undefined, machines(state))
+    if (at == null) return false
+    set((s) => ({ towelRails: [...s.towelRails, { id: nanoid(), wallId, positionMm: at, heightMm: TOWEL_RAIL_HEIGHT_MM }], isDirty: true }))
     return true
   },
 

@@ -4,7 +4,7 @@ import type { Washer } from '../types'
 import type { RoomStore } from '../roomStoreTypes'
 import { roomRiser } from '@/lib/plumbingRuns'
 import { railHalf } from '@/lib/towelRail'
-import { isDishwasher, isKitchenSink, machineHalf, nearestFreeWasher, placeWasher, riserTaken, type WallTaken } from '@/lib/washer'
+import { isDishwasher, isKitchenSink, machineHalf, nearestFreeWasher, placeWasher, placeWasherAt, riserTaken, type WallTaken } from '@/lib/washer'
 import { placedFurnitureBoxes } from '@/features/studio/nextFurnitureSpot'
 import { riserBoxTaken } from '@/lib/bathroomBoxes'
 import { effectiveRoomType } from '@/lib/roomType'
@@ -28,6 +28,9 @@ export interface WasherSlice {
   addDishwasher(): boolean
   /** Stands a kitchen sink (2026-11-18) by the same rule, beside the dishwasher if there is one. False when there is no place. */
   addKitchenSink(): boolean
+  /** Stands a machine of `machine`'s kind on `wallId`, at the free place nearest `positionMm` clear of the
+   *  furniture (the wall ring, PR3). False when that wall has none. */
+  addWasherAt(wallId: string, positionMm: number, machine?: Partial<Washer>): boolean
   /** A dishwasher's width: moved to the nearest free place for it; false (unchanged) when its wall has none. */
   setWasherWidth(id: string, widthMm: 600 | 450): boolean
   /** Slides a machine along its wall, to the free place nearest `positionMm`. */
@@ -65,6 +68,12 @@ function backOnWall(geometry: RoomGeometry, xMm: number, zMm: number): { wallId:
   return best && { wallId: best.wallId, positionMm: best.positionMm }
 }
 
+/** The furniture a new machine keeps clear of: a kitchen sink stands in a kitchen set's cabinets. */
+function furnitureTaken(state: RoomStore, sink: boolean) {
+  return placedFurnitureBoxes(state).filter((p) => p.role !== 'rug' && !(sink && isKitchenSet(p.name)))
+    .map((p) => ({ x: p.x / 1000, z: p.y / 1000, w: p.w, d: p.d, rotation: p.rotation }))
+}
+
 /** A new machine of `kind` by the riser, clear of the furniture. */
 function add(get: () => RoomStore, set: (fn: (s: RoomStore) => Partial<RoomStore>) => void, machine: Partial<Washer>): boolean {
   const state = get()
@@ -97,6 +106,15 @@ export const createWasherSlice: StateCreator<RoomStore, [], [], WasherSlice> = (
 
   addKitchenSink() {
     return add(get, set, { kind: 'kitchen_sink' })
+  },
+
+  addWasherAt(wallId, positionMm, machine = {}) {
+    const state = get()
+    const m: Washer = { id: nanoid(), ...machine, wallId, positionMm: Math.round(positionMm) }
+    const at = placeWasherAt(state.geometry, m, wallTaken(state), furnitureTaken(state, m.kind === 'kitchen_sink'))
+    if (at == null) return false
+    set((s) => ({ washers: [...s.washers, { ...m, positionMm: at }], isDirty: true }))
+    return true
   },
 
   setWasherWidth(id, widthMm) {
