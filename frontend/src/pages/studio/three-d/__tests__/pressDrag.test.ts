@@ -50,6 +50,22 @@ describe('createPressDrag: a pinch begun on a rail (#372 c)', () => {
     expect(s.controls.enabled).toBe(true)
   })
 
+  it('a two-finger twist begun on a rail or machine moves neither: they are fixed to their wall (phone QA #392 10c)', () => {
+    const s = scene()
+    const d = s.make()
+    s.canvas.dispatchEvent(pointer('pointerdown', 1, 150, 400))
+    d.press({ pointerId: 1, clientX: 150, clientY: 400 })
+    s.canvas.dispatchEvent(pointer('pointerdown', 2, 250, 400))
+    // Both fingers turn round their midpoint, a quarter turn in steps.
+    for (let a = 0; a <= Math.PI / 2; a += Math.PI / 16) {
+      s.canvas.dispatchEvent(pointer('pointermove', 1, 200 - 50 * Math.cos(a), 400 - 50 * Math.sin(a)))
+      s.canvas.dispatchEvent(pointer('pointermove', 2, 200 + 50 * Math.cos(a), 400 + 50 * Math.sin(a)))
+    }
+    expect(s.onBegin).not.toHaveBeenCalled()
+    expect(s.onMove).not.toHaveBeenCalled()
+    expect(d.active()).toBe(false)
+  })
+
   it('a pinch only the window guard saw (its press stopped on the way) calls it off too', () => {
     const s = scene()
     const d = s.make({ multiTouchSince: () => true })

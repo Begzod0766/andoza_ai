@@ -141,6 +141,17 @@ describe('dragging a rail towards a door (mobile QA 2026-11-11 #3)', () => {
     st().moveTowelRail('r', 1700)
     expect(st().towelRails[0].positionMm).toBe(1700)
   })
+
+  it('held at the door edge with the finger well past it, it says so (phone QA #392 6b): it had stayed with no word', () => {
+    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'D', positionMm: 300, heightMm: 1000 }] })
+    st().beginTowelRailDrag()
+    expect(st().moveTowelRail('r', 330)).toBe('ok')
+    // A little past the edge is still a hand settling, not a drag into the door.
+    expect(st().moveTowelRail('r', 400)).toBe('ok')
+    expect(st().moveTowelRail('r', 1000)).toBe('no-room-this-way')
+    expect(st().towelRails[0].positionMm).toBe(330)
+    st().endTowelRailDrag()
+  })
 })
 
 describe('the plumbing stage flag', () => {

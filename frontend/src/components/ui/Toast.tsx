@@ -72,6 +72,10 @@ const variantTitleColor: Record<ToastVariant, string> = {
   error: 'text-red-900',
 }
 
+/** How long a toast stays, ms. A warning or error has to be read, and a one-line refusal went at 3 s
+ *  before it was (phone QA #392 1c); a confirmation is only a glance. */
+const DURATION_MS: Record<ToastVariant, number> = { default: 3000, success: 3000, warning: 5000, error: 5000 }
+
 // ─── Single Toast ─────────────────────────────────────────────────────────────
 
 interface ToastItemProps extends ToastData {
@@ -85,7 +89,7 @@ function ToastItem({ id, variant = 'default', title, description, onClose }: Toa
   const { t } = useTranslation()
   return (
     <RadixToast.Root
-      duration={3000}
+      duration={DURATION_MS[variant]}
       onOpenChange={(open) => {
         if (!open) onClose(id)
       }}
