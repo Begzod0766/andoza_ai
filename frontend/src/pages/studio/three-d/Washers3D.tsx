@@ -11,6 +11,10 @@ import { isKitchenSet } from "@/lib/furnitureRole";
 import { placedFurnitureBoxes } from "@/features/studio/nextFurnitureSpot";
 import { dragToPositionMm, railPointerHandlers, railRaycast } from "./TowelRails3D";
 import { usePressDrag } from "./pressDrag";
+import { useTranslation } from "react-i18next";
+import { useHoldToDelete } from "@/hooks/useHoldToDelete";
+import { useFixtureSelection, type FixtureSel } from "@/features/studio/fixtureSelection";
+import { BoxOutline, FixtureCard3D, fixtureHoldItem } from "./FixtureCard";
 import { noRaycast } from "./constants";
 import { clashColor } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
@@ -64,14 +68,17 @@ export function shownWashers<T extends Washer>(washers: readonly T[], geometry: 
  * In a plumbing stage a machine slides along its wall by drag; the store keeps it off doors,
  * windows, towel rails, other machines and the wall's ends.
  */
-export function Washers3D({ controlsRef, onOpen }: {
+export function Washers3D({ controlsRef, onSelect }: {
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
-  /** Opens the fixtures panel: a tap outside a plumbing stage (#359). None while capturing a frame. */
-  onOpen?: () => void;
+  /** Selects a machine, as a tap selects furniture (PR2; it opened the fixtures panel, #359). None while capturing a frame. */
+  onSelect?: (sel: FixtureSel) => void;
   /** Not used: a machine stands on the floor and is drawn whatever wall is hidden (#338). */
   hiddenWalls?: ReadonlySet<string>;
 }) {
   const washers = useRoomStore((s) => s.washers);
+  const { t } = useTranslation();
+  const { bind: holdBind, wasHeld } = useHoldToDelete();
+  const selected = useFixtureSelection((s) => (s.sel?.kind === "machine" ? s.sel.id : null));
   // The kitchen sets' footprints: a kitchen sink in one is the set's own (R1).
   const furniture = useRoomStore((s) => s.furniture);
   const catalog = useRoomStore((s) => s.catalogFurniture);
@@ -133,8 +140,9 @@ export function Washers3D({ controlsRef, onOpen }: {
         if (!pose) return null;
         const { W, D, H } = dims(m);
         return (
-          <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(m, e), onOpen, drag.dragged)}>
-            <mesh castShadow receiveShadow raycast={railRaycast(draggable, !!onOpen)}>
+          <group key={m.id} position={[pose.x, pose.y, pose.z]} rotation={[0, pose.rotY, 0]} {...railPointerHandlers(draggable, (e) => start(m, e), onSelect && (() => onSelect({ kind: "machine", id: m.id })), drag.dragged,
+              onSelect && { down: (e) => holdBind(fixtureHoldItem({ kind: "machine", id: m.id }, t)).onPointerDown(e), wasHeld })}>
+            <mesh castShadow receiveShadow raycast={railRaycast(draggable, !!onSelect)}>
               <boxGeometry args={[W, H, D]} />
               <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>
@@ -163,6 +171,11 @@ export function Washers3D({ controlsRef, onOpen }: {
                 <meshStandardMaterial color={DOOR} roughness={0.3} metalness={0.2} />
               </mesh>
             )}
+            {/* Selected (PR2): furniture's blue line round it, and its card over it. */}
+            {selected === m.id && onSelect && (<>
+              <BoxOutline w={W} h={H} d={D} />
+              <FixtureCard3D sel={{ kind: "machine", id: m.id }} y={H / 2 + 0.22} />
+            </>)}
           </group>
         );
       })}

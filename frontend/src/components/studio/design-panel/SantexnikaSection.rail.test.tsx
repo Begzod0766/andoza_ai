@@ -1,6 +1,6 @@
 /** The towel rail in the plumbing panel (spec 2026-11-10): add, list, delete, and its two points. */
 import { describe, it, expect, beforeEach , vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, act } from '@testing-library/react'
 import { useRoomStore } from '@/store/roomStore'
 import type { RoomGeometry } from '@/store/types'
 import { SantexnikaSection } from './SantexnikaSection'
@@ -39,11 +39,12 @@ describe('SantexnikaSection: towel rail', () => {
     expect(row).toHaveAccessibleName('Sochiq quritgich')
   })
 
-  it('its row has a delete button that takes it and its points away', () => {
+  it('its row has no controls of its own (PR2: they are on its card in the 3D); deleting it takes its points away', () => {
     render(<Both bathroom />)
     fireEvent.click(addButton()!)
     expect(screen.getAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(2)
-    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: /olib tashlash/i }))
+    expect(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).queryByRole('button')).toBeNull()
+    act(() => useRoomStore.getState().removeTowelRail(rails()[0].id))
     expect(rails()).toEqual([])
     expect(screen.queryAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(0)
   })
@@ -81,56 +82,29 @@ describe('SantexnikaSection: towel rail', () => {
 })
 
 describe('SantexnikaSection: a rail in a room that is no longer a bathroom (final review)', () => {
-  it('is still listed and can be removed; only adding is for bathrooms', () => {
+  it('is still listed; only adding is for bathrooms', () => {
     useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 600, heightMm: 1000 }] })
     render(<Both />)
     expect(addButton()).toBeNull()
-    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: /olib tashlash/i }))
-    expect(rails()).toEqual([])
+    expect(screen.getByRole('listitem', { name: /sochiq quritgich/i })).toBeInTheDocument()
   })
 })
 
 describe('SantexnikaSection: an electric towel rail (2026-11-14)', () => {
-  it('a new rail is heated by water; switching it to electric takes its points away, and back brings them', () => {
+  it('switching a rail to electric (on its card) takes its points away, and back brings them', () => {
     render(<Both bathroom />)
     fireEvent.click(addButton()!)
-    const row = screen.getByRole('listitem', { name: /sochiq quritgich/i })
-    expect(within(row).getByRole('button', { name: 'Suvli' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(within(row).getByRole('button', { name: 'Elektr' }))
+    act(() => useRoomStore.getState().setTowelRailKind(rails()[0].id, 'electric'))
     expect(rails()[0].kind).toBe('electric')
     expect(screen.queryAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(0)
-    fireEvent.click(within(screen.getByRole('listitem', { name: /sochiq quritgich/i })).getByRole('button', { name: 'Suvli' }))
+    act(() => useRoomStore.getState().setTowelRailKind(rails()[0].id, 'water'))
     expect(rails()[0].kind).toBe('water')
     expect(screen.getAllByRole('listitem', { name: /issiq suv/i })).toHaveLength(2)
   })
 })
 
 describe('SantexnikaSection: a rail size and a shop product (2026-11-15)', () => {
-  const row = () => screen.getByRole('listitem', { name: /sochiq quritgich/i })
-
-  it('each row picks a size; a rail with none shows 50 × 80', () => {
-    render(<Both bathroom />)
-    fireEvent.click(addButton()!)
-    const select = within(row()).getByRole('combobox', { name: "O'lchami" }) as HTMLSelectElement
-    expect(select.value).toBe('500x800')
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['50×50 sm', '50×60 sm', '50×80 sm', '60×80 sm', '60×100 sm'])
-    fireEvent.change(select, { target: { value: '600x1000' } })
-    expect(rails()[0].size).toBe('600x1000')
-  })
-
-  it('a size with no room on the wall says so and keeps the old one', () => {
-    useRoomStore.setState({ towelRails: [{ id: 'r', wallId: 'A', positionMm: 1250, heightMm: 1000 }] })
-    const real = useRoomStore.getState().setTowelRailSize
-    useRoomStore.setState({ setTowelRailSize: vi.fn(() => false) })
-    try {
-      render(<Both bathroom />)
-      fireEvent.change(within(row()).getByRole('combobox', { name: "O'lchami" }), { target: { value: '600x800' } })
-      expect(screen.getByRole('alert')).toHaveTextContent("Bu o'lcham devorga sig'maydi")
-    } finally {
-      useRoomStore.setState({ setTowelRailSize: real })
-    }
-  })
-
+  // Its size is picked on its card (PR2): fixtureCard.test.tsx.
   it('the shop list for each kind of rail in the room', () => {
     render(<Both bathroom />)
     expect(screen.queryByTestId('pick-sochiq_quritgich')).toBeNull()

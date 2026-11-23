@@ -5,13 +5,12 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
-import { isElectricRail, RAIL_SIZES, railSize, withRailPoints } from "@/lib/towelRail";
+import { isElectricRail, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
 import { PlumbingFixtures } from "./PlumbingFixtures";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import { useBoilerHomeless, useFixtureClearances, useFixtureOverlaps, useHatchBlockers } from "@/features/studio/fixtureClearance";
-import type { TowelRailSize } from "@/store/types";
-import { DISHWASHER_WIDTHS, isDishwasher, isKitchenSink, machineSize, withWasherPoints } from "@/lib/washer";
+import { isDishwasher, isKitchenSink, withWasherPoints } from "@/lib/washer";
 import { effectiveRoomType } from "@/lib/roomType";
 import { wallNumber } from "@/lib/wallLabel";
 import { formatDecimal } from "@/lib/utils";
@@ -49,9 +48,6 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const setDesignState = useRoomStore((s) => s.setDesignState);
   const towelRails = useRoomStore((s) => s.towelRails);
   const addTowelRail = useRoomStore((s) => s.addTowelRail);
-  const removeTowelRail = useRoomStore((s) => s.removeTowelRail);
-  const setTowelRailKind = useRoomStore((s) => s.setTowelRailKind);
-  const setTowelRailSize = useRoomStore((s) => s.setTowelRailSize);
   /** Machines and rails touching a piece of furniture (2026-11-15): a warning on their row. */
   const clashes = useWallItemClashes();
   const clearances = useFixtureClearances();
@@ -61,19 +57,14 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const clashNote = (id: string) => clashes[id] && (
     <p role="alert" className="basis-full text-[11px] text-red-500">{t("studio.santexnika.clash", { names: clashes[id].join(", ") })}</p>
   );
-  /** The last size picked did not fit on its rail's wall. */
-  const [noSizeRoom, setNoSizeRoom] = useState(false);
   const washers = useRoomStore((s) => s.washers);
   const addWasher = useRoomStore((s) => s.addWasher);
-  const removeWasher = useRoomStore((s) => s.removeWasher);
   /** The last "add a washing machine" found no place for one. */
   const [noWasherRoom, setNoWasherRoom] = useState(false);
   // A dishwasher (2026-11-16): offered in a kitchen, listed and removable in any room.
   const kitchen = useRoomStore((s) => effectiveRoomType(s.roomType, s.name) === "oshxona");
   const addDishwasher = useRoomStore((s) => s.addDishwasher);
-  const setWasherWidth = useRoomStore((s) => s.setWasherWidth);
   const [noDishRoom, setNoDishRoom] = useState(false);
-  const [noDishWidth, setNoDishWidth] = useState(false);
   const dishwashers = washers.filter(isDishwasher);
   // A kitchen sink (kitchen QA 2026-11-18 K1): the catalog sells none, so a kitchen adds one here.
   const sinks = washers.filter(isKitchenSink);
@@ -150,60 +141,20 @@ export function SantexnikaSection({ part, bathroom = false }: {
 
   const field = "w-full rounded-lg border border-line bg-card px-2 py-1.5 text-[12px] text-ink";
   // The pieces the panel itself adds: one row each, named, with its own controls and a × a finger can hit.
-  const rowClass = "flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card py-1.5 pl-3 pr-1.5";
+  const rowClass = "flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card px-3 py-2";
   const nameClass = "min-w-0 flex-1 text-[13px] text-ink";
-  const removeButton = (name: string, onClick: () => void) => (
-    <button type="button" onClick={onClick} aria-label={t("studio.santexnika.remove_named", { name })}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg leading-none text-ink-muted hover:bg-card-soft hover:text-red-500">×</button>
-  );
-  const pill = (on: boolean) =>
-    `h-9 rounded-full border px-3 text-[12px] font-medium ${on ? "border-brand bg-brand text-white" : "border-line text-ink hover:border-brand/50"}`;
-  const pickClass = "h-9 rounded-full border border-line bg-card px-3 text-[12px] text-ink";
-  const machineRow = (m: (typeof washers)[number], name: string, extra?: React.ReactNode) => (
-    <li key={m.id} aria-label={name} className={rowClass}>
+  // A row names its piece and says what it touches (PR2, 2026-11-24): its own controls (water or electric, size,
+  // width) are on its card in the 3D, a tap on it there, and it is deleted by a press and hold, as furniture is.
+  const fixtureRow = (id: string, name: string) => (
+    <li key={id} aria-label={name} className={rowClass}>
       <span className={nameClass}>{name}</span>
-      {extra}
-      {removeButton(name, () => removeWasher(m.id))}
-      {clashNote(m.id)}
+      {clashNote(id)}
     </li>
   );
-  const railRows = towelRails.map((r, i) => {
-    const name = numbered(t("studio.santexnika.rail"), i, towelRails.length);
-    return (
-      <li key={r.id} aria-label={name} className={rowClass}>
-        <span className={nameClass}>{name}</span>
-        {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
-        <span className="flex gap-1">
-          {(["water", "electric"] as const).map((k) => {
-            const on = (isElectricRail(r) ? "electric" : "water") === k;
-            return (
-              <button key={k} type="button" aria-pressed={on} onClick={() => !on && setTowelRailKind(r.id, k)} className={pill(on)}>
-                {t(k === "water" ? "studio.santexnika.rail_water" : "studio.santexnika.rail_electric")}
-              </button>
-            );
-          })}
-        </span>
-        {/* Its size (2026-11-15): the 3D ladder, its points' spacing and its norm price. */}
-        <select aria-label={t("studio.santexnika.rail_size")} value={r.size ?? "500x800"}
-          onChange={(e) => setNoSizeRoom(!setTowelRailSize(r.id, e.target.value as TowelRailSize))} className={pickClass}>
-          {RAIL_SIZES.map((sz) => {
-            const { w, h } = railSize({ ...r, size: sz });
-            return <option key={sz} value={sz}>{t("studio.santexnika.rail_size_option", { w: w / 10, h: h / 10 })}</option>;
-          })}
-        </select>
-        {removeButton(name, () => removeTowelRail(r.id))}
-        {clashNote(r.id)}
-      </li>
-    );
-  });
-  const sinkRows = sinks.map((m, i) => machineRow(m, numbered(t("studio.santexnika.sink"), i, sinks.length)));
-  const washerRows = washingMachines.map((m, i) => machineRow(m, numbered(t("studio.santexnika.washer"), i, washingMachines.length)));
-  const dishRows = dishwashers.map((m, i) => machineRow(m, numbered(t("studio.santexnika.dish"), i, dishwashers.length), (
-    <select aria-label={t("studio.santexnika.dish_width")} value={machineSize(m).w}
-      onChange={(e) => setNoDishWidth(!setWasherWidth(m.id, Number(e.target.value) as 600 | 450))} className={pickClass}>
-      {DISHWASHER_WIDTHS.map((w) => <option key={w} value={w}>{t("studio.santexnika.dish_width_option", { cm: w / 10 })}</option>)}
-    </select>
-  )));
+  const railRows = towelRails.map((r, i) => fixtureRow(r.id, numbered(t("studio.santexnika.rail"), i, towelRails.length)));
+  const sinkRows = sinks.map((m, i) => fixtureRow(m.id, numbered(t("studio.santexnika.sink"), i, sinks.length)));
+  const washerRows = washingMachines.map((m, i) => fixtureRow(m.id, numbered(t("studio.santexnika.washer"), i, washingMachines.length)));
+  const dishRows = dishwashers.map((m, i) => fixtureRow(m.id, numbered(t("studio.santexnika.dish"), i, dishwashers.length)));
   /** One short "+ name" button each, in a row (2026-11-23): was a full-width button under each list. */
   const addChip = (key: "rail_add" | "washer_add" | "dish_add" | "sink_add", label: string, onClick: () => void) => (
     <button key={key} type="button" onClick={onClick} aria-label={t(`studio.santexnika.${key}`)}
@@ -211,7 +162,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
       + {label}
     </button>
   );
-  const noRoom = (on: boolean, key: "rail_no_room" | "rail_size_no_room" | "washer_no_room" | "dish_no_room" | "dish_width_no_room" | "sink_no_room") => on && <p key={key} role="alert" className="text-[11px] text-red-500">{t(`studio.santexnika.${key}`)}</p>;
+  const noRoom = (on: boolean, key: "rail_no_room" | "washer_no_room" | "dish_no_room" | "sink_no_room") => on && <p key={key} role="alert" className="text-[11px] text-red-500">{t(`studio.santexnika.${key}`)}</p>;
   // A kitchen's sink (K1), in both stages: its points come with it in Quvurlar, it is fitted in Jihozlar.
   const sinkAdd = kitchen && addChip("sink_add", t("studio.santexnika.sink"), () => setNoSinkRoom(!addKitchenSink()));
   const machines = (rows: React.ReactNode[], adds: React.ReactNode[], alerts: React.ReactNode[]) => (rows.flat().length > 0 || adds.some(Boolean)) && (
@@ -391,8 +342,8 @@ export function SantexnikaSection({ part, bathroom = false }: {
           sinkAdd,
         ],
         [
-          noRoom(noRailRoom, "rail_no_room"), noRoom(noSizeRoom, "rail_size_no_room"), noRoom(noWasherRoom, "washer_no_room"),
-          noRoom(noDishRoom, "dish_no_room"), noRoom(noDishWidth, "dish_width_no_room"), noRoom(noSinkRoom, "sink_no_room"),
+          noRoom(noRailRoom, "rail_no_room"), noRoom(noWasherRoom, "washer_no_room"),
+          noRoom(noDishRoom, "dish_no_room"), noRoom(noSinkRoom, "sink_no_room"),
         ],
       )}
       {/* A shop product of the user's own for each kind of rail in the room (2026-11-15). */}

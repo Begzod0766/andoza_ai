@@ -152,6 +152,31 @@ describe('railPointerHandlers: a tap in a plumbing stage (#370 b)', () => {
   })
 })
 
+describe('railPointerHandlers: press and hold to delete, as furniture (PR2, 2026-11-24)', () => {
+  const hold = (held: boolean) => ({ down: vi.fn(), wasHeld: () => held })
+  it('in a plumbing stage a press starts both the hold and the drag', () => {
+    const start = vi.fn(), h = hold(false)
+    const down = { stopPropagation: vi.fn() }
+    railPointerHandlers(true, start, vi.fn(), () => false, h).onPointerDown!(down as never)
+    expect(h.down).toHaveBeenCalledWith(down)
+    expect(start).toHaveBeenCalledWith(down)
+  })
+  it('in any other stage a press starts the hold alone', () => {
+    const start = vi.fn(), h = hold(false)
+    railPointerHandlers(false, start, vi.fn(), undefined, h).onPointerDown!({} as never)
+    expect(h.down).toHaveBeenCalled()
+    expect(start).not.toHaveBeenCalled()
+  })
+  it('the release of a hold selects nothing: the delete menu is up', () => {
+    const select = vi.fn()
+    const click = { stopPropagation: vi.fn() }
+    railPointerHandlers(false, vi.fn(), select, undefined, hold(true)).onClick!(click as never)
+    railPointerHandlers(true, vi.fn(), select, () => false, hold(true)).onClick!(click as never)
+    expect(select).not.toHaveBeenCalled()
+    expect(click.stopPropagation).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('pressDragStep: a press becomes a drag only once it moves (#370 c)', () => {
   const press = () => ({ pointerId: 1, x0: 100, y0: 100, started: false })
   it('waits while the finger stays within the slop, then starts, then moves', () => {
