@@ -52,8 +52,9 @@ function machines(state: RoomStore, except?: string): WallTaken[] {
     // Only where the box is built: a bathroom or a kitchen (as BathroomBoxes3D draws it).
     ...(wetRoom(state) ? riserBoxTaken(state.geometry, roomRiser(state.geometry, state.plumbingRiser)) : []),
     // A washbasin's stretch of its wall (mobile QA 2026-11-21, #365): a rail pushed along by another stopped
-    // over the basin. A rail hangs from 60 cm, below a basin's rim.
-    ...wetSpans(state.furniture, state.catalogFurniture, state.geometry, ['sink'])
+    // over the basin. A rail hangs from 60 cm, below a basin's rim. A shower's too (mobile QA #381): a rail
+    // inside its glass was hidden by it in the 3D.
+    ...wetSpans(state.furniture, state.catalogFurniture, state.geometry, ['sink', 'shower'])
       // 5 cm clear of it, not touching its edge (#367).
       .map((s) => ({ wallId: s.wallId, positionMm: Math.round((s.from + s.to) / 2), halfMm: Math.round((s.to - s.from) / 2) + BASIN_GAP_MM })),
   ]

@@ -55,3 +55,18 @@ describe('a shop fixture with no height (mobile QA 2026-11-18, #298)', () => {
     expect(wallItemClashes(st())).toEqual({ m: ['Unitaz'] })
   })
 })
+
+describe('a shower with no height (mobile QA #381, 2026-11-22)', () => {
+  it('a rail hung at 1 m inside a glass shower whose row has no height_cm names the shower', () => {
+    // The shop's "Dush 2 (shishali)" (100 × 100, no height): read as 0.8 m tall, the rails hidden inside it
+    // at 1 m touched nothing, and the panel said nothing while the 3D showed no rail.
+    const a = wallWalk(geometry).find((x) => x.id === 'A')!
+    const along = 0.6
+    useRoomStore.setState({
+      catalogFurniture: [{ id: 'sh', name_uz: 'Dush 2 (shishali)', category: 'boshqa', room_type: 'hammom', glb_url: '/m/sh.glb', footprint_w: 100, footprint_d: 100, height_cm: null } as never],
+      furniture: [{ id: 's', furniture_id: 'sh', name: 'Dush 2 (shishali)', x: (a.startX + a.dirX * along + a.nx * 0.5) * 1000, y: (a.startZ + a.dirZ * along + a.nz * 0.5) * 1000, rotation: Math.atan2(a.nx, a.nz) } as never],
+      towelRails: [{ id: 'r', wallId: 'A', positionMm: 650, heightMm: 1000 }],
+    })
+    expect(wallItemClashes(st())).toEqual({ r: ['Dush 2 (shishali)'] })
+  })
+})

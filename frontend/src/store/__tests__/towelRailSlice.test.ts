@@ -392,3 +392,22 @@ describe('moveTowelRail says when a rail has nowhere to go (#370 a)', () => {
     expect(st().towelRails[0].positionMm).toBe(200)
   })
 })
+
+describe('a rail keeps off a shower (mobile QA #381, 2026-11-22)', () => {
+  /** A 1 × 1 m shower (no catalog row) against wall A, its middle `alongMm` from A's start. */
+  const showerOnA = (alongMm: number) => {
+    const a = wallWalk(geometry).find((w) => w.id === 'A')!
+    const x = a.startX + a.dirX * alongMm / 1000 + a.nx * 0.5, z = a.startZ + a.dirZ * alongMm / 1000 + a.nz * 0.5
+    return { id: 'shower', furniture_id: 'dush-1', name: 'Dush', x: x * 1000, y: z * 1000, rotation: Math.atan2(a.nx, a.nz) }
+  }
+  it('dragged into the shower, the rail stops beside it, not inside the glass', () => {
+    useRoomStore.setState({ furniture: [showerOnA(1500)] as never, catalogFurniture: [], plumbingRiser: riserSpot(geometry, [{ x: 0, z: 99 }]) })
+    useRoomStore.setState({ towelRails: [{ id: 'r1', wallId: 'A', positionMm: 300, heightMm: TOWEL_RAIL_HEIGHT_MM }] })
+    st().moveTowelRail('r1', 1500)
+    const r = st().towelRails[0]
+    const half = railHalf(r)
+    expect(r.wallId).toBe('A')
+    // The shower takes A 1000…2000.
+    expect(r.positionMm + half <= 1000 || r.positionMm - half >= 2000).toBe(true)
+  })
+})
