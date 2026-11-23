@@ -101,6 +101,8 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const [heightCm, setHeightCm] = useState("50");
   /** Where along the wall a hand point goes (kitchen QA 2026-11-18 K5); empty = the wall's middle. */
   const [posCm, setPosCm] = useState("");
+  /** The hand point's form, folded until asked for (2026-11-23): the fixtures' points come by themselves. */
+  const [extraOpen, setExtraOpen] = useState(false);
 
   const byId = new Map(catalog.map((c) => [c.id, c]));
   // A floor drain is offered only with a shower in the room (spec 2026-11-13).
@@ -122,11 +124,10 @@ export function SantexnikaSection({ part, bathroom = false }: {
     setRiserDraft(null);
     if (Number.isFinite(cm)) placeRiser(riser.wallId, Math.round(cm * 10));
   }
-  // Where along its wall too (mobile QA 2026-11-21, #359): two rails on one wall read the same by height alone.
-  const railWhere = (r: { wallId: string; positionMm: number; heightMm: number }) =>
-    t("studio.santexnika.rail_where", { wall: wallNumber(r.wallId), along: Math.round(r.positionMm / 10), cm: Math.round(r.heightMm / 10) });
-  const washerWhere = (m: { wallId: string; positionMm: number }) =>
-    t("studio.santexnika.washer_where", { wall: wallNumber(m.wallId), along: Math.round(m.positionMm / 10) });
+  // A row names its piece, numbered when there are two (2026-11-23): where it stands is seen in the 3D, and
+  // «A devor · chetidan 65 sm · 100 sm balandda» was the text the user found too much. Two rails on one wall
+  // (#359) are told apart by number.
+  const numbered = (label: string, i: number, n: number) => (n > 1 ? `${label} ${i + 1}` : label);
   const where = (p: PlumbingPoint) => t("studio.santexnika.where", { wall: wallNumber(p.wallId), cm: Math.round(p.heightMm / 10) });
 
   // The room's walls can change under an open panel (another room, a resize): the picker keeps to them.
@@ -148,45 +149,91 @@ export function SantexnikaSection({ part, bathroom = false }: {
   }
 
   const field = "w-full rounded-lg border border-line bg-card px-2 py-1.5 text-[12px] text-ink";
-  // A kitchen's sink (K1), in both stages: its points come with it in Quvurlar, it is fitted in Jihozlar.
-  const sinkBlock = (kitchen || sinks.length > 0) && (
-    <div className="space-y-1.5">
-      <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.sink")}</span>
-      {sinks.length > 0 && (
-        <ul className="space-y-1">
-          {sinks.map((m) => (
-            <li key={m.id} aria-label={`${t("studio.santexnika.sink")}, ${washerWhere(m)}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-              <span className="text-[12px] text-ink">{washerWhere(m)}</span>
-              <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
-                {t("studio.santexnika.remove")}
+  // The pieces the panel itself adds: one row each, named, with its own controls and a × a finger can hit.
+  const rowClass = "flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card py-1.5 pl-3 pr-1.5";
+  const nameClass = "min-w-0 flex-1 text-[13px] text-ink";
+  const removeButton = (name: string, onClick: () => void) => (
+    <button type="button" onClick={onClick} aria-label={t("studio.santexnika.remove_named", { name })}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg leading-none text-ink-muted hover:bg-card-soft hover:text-red-500">×</button>
+  );
+  const pill = (on: boolean) =>
+    `h-9 rounded-full border px-3 text-[12px] font-medium ${on ? "border-brand bg-brand text-white" : "border-line text-ink hover:border-brand/50"}`;
+  const pickClass = "h-9 rounded-full border border-line bg-card px-3 text-[12px] text-ink";
+  const machineRow = (m: (typeof washers)[number], name: string, extra?: React.ReactNode) => (
+    <li key={m.id} aria-label={name} className={rowClass}>
+      <span className={nameClass}>{name}</span>
+      {extra}
+      {removeButton(name, () => removeWasher(m.id))}
+      {clashNote(m.id)}
+    </li>
+  );
+  const railRows = towelRails.map((r, i) => {
+    const name = numbered(t("studio.santexnika.rail"), i, towelRails.length);
+    return (
+      <li key={r.id} aria-label={name} className={rowClass}>
+        <span className={nameClass}>{name}</span>
+        {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
+        <span className="flex gap-1">
+          {(["water", "electric"] as const).map((k) => {
+            const on = (isElectricRail(r) ? "electric" : "water") === k;
+            return (
+              <button key={k} type="button" aria-pressed={on} onClick={() => !on && setTowelRailKind(r.id, k)} className={pill(on)}>
+                {t(k === "water" ? "studio.santexnika.rail_water" : "studio.santexnika.rail_electric")}
               </button>
-              {clashNote(m.id)}
-            </li>
-          ))}
-        </ul>
-      )}
-      {kitchen && (
-        <button type="button" onClick={() => setNoSinkRoom(!addKitchenSink())}
-          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
-          {t("studio.santexnika.sink_add")}
-        </button>
-      )}
-      {noSinkRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.sink_no_room")}</p>}
+            );
+          })}
+        </span>
+        {/* Its size (2026-11-15): the 3D ladder, its points' spacing and its norm price. */}
+        <select aria-label={t("studio.santexnika.rail_size")} value={r.size ?? "500x800"}
+          onChange={(e) => setNoSizeRoom(!setTowelRailSize(r.id, e.target.value as TowelRailSize))} className={pickClass}>
+          {RAIL_SIZES.map((sz) => {
+            const { w, h } = railSize({ ...r, size: sz });
+            return <option key={sz} value={sz}>{t("studio.santexnika.rail_size_option", { w: w / 10, h: h / 10 })}</option>;
+          })}
+        </select>
+        {removeButton(name, () => removeTowelRail(r.id))}
+        {clashNote(r.id)}
+      </li>
+    );
+  });
+  const sinkRows = sinks.map((m, i) => machineRow(m, numbered(t("studio.santexnika.sink"), i, sinks.length)));
+  const washerRows = washingMachines.map((m, i) => machineRow(m, numbered(t("studio.santexnika.washer"), i, washingMachines.length)));
+  const dishRows = dishwashers.map((m, i) => machineRow(m, numbered(t("studio.santexnika.dish"), i, dishwashers.length), (
+    <select aria-label={t("studio.santexnika.dish_width")} value={machineSize(m).w}
+      onChange={(e) => setNoDishWidth(!setWasherWidth(m.id, Number(e.target.value) as 600 | 450))} className={pickClass}>
+      {DISHWASHER_WIDTHS.map((w) => <option key={w} value={w}>{t("studio.santexnika.dish_width_option", { cm: w / 10 })}</option>)}
+    </select>
+  )));
+  /** One short "+ name" button each, in a row (2026-11-23): was a full-width button under each list. */
+  const addChip = (key: "rail_add" | "washer_add" | "dish_add" | "sink_add", label: string, onClick: () => void) => (
+    <button key={key} type="button" onClick={onClick} aria-label={t(`studio.santexnika.${key}`)}
+      className="h-9 rounded-full border border-line px-3 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
+      + {label}
+    </button>
+  );
+  const noRoom = (on: boolean, key: "rail_no_room" | "rail_size_no_room" | "washer_no_room" | "dish_no_room" | "dish_width_no_room" | "sink_no_room") => on && <p key={key} role="alert" className="text-[11px] text-red-500">{t(`studio.santexnika.${key}`)}</p>;
+  // A kitchen's sink (K1), in both stages: its points come with it in Quvurlar, it is fitted in Jihozlar.
+  const sinkAdd = kitchen && addChip("sink_add", t("studio.santexnika.sink"), () => setNoSinkRoom(!addKitchenSink()));
+  const machines = (rows: React.ReactNode[], adds: React.ReactNode[], alerts: React.ReactNode[]) => (rows.flat().length > 0 || adds.some(Boolean)) && (
+    <div className="space-y-1.5">
+      {rows.flat().length > 0 && <ul className="space-y-1">{rows}</ul>}
+      {adds.some(Boolean) && <div className="flex flex-wrap gap-1.5">{adds}</div>}
+      {alerts}
     </div>
   );
   return (
     <section className="space-y-4">
       <div>
         <h3 className="mb-1 text-sm font-semibold text-ink">{t(pipes ? "studio.lib.stage.quvurlar" : "studio.lib.stage.jihozlar")}</h3>
-        <p className="text-[11px] leading-snug text-ink-muted">{t(pipes ? "studio.santexnika.hint_quvurlar" : kitchen ? "studio.santexnika.hint_jihozlar_kitchen" : "studio.santexnika.hint_jihozlar")}</p>
+        {/* Jihozlar has no hint any more (2026-11-23); Quvurlar says only that the pipes draw themselves. */}
+        {pipes && <p className="text-[11px] leading-snug text-ink-muted">{t("studio.santexnika.hint_quvurlar")}</p>}
       </div>
 
       {pipes ? (<>
       {/* The fixtures first (QA 2026-11-18 #5): the points below are theirs. A kitchen's catalog has
           none (kitchen QA 2026-11-18 K1): its sink is added below instead, so the picker is left out. */}
       <PlumbingFixtures optional={kitchen} />
-      {sinkBlock}
+      {machines([sinkRows], [sinkAdd], [noRoom(noSinkRoom, "sink_no_room")])}
       <div>
         <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.points")}</span>
         <ul className="space-y-1">
@@ -210,6 +257,12 @@ export function SantexnikaSection({ part, bathroom = false }: {
         </ul>
       </div>
 
+      <button type="button" aria-expanded={extraOpen} onClick={() => setExtraOpen((v) => !v)}
+        className="flex h-9 w-full items-center justify-between rounded-full border border-line px-4 text-[12px] font-semibold text-ink hover:border-brand/50">
+        {t("studio.santexnika.extra_point")}
+        <span aria-hidden="true" className="text-ink-muted">{extraOpen ? "−" : "+"}</span>
+      </button>
+      {extraOpen && (<>
       {/* The kind has a row to itself: in a third of the panel «Канализация» was cut short (mobile QA 2026-11-11 #7). */}
       <div className="grid grid-cols-2 gap-2">
         <label className="col-span-2 text-[10px] text-ink-muted">{t("studio.santexnika.kind")}
@@ -236,6 +289,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
       <button type="button" onClick={add} className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
         {t("studio.santexnika.add")}
       </button>
+      </>)}
 
 
       {/* The riser the user moves (2026-11-13): the pipes start here. Also dragged along the walls in 3D. */}
@@ -260,7 +314,6 @@ export function SantexnikaSection({ part, bathroom = false }: {
           className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent disabled:opacity-50 disabled:hover:border-line disabled:hover:text-ink">
           {t("studio.santexnika.riser_auto")}
         </button>
-        <p className="text-[10px] text-ink-muted">{t("studio.santexnika.riser_hint")}</p>
       </div>
 
       <label className="flex items-center gap-2 text-[12px] text-ink">
@@ -304,8 +357,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
         {t("studio.santexnika.summary", { dp: sum.drain.points, dm: formatDecimal(sum.drain.m, 1), wp: sum.water.points, wm: formatDecimal(sum.water.m, 1) })}
       </p>
       </>) : (<>
-      {sinkBlock}
-      <PlumbingFixtures optional={kitchen}>
+      <PlumbingFixtures optional={kitchen} title={false}>
         {/* A fixture out of the room or in the door's swing (2026-11-18): a warning only. */}
         <FurnitureFitWarnings />
         {/* Free floor in front of a fixture (2026-11-18): a warning only, nothing is moved. */}
@@ -328,116 +380,24 @@ export function SantexnikaSection({ part, bathroom = false }: {
         )}
       </PlumbingFixtures>
 
-      {/* Adding is for a bathroom; a rail already hung is listed, and can be removed, in any room. */}
-      {(bathroom || towelRails.length > 0) && (
-        <div className="space-y-1.5">
-          <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.rail")}</span>
-          {towelRails.length > 0 && (
-            <ul className="space-y-1">
-              {towelRails.map((r) => (
-                <li key={r.id} aria-label={`${t("studio.santexnika.rail")}, ${railWhere(r)}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-                  <span className="text-[12px] text-ink">{railWhere(r)}</span>
-                  {/* Heated by water (two hot points) or electric (none; a socket in the estimate). */}
-                  <span className="flex gap-1">
-                    {(["water", "electric"] as const).map((k) => {
-                      const on = (isElectricRail(r) ? "electric" : "water") === k;
-                      return (
-                        <button key={k} type="button" aria-pressed={on} onClick={() => !on && setTowelRailKind(r.id, k)}
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${on ? "border-brand bg-brand text-white" : "border-line text-ink hover:border-brand/50"}`}>
-                          {t(k === "water" ? "studio.santexnika.rail_water" : "studio.santexnika.rail_electric")}
-                        </button>
-                      );
-                    })}
-                  </span>
-                  {/* Its size (2026-11-15): the 3D ladder, its points' spacing and its norm price. */}
-                  <select aria-label={t("studio.santexnika.rail_size")} value={r.size ?? "500x800"}
-                    onChange={(e) => setNoSizeRoom(!setTowelRailSize(r.id, e.target.value as TowelRailSize))}
-                    className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">
-                    {RAIL_SIZES.map((s) => {
-                      const { w, h } = railSize({ ...r, size: s });
-                      return <option key={s} value={s}>{t("studio.santexnika.rail_size_option", { w: w / 10, h: h / 10 })}</option>;
-                    })}
-                  </select>
-                  <button type="button" onClick={() => removeTowelRail(r.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
-                    {t("studio.santexnika.remove")}
-                  </button>
-                  {clashNote(r.id)}
-                </li>
-              ))}
-            </ul>
-          )}
-          {bathroom && (
-            <button type="button" onClick={() => setNoRailRoom(!addTowelRail())}
-              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
-              {t("studio.santexnika.rail_add")}
-            </button>
-          )}
-          {noRailRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_no_room")}</p>}
-          {noSizeRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.rail_size_no_room")}</p>}
-          {/* A shop product of the user's own for each kind of rail in the room (2026-11-15). */}
-          {towelRails.some((r) => !isElectricRail(r)) && <ShopPickList smetaKey="sochiq_quritgich" title={t("studio.santexnika.rail_shop")} />}
-          {towelRails.some(isElectricRail) && <ShopPickList smetaKey="sochiq_quritgich_el" title={t("studio.santexnika.rail_shop_el")} />}
-        </div>
+      {/* The panel's own pieces (2026-11-23): one list, one row of "+" buttons. Adding a rail is for a bathroom,
+          a sink and a dishwasher for a kitchen; one already standing is listed, and removable, in any room. */}
+      {machines(
+        [railRows, sinkRows, washerRows, dishRows],
+        [
+          bathroom && addChip("rail_add", t("studio.santexnika.rail"), () => setNoRailRoom(!addTowelRail())),
+          addChip("washer_add", t("studio.santexnika.washer"), () => setNoWasherRoom(!addWasher())),
+          kitchen && addChip("dish_add", t("studio.santexnika.dish"), () => setNoDishRoom(!addDishwasher())),
+          sinkAdd,
+        ],
+        [
+          noRoom(noRailRoom, "rail_no_room"), noRoom(noSizeRoom, "rail_size_no_room"), noRoom(noWasherRoom, "washer_no_room"),
+          noRoom(noDishRoom, "dish_no_room"), noRoom(noDishWidth, "dish_width_no_room"), noRoom(noSinkRoom, "sink_no_room"),
+        ],
       )}
-
-      {/* A washing machine (spec 2026-11-13), in a bathroom or a kitchen: the panel shows only there. */}
-      <div className="space-y-1.5">
-        <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.washer")}</span>
-        {washingMachines.length > 0 && (
-          <ul className="space-y-1">
-            {washingMachines.map((m) => (
-              <li key={m.id} aria-label={`${t("studio.santexnika.washer")}, ${washerWhere(m)}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-                <span className="text-[12px] text-ink">{washerWhere(m)}</span>
-                <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
-                  {t("studio.santexnika.remove")}
-                </button>
-                {clashNote(m.id)}
-              </li>
-            ))}
-          </ul>
-        )}
-        <button type="button" onClick={() => setNoWasherRoom(!addWasher())}
-          className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
-          {t("studio.santexnika.washer_add")}
-        </button>
-        {noWasherRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.washer_no_room")}</p>}
-      </div>
-
-      {/* A dishwasher (2026-11-16): added in a kitchen; one already standing is listed in any room. */}
-      {(kitchen || dishwashers.length > 0) && (
-        <div className="space-y-1.5">
-          <span className="block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.dish")}</span>
-          {dishwashers.length > 0 && (
-            <ul className="space-y-1">
-              {dishwashers.map((m) => (
-                <li key={m.id} aria-label={`${t("studio.santexnika.dish")}, ${washerWhere(m)}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card px-3 py-2">
-                  <span className="text-[12px] text-ink">{washerWhere(m)}</span>
-                  <select aria-label={t("studio.santexnika.dish_width")} value={machineSize(m).w}
-                    onChange={(e) => setNoDishWidth(!setWasherWidth(m.id, Number(e.target.value) as 600 | 450))}
-                    className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink">
-                    {DISHWASHER_WIDTHS.map((w) => <option key={w} value={w}>{t("studio.santexnika.dish_width_option", { cm: w / 10 })}</option>)}
-                  </select>
-                  <button type="button" onClick={() => removeWasher(m.id)} className="text-[11px] font-medium text-red-500 hover:text-red-600">
-                    {t("studio.santexnika.remove")}
-                  </button>
-                  {clashNote(m.id)}
-                </li>
-              ))}
-            </ul>
-          )}
-          {kitchen && (
-            <button type="button" onClick={() => setNoDishRoom(!addDishwasher())}
-              className="w-full rounded-full border border-line py-2 text-[12px] font-semibold text-ink hover:border-brand/50 hover:text-accent">
-              {t("studio.santexnika.dish_add")}
-            </button>
-          )}
-          {noDishRoom && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.dish_no_room")}</p>}
-          {noDishWidth && <p role="alert" className="text-[11px] text-red-500">{t("studio.santexnika.dish_width_no_room")}</p>}
-        </div>
-      )}
+      {/* A shop product of the user's own for each kind of rail in the room (2026-11-15). */}
+      {towelRails.some((r) => !isElectricRail(r)) && <ShopPickList smetaKey="sochiq_quritgich" title={t("studio.santexnika.rail_shop")} />}
+      {towelRails.some(isElectricRail) && <ShopPickList smetaKey="sochiq_quritgich_el" title={t("studio.santexnika.rail_shop_el")} />}
 
       <label className="flex items-center gap-2 text-[12px] text-ink">
         {/* Off unless ticked: the estimate reads only an exact true (smeta.py _water_heater_lines). */}

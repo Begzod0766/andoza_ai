@@ -44,6 +44,7 @@ describe('SantexnikaSection: kitchen sink', () => {
 
   it('a hand point goes where the user says along the wall (K5): three are not stacked on one spot', () => {
     render(<SantexnikaSection part="quvurlar" />)
+    fireEvent.click(screen.getByRole('button', { name: "Qo'shimcha nuqta" }))
     fireEvent.change(screen.getByLabelText("Devor bo'ylab, sm"), { target: { value: '120' } })
     fireEvent.click(screen.getByRole('button', { name: /nuqta qo'shish/i }))
     expect(useRoomStore.getState().plumbing[0]).toMatchObject({ wallId: 'A', positionMm: 1200 })

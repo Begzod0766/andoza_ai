@@ -69,6 +69,7 @@ describe('SantexnikaSection', () => {
 
   it('adds a point by hand, with no fixture of its own', () => {
     render(<SantexnikaSection part="quvurlar" />)
+    fireEvent.click(screen.getByRole('button', { name: "Qo'shimcha nuqta" }))
     fireEvent.change(screen.getByLabelText('Turi'), { target: { value: 'cold' } })
     fireEvent.change(screen.getByLabelText('Devor'), { target: { value: 'B' } })
     fireEvent.change(screen.getByLabelText('Balandligi, sm'), { target: { value: '90' } })
@@ -182,7 +183,7 @@ describe('SantexnikaSection', () => {
       expect(s.washers).toHaveLength(1)
       expect(screen.getAllByText('(mashinaniki)')).toHaveLength(2)
       const row = screen.getByRole('listitem', { name: /^Kir yuvish mashinasi/ })
-      fireEvent.click(within(row).getByRole('button', { name: 'Olib tashlash' }))
+      fireEvent.click(within(row).getByRole('button', { name: /olib tashlash/i }))
       expect(useRoomStore.getState().washers).toEqual([])
       expect(screen.queryAllByText('(mashinaniki)')).toHaveLength(0)
     })
@@ -255,6 +256,7 @@ describe('SantexnikaSection on a phone (mobile QA 2026-11-09)', () => {
     const spy = vi.fn()
     Element.prototype.scrollIntoView = spy
     render(<SantexnikaSection part="quvurlar" />)
+    fireEvent.click(screen.getByRole('button', { name: "Qo'shimcha nuqta" }))
     fireEvent.focus(screen.getByLabelText('Balandligi, sm'))
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }))
   })
@@ -280,6 +282,7 @@ describe('the wall picker follows the room (review minor 2026-11-09)', () => {
   it('when the room\'s walls change under an open panel, a new point goes on a wall the room has', () => {
     render(<SantexnikaSection part="quvurlar" />)
     useRoomStore.setState({ geometry: { walls: [{ id: 'W1', length: 3000, elements: [] }, { id: 'W2', length: 2000, elements: [] }, { id: 'W3', length: 3000, elements: [] }] } as never })
+    fireEvent.click(screen.getByRole('button', { name: "Qo'shimcha nuqta" }))
     fireEvent.click(screen.getByRole('button', { name: /nuqta qo'shish/i }))
     expect(useRoomStore.getState().plumbing.at(-1)!.wallId).toBe('W1')
   })

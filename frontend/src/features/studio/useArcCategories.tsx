@@ -20,7 +20,7 @@ import { fixtureDisplayName } from "@/lib/fixtureName";
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { nanoid } from 'nanoid'
-import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets, SlidersHorizontal, Plug } from 'lucide-react'
+import { Sofa, Lightbulb, Wallpaper, Grid3x3, Ruler, Frame, BedDouble, ChefHat, Bath, Upload, Ban, Plus, Store, Droplets, SlidersHorizontal, Plug, Rows3, WashingMachine, Heater, Square } from 'lucide-react'
 import { FurnitureSymbol, LightSymbol } from '@/lib/catalogIcons'
 import { useRoomStore } from '@/store/roomStore'
 import { listWallpapers, type Wallpaper as WallpaperEntry } from '@/lib/api'
@@ -46,6 +46,8 @@ export interface ArcCategoriesDeps {
   selectedWall: string | null
   /** Opens the full panel for a category the arc can only show a slice of. */
   openPanelAt: (phase: 'boyoq' | 'chiroq' | 'mebel' | 'quvurlar' | 'jihozlar' | 'pol' | 'montaj') => void
+  /** Says why a pick did nothing (no wall had room for a machine or a rail): the page's toast. */
+  notify?: (message: string) => void
 }
 
 /** The catalog room each furniture ring stands for. */
@@ -59,7 +61,7 @@ function ownRoomFirst(rings: ArcItem[], roomKind: string | undefined): ArcItem[]
   return own <= 0 ? rings : [rings[own], ...rings.slice(0, own), ...rings.slice(own + 1)]
 }
 
-export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDeps): ArcCategory[] {
+export function useArcCategories({ selectedWall, openPanelAt, notify }: ArcCategoriesDeps): ArcCategory[] {
   // `t` changes with the language, so the memo below rebuilds the labels.
   const { t } = useTranslation()
   const userFurniture = useRoomStore((s) => s.userFurniture)
@@ -76,6 +78,11 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
   const floorType = useRoomStore((s) => s.designState.floorType)
   const floorTexture = useRoomStore((s) => s.designState.floorTexture)
   const floorPattern = useRoomStore((s) => s.designState.floorPattern)
+  const waterHeater = useRoomStore((s) => s.designState.waterHeater)
+  const addTowelRail = useRoomStore((s) => s.addTowelRail)
+  const addWasher = useRoomStore((s) => s.addWasher)
+  const addDishwasher = useRoomStore((s) => s.addDishwasher)
+  const addKitchenSink = useRoomStore((s) => s.addKitchenSink)
 
   // The same query key and scope the design panel's Oboy tab uses, so the two
   // share one cache entry and an upload made in the panel shows up here with
@@ -273,6 +280,20 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
                 }),
               }),
             })),
+          // The pieces the catalog does not sell (user's complaint 2026-11-23): added here in two taps, where
+          // they had gone through the panel. Each is put where the panel's button puts it, then dragged.
+          ...(roomKind === 'oshxona' ? [
+            { key: 'sx:sink', label: t('studio.santexnika.sink'), icon: <Droplets size={19} strokeWidth={1.8} />, onSelect: () => { if (!addKitchenSink()) notify?.(t('studio.santexnika.sink_no_room')) } },
+            { key: 'sx:dish', label: t('studio.santexnika.dish'), icon: <Square size={19} strokeWidth={1.8} />, onSelect: () => { if (!addDishwasher()) notify?.(t('studio.santexnika.dish_no_room')) } },
+          ] : []),
+          ...(roomKind === 'hammom' ? [
+            { key: 'sx:rail', label: t('studio.santexnika.rail'), icon: <Rows3 size={19} strokeWidth={1.8} />, onSelect: () => { if (!addTowelRail()) notify?.(t('studio.santexnika.rail_no_room')) } },
+          ] : []),
+          { key: 'sx:washer', label: t('studio.santexnika.washer'), icon: <WashingMachine size={19} strokeWidth={1.8} />, onSelect: () => { if (!addWasher()) notify?.(t('studio.santexnika.washer_no_room')) } },
+          // One boiler a room: once on it is switched off in the panel, not here.
+          ...(waterHeater === true ? [] : [
+            { key: 'sx:heater', label: t('studio.santexnika.heater_short'), icon: <Heater size={19} strokeWidth={1.8} />, onSelect: () => setDesignState({ waterHeater: true }) },
+          ]),
           // The Jihozlar panel (machines, towel rail, boiler, screens, warnings): on a phone the arc is
           // the only way to it, and only Quvurlar had a door after the split (QA 2026-11-18).
           { key: 'sx:panel', label: t('studio.radial.panel_jihozlar'), icon: <SlidersHorizontal size={19} strokeWidth={1.8} />, closesMenu: true, onSelect: () => openPanelAt('jihozlar') },
@@ -363,5 +384,6 @@ export function useArcCategories({ selectedWall, openPanelAt }: ArcCategoriesDep
     userFurniture, catalogFurniture, furniture, wallpapers, lights, geometry, roomKind,
     placeFurniture, addLight, setWallCovering, selectedWall, openPanelAt,
     setDesignState, floorType, floorTexture, floorPattern, t,
+    waterHeater, addTowelRail, addWasher, addDishwasher, addKitchenSink, notify,
   ])
 }

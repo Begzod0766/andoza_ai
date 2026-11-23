@@ -801,7 +801,10 @@ export default function ThreeDPage() {
   const openFixtures = useCallback(() => openPanelAt('jihozlar'), [openPanelAt]);
   // A tap on the boxed-in riser opens Quvurlar, where the bare riser drags (#365).
   const openPipes = useCallback(() => openPanelAt('quvurlar'), [openPanelAt]);
-  const arcCategories = useArcCategories({ selectedWall, openPanelAt });
+  const { toast } = useToast();
+  // A machine or rail picked from the arc that no wall had room for says so (2026-11-23).
+  const arcNotify = useCallback((message: string) => toast({ variant: 'warning', title: message }), [toast]);
+  const arcCategories = useArcCategories({ selectedWall, openPanelAt, notify: arcNotify });
 
   // The same query key and scope the design panel's Oboy tab uses, so the ring
   // and the panel share one cache entry and an upload in either shows in both.
@@ -836,7 +839,6 @@ export default function ThreeDPage() {
   // simply never drawn.
   const aptId = room.apartment_id && room.apartment_id !== 'local' ? room.apartment_id : null;
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const confirm = useConfirm();
   // A shop model the room was opened to place (?place=, from the mobile app).
   usePlaceFromLink({
