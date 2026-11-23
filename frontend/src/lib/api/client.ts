@@ -3,9 +3,10 @@
 // Every domain module in this directory builds on top of `apiClient`. This
 // file is a faithful relocation of the original single-file implementation —
 // no behavioral changes (retry logic, 401 handling, and body parsing are
-// unchanged) apart from the Accept-Language header.
+// unchanged) apart from the Accept-Language header and the gateway retries below.
 
-import { currentLanguage } from "@/i18n";
+import i18n, { currentLanguage } from "@/i18n";
+import { serverUpdating } from "./serverStatus";
 
 export const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:8000/api/v1";
 
@@ -22,6 +23,57 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+}
+
+// ---------- The server being updated ----------
+//
+// While a deploy recreates the api (1-3 minutes) the host nginx answers 502/503/504 with its own
+// HTML page (phone QA 2026-11-23 #1). A GET or HEAD is tried again a few times a beat apart; a
+// write is never sent twice. What still fails throws a readable ApiError instead of nginx's HTML,
+// and ServerUpdatingBanner tells the user; the next answer that comes clears it.
+
+/** The waits before each retry of a GET/HEAD the gateway turned away. */
+export const GATEWAY_RETRY_DELAYS_MS = [1000, 2000, 4000];
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
+/** The gateway's own error page, not an answer of the api (which answers in JSON, e.g. a 503 for
+ *  a switched-off guest mode). */
+function isGatewayError(response: Response): boolean {
+  return GATEWAY_STATUSES.has(response.status)
+    && !(response.headers.get("Content-Type") ?? "").includes("application/json");
+}
+
+function wait(ms: number, signal?: AbortSignal | null): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(signal.reason ?? new DOMException("Aborted", "AbortError")); return; }
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", onAbort); resolve(); }, ms);
+    function onAbort() {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new DOMException("Aborted", "AbortError"));
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/** fetch, with the retries above. The gateway's last error page comes back as it is. */
+async function fetchThroughGateway(url: string, init: RequestInit): Promise<Response> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const delays = method === "GET" || method === "HEAD" ? GATEWAY_RETRY_DELAYS_MS : [];
+  let response = await fetch(url, init);
+  for (const ms of delays) {
+    if (!isGatewayError(response)) break;
+    await wait(ms, init.signal);
+    response = await fetch(url, init);
+  }
+  serverUpdating.set(isGatewayError(response));
+  return response;
+}
+
+/** The error a failed answer throws: its body, or a readable line for the gateway's HTML page. */
+async function errorOf(response: Response): Promise<ApiError> {
+  if (isGatewayError(response)) return new ApiError(i18n.t("server_updating.error"), response.status);
+  const errorBody = await response.text();
+  return new ApiError(errorBody || `HTTP ${response.status}`, response.status);
 }
 
 function handleUnauthorized(): never {
@@ -66,7 +118,7 @@ export async function apiClient<T>(
     ...languageHeaders(),
   });
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetchThroughGateway(`${BASE_URL}${path}`, {
     ...options,
     credentials: "include",   // send HttpOnly cookie on every request
     headers: buildHeaders(),
@@ -92,7 +144,7 @@ export async function apiClient<T>(
     }
 
     // Retry the original request once with the same options.
-    const retryResponse = await fetch(`${BASE_URL}${path}`, {
+    const retryResponse = await fetchThroughGateway(`${BASE_URL}${path}`, {
       ...options,
       credentials: "include",
       headers: buildHeaders(),
@@ -102,10 +154,7 @@ export async function apiClient<T>(
       handleUnauthorized();
     }
 
-    if (!retryResponse.ok) {
-      const errorBody = await retryResponse.text();
-      throw new ApiError(errorBody || `HTTP ${retryResponse.status}`, retryResponse.status);
-    }
+    if (!retryResponse.ok) throw await errorOf(retryResponse);
 
     const retryContentType = retryResponse.headers.get("Content-Type") ?? "";
     if (retryContentType.includes("application/json")) {
@@ -114,10 +163,7 @@ export async function apiClient<T>(
     return retryResponse.text() as unknown as T;
   }
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new ApiError(errorBody || `HTTP ${response.status}`, response.status);
-  }
+  if (!response.ok) throw await errorOf(response);
 
   const contentType = response.headers.get("Content-Type") ?? "";
   if (contentType.includes("application/json")) {

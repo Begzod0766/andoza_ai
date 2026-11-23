@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { notifyAppTour, TOUR_SKIP_EVENT, type StudioTourStep, type StudioTourStepId } from "@/lib/studioTour";
 import { emitTourEvent, onTourEvent } from "@/lib/studioTourEvents";
 import { clearPractice, newFurnitureIds, savePractice } from "@/lib/tourPractice";
+import { removePracticeOutOfHistory } from "@/lib/tourHistory";
 import { useRoomStore } from "@/store/roomStore";
 import { TourHand } from "./TourHand";
 
@@ -220,14 +221,14 @@ export function StudioTour({ steps, roomId, onStepChange, onFinish }: {
     }
     emitTourEvent("restore-view");
     const practice = practiceIds();
-    if (practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
+    removePracticeOutOfHistory(practice);
     if (!pageGone) clearPractice(tourRoom);
     close(reason);
   };
   const answer = (remove: boolean) => {
     if (finishedRef.current || !asking) return;
     const practice = practiceIds();
-    if (remove && practice.length > 0) useRoomStore.getState().removeFurnitureMany(practice);
+    if (remove) removePracticeOutOfHistory(practice);
     clearPractice(tourRoom);
     close(asking);
   };
