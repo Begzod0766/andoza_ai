@@ -6,6 +6,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import * as THREE from 'three'
 import { OrbitControls } from 'three-stdlib'
+import { renderHook } from '@testing-library/react'
+import { useHoldToDelete, resetHoldToDelete } from '@/hooks/useHoldToDelete'
+import { HOLD_DELETE_MS } from '@/lib/holdToDelete'
 import { createPressDrag, claimItemPress, itemPressClaimed, DRAG_SLOP_PX } from '../pressDrag'
 
 function pointer(type: string, id: number, x: number, y: number, buttons = 1) {
@@ -48,6 +51,22 @@ describe('createPressDrag: a pinch begun on a rail (#372 c)', () => {
     expect(s.onMove).not.toHaveBeenCalled()
     expect(s.onEnd).toHaveBeenCalledWith(false)
     expect(s.controls.enabled).toBe(true)
+  })
+
+  it('a two-finger twist begun on a rail or machine moves neither: they are fixed to their wall (phone QA #392 10c)', () => {
+    const s = scene()
+    const d = s.make()
+    s.canvas.dispatchEvent(pointer('pointerdown', 1, 150, 400))
+    d.press({ pointerId: 1, clientX: 150, clientY: 400 })
+    s.canvas.dispatchEvent(pointer('pointerdown', 2, 250, 400))
+    // Both fingers turn round their midpoint, a quarter turn in steps.
+    for (let a = 0; a <= Math.PI / 2; a += Math.PI / 16) {
+      s.canvas.dispatchEvent(pointer('pointermove', 1, 200 - 50 * Math.cos(a), 400 - 50 * Math.sin(a)))
+      s.canvas.dispatchEvent(pointer('pointermove', 2, 200 + 50 * Math.cos(a), 400 + 50 * Math.sin(a)))
+    }
+    expect(s.onBegin).not.toHaveBeenCalled()
+    expect(s.onMove).not.toHaveBeenCalled()
+    expect(d.active()).toBe(false)
   })
 
   it('a pinch only the window guard saw (its press stopped on the way) calls it off too', () => {
@@ -131,5 +150,26 @@ describe('createPressDrag: the camera does not turn under a drag (#372 4)', () =
     s.canvas.dispatchEvent(pointer('pointermove', 2, 250, 450))
     for (let i = 0; i < 30; i++) s.controls.update()
     expect(s.camera.position.distanceTo(s.controls.target)).toBeLessThan(dist - 0.01)
+  })
+})
+
+describe('createPressDrag and hold-to-delete (phone QA #392 4d)', () => {
+  afterEach(() => { resetHoldToDelete(); vi.useRealTimers() })
+
+  it('a drag that has started calls the hold off, however slowly the finger goes', () => {
+    vi.useFakeTimers()
+    const s = scene()
+    const d = s.make()
+    const onDelete = vi.fn()
+    const { result } = renderHook(() => useHoldToDelete())
+    // As a rail's press does: the hold and the drag from the same pointerdown.
+    result.current.bind({ label: 'Sochiq quritgich', onDelete }).onPointerDown({ clientX: 100, clientY: 300, pointerId: 1 })
+    d.press({ pointerId: 1, clientX: 100, clientY: 300 })
+    // Past the drag's slop, still inside the hold's own tolerance: a slow drag.
+    window.dispatchEvent(pointer('pointermove', 1, 100 + DRAG_SLOP_PX + 2, 300))
+    expect(s.onBegin).toHaveBeenCalled()
+    vi.advanceTimersByTime(HOLD_DELETE_MS + 100)
+    window.dispatchEvent(pointer('pointerup', 1, 100 + DRAG_SLOP_PX + 2, 300, 0))
+    expect(result.current.wasHeld()).toBe(false)
   })
 })

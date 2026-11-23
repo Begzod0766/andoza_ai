@@ -5,7 +5,10 @@ import { resolveCatalogEntry } from '@/lib/furnitureEntry'
 import { inferRole } from '@/lib/furnitureRole'
 import { ceilingFitSize } from '@/lib/modelSize'
 import { freeFurnitureSpotMm, type PlacedBox } from '@/lib/placement'
-import { roomRiser } from '@/lib/plumbingRuns'
+import { roomRiser, wallWalk } from '@/lib/plumbingRuns'
+import { railSize } from '@/lib/towelRail'
+import { washerBox } from '@/lib/washer'
+import type { Rect } from '@/lib/aiDesignLayout'
 import { riserKeepClear } from '@/lib/bathroomBoxes'
 import { effectiveRoomType } from '@/lib/roomType'
 import { showToast } from '@/components/ui/Toast'
@@ -54,6 +57,29 @@ export function placedFurnitureBoxes(s: ReturnType<typeof useRoomStore.getState>
   })
 }
 
+/** How far a rail's floor strip reaches from its wall, and how far past its sides it keeps clear, metres. */
+const RAIL_STRIP_D = 0.1
+const RAIL_SIDE_GAP = 0.05
+
+/**
+ * The floor under the towel rails and the machines on the walls (phone QA #392, other 1): a shower or bath
+ * added from a menu keeps off them, as a rail keeps off a shower (QA #381). A rail is a strip along its wall.
+ */
+function wallFixtureFloor(s: ReturnType<typeof useRoomStore.getState>): Rect[] {
+  const walk = wallWalk(s.geometry)
+  const rails = (s.towelRails ?? []).flatMap((r): Rect[] => {
+    const w = walk.find((x) => x.id === r.wallId)
+    if (!w) return []
+    const t = r.positionMm / 1000
+    return [{
+      x: w.startX + w.dirX * t + w.nx * RAIL_STRIP_D / 2, z: w.startZ + w.dirZ * t + w.nz * RAIL_STRIP_D / 2,
+      w: railSize(r).w / 1000 + 2 * RAIL_SIDE_GAP, d: RAIL_STRIP_D, rotation: Math.atan2(w.nx, w.nz),
+    }]
+  })
+  const machines = (s.washers ?? []).flatMap((m) => washerBox(s.geometry, m) ?? [])
+  return [...rails, ...machines]
+}
+
 /**
  * Where a piece added from a menu goes in the open room, and which way it faces: clear of what is
  * already there, against a wall when it belongs on one (`freeFurnitureSpotMm`). Every "add" surface
@@ -78,11 +104,15 @@ export function nextFurnitureSpot(item: {
   // A bathroom or kitchen has the riser boxed in with a revision hatch (BathroomBoxes3D): nothing
   // auto-placed stands on the box or in front of the hatch (QA 2026-11-18 #7).
   const kind = effectiveRoomType(s.roomType, s.name)
-  const keepClear = kind === 'hammom' || kind === 'oshxona' ? riserKeepClear(s.geometry, riser) : []
+  const role = inferRole(item.category, item.name)
+  const keepClear = [
+    ...(kind === 'hammom' || kind === 'oshxona' ? riserKeepClear(s.geometry, riser) : []),
+    ...(role === 'shower' || role === 'bathtub' ? wallFixtureFloor(s) : []),
+  ]
   // The walls with plumbing: the points saved by hand or by a fixture, and the walls a kitchen sink or a
   // machine stands on (their points are worked out, not saved: kitchen re-check 2026-11-19 R1).
   const plumbingWalls = [...new Set([...(s.plumbing ?? []).map((p) => p.wallId), ...(s.washers ?? []).map((m) => m.wallId)])]
-  const { onWall, lengthM, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, inferRole(item.category, item.name), riser, keepClear, { plumbingWalls })
+  const { onWall, lengthM, ...spot } = freeFurnitureSpotMm(s.geometry, placed, size, role, riser, keepClear, { plumbingWalls })
   if (onWall === false) {
     showToast({
       variant: 'warning',

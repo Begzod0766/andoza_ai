@@ -7,7 +7,7 @@ import type { RoomGeometry, TowelRail } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
 import { isElectricRail, railSize } from "@/lib/towelRail";
 import { noRaycast } from "./constants";
-import { clashColor } from "@/lib/wallItemClash";
+import { clashColor, clashMetalness } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import { showToast } from "@/components/ui/Toast";
 import i18n from "@/i18n";
@@ -224,7 +224,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onSelect }: {
             {bars.map((b, i) => (
               <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />
-                <meshStandardMaterial color={clashColor(CHROME, active, !!clashes[rail.id])} metalness={0.9} roughness={0.25} />
+                <meshStandardMaterial color={clashColor(CHROME, active, !!clashes[rail.id])} metalness={clashMetalness(0.9, active, !!clashes[rail.id])} roughness={0.25} />
               </mesh>
             ))}
             {/* Selected (PR2): furniture's blue line round each bar, and its card over the rail. */}

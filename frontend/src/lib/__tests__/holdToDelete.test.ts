@@ -100,6 +100,23 @@ describe('createHoldTracker', () => {
     expect(onHold).toHaveBeenCalledTimes(1)
   })
 
+  it('is called off by a second finger landing: that is a pinch, not a hold (phone QA #392 4d)', () => {
+    // A slow pinch begun on a rail kept the first finger still, and the menu came up under the pinch.
+    const { onHold, t } = tracker()
+    t.down(100, 100, 'x', 1)
+    t.otherDown(2)
+    vi.advanceTimersByTime(HOLD_DELETE_MS)
+    expect(onHold).not.toHaveBeenCalled()
+  })
+
+  it('is not called off by its own finger\'s press', () => {
+    const { onHold, t } = tracker()
+    t.down(100, 100, 'x', 1)
+    t.otherDown(1)
+    vi.advanceTimersByTime(HOLD_DELETE_MS)
+    expect(onHold).toHaveBeenCalledTimes(1)
+  })
+
   it('is still cancelled by the holding finger moving', () => {
     const { onHold, t } = tracker()
     t.down(100, 100, 'x', 1)

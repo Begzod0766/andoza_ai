@@ -92,6 +92,9 @@ export const createTowelRailSlice: StateCreator<RoomStore, [], [], TowelRailSlic
       return dragStart && nearestFree(state.geometry, rail.wallId, positionMm, undefined, taken, half) != null ? 'no-room-this-way' : 'no-room'
     }
     if (at !== rail.positionMm) set((s) => ({ towelRails: s.towelRails.map((r) => (r.id === id ? { ...r, positionMm: at } : r)), isDirty: true }))
+    // Held at the edge of its stretch (a door, a shower, another rail) with the finger more than half
+    // its width past it: dragged into what is there, it stays, and the drag says why (phone QA #392 6b).
+    else if (dragStart && Math.abs(positionMm - at) > half) return 'no-room-this-way'
     return 'ok'
   },
 

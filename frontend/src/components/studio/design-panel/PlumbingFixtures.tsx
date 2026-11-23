@@ -34,6 +34,8 @@ export function PlumbingFixtures({ children, optional = false, title = true }: {
   const removeFurniture = useRoomStore((s) => s.removeFurniture);
   const roomKind = useRoomStore((s) => catalogRoomType(effectiveRoomType(s.roomType, s.name)));
   const [open, setOpen] = useState(false);
+  // A rail or machine is a fixture too, listed by the section around this (phone QA #392 2a).
+  const hasMachines = useRoomStore((s) => s.towelRails.length + s.washers.length > 0);
 
   const byId = new Map(catalog.map((c) => [c.id, c]));
   const fixtures = furniture.flatMap((f) => {
@@ -69,7 +71,7 @@ export function PlumbingFixtures({ children, optional = false, title = true }: {
     <div>
       {title && <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-ink-muted">{t("studio.santexnika.fixtures")}</span>}
       {fixtures.length === 0
-        ? <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
+        ? !hasMachines && <p className="text-[11px] text-ink-muted">{t("studio.santexnika.no_fixtures")}</p>
         : (
           <ul className="flex flex-wrap gap-1.5">
             {fixtures.map((f) => (

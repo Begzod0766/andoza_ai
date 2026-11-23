@@ -76,6 +76,14 @@ describe('HoldDeleteButton', () => {
     expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
   })
 
+  it('a second finger landing anywhere while one holds puts no menu up: a pinch (phone QA #392 4d)', () => {
+    render(<Harness onDelete={() => {}} />)
+    act(() => { screen.getByTestId('thing').dispatchEvent(pointer('pointerdown', { clientX: 200, clientY: 300, pointerId: 1 })) })
+    act(() => { document.body.dispatchEvent(pointer('pointerdown', { clientX: 300, clientY: 500, pointerId: 2 })) })
+    act(() => { vi.advanceTimersByTime(HOLD_DELETE_MS) })
+    expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
+  })
+
   it('names what is about to go', () => {
     render(<Harness onDelete={() => {}} />)
     holdIt()

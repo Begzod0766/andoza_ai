@@ -59,6 +59,8 @@ if (typeof window !== 'undefined') {
   // the timer ran on, and a second later this button's full-screen backdrop
   // came up under nobody's finger and ate the next tap (QA re-check R8).
   window.addEventListener('pointermove', (e) => tracker.move(e.clientX, e.clientY, e.pointerId))
+  // A second finger is a pinch or a twist: heard in the capture phase, before any handler can stop it.
+  window.addEventListener('pointerdown', (e) => tracker.otherDown(e.pointerId), true)
   const end = () => { heldThisPress = tracker.up() }
   window.addEventListener('pointerup', end, true)
   window.addEventListener('pointercancel', end, true)
@@ -71,6 +73,12 @@ export function resetHoldToDelete() {
   tracker.cancel()
   heldThisPress = false
   useHoldDeleteStore.getState().close()
+}
+
+/** Calls off a hold in progress from outside React: a press on a rail or machine became a drag
+ *  (pressDrag), which a slow drag did inside the hold's own tolerance (phone QA #392 4d). */
+export function cancelHoldToDelete() {
+  tracker.cancel()
 }
 
 /**
