@@ -1,6 +1,7 @@
 """Real shop prices on the estimate: what is trusted, what is dropped, and that nothing breaks."""
 from __future__ import annotations
 
+import time
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -8,6 +9,7 @@ import pytest
 
 from app.config import settings
 from app.services import market_prices as mp
+from app.services import norm_overrides as no
 from app.services.llm import BudgetExceededError
 from app.services.smeta import ComputedEstimate, ComputedLine, recompute_totals
 from tests.test_estimate_router import _Result, _as, _db, _material, _norm, _room, _user, client  # noqa: F401
@@ -159,6 +161,14 @@ class TestEndpoints:
         room = _room(surfaces={"ALL": str(mat.id)})
         _as(_user(), _preview_db(room, mat, [_norm()]))
         return room
+
+    def test_starts_with_fresh_empty_norm_overrides(self):
+        """These tests feed db.execute a fixed list of results. Overrides read more than TTL_S
+        ago make the preview's refresh() run one more db.execute and the list runs out
+        (StopAsyncIteration in CI on 2026-11-24: this class ran 30.1 s after the last refresh).
+        conftest's autouse fixture keeps every test inside the TTL, with no overrides."""
+        assert no.current() == {}
+        assert no._loaded_at and time.monotonic() - no._loaded_at < no.TTL_S
 
     def test_preview_without_market_is_unchanged_and_reports_availability(self, client, monkeypatch):
         monkeypatch.setattr(settings, "MARKET_PRICES_ENABLED", False)
