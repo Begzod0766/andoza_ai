@@ -448,6 +448,24 @@ async def _with_market_prices(
 # POST /rooms/{room_id}/estimate/preview  (live preview, no persistence)
 # ---------------------------------------------------------------------------
 
+@router.get(
+    "/plumbing-prices",
+    status_code=status.HTTP_200_OK,
+    summary="The prices the estimate's pipes are made of, for the studio's instant pipe cost",
+)
+async def plumbing_prices_for_room(room_id: uuid.UUID, current_user: CurrentUser, db: DbSession) -> dict:
+    """What the room's estimate would charge per metre of pipe, per fitting, per collector and per metre
+    of chase, shop prices included. Guests are users with rooms, so they are served by the same route."""
+    from app.services.norm_overrides import refresh
+    from app.services.plumbing import load_plumbing_norms
+    from app.services.smeta import plumbing_prices
+
+    _, priced_room, _, _ = await _load_room_for_pricing(room_id, current_user.id, db)
+    await refresh(db)
+    catalog = await load_estimate_catalog(db, priced_room)
+    return plumbing_prices(catalog, load_plumbing_norms())
+
+
 @router.post(
     "/estimate/preview",
     response_model=EstimateResponse,
