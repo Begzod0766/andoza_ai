@@ -1,7 +1,7 @@
 /** The pipe scheme (spec 2026-11-11): a trunk per pipe kind along the walls, a branch to each point. */
 import { describe, it, expect } from 'vitest'
 import type { PlumbingPoint, RoomGeometry } from '@/store/types'
-import { buildScheme, schemeInput, pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR, EMPTY_SCHEME, WATER_TRUNK_MM, type SchemeInput } from '@/lib/pipeScheme'
+import { buildScheme, schemeInput, pipeScheme, routeOf, schemePolylines, drawnPoints, PIPE_COLOUR, EMPTY_SCHEME, WATER_TRUNK_MM, type SchemeInput, type PipeRoute } from '@/lib/pipeScheme'
 import { plumbingSummary, pipeRunM } from '@/lib/plumbingRuns'
 
 // A 2500 × 2000 room walked A, B, C, D: P = 9000, corners at 0, 2500, 4500, 7000.
@@ -178,6 +178,56 @@ describe('buildScheme: the drain', () => {
   })
 })
 
+// ─── The route (2026-11-24): an avoid spot and the water trunk's height ────
+
+describe('buildScheme: the route (2026-11-24)', () => {
+  it('a drain avoid spot moves the cut to its gap', () => {
+    const pts = [drain('d1', 1000, 0), drain('d2', 3000, 0)]
+    expect(scheme(pts).pipes.drain_50.trunkMm).toBe(5000)
+    const s = scheme(pts, { avoidMm: { drain: 8000 } })
+    expect(s.pipes.drain_50.trunkMm).toBe(6000)
+    expect(s.lines).toEqual([{ kind: 'drain', diameterMm: 50, fromMm: 1000, toMm: 7000, heightMm: 0 }])
+  })
+  it('a water spot away from the only door is ignored', () => {
+    const pts = [cold('c1', 1000, 550), cold('c2', 3000, 1050)]
+    expect(scheme(pts, { avoidMm: { water: 5000 } })).toEqual(scheme(pts))
+  })
+  it('with no door a water spot moves the cut', () => {
+    const pts = [cold('c1', 1000, 550), cold('c2', 3000, 1050)]
+    expect(scheme(pts, { doorsMm: [], avoidMm: { water: 8000 } }).pipes.water_20.trunkMm).toBe(6000)
+  })
+  it('with two doors a spot in the other door\'s gap moves the cut', () => {
+    const pts = [cold('c1', 1000, 550), cold('c2', 3000, 1050)]
+    // door gaps 3000→7000 (default cut, the larger) and 7000→1000; the spot picks the second
+    const s = scheme(pts, { doorsMm: [8000, 5000], avoidMm: { water: 8500 } })
+    expect(s.lines[0]).toMatchObject({ fromMm: 1000, toMm: 7000 })
+  })
+  it('a spot on a point or on the riser is ignored', () => {
+    const pts = [drain('d1', 1000, 0), drain('d2', 3000, 0)]
+    expect(scheme(pts, { avoidMm: { drain: 3000 } })).toEqual(scheme(pts))
+    expect(scheme(pts, { avoidMm: { drain: 7000 } })).toEqual(scheme(pts))
+  })
+  it('collector lines each take the legal side of the water spot', () => {
+    const pts = [cold('c1', 1000, 550), cold('c2', 3000, 1050)]
+    expect(scheme(pts, { doorsMm: [], collector: true }).pipes.water_20.trunkMm).toBe(7000) // 3000 + 4000
+    const s = scheme(pts, { doorsMm: [], collector: true, avoidMm: { water: 8000 } })
+    // c1's own line (nodes 1000, 7000): 8000 lies in 7000→1000, now the cut, so it runs 1000→7000 (6000)
+    // c2's own line (nodes 3000, 7000): 8000 lies in 7000→3000, already the cut (4000)
+    expect(s.pipes.water_20.trunkMm).toBe(10000)
+  })
+  it('a floor trunk passes under the door and its branches are the point heights', () => {
+    const s = scheme([cold('c1', 1000, 550), cold('c2', 3000, 1050)], { waterTrunkMm: 0 })
+    expect(s.pipes.water_20).toEqual({ trunkMm: 5000, branchMm: 1600 })
+    expect(s.lines[0].heightMm).toBe(0)
+  })
+  it('a high trunk: branches |h − 1000|, hot drawn 50 above', () => {
+    const s = scheme([cold('c1', 1000, 550), hot('h1', 3000, 1050)], { waterTrunkMm: 1000 })
+    expect(s.pipes.water_20.branchMm).toBe(500)
+    expect(s.lines.find((l) => l.kind === 'hot')!.heightMm).toBe(1050)
+    expect(s.branches.find((b) => b.pointId === 'h1')!.fromHeightMm).toBe(1050)
+  })
+})
+
 // ─── The studio's adapter ────────────────────────────────────────────────────
 
 type El = { id?: string; type: string; position: number; width: number }
@@ -248,6 +298,33 @@ describe('schemeInput', () => {
   })
 })
 
+describe('schemeInput: the route (2026-11-24)', () => {
+  const g = rect(2500, 2000, { D: [DOOR] })
+  const riser = { wallId: 'D', positionMm: 0 }
+  const two = [point({ id: 'c1', positionMm: 1000, heightMm: 550 }), point({ id: 'c2', wallId: 'B', positionMm: 500, heightMm: 1050 })]
+  it('a spot on a wall the room no longer has is ignored', () => {
+    const route = routeOf({ pipeAvoid: { drain: { wallId: 'GONE', positionMm: 10 } }, waterTrunk: 'high' })
+    const s = schemeInput(g, riser, two, false, route)
+    expect(s.avoidMm).toBeUndefined()
+    expect(s.waterTrunkMm).toBe(1000)
+    expect(schemeInput(g, riser, two, false, {})).toEqual(schemeInput(g, riser, two))
+  })
+  it('an unknown water trunk height sets no waterTrunkMm', () => {
+    const s = schemeInput(g, riser, two, false, { waterTrunk: 'sky' as unknown as 'floor' })
+    expect('waterTrunkMm' in s).toBe(false)
+    expect(s).toEqual(schemeInput(g, riser, two))
+  })
+  it('a spot on a wall is its loop position, per kind', () => {
+    const s = schemeInput(g, riser, two, false, { avoid: { water: { wallId: 'B', positionMm: 100 } } })
+    expect(s.avoidMm).toEqual({ water: 2600 })
+  })
+  it('routeOf copies only well-formed values', () => {
+    expect(routeOf({ waterTrunk: 'sky' as never, pipeAvoid: { water: { wallId: 'A', positionMm: NaN } } })).toEqual({})
+    expect(routeOf({ waterTrunk: 'floor', pipeAvoid: { drain: { wallId: 'A', positionMm: 5 } } })).toEqual({ waterTrunk: 'floor', avoid: { drain: { wallId: 'A', positionMm: 5 } } })
+    expect(routeOf({})).toEqual({})
+  })
+})
+
 // ─── The collector scheme (2026-11-18): a line from the riser to each water point ────
 
 describe('buildScheme: collector', () => {
@@ -293,8 +370,9 @@ describe('the shared fixture', () => {
     const g = c.geometry as unknown as RoomGeometry
     const pts = c.points as unknown as PlumbingPoint[]
     const collector = (c as { collector?: boolean }).collector ?? false
-    expect(schemeInput(g, c.riser, pts, collector)).toEqual(c.input)
-    expect(pipeScheme(g, c.riser, pts, collector)).toEqual(c.expected)
+    const route = (c as { route?: PipeRoute }).route ?? {}
+    expect(schemeInput(g, c.riser, pts, collector, route)).toEqual(c.input)
+    expect(pipeScheme(g, c.riser, pts, collector, route)).toEqual(c.expected)
   })
 })
 
@@ -367,6 +445,16 @@ describe('plumbingSummary from the scheme', () => {
   it('and less than a run of its own from every point', () => {
     const old = pts.filter((p) => p.kind !== 'drain').reduce((m, p) => m + pipeRunM(g, p, hammom.riser), 0) * 1.15
     expect(plumbingSummary(g, pts, hammom.riser).water.m).toBeLessThan(old)
+  })
+
+  it('follows the route: points at 550 and 1050 mm measure from the trunk\'s height', () => {
+    const at = pts.map((p) => (p.kind === 'drain' ? p : { ...p, heightMm: p.kind === 'cold' ? 550 : 1050 }))
+    const none = plumbingSummary(g, at, hammom.riser).water.m
+    expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'floor' }).water.m).toBeGreaterThan(none)
+    // 'high' (1000 mm): the doors still bar the trunk, so it is the default's 13200 mm. The branches run from
+    // 1000: 4 cold at 550 → 4 × 450 = 1800, 5 hot at 1050 → 5 × 50 = 250, 2050 mm in all.
+    // (13200 + 2050) / 1000 × 1.15 = 17.5375 m, two decimals: 17.54
+    expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'high' }).water.m).toBe(17.54)
   })
 })
 

@@ -1,6 +1,7 @@
-import type { PlumbingPoint, RoomGeometry } from '@/store/types'
+import type { DesignState, PlumbingPoint, RoomGeometry } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { wallWalk } from '@/lib/plumbingRuns'
+import type { RiserAt } from '@/lib/plumbingRuns'
 import { resolveElementPositions } from '@/lib/wallPositions'
 
 /**
@@ -12,8 +13,10 @@ import { resolveElementPositions } from '@/lib/wallPositions'
 
 /** A water trunk's height above the floor; a drain trunk lies on it. */
 export const WATER_TRUNK_MM = 200
-/** The hot trunk is drawn above the cold one so they do not lie on one another; lengths ignore it. */
-const HOT_DRAWN_MM = 250
+/** The hot trunk is drawn this far above the cold one so they do not lie on one another; lengths ignore it. */
+const HOT_ABOVE_MM = 50
+/** The water trunk's heights: the floor, the default, and high up (2026-11-24). */
+export const WATER_TRUNK_HEIGHTS = { floor: 0, default: WATER_TRUNK_MM, high: 1000 } as const
 /** With a collector, each further line of a kind is drawn this much above the one before (2026-11-18). */
 export const COLLECTOR_STEP_MM = 30
 const EPS = 1e-6
@@ -32,6 +35,30 @@ export interface SchemeInput {
   points: SchemePoint[]
   /** A collector at the riser with a line to each water point, in place of a trunk with tees (2026-11-18). */
   collector?: boolean
+  /** A spot the trunk of a kind should not run through, as a loop position (2026-11-24). */
+  avoidMm?: { water?: number; drain?: number }
+  /** The water trunk's height; absent: `WATER_TRUNK_MM`. 0 is the floor, where it passes under doors. */
+  waterTrunkMm?: number
+}
+
+/** What the studio's user asked of the route: a spot per kind to keep clear, and the water trunk's height. */
+export interface PipeRoute { avoid?: { water?: RiserAt; drain?: RiserAt }; waterTrunk?: 'floor' | 'high' }
+
+const wellFormed = (v: unknown): v is RiserAt => {
+  const r = v as Partial<RiserAt> | null
+  return !!r && typeof r.wallId === 'string' && typeof r.positionMm === 'number' && Number.isFinite(r.positionMm)
+}
+
+/** The route of a design: only well-formed values are copied. */
+export function routeOf(ds: Pick<DesignState, 'pipeAvoid' | 'waterTrunk'>): PipeRoute {
+  const out: PipeRoute = {}
+  const avoid = ds.pipeAvoid as { water?: unknown; drain?: unknown } | null | undefined
+  const a: NonNullable<PipeRoute['avoid']> = {}
+  if (avoid && wellFormed(avoid.water)) a.water = { wallId: avoid.water.wallId, positionMm: avoid.water.positionMm }
+  if (avoid && wellFormed(avoid.drain)) a.drain = { wallId: avoid.drain.wallId, positionMm: avoid.drain.positionMm }
+  if (a.water || a.drain) out.avoid = a
+  if (ds.waterTrunk === 'floor' || ds.waterTrunk === 'high') out.waterTrunk = ds.waterTrunk
+  return out
 }
 
 export interface PipeLength { trunkMm: number; branchMm: number }
@@ -83,7 +110,7 @@ interface Trunk {
  * the doors it may not pass: a water trunk's are the room's; a drain trunk lies on the floor and passes
  * under them (the owner's ruling, 2026-11-11), so it is handed none.
  */
-function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[], doorsMm: readonly number[]): Trunk {
+function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[], doorsMm: readonly number[], avoidMm?: number): Trunk {
   const norm = (x: number) => {
     const r = ((x % perimeter) + perimeter) % perimeter
     return perimeter - r < EPS ? 0 : r
@@ -99,11 +126,21 @@ function trunkOf(input: SchemeInput, perimeter: number, points: SchemePoint[], d
   // The cut: the largest gap that holds a door, else the largest gap; a tie keeps the first.
   const n = distinct.length
   let cut = 0, cutLen = -1, cutDoor = false
+  const gaps: Array<{ a: number; len: number; door: boolean }> = []
   for (let i = 0; i < n; i++) {
     const a = distinct[i]
     const len = n === 1 ? perimeter : i < n - 1 ? distinct[i + 1] - a : perimeter - a + distinct[0]
     const door = doorsMm.some((d) => { const f = norm(d - a); return f > EPS && f < len - EPS })
+    gaps.push({ a, len, door })
     if ((door && !cutDoor) || (door === cutDoor && len > cutLen + EPS)) { cut = i; cutLen = len; cutDoor = door }
+  }
+  // An avoid spot inside a gap makes it the cut, unless a door-bearing gap exists and this one has no door
+  // (a door is the stronger reason). A spot on a node (a point or the riser) is in no gap: ignored.
+  if (avoidMm !== undefined) {
+    const v = norm(avoidMm)
+    const anyDoor = gaps.some((g) => g.door)
+    const i = gaps.findIndex((g) => { const f = norm(v - g.a); return f > EPS && f < g.len - EPS })
+    if (i >= 0 && (!anyDoor || gaps[i].door)) { cut = i; cutLen = gaps[i].len; cutDoor = gaps[i].door }
   }
   const startMm = distinct[(cut + 1) % n]
   const lengthMm = perimeter - cutLen
@@ -142,18 +179,21 @@ export function buildScheme(input: SchemeInput): PipeScheme {
 
   // The height each water point's branch rises from: its trunk's, or with a collector its own line's.
   const fromHeight = new Map<string, number>()
+  const trunkMm = input.waterTrunkMm ?? WATER_TRUNK_MM
+  // A floor trunk lies on the floor and passes under the doors, like a drain.
+  const waterDoors = trunkMm === 0 ? [] : input.doorsMm
   for (const kind of ['cold', 'hot'] as const) {
     const points = input.points.filter((p) => p.kind === kind)
     if (points.length === 0) continue
-    const base = kind === 'hot' ? HOT_DRAWN_MM : WATER_TRUNK_MM
-    out.pipes.water_20.branchMm += Math.round(points.reduce((sum, p) => sum + Math.abs(height(p) - WATER_TRUNK_MM), 0))
+    const base = kind === 'hot' ? trunkMm + HOT_ABOVE_MM : trunkMm
+    out.pipes.water_20.branchMm += Math.round(points.reduce((sum, p) => sum + Math.abs(height(p) - trunkMm), 0))
     out.why.outlet_20.points += points.length
     out.why.valve_20.lines += 1
     if (input.collector) {
       // A line of its own from the riser to each point, the door-free way: a trunk of one point.
       out.collectors[kind] = points.length
       points.forEach((p, i) => {
-        const line = trunkOf(input, perimeter, [p], input.doorsMm)
+        const line = trunkOf(input, perimeter, [p], waterDoors, input.avoidMm?.water)
         const heightMm = base + i * COLLECTOR_STEP_MM
         fromHeight.set(p.id, heightMm)
         out.pipes.water_20.trunkMm += Math.round(line.lengthMm)
@@ -165,7 +205,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
       })
       continue
     }
-    const trunk = trunkOf(input, perimeter, points, input.doorsMm)
+    const trunk = trunkOf(input, perimeter, points, waterDoors, input.avoidMm?.water)
     const ends = (trunk.left.length > 0 ? 1 : 0) + (trunk.right.length > 0 ? 1 : 0)
     out.pipes.water_20.trunkMm += Math.round(trunk.lengthMm)
     out.why.tee_20.branches += points.length - ends
@@ -179,7 +219,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
 
   const drains = input.points.filter((p) => p.kind === 'drain')
   if (drains.length > 0) {
-    const trunk = trunkOf(input, perimeter, drains, [])
+    const trunk = trunkOf(input, perimeter, drains, [], input.avoidMm?.drain)
     const wide = (p: ArmPoint) => p.point.diameterMm === 110
     // The Ø110 way on each arm: from the riser out to its farthest toilet.
     const way = [trunk.left, trunk.right].map((arm) => far(arm.filter(wide)))
@@ -226,7 +266,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
   }
   out.branches = input.points.map((p) => ({
     pointId: p.id, kind: p.kind, diameterMm: p.diameterMm, sMm: p.sMm,
-    fromHeightMm: p.kind === 'drain' ? 0 : fromHeight.get(p.id) ?? (p.kind === 'hot' ? HOT_DRAWN_MM : WATER_TRUNK_MM), toHeightMm: height(p),
+    fromHeightMm: p.kind === 'drain' ? 0 : fromHeight.get(p.id) ?? (p.kind === 'hot' ? trunkMm + HOT_ABOVE_MM : trunkMm), toHeightMm: height(p),
   }))
   return out
 }
@@ -235,7 +275,7 @@ export function buildScheme(input: SchemeInput): PipeScheme {
  * The studio's room as the rule wants it. Everything is rounded to whole mm here, so the backend,
  * which reads the same room in metres, is handed the very same numbers.
  */
-export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[], collector = false): SchemeInput {
+export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[], collector = false, route: PipeRoute = {}): SchemeInput {
   const walk = wallWalk(geometry)
   const own = roomModel(geometry).walls
   const wallsMm = walk.map((w) => Math.round(w.lengthM * 1000))
@@ -275,12 +315,21 @@ export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; pos
     })
   }
   const input: SchemeInput = { wallsMm, doorsMm, riserMm: place(riser.wallId, riser.positionMm) ?? 0, points: out }
-  return collector ? { ...input, collector: true } : input
+  if (collector) input.collector = true
+  const avoidMm: NonNullable<SchemeInput['avoidMm']> = {}
+  for (const kind of ['water', 'drain'] as const) {
+    const spot = route.avoid?.[kind]
+    const s = spot ? place(spot.wallId, spot.positionMm) : null
+    if (s != null) avoidMm[kind] = s
+  }
+  if (Object.keys(avoidMm).length > 0) input.avoidMm = avoidMm
+  if (route.waterTrunk === 'floor' || route.waterTrunk === 'high') input.waterTrunkMm = WATER_TRUNK_HEIGHTS[route.waterTrunk]
+  return input
 }
 
 /** The scheme of a studio room. */
-export function pipeScheme(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[], collector = false): PipeScheme {
-  return buildScheme(schemeInput(geometry, riser, points, collector))
+export function pipeScheme(geometry: RoomGeometry, riser: { wallId: string; positionMm: number }, points: readonly PlumbingPoint[], collector = false, route: PipeRoute = {}): PipeScheme {
+  return buildScheme(schemeInput(geometry, riser, points, collector, route))
 }
 
 // ─── Drawing it ──────────────────────────────────────────────────────────────

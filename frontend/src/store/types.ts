@@ -8,6 +8,7 @@ import type { FurnitureCategory, FurniturePlacement } from '@/lib/furnitureCatal
 import type { CeilingDesignId, CeilingSettings } from '@/lib/ceilingDesigns'
 import type { FloorPatternState } from '@/lib/floorGeometry'
 import type { TrimState } from '@/lib/trimProfiles'
+import type { RiserAt } from '@/lib/plumbingRuns'
 
 export interface WallElement {
   id: string
@@ -271,6 +272,10 @@ export interface DesignState {
   waterInlet?: boolean
   /** The water layout (2026-11-18): 'collector' = a line from a collector at the riser to each point; else tees. */
   waterScheme?: 'collector'
+  /** Where the user said a trunk must not run (2026-11-24): a place on the walls, as the riser is kept. */
+  pipeAvoid?: { water?: RiserAt; drain?: RiserAt }
+  /** The water trunks' height (2026-11-24): 'floor' = 0 mm, 'high' = 1000 mm; absent = 200 mm. */
+  waterTrunk?: 'floor' | 'high'
   /** A bath's and a shower's screen, drawn and priced (2026-11-18): 'glass' or 'curtain'; anything else = none. */
   bathScreen?: 'glass' | 'curtain'
   showerScreen?: 'glass' | 'curtain'

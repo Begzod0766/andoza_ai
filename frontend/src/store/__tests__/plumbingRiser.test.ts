@@ -5,6 +5,7 @@ import { roomContentChanged } from '@/lib/autosave'
 import { roomRiser, riserSpot } from '@/lib/plumbingRuns'
 import { placeTowelRail } from '@/lib/towelRail'
 import { riserTaken, WASHER_W_MM } from '@/lib/washer'
+import { persistableDesignState } from '../utils/designStateHelpers'
 import type { RoomGeometry } from '../types'
 
 const DOOR = { id: 'd', type: 'eshik', position: 650, width: 700, height: 2050 }
@@ -146,5 +147,34 @@ describe('the riser is never in front of a door (mobile QA 2026-11-16)', () => {
   it('null still means the door corner', () => {
     st().setPlumbingRiser(null)
     expect(st().plumbingRiser).toBeNull()
+  })
+})
+
+describe('the pipe route in designState (2026-11-24)', () => {
+  const route = { waterTrunk: 'high' as const, pipeAvoid: { drain: { wallId: 'A', positionMm: 500 } } }
+
+  it('set together, one undo step puts both back; the room is unsaved', () => {
+    st().setDesignState(route)
+    expect(st().designState.waterTrunk).toBe('high')
+    expect(st().designState.pipeAvoid).toEqual(route.pipeAvoid)
+    expect(st().isDirty).toBe(true)
+    settle()
+    undo()
+    expect(st().designState.waterTrunk).toBeUndefined()
+    expect(st().designState.pipeAvoid).toBeUndefined()
+    redo()
+    expect(st().designState.waterTrunk).toBe('high')
+  })
+
+  it('what is saved keeps both, and a load brings them back', () => {
+    st().setDesignState(route)
+    const saved = persistableDesignState(st().designState)
+    expect(saved.waterTrunk).toBe('high')
+    expect(saved.pipeAvoid).toEqual(route.pipeAvoid)
+    st().resetRoom()
+    expect(st().designState.waterTrunk).toBeUndefined()
+    st().loadDraftState({ geometry, designState: saved })
+    expect(st().designState.waterTrunk).toBe('high')
+    expect(st().designState.pipeAvoid).toEqual(route.pipeAvoid)
   })
 })
