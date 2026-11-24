@@ -7,6 +7,8 @@ import { roomRiser, type RiserAt } from '@/lib/plumbingRuns'
 import { keepWashers } from '@/lib/washer'
 import { riserClearOfDoors } from '@/lib/riserDoors'
 import { useRoomStore } from '../roomStore'
+import { getPlumbingPrices } from '@/lib/api/plumbingPrices'
+import type { PlumbingPrices } from '@/lib/pipeCost'
 
 /** Drain and water points on the walls (spec 2026-11-08); mirrors electricalSlice. */
 export interface PlumbingSlice {
@@ -40,6 +42,11 @@ export interface PlumbingSlice {
   /** Towel rails, machines and the riser can be dragged in 3D (lib/plumbingStageOn plumbingDragOn). */
   plumbingDrag: boolean
   setPlumbingDrag(on: boolean): void
+  /** The room's pipe and fitting prices (the estimate's own), for the studio's pipe cost. Server data:
+   * not undoable, not saved; null until loaded, when the load fails, and after a room switch. */
+  plumbingPrices: PlumbingPrices | null
+  /** Never throws: a failed load leaves null. An answer arriving after another room opened is dropped. */
+  loadPlumbingPrices(roomId: string): Promise<void>
 }
 
 /** The points as they were when the drag in progress began (see beginPlumbingDrag). */
@@ -62,6 +69,17 @@ export const createPlumbingSlice: StateCreator<RoomStore, [], [], PlumbingSlice>
   showPipeRuns: false,
   plumbingStage: false,
   plumbingDrag: false,
+  plumbingPrices: null,
+
+  async loadPlumbingPrices(roomId) {
+    let prices: PlumbingPrices | null = null
+    try {
+      prices = await getPlumbingPrices(roomId)
+    } catch {
+      prices = null
+    }
+    if (get().roomId === roomId) set({ plumbingPrices: prices })
+  },
 
   setPlumbingStage(on) {
     set({ plumbingStage: on })

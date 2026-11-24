@@ -579,6 +579,9 @@ export default function StudioPage() {
       useRoomStore.getState().loadRoom(apiRoom);
       // Saved before plumbing existed: the fixtures get their points (and the autosave writes them).
       if (state && !("plumbing" in state)) useRoomStore.getState().seedFixturePoints();
+      // The pipes are priced from the room's own shop prices: loaded once a bathroom or kitchen opens.
+      const kind = effectiveRoomType(apiRoom.room_type, apiRoom.name);
+      if (kind === "hammom" || kind === "oshxona") void useRoomStore.getState().loadPlumbingPrices(apiRoom.id);
       loadedAtRef.current = apiRoom.updated_at ?? null;
       // Back from a reload of the app's own: its undo history, if the room is the copy saved before.
       restoreStudioHistory(apiRoom.id, apiRoom.updated_at ?? null);
