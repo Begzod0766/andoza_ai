@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.pipe_scheme import EMPTY_SCHEME, build_scheme, pipe_scheme, scheme_input
+from app.services.pipe_scheme import EMPTY_SCHEME, build_scheme, pipe_scheme, route_of, scheme_input
 
 CASES = json.loads((Path(__file__).resolve().parents[2] / "frontend/src/lib/__tests__/fixtures/pipeScheme.json").read_text(encoding="utf-8"))["cases"]
 BY_NAME = {c["name"]: c for c in CASES}
@@ -34,13 +34,22 @@ def _riser(case):
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_the_input_matches_the_studio(case):
-    assert scheme_input(_metres(case["geometry"]), _riser(case), case["points"], case.get("collector", False)) == case["input"]
+    assert scheme_input(_metres(case["geometry"]), _riser(case), case["points"], case.get("collector", False), case.get("route")) == case["input"]
 
 
 @pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
 def test_the_scheme_matches_the_studio(case):
     assert build_scheme(case["input"]) == case["expected"]
-    assert pipe_scheme(_metres(case["geometry"]), _riser(case), case["points"], case.get("collector", False)) == case["expected"]
+    assert pipe_scheme(_metres(case["geometry"]), _riser(case), case["points"], case.get("collector", False), case.get("route")) == case["expected"]
+
+
+def test_route_of_keeps_only_sound_values():
+    assert route_of({"waterTrunk": "sky", "pipeAvoid": {"water": {"wallId": "A", "positionMm": float("nan")}}}) == {}
+    assert route_of({"waterTrunk": "floor", "pipeAvoid": {"drain": {"wallId": "A", "positionMm": 5}}}) == {
+        "waterTrunk": "floor", "avoid": {"drain": {"wallId": "A", "positionMm": 5}}}
+    assert route_of({"pipeAvoid": {"water": {"wallId": 3, "positionMm": 5}, "drain": {"wallId": "A", "positionMm": True}}}) == {}
+    assert route_of({"pipeAvoid": "x", "waterTrunk": None}) == {}
+    assert route_of({}) == {}
 
 
 def test_no_room_and_no_points_give_the_empty_scheme():
