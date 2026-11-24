@@ -88,3 +88,56 @@ describe('roomContentChanged', () => {
     expect(roomContentChanged(base, base)).toBe(false)
   })
 })
+
+// Phone QA 2026-11-24 (#393 #10, 2nd try): "Saqlab yangilash" saved the room, the page went, and its
+// pagehide flush sent the same change once more. That second save moved updated_at, and after the
+// reload the undo history no longer matched the saved copy. settle() saves what waits and leaves
+// nothing behind for the flush.
+describe('autosave settle', () => {
+  it('saves what is waiting, now, and leaves nothing for a later flush', async () => {
+    const save = vi.fn(async () => true)
+    const a = createAutosave(save)
+    a.changed()
+    await expect(a.settle()).resolves.toBe(true)
+    expect(save).toHaveBeenCalledTimes(1)
+    a.flush() // pagehide
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS * 2)
+    expect(save).toHaveBeenCalledTimes(1)
+    a.dispose()
+  })
+
+  it('with nothing waiting saves nothing', async () => {
+    const save = vi.fn(async () => true)
+    const a = createAutosave(save)
+    await expect(a.settle()).resolves.toBe(true)
+    expect(save).not.toHaveBeenCalled()
+    a.dispose()
+  })
+
+  it('waits for a save in flight, and saves again for a change made meanwhile', async () => {
+    let finish: (ok: boolean) => void = () => {}
+    const save = vi.fn(() => new Promise<boolean>((r) => { finish = r }))
+    const a = createAutosave(save)
+    a.changed()
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS)
+    a.changed()
+    let done: boolean | undefined
+    void a.settle().then((ok) => { done = ok })
+    finish(true); await settle()
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(done).toBeUndefined()
+    finish(true); await settle()
+    expect(done).toBe(true)
+    a.dispose()
+  })
+
+  it('a save that failed says so, and is still tried again later', async () => {
+    const save = vi.fn(async () => false)
+    const a = createAutosave(save)
+    a.changed()
+    await expect(a.settle()).resolves.toBe(false)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_RETRY_MS)
+    expect(save).toHaveBeenCalledTimes(2)
+    a.dispose()
+  })
+})

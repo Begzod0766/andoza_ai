@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useRoomStore, type RoomTemporalState } from '@/store/roomStore'
 
 /**
@@ -101,4 +102,26 @@ export function restoreStudioHistory(roomId: string, updatedAt: string | null, n
     futureStates: copy.future as RoomTemporalState[],
   })
   return true
+}
+
+/**
+ * The 3D page's way to get its kept stage back: once the room has loaded (`roomReady`), since
+ * loading it (resetRoom) puts the view back to the finished room — applied when the page opened,
+ * the stage never showed (phone QA 2026-11-24, #393 #10). Given once, then forgotten; a page
+ * opened again before the room loaded still gets it.
+ */
+export function useResumedStage(
+  roomId: string,
+  roomReady: boolean,
+  apply: (kept: { phase: string | null; viewStage: string | null }) => void,
+): void {
+  const applyRef = useRef(apply)
+  applyRef.current = apply
+  useEffect(() => {
+    if (!roomReady) return
+    const kept = peekStudioPhase(roomId)
+    if (!kept) return
+    clearStudioPhase()
+    applyRef.current(kept)
+  }, [roomId, roomReady])
 }

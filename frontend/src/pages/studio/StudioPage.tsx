@@ -397,8 +397,11 @@ export default function StudioPage() {
   // mount in development (StrictMode), and an autosave made outside and
   // disposed by the first cleanup was dead for the second mount — nothing
   // saved at all.
+  /** The live autosave, for a reload of the app's own to settle (below). */
+  const autosaveRef = useRef<ReturnType<typeof createAutosave> | null>(null);
   useEffect(() => {
     const autosave = createAutosave(() => saveNowRef.current());
+    autosaveRef.current = autosave;
     // An EDIT: something a save writes changed. Not a view setting, and not
     // the store's own bookkeeping — on either of those the room saved as
     // soon as it opened, and once more after every save.
@@ -416,6 +419,7 @@ export default function StudioPage() {
       // Leaving the studio: whatever is waiting goes now.
       autosave.flush();
       autosave.dispose();
+      if (autosaveRef.current === autosave) autosaveRef.current = null;
     };
   }, []);
   // A reload of the app's own (a new version, a chunk of the old build gone: lib/safeReload) waits
@@ -423,8 +427,11 @@ export default function StudioPage() {
   // 2026-11-24 #12: they were lost). A save that failed stops the reload.
   useEffect(() => onBeforeReload(async () => {
     if (deletedRef.current) return true;
-    const s = useRoomStore.getState();
-    if (s.isDirty || inFlight.current) {
+    // Through the autosave, so nothing is left waiting in it: its pagehide flush sent the same
+    // change a second time, which moved updated_at past the copy the history was kept for
+    // (phone QA 2026-11-24, #393 #10: undo lost on the 2nd try).
+    if (autosaveRef.current && !(await autosaveRef.current.settle())) return false;
+    if (useRoomStore.getState().isDirty || inFlight.current) {
       if (!(await saveNowRef.current())) return false;
     }
     const id = useRoomStore.getState().roomId;

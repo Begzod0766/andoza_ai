@@ -97,3 +97,38 @@ describe('studio resume across a reload', () => {
     expect(restoreStudioHistory('r1', 'u1', T)).toBe(false)
   })
 })
+
+// Phone QA 2026-11-24 (#393 #10): the stage never came back, the studio opened on "Tayyor xona"
+// every time. The 3D page set the kept stage when it opened, and the room loading after it
+// (resetRoom) put the view back to the finished room. The kept stage is applied once the room
+// has loaded, and kept until then (a page opened again before that still gets it).
+describe('useResumedStage', () => {
+  it('waits for the room to load, then gives the stage once', async () => {
+    const { renderHook } = await import('@testing-library/react')
+    const { useResumedStage } = await import('../studioResume')
+    rememberStudioPhase('r1', 'quvurlar')
+    useRoomStore.setState({ viewStage: 'quvurlar' as never })
+    writeStudioResume('r1', 'u1')
+    const apply = vi.fn()
+    const first = renderHook(({ ready }) => useResumedStage('r1', ready, apply), { initialProps: { ready: false } })
+    expect(apply).not.toHaveBeenCalled()
+    first.unmount() // opened again before the room loaded
+    const second = renderHook(({ ready }) => useResumedStage('r1', ready, apply), { initialProps: { ready: false } })
+    expect(apply).not.toHaveBeenCalled()
+    second.rerender({ ready: true })
+    expect(apply).toHaveBeenCalledTimes(1)
+    expect(apply).toHaveBeenCalledWith({ phase: 'quvurlar', viewStage: 'quvurlar' })
+    second.rerender({ ready: true })
+    expect(apply).toHaveBeenCalledTimes(1)
+    expect(peekStudioPhase('r1')).toBeNull()
+    second.unmount()
+  })
+
+  it('nothing kept, nothing given', async () => {
+    const { renderHook } = await import('@testing-library/react')
+    const { useResumedStage } = await import('../studioResume')
+    const apply = vi.fn()
+    renderHook(() => useResumedStage('r1', true, apply))
+    expect(apply).not.toHaveBeenCalled()
+  })
+})
