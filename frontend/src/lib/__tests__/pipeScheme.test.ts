@@ -309,6 +309,11 @@ describe('schemeInput: the route (2026-11-24)', () => {
     expect(s.waterTrunkMm).toBe(1000)
     expect(schemeInput(g, riser, two, false, {})).toEqual(schemeInput(g, riser, two))
   })
+  it('an unknown water trunk height sets no waterTrunkMm', () => {
+    const s = schemeInput(g, riser, two, false, { waterTrunk: 'sky' as unknown as 'floor' })
+    expect('waterTrunkMm' in s).toBe(false)
+    expect(s).toEqual(schemeInput(g, riser, two))
+  })
   it('a spot on a wall is its loop position, per kind', () => {
     const s = schemeInput(g, riser, two, false, { avoid: { water: { wallId: 'B', positionMm: 100 } } })
     expect(s.avoidMm).toEqual({ water: 2600 })
@@ -446,7 +451,10 @@ describe('plumbingSummary from the scheme', () => {
     const at = pts.map((p) => (p.kind === 'drain' ? p : { ...p, heightMm: p.kind === 'cold' ? 550 : 1050 }))
     const none = plumbingSummary(g, at, hammom.riser).water.m
     expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'floor' }).water.m).toBeGreaterThan(none)
-    expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'high' }).water.m).not.toBe(none)
+    // 'high' (1000 mm): the doors still bar the trunk, so it is the default's 13200 mm. The branches run from
+    // 1000: 4 cold at 550 → 4 × 450 = 1800, 5 hot at 1050 → 5 × 50 = 250, 2050 mm in all.
+    // (13200 + 2050) / 1000 × 1.15 = 17.5375 m, two decimals: 17.54
+    expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'high' }).water.m).toBe(17.54)
   })
 })
 

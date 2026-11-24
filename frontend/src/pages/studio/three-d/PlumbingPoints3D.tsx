@@ -7,7 +7,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
 import { riserPose, roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { plumbingLayerShown } from "@/lib/plumbingStageOn";
-import { pipeScheme, routeOf, WATER_TRUNK_HEIGHTS, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
+import { pipeScheme, routeOf, WATER_TRUNK_HEIGHTS, WATER_TRUNK_MM, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 import { withWasherPoints } from "@/lib/washer";
 import type { RiserAt } from "@/lib/plumbingRuns";
@@ -17,7 +17,7 @@ const COLLECTOR = { w: 0.4, h: 0.25, d: 0.08, y: 0.3, out: 0.06 };
 
 /** The short pipe from the riser into the collector box (2026-11-18), at the water lines' height: the lines
  * meet at the riser, the box stands beside it. */
-export function collectorFeed(geometry: RoomGeometry, riser: RiserAt, trunkMm = 200): [[number, number, number], [number, number, number]] | null {
+export function collectorFeed(geometry: RoomGeometry, riser: RiserAt, trunkMm = WATER_TRUNK_MM): [[number, number, number], [number, number, number]] | null {
   const r = riserPose(riser, geometry);
   const b = collectorPose(geometry, riser);
   return r && b ? [[r.x, trunkMm / 1000, r.z], [b.x, trunkMm / 1000, b.z]] : null;

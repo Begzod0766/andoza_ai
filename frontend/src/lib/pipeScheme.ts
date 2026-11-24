@@ -323,7 +323,7 @@ export function schemeInput(geometry: RoomGeometry, riser: { wallId: string; pos
     if (s != null) avoidMm[kind] = s
   }
   if (Object.keys(avoidMm).length > 0) input.avoidMm = avoidMm
-  if (route.waterTrunk) input.waterTrunkMm = WATER_TRUNK_HEIGHTS[route.waterTrunk]
+  if (route.waterTrunk === 'floor' || route.waterTrunk === 'high') input.waterTrunkMm = WATER_TRUNK_HEIGHTS[route.waterTrunk]
   return input
 }
 

@@ -17,7 +17,7 @@ from app.services.plumbing import _js_round, _room_walls, _wall_walk
 
 WATER_TRUNK_MM = 200
 HOT_ABOVE_MM = 50  # the hot trunk is drawn this far above the cold one; lengths ignore it
-WATER_TRUNK_HEIGHTS = {"floor": 0, "default": 200, "high": 1000}  # the water trunk's heights (2026-11-24)
+WATER_TRUNK_HEIGHTS = {"floor": 0, "default": WATER_TRUNK_MM, "high": 1000}  # the water trunk's heights (2026-11-24)
 COLLECTOR_STEP_MM = 30  # with a collector, each further line of a kind is drawn this much above the one before
 EPS = 1e-6
 KINDS = ("drain", "cold", "hot")
