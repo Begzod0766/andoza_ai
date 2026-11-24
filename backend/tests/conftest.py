@@ -70,6 +70,23 @@ def fake_redis(monkeypatch):
     yield server
 
 
+@pytest.fixture(autouse=True)
+def fresh_norm_overrides():
+    """Start every test with no admin norm overrides, read just now.
+
+    The estimate routes call norm_overrides.refresh(db), which re-reads the table once its
+    in-process copy is older than TTL_S (30 s). Endpoint tests hand db.execute a fixed list
+    of results, so a stale copy made refresh take one of them and the route ran out
+    (StopAsyncIteration) whenever a test happened to run 30 s after the last refresh.
+    Tests of refresh itself set _loaded_at = 0 to force the read.
+    """
+    from app.services import norm_overrides
+
+    norm_overrides.set_overrides({})
+    yield
+    norm_overrides.set_overrides({})
+
+
 # ============================================================================
 # Mock Fixtures (for unit tests that mock external services)
 # ============================================================================

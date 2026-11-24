@@ -224,15 +224,3 @@ class TestPdf:
         pdf = _build_pdf(SimpleNamespace(name="Xona"), est(ln))
         text = pdf.decode("latin-1")
         assert pdf.startswith(b"%PDF") and "Bozor narxi" in text and "05.10.2026" in text
-
-
-class TestReproAgedNormOverrides:
-    """TEMPORARY repro (removed in the fix commit): an overrides cache older than TTL_S makes
-    the preview do one extra db.execute and the mocked result list runs out."""
-
-    def test_aged_cache_runs_the_mock_dry(self, client, monkeypatch):
-        monkeypatch.setattr(no, "_loaded_at", time.monotonic() - no.TTL_S - 1)
-        monkeypatch.setattr(settings, "MARKET_PRICES_ENABLED", False)
-        room = TestEndpoints()._setup(client)
-        with pytest.raises(StopAsyncIteration):
-            client.post(f"/api/v1/rooms/{room.id}/estimate/preview?market=true")
