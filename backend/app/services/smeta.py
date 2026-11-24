@@ -2114,7 +2114,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     and per fixture. A shop pipe product under "pipe:<kind>" prices its line; otherwise the norm
     does, flagged approximate."""
     from app.services.bathroom_extras import load_bathroom_extras_norms
-    from app.services.pipe_scheme import pipe_scheme, sound_point
+    from app.services.pipe_scheme import pipe_scheme, route_of, sound_point
     from app.services.plumbing import load_plumbing_norms, riser_spot
     from app.services.towel_rail import is_electric, rail_points, valid_rails
     from app.services.washer import is_dishwasher, is_kitchen_sink, valid_washers, washer_points
@@ -2222,7 +2222,8 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
         riser = _saved_riser(state, geometry) or riser_spot(geometry, None)
         # One scheme for the room (spec 2026-11-11): a trunk per pipe kind and a branch to each point.
         collector = _design_state(room).get("waterScheme") == "collector"
-        scheme = pipe_scheme(geometry, riser, points, collector)
+        route = route_of(_design_state(room))
+        scheme = pipe_scheme(geometry, riser, points, collector, route)
         for kind in ("drain_50", "drain_110", "water_20"):
             pipe = scheme["pipes"][kind]
             mm = pipe["trunkMm"] + pipe["branchMm"]
@@ -2252,7 +2253,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             ))
         lines.extend(_collector_lines(scheme["collectors"], catalog, norms))
         if _design_state(room).get("pipesInWall") is not False:
-            lines.extend(_chase_lines(scheme["pipes"], norms))
+            lines.extend(_chase_lines(scheme["pipes"], norms, route.get("waterTrunk") == "floor"))
         # The plumber connects the points the scheme can read; one with no height or place is not priced.
         n = sum(1 for p in points if sound_point(p))
     if points and n:
@@ -2651,20 +2652,23 @@ def _piece_line(label: str, shop: "Material | None", norm_uzs: int, category: st
     )
 
 
-def _chase_lines(pipes: dict, norms: dict) -> list[ComputedLine]:
+def _chase_lines(pipes: dict, norms: dict, water_trunk_in_floor: bool = False) -> list[ComputedLine]:
     """Chasing the walls for the new pipes (2026-11-13), when they run in the wall (``pipesInWall``,
     on unless exactly false): the water trunk and its branches, and the Ø50 drain's branches. The
-    drain trunk and the Ø110 way run in the floor. Making the chase good again is in the price."""
+    drain trunk and the Ø110 way run in the floor. Making the chase good again is in the price.
+    A water trunk in the floor (``water_trunk_in_floor``) is not chased: only the branches are."""
     price = norms["work_chase_m_uzs"]
     water, drain = pipes["water_20"], pipes["drain_50"]
     out: list[ComputedLine] = []
-    w_mm = water["trunkMm"] + water["branchMm"]
+    w_mm = water["branchMm"] if water_trunk_in_floor else water["trunkMm"] + water["branchMm"]
     if w_mm > 0:
         p = int(price["water_20"])
+        formula = (f"Tik bo'laklar {w_mm / 1000:.2f} m × {p:,} so'm" if water_trunk_in_floor else
+                   f"Magistral {water['trunkMm'] / 1000:.2f} m + tik bo'laklar {water['branchMm'] / 1000:.2f} m"
+                   f" = {w_mm / 1000:.2f} m × {p:,} so'm")
         out.append(_make_line(
             label="Ish: shtroba (suv quvuri)",
-            formula=(f"Magistral {water['trunkMm'] / 1000:.2f} m + tik bo'laklar {water['branchMm'] / 1000:.2f} m"
-                     f" = {w_mm / 1000:.2f} m × {p:,} so'm").replace(",", " "),
+            formula=formula.replace(",", " "),
             qty=_round2(w_mm / 1000), unit="m", price_uzs=p, category="santexnika",
         ))
     if drain["branchMm"] > 0:

@@ -256,3 +256,60 @@ def test_a_riser_past_its_wall_end_stands_at_the_end():
     got = by_label(_plumbing_lines(r, {}))
     p = pipe_scheme(GEOMETRY, (str(wall["id"]), end_mm), PLUMBING)["pipes"]["water_20"]
     assert got[PIPES["water_20"]].qty == _round2((p["trunkMm"] + p["branchMm"]) / 1000 * 1.15)
+
+
+# ─── The route (spec 2026-11-24 § C) ──────────────────────────────────────────
+
+def _fixture_room(name: str, design: dict | None = None):
+    import json
+    from pathlib import Path
+    cases = json.loads((Path(__file__).resolve().parents[2] / "frontend/src/lib/__tests__/fixtures/pipeScheme.json").read_text(encoding="utf-8"))["cases"]
+    case = next(c for c in cases if c["name"] == name)
+
+    def wall(w):
+        els = [{**e, "position": (e["position"] + e["width"] / 2) / w["length"], "width": e["width"] / 1000} for e in w.get("elements") or []]
+        return {**w, "length": w["length"] / 1000, "elements": els}
+
+    state: dict = {"plumbing": case["points"], "plumbingRiser": case["riser"], "furniture": []}
+    if design is not None:
+        state["designState"] = design
+    return SimpleNamespace(state=state, geometry={"walls": [wall(w) for w in case["geometry"]["walls"]]}), case
+
+
+SNAPSHOT_NO_ROUTE = [
+    ('Santexnika: Rakovina 50', 1.0, 2000000), ('Santexnika: Unitaz Cersanit', 1.0, 2000000), ('Santexnika: Vanna Roca 170', 1.0, 2000000),
+    ('Rakovina smesiteli', 1.0, 450000), ('Vanna va dush smesiteli', 1.0, 650000), ('Rakovina sifoni', 1.0, 60000), ('Vanna sifoni', 1.0, 120000),
+    ('Unitaz gofrasi', 1.0, 35000), ('Ulash shlangi (podvodka)', 3.0, 75000), ('Kanalizatsiya quvuri Ø50', 3.33, 59940),
+    ('Kanalizatsiya quvuri Ø110', 4.26, 178920), ('Suv quvuri PPR Ø20', 15.18, 136620), ('PPR troynik Ø20', 3.0, 9000), ('PPR burchak Ø20', 6.0, 15000),
+    ('Suv rozetkasi Ø20', 5.0, 60000), ('Sharli kran Ø20', 2.0, 70000), ('Kanalizatsiya burchagi Ø50', 2.0, 12000),
+    ('Kanalizatsiya troynigi Ø110/50', 2.0, 44000), ('Kanalizatsiya burchagi Ø110', 2.0, 36000), ('Ish: shtroba (suv quvuri)', 13.2, 462000),
+    ('Ish: shtroba (kanalizatsiya Ø50)', 0.65, 39000), ('Ish: nuqtani ulash', 8.0, 960000), ("Ish: vanna o'rnatish", 1.0, 450000),
+    ("Ish: rakovina o'rnatish", 1.0, 250000), ("Ish: unitaz o'rnatish", 1.0, 350000), ("Ish: smesitel o'rnatish", 2.0, 200000),
+    ('UZO (difavtomat 30 mA)', 1.0, 250000), ('Ish: quvurlarni bosim bilan sinash (opressovka)', 1.0, 150000), ('Sanitariya silikoni', 2.0, 90000),
+]
+
+
+def test_no_route_keys_price_as_before():
+    # Captured with the code before the route was read (2026-11-24).
+    got = [(ln.label, ln.qty, ln.subtotal_uzs) for ln in _plumbing_lines(room(), {})]
+    assert got == SNAPSHOT_NO_ROUTE
+
+
+def test_drain_avoid_changes_the_drain_metres():
+    name = "route: a drain avoid spot moves the cut to its gap"
+    r, case = _fixture_room(name, {"pipeAvoid": {"drain": {"wallId": "D", "positionMm": 1000}}})
+    drain = next(ln for ln in _plumbing_lines(r, {}) if ln.label == PIPES["drain_50"])
+    assert drain.qty == _round2(6000 / 1000 * 1.15)
+    plain, _ = _fixture_room(name)
+    assert next(ln for ln in _plumbing_lines(plain, {}) if ln.label == PIPES["drain_50"]).qty != drain.qty
+
+
+def test_floor_trunk_chases_branches_only():
+    name = "route: a floor water trunk passes under the door"
+    chase = "Ish: shtroba (suv quvuri)"
+    r, case = _fixture_room(name, {"waterTrunk": "floor"})
+    line = next(ln for ln in _plumbing_lines(r, {}) if ln.label == chase)
+    assert line.qty == _round2(case["expected"]["pipes"]["water_20"]["branchMm"] / 1000) == 1.6
+    assert line.formula == "Tik bo'laklar 1.60 m × 35 000 so'm"
+    plain, _ = _fixture_room(name)
+    assert next(ln for ln in _plumbing_lines(plain, {}) if ln.label == chase).qty > line.qty
