@@ -138,6 +138,7 @@ export const createLifecycleSlice: StateCreator<
       towelRails: [],
       washers: [],
       plumbingRiser: null,
+      plumbingPrices: null,
       lights: [],
       userFurniture: [],
       isDirty: false,

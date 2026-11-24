@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { useRoomStore, computeFloorArea } from "@/store/roomStore";
 import { hasAbcdWalls } from "@/lib/roomDims";
 import { effectiveRoomType } from "@/lib/roomType";
+import { usePlumbingPricesLoad } from "./usePlumbingPricesLoad";
 import { useRestoreUserModels } from "@/hooks/useRestoreUserModels";
 import { WebOnly } from "@/lib/embedded";
 import { redoRoom, undoRoom } from "@/lib/roomHistory";
@@ -603,6 +604,8 @@ export default function StudioPage() {
     loadedAtRef.current = apiRoom.updated_at ?? null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiRoom]);
+  // After the effect above (its room switch resets the prices): the pipes are priced from them.
+  usePlumbingPricesLoad(apiRoom);
 
   // The tour (see above) opens once the room has finished loading — its server copy is in the
   // store, or there is none to wait for (offline, an error): the tour counts furniture added

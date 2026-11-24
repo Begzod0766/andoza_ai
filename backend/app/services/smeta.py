@@ -2107,6 +2107,26 @@ def _fitting_formula(key: str, why: dict, count: int) -> str:
     }[key]
 
 
+def plumbing_prices(catalog: dict, norms: dict) -> dict:
+    """Every price the pipe money is made of, from one place (spec 2026-11-24 D): the estimate's pipe,
+    fitting, collector and chase lines read it, and the studio gets it served, so what it shows for a
+    pipe choice is what the estimate will say. A shop's per-metre pipe wins over the norm; the shop
+    collector is None unless it is sold by the piece at a price."""
+    pipes = {}
+    for kind in ("water_20", "drain_50", "drain_110"):
+        pipes[kind] = _price_per(catalog.get(f"pipe:{kind}"), "m") or int(norms["pipe_m_uzs"][kind])
+    shop = catalog.get("kollektor")
+    shop_uzs = int(shop.price_uzs) if shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0 else None
+    c = norms["collector"]
+    return {
+        "reserve": PLUMBING_RESERVE,
+        "pipe_m_uzs": pipes,
+        "fitting_uzs": {k: int(v) for k, v in norms["fitting_uzs"].items()},
+        "collector": {"shop_uzs": shop_uzs, "base_uzs": int(c["base_uzs"]), "outlet_uzs": int(c["outlet_uzs"]), "work_uzs": int(c["work_uzs"])},
+        "chase_m_uzs": {k: int(norms["work_chase_m_uzs"][k]) for k in ("water_20", "drain_50")},
+    }
+
+
 def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[ComputedLine]:
     """The "santexnika" section: each fixture placed (priced like furniture), the pipes of the room's
     pipe scheme (spec 2026-11-11: a trunk per pipe kind along the walls and a branch to each point,
@@ -2122,6 +2142,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
     catalog = catalog or {}
     state: dict = room.state or {}
     norms = load_plumbing_norms()
+    prices = plumbing_prices(catalog, norms)
     lines: list[ComputedLine] = []
     # Heated towel rails hung on the walls (spec 2026-11-10): not furniture, a list of their own.
     geometry = _plumbing_geometry(room)
@@ -2232,7 +2253,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
             metres = _round2(mm / 1000 * PLUMBING_RESERVE)
             shop = catalog.get(f"pipe:{kind}")
             shop_price = _price_per(shop, "m")
-            price = shop_price or int(norms["pipe_m_uzs"][kind])
+            price = prices["pipe_m_uzs"][kind]
             lines.append(_make_line(
                 label=f"{PIPE_LABELS[kind]}: {shop.name_uz}" if shop_price else PIPE_LABELS[kind],
                 formula=(f"Magistral {pipe['trunkMm'] / 1000:.2f} m + tik bo'laklar {pipe['branchMm'] / 1000:.2f} m"
@@ -2248,7 +2269,7 @@ def _plumbing_lines(room: "Room", catalog: "dict | None" = None) -> list[Compute
                 continue
             lines.append(_make_line(
                 label=label, formula=_fitting_formula(key, scheme["why"][key], count), qty=count, unit="dona",
-                price_uzs=int(norms["fitting_uzs"][key]), category="santexnika",
+                price_uzs=prices["fitting_uzs"][key], category="santexnika",
                 is_approximate=True, warning=PLUMBING_FITTINGS_WARNING,
             ))
         lines.extend(_collector_lines(scheme["collectors"], catalog, norms))
@@ -2501,26 +2522,26 @@ def _heated_floor_lines(room: "Room", catalog: dict, floor_already_done: bool = 
 def _collector_lines(collectors: dict, catalog: dict, norms: dict) -> list[ComputedLine]:
     """The collector scheme's collectors (2026-11-18): one per water kind, its body and an outlet (with its
     valve) per point it feeds, or a shop's tagged collector; and the work of fitting each."""
-    n = norms["collector"]
+    n = plumbing_prices(catalog, norms)["collector"]
     fmt = lambda v: f"{v:,}".replace(",", " ")  # noqa: E731
     out: list[ComputedLine] = []
-    shop = catalog.get("kollektor")
-    priced = shop is not None and str(getattr(shop, "unit", "")) == "dona" and int(shop.price_uzs) > 0
+    shop = catalog.get("kollektor")  # for the label and the shop's fields; the price is n["shop_uzs"]
+    priced = n["shop_uzs"] is not None
     for kind, word in (("cold", "sovuq"), ("hot", "issiq")):
         outlets = int(collectors.get(kind) or 0)
         if not outlets:
             continue
         label = f"Kollektor ({word} suv)"
         if priced:
-            out.append(_make_line(label=f"{label}: {shop.name_uz}", formula=f"1 dona × {fmt(int(shop.price_uzs))} so'm ({outlets} chiqish kerak)",
-                                  qty=1, unit="dona", price_uzs=int(shop.price_uzs), category="santexnika", **_shop(shop)))
+            out.append(_make_line(label=f"{label}: {shop.name_uz}", formula=f"1 dona × {fmt(n['shop_uzs'])} so'm ({outlets} chiqish kerak)",
+                                  qty=1, unit="dona", price_uzs=n["shop_uzs"], category="santexnika", **_shop(shop)))
             continue
-        base, each = int(n["base_uzs"]), int(n["outlet_uzs"])
+        base, each = n["base_uzs"], n["outlet_uzs"]
         price = base + outlets * each
         out.append(_make_line(label=label, formula=f"{fmt(base)} so'm + {outlets} chiqish × {fmt(each)} so'm = {fmt(price)} so'm",
                               qty=1, unit="dona", price_uzs=price, category="santexnika", is_approximate=True, warning=PLUMBING_NORM_WARNING))
     if out:
-        work = int(n["work_uzs"])
+        work = n["work_uzs"]
         out.append(_make_line(label="Ish: kollektorni yig'ish", formula=f"{len(out)} dona × {fmt(work)} so'm", qty=len(out), unit="dona",
                               price_uzs=work, category="santexnika"))
     return out
@@ -2657,7 +2678,7 @@ def _chase_lines(pipes: dict, norms: dict, water_trunk_in_floor: bool = False) -
     on unless exactly false): the water trunk and its branches, and the Ø50 drain's branches. The
     drain trunk and the Ø110 way run in the floor. Making the chase good again is in the price.
     A water trunk in the floor (``water_trunk_in_floor``) is not chased: only the branches are."""
-    price = norms["work_chase_m_uzs"]
+    price = plumbing_prices({}, norms)["chase_m_uzs"]
     water, drain = pipes["water_20"], pipes["drain_50"]
     out: list[ComputedLine] = []
     w_mm = water["branchMm"] if water_trunk_in_floor else water["trunkMm"] + water["branchMm"]
