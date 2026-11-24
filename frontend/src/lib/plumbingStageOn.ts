@@ -31,3 +31,10 @@ export const DOCKED_PANEL_QUERY = '(min-width: 1024px)'
 export function plumbingLayerShown(s: { plumbingStage: boolean; viewStage: ViewStage }): boolean {
   return s.viewStage === 'quvurlar' || s.plumbingStage
 }
+
+/** Whether a rail or machine touching furniture is drawn red (phone QA #396 4): in either plumbing stage,
+ *  with a phone's sheet closed too, as they are dragged (plumbingDrag). Closed, the sheet hid the red and
+ *  the clash with it. Off at a camera station or in the 360, where plumbingDrag is off. */
+export function clashRedShown(s: { plumbingStage: boolean; plumbingDrag: boolean }): boolean {
+  return s.plumbingDrag
+}

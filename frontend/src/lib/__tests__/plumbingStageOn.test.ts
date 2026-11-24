@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { plumbingDragOn, plumbingLayerShown, plumbingStageOn } from '@/lib/plumbingStageOn'
+import { plumbingDragOn, plumbingLayerShown, plumbingStageOn, clashRedShown } from '@/lib/plumbingStageOn'
 
 describe('plumbingStageOn (mobile QA 2026-11-16; Quvurlar/Jihozlar 2026-11-18)', () => {
   it('on a wide screen the panel is always docked: on in either plumbing stage', () => {
@@ -47,5 +47,16 @@ describe('plumbingDragOn (mobile QA 2026-11-21, #359): towel rails, machines and
   it('never at a camera station or in the 360, nor at another stage', () => {
     expect(plumbingDragOn('jihozlar', true)).toBe(false)
     expect(plumbingDragOn('mebel')).toBe(false)
+  })
+})
+
+describe('clashRedShown (phone QA #396 4)', () => {
+  it('a touching rail or machine is red in a plumbing stage with a phone\'s sheet closed too', () => {
+    // The sheet covers the lower 60% of the screen: closed, the red was not drawn, and the clash not seen.
+    expect(clashRedShown({ plumbingStage: false, plumbingDrag: true })).toBe(true)
+    expect(clashRedShown({ plumbingStage: true, plumbingDrag: true })).toBe(true)
+  })
+  it('not outside a plumbing stage, nor at a camera station or in the 360 (plumbingDrag is off there)', () => {
+    expect(clashRedShown({ plumbingStage: false, plumbingDrag: false })).toBe(false)
   })
 })

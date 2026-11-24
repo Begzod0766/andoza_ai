@@ -84,6 +84,22 @@ describe('HoldDeleteButton', () => {
     expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
   })
 
+  it('a second finger that lands on the thing, the first already down elsewhere, puts no menu up: a pinch or twist (phone QA #396 1, 8)', () => {
+    // On the epoch, so the pinch the shared finger guard remembers is older than any later test's press.
+    vi.setSystemTime(0)
+    render(<Harness onDelete={() => {}} />)
+    const touch = (type: string, id: number, x: number, y: number) => {
+      const e = pointer(type, { clientX: x, clientY: y, pointerId: id })
+      Object.defineProperty(e, 'pointerType', { value: 'touch' })
+      return e
+    }
+    act(() => { document.body.dispatchEvent(touch('pointerdown', 1, 50, 600)) })
+    act(() => { screen.getByTestId('thing').dispatchEvent(touch('pointerdown', 2, 200, 300)) })
+    act(() => { vi.advanceTimersByTime(HOLD_DELETE_MS) })
+    expect(screen.queryByRole('button', { name: /chirish/i })).toBeNull()
+    act(() => { window.dispatchEvent(touch('pointerup', 1, 50, 600)); window.dispatchEvent(touch('pointerup', 2, 200, 300)) })
+  })
+
   it('names what is about to go', () => {
     render(<Harness onDelete={() => {}} />)
     holdIt()

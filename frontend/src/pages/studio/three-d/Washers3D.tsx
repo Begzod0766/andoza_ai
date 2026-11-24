@@ -16,6 +16,7 @@ import { useHoldToDelete } from "@/hooks/useHoldToDelete";
 import { useFixtureSelection, type FixtureSel } from "@/features/studio/fixtureSelection";
 import { BoxOutline, FixtureCard3D, fixtureHoldItem } from "./FixtureCard";
 import { noRaycast } from "./constants";
+import { clashRedShown } from "@/lib/plumbingStageOn";
 import { clashColor } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 
@@ -90,11 +91,12 @@ export function Washers3D({ controlsRef, onSelect }: {
   );
   const geometry = useRoomStore((s) => s.geometry);
   const moveWasher = useRoomStore((s) => s.moveWasher);
-  const active = useRoomStore((s) => s.plumbingStage);
   // Caught and dragged in a plumbing stage, with a phone's sheet closed too (#359).
   const draggable = useRoomStore((s) => s.plumbingDrag);
   // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
+  // Red with a phone's sheet closed too (phone QA #396 4).
+  const red = useRoomStore(clashRedShown);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   // A press on a machine is a drag only once it moves, so a pinch on it zooms (QA #372 6; as a rail's).
@@ -144,7 +146,7 @@ export function Washers3D({ controlsRef, onSelect }: {
               onSelect && { down: (e) => holdBind(fixtureHoldItem({ kind: "machine", id: m.id }, t)).onPointerDown(e), wasHeld })}>
             <mesh castShadow receiveShadow raycast={railRaycast(draggable, !!onSelect)}>
               <boxGeometry args={[W, H, D]} />
-              <meshStandardMaterial color={clashColor(BODY, active, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
+              <meshStandardMaterial color={clashColor(BODY, red, !!clashes[m.id])} roughness={0.45} metalness={0.05} />
             </mesh>
             {isKitchenSink(m) ? (
               // A kitchen sink (2026-11-18): a worktop on the cabinet and a steel bowl in it. Beside a
