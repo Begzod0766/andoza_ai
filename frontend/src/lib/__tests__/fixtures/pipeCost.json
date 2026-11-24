@@ -1,0 +1,64 @@
+{
+  "_doc": "The pipe money (spec 2026-11-24 D): pipeCost on a pipeScheme.json case must equal what backend smeta.py prices for the same room. Hand-worked from the formulas; Task 6 asserts the backend estimate against the same numbers. Per line: qty x price in tiyin, floored to so'm. Pipe qty = round2(mm/1000 x reserve).",
+  "prices": {
+    "reserve": 1.15,
+    "pipe_m_uzs": { "water_20": 9000, "drain_50": 18000, "drain_110": 42000 },
+    "fitting_uzs": { "tee_20": 3000, "elbow_20": 2500, "outlet_20": 12000, "valve_20": 35000, "tee_50": 9000, "elbow_50": 6000, "tee_110_50": 22000, "elbow_110": 18000 },
+    "collector": { "shop_uzs": null, "base_uzs": 150000, "outlet_uzs": 60000, "work_uzs": 150000 },
+    "chase_m_uzs": { "water_20": 35000, "drain_50": 60000 }
+  },
+  "cases": [
+    {
+      "name": "tees, pipes in the wall",
+      "caseName": "one door on D, two cold points (the hand-worked case)",
+      "pipesInWall": true,
+      "expectedUzs": 396020,
+      "why": "water 6000+1200=7200 mm x1.15 = 8.28 m x 9000 = 74520. Fittings: tee 1x3000 + elbow 3x2500 + outlet 2x12000 + valve 1x35000 = 3000+7500+24000+35000 = 69500. Chase: 7.20 m x 35000 = 252000. 74520+69500+252000 = 396020."
+    },
+    {
+      "name": "tees, pipes not in the wall (no chase)",
+      "caseName": "one door on D, two cold points (the hand-worked case)",
+      "pipesInWall": false,
+      "expectedUzs": 144020,
+      "why": "Same room, no chase work: 74520 + 69500 = 144020."
+    },
+    {
+      "name": "drain only: a toilet farthest from the riser",
+      "caseName": "toilet farthest from the riser",
+      "pipesInWall": true,
+      "expectedUzs": 334720,
+      "why": "drain_50 2500+650=3150 mm x1.15 = 3.6225 -> 3.62 m x 18000 = 65160. drain_110 3000+200=3200 mm x1.15 = 3.68 m x 42000 = 154560. Fittings: elbow_50 3x6000 + tee_110_50 1x22000 + elbow_110 2x18000 = 18000+22000+36000 = 76000. Chase: no water; drain_50 branch 0.65 m x 60000 = 39000 (trunk and the 110 are not chased). 65160+154560+76000+39000 = 334720."
+    },
+    {
+      "name": "collector, pipes in the wall",
+      "caseName": "collector: one door on D, two cold points (the hand-worked case)",
+      "pipesInWall": true,
+      "expectedUzs": 999420,
+      "why": "water 10000+1200=11200 mm x1.15 = 12.88 m x 9000 = 115920. Fittings: elbow 5x2500 + outlet 2x12000 + valve 1x35000 = 12500+24000+35000 = 71500. Collector (cold, 2 outlets): 150000 + 2x60000 = 270000, one work line 1 x 150000. Chase: 11.20 m x 35000 = 392000. 115920+71500+270000+150000+392000 = 999420."
+    },
+    {
+      "name": "collector from the shop, pipes not in the wall",
+      "caseName": "collector: one door on D, two cold points (the hand-worked case)",
+      "collectorShopUzs": 300000,
+      "pipesInWall": false,
+      "expectedUzs": 637420,
+      "why": "Pipe 115920 + fittings 71500 as above. Shop collector 1 x 300000 replaces base+outlets; work 1 x 150000. No chase. 115920+71500+300000+150000 = 637420."
+    },
+    {
+      "name": "floor water trunk: only the branches are chased",
+      "caseName": "route: a floor water trunk passes under the door",
+      "route": { "waterTrunk": "floor" },
+      "pipesInWall": true,
+      "expectedUzs": 193810,
+      "why": "water 5000+1600=6600 mm x1.15 = 7.59 m x 9000 = 68310. Fittings: tee 3000 + elbow 3x2500 + outlet 2x12000 + valve 35000 = 69500. Chase on the branches only: 1.60 m x 35000 = 56000. 68310+69500+56000 = 193810."
+    },
+    {
+      "name": "collector with a floor water trunk",
+      "caseName": "route: collector, floor water trunk",
+      "route": { "waterTrunk": "floor" },
+      "pipesInWall": true,
+      "expectedUzs": 634010,
+      "why": "water 7000+1600=8600 mm x1.15 = 9.89 m x 9000 = 89010. Fittings: elbow 4x2500 + outlet 2x12000 + valve 35000 = 10000+24000+35000 = 69000. Collector 150000+2x60000 = 270000 + work 150000 = 420000. Chase on the branches: 1.60 m x 35000 = 56000. 89010+69000+420000+56000 = 634010."
+    }
+  ]
+}
