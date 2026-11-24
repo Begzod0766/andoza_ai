@@ -1,4 +1,4 @@
-import type { PlumbingPoint, RoomGeometry } from '@/store/types'
+import type { DesignState, PlumbingPoint, RoomGeometry } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { wallWalk } from '@/lib/plumbingRuns'
 import type { RiserAt } from '@/lib/plumbingRuns'
@@ -16,7 +16,7 @@ export const WATER_TRUNK_MM = 200
 /** The hot trunk is drawn this far above the cold one so they do not lie on one another; lengths ignore it. */
 const HOT_ABOVE_MM = 50
 /** The water trunk's heights: the floor, the default, and high up (2026-11-24). */
-export const WATER_TRUNK_HEIGHTS = { floor: 0, default: 200, high: 1000 } as const
+export const WATER_TRUNK_HEIGHTS = { floor: 0, default: WATER_TRUNK_MM, high: 1000 } as const
 /** With a collector, each further line of a kind is drawn this much above the one before (2026-11-18). */
 export const COLLECTOR_STEP_MM = 30
 const EPS = 1e-6
@@ -50,7 +50,7 @@ const wellFormed = (v: unknown): v is RiserAt => {
 }
 
 /** The route of a design: only well-formed values are copied. */
-export function routeOf(ds: { pipeAvoid?: unknown; waterTrunk?: unknown }): PipeRoute {
+export function routeOf(ds: Pick<DesignState, 'pipeAvoid' | 'waterTrunk'>): PipeRoute {
   const out: PipeRoute = {}
   const avoid = ds.pipeAvoid as { water?: unknown; drain?: unknown } | null | undefined
   const a: NonNullable<PipeRoute['avoid']> = {}

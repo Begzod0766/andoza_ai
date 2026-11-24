@@ -1,6 +1,7 @@
 import type { PlumbingPoint, RoomGeometry } from '@/store/types'
 import { roomModel } from '@/lib/aiDesignLayout'
 import { pipeScheme } from '@/lib/pipeScheme'
+import type { PipeRoute } from '@/lib/pipeScheme'
 
 /** A wall as the walk round the room meets it: from the corner it begins at, in the walk direction. */
 export interface WalkWall {
@@ -87,8 +88,8 @@ export function pipeRunM(geometry: RoomGeometry, from: { wallId: string; positio
  * The stage's one-line summary: points and pipe metres (with the 15% reserve), drains and water apart.
  * The metres are the room's pipe scheme (spec 2026-11-11), the same the estimate prices.
  */
-export function plumbingSummary(geometry: RoomGeometry, points: readonly PlumbingPoint[], riser: { wallId: string; positionMm: number }, collector = false) {
-  const { water_20, drain_50, drain_110 } = pipeScheme(geometry, riser, points, collector).pipes
+export function plumbingSummary(geometry: RoomGeometry, points: readonly PlumbingPoint[], riser: { wallId: string; positionMm: number }, collector = false, route: PipeRoute = {}) {
+  const { water_20, drain_50, drain_110 } = pipeScheme(geometry, riser, points, collector, route).pipes
   const m = (mm: number) => Math.round(mm / 1000 * RESERVE * 100) / 100
   const drains = points.filter((p) => p.kind === 'drain').length
   return {

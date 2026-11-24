@@ -25,6 +25,13 @@ describe('collectorPose', () => {
     expect(p.z).toBeCloseTo(w.startZ + w.dirZ * 0.2 + w.nz * 0.06, 6)
   })
 
+  it('a floor trunk puts the feed on the floor, a high one up at 1 m (2026-11-24)', () => {
+    const riser = { wallId: 'A', positionMm: 0 }
+    const ys = (mm: number) => collectorFeed(geometry, riser, mm)!.map((p) => p[1])
+    expect(ys(0)).toEqual([0, 0])
+    expect(ys(1000)).toEqual([1, 1])
+  })
+
   it('a feed pipe runs from the riser into the box, at the lines\' height (2026-11-18)', () => {
     const riser = { wallId: 'A', positionMm: 0 }
     const [[x1, y1, z1], [x2, y2, z2]] = collectorFeed(geometry, riser)!

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { nanoid } from "nanoid";
 import { useTranslation } from "react-i18next";
 import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingKind, PlumbingPoint } from "@/store/roomStore";
 import { inferRole } from "@/lib/furnitureRole";
 import { plumbingSummary, roomRiser } from "@/lib/plumbingRuns";
+import { routeOf } from "@/lib/pipeScheme";
 import { isElectricRail, withRailPoints } from "@/lib/towelRail";
 import { ShopPickList } from "./ShopPickList";
 import { PlumbingFixtures } from "./PlumbingFixtures";
@@ -40,6 +41,9 @@ export function SantexnikaSection({ part, bathroom = false }: {
   const plumbingDemolition = useRoomStore((s) => s.designState.plumbingDemolition);
   const pipesInWall = useRoomStore((s) => s.designState.pipesInWall);
   const collector = useRoomStore((s) => s.designState.waterScheme === "collector");
+  const pipeAvoid = useRoomStore((s) => s.designState.pipeAvoid);
+  const waterTrunk = useRoomStore((s) => s.designState.waterTrunk);
+  const route = useMemo(() => routeOf({ pipeAvoid, waterTrunk }), [pipeAvoid, waterTrunk]);
   const waterHeater = useRoomStore((s) => s.designState.waterHeater);
   const floorDrain = useRoomStore((s) => s.designState.floorDrain);
   const waterInlet = useRoomStore((s) => s.designState.waterInlet);
@@ -105,7 +109,7 @@ export function SantexnikaSection({ part, bathroom = false }: {
   // A washing machine's two likewise (spec 2026-11-13).
   const points = withWasherPoints(withRailPoints(plumbing, towelRails, geometry), washers, geometry);
   const riser = roomRiser(geometry, plumbingRiser);
-  const sum = plumbingSummary(geometry, points, riser, collector);
+  const sum = plumbingSummary(geometry, points, riser, collector, route);
   /** Sets the riser by hand, kept on its wall (roomRiser clamps it). */
   const placeRiser = (wallId: string, positionMm: number) =>
     setPlumbingRiser(roomRiser(geometry, { wallId, positionMm }));

@@ -441,6 +441,13 @@ describe('plumbingSummary from the scheme', () => {
     const old = pts.filter((p) => p.kind !== 'drain').reduce((m, p) => m + pipeRunM(g, p, hammom.riser), 0) * 1.15
     expect(plumbingSummary(g, pts, hammom.riser).water.m).toBeLessThan(old)
   })
+
+  it('follows the route: points at 550 and 1050 mm measure from the trunk\'s height', () => {
+    const at = pts.map((p) => (p.kind === 'drain' ? p : { ...p, heightMm: p.kind === 'cold' ? 550 : 1050 }))
+    const none = plumbingSummary(g, at, hammom.riser).water.m
+    expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'floor' }).water.m).toBeGreaterThan(none)
+    expect(plumbingSummary(g, at, hammom.riser, false, { waterTrunk: 'high' }).water.m).not.toBe(none)
+  })
 })
 
 // ─── Review minors (2026-11-11) ──────────────────────────────────────────────

@@ -7,7 +7,7 @@ import { useRoomStore } from "@/store/roomStore";
 import type { PlumbingPoint, RoomGeometry } from "@/store/roomStore";
 import { riserPose, roomRiser, wallWalk } from "@/lib/plumbingRuns";
 import { plumbingLayerShown } from "@/lib/plumbingStageOn";
-import { pipeScheme, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
+import { pipeScheme, routeOf, WATER_TRUNK_HEIGHTS, schemePolylines, drawnPoints, PIPE_COLOUR as COLOUR } from "@/lib/pipeScheme";
 import { withRailPoints } from "@/lib/towelRail";
 import { withWasherPoints } from "@/lib/washer";
 import type { RiserAt } from "@/lib/plumbingRuns";
@@ -17,10 +17,10 @@ const COLLECTOR = { w: 0.4, h: 0.25, d: 0.08, y: 0.3, out: 0.06 };
 
 /** The short pipe from the riser into the collector box (2026-11-18), at the water lines' height: the lines
  * meet at the riser, the box stands beside it. */
-export function collectorFeed(geometry: RoomGeometry, riser: RiserAt): [[number, number, number], [number, number, number]] | null {
+export function collectorFeed(geometry: RoomGeometry, riser: RiserAt, trunkMm = 200): [[number, number, number], [number, number, number]] | null {
   const r = riserPose(riser, geometry);
   const b = collectorPose(geometry, riser);
-  return r && b ? [[r.x, 0.2, r.z], [b.x, 0.2, b.z]] : null;
+  return r && b ? [[r.x, trunkMm / 1000, r.z], [b.x, trunkMm / 1000, b.z]] : null;
 }
 
 /** Where the collector stands: on the riser's wall at the riser, its whole width on the wall; facing the room (local +Z). */
@@ -69,6 +69,9 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   const layer = useRoomStore((s) => plumbingLayerShown(s));
   const manualRiser = useRoomStore((s) => s.plumbingRiser);
   const collector = useRoomStore((s) => s.designState.waterScheme === "collector");
+  const pipeAvoid = useRoomStore((s) => s.designState.pipeAvoid);
+  const waterTrunk = useRoomStore((s) => s.designState.waterTrunk);
+  const route = useMemo(() => routeOf({ pipeAvoid, waterTrunk }), [pipeAvoid, waterTrunk]);
   const movePlumbing = useRoomStore((s) => s.movePlumbing);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -113,12 +116,12 @@ export function PlumbingPoints3D({ controlsRef, hiddenWalls }: {
   }, [controlsRef]);
 
   const pipes = useMemo(
-    () => (layer && showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing, collector), hiddenWalls) : []),
-    [layer, showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser, collector],
+    () => (layer && showPipeRuns ? schemePolylines(geometry, pipeScheme(geometry, roomRiser(geometry, manualRiser), plumbing, collector, route), hiddenWalls) : []),
+    [layer, showPipeRuns, geometry, plumbing, hiddenWalls, manualRiser, collector, route],
   );
   const riserAt = roomRiser(geometry, manualRiser);
   const box = layer && showPipeRuns && collector && !hiddenWalls?.has(riserAt.wallId) ? collectorPose(geometry, riserAt) : null;
-  const feed = box ? collectorFeed(geometry, riserAt) : null;
+  const feed = box ? collectorFeed(geometry, riserAt, WATER_TRUNK_HEIGHTS[route.waterTrunk ?? 'default']) : null;
   if (plumbing.length === 0 || !layer) return null;
 
   const start = (p: PlumbingPoint, e: ThreeEvent<PointerEvent>) => {
