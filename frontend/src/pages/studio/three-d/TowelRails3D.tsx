@@ -7,6 +7,7 @@ import type { RoomGeometry, TowelRail } from "@/store/types";
 import { wallWalk } from "@/lib/plumbingRuns";
 import { isElectricRail, railSize } from "@/lib/towelRail";
 import { noRaycast } from "./constants";
+import { clashRedShown } from "@/lib/plumbingStageOn";
 import { clashColor, clashMetalness } from "@/lib/wallItemClash";
 import { useWallItemClashes } from "@/features/studio/wallItemClashes";
 import { showToast } from "@/components/ui/Toast";
@@ -145,13 +146,12 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onSelect }: {
   const towelRails = useRoomStore((s) => s.towelRails);
   const geometry = useRoomStore((s) => s.geometry);
   const moveTowelRail = useRoomStore((s) => s.moveTowelRail);
-  // Caught and dragged in a plumbing stage only; in any other it is scenery, and a touch goes
-  // through it to the camera or to whatever is there.
-  const active = useRoomStore((s) => s.plumbingStage);
   // Caught and dragged in a plumbing stage, with a phone's sheet closed too (#359).
   const draggable = useRoomStore((s) => s.plumbingDrag);
   // Touching furniture (2026-11-15): drawn in warning red in a plumbing stage.
   const clashes = useWallItemClashes();
+  // Red with a phone's sheet closed too (phone QA #396 4).
+  const red = useRoomStore(clashRedShown);
   const { camera, gl } = useThree();
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
   // The press on a rail (#370 c, QA #372 c, 4): a drag only once it moves, set up in the press itself.
@@ -224,7 +224,7 @@ export function TowelRails3D({ controlsRef, hiddenWalls, onSelect }: {
             {bars.map((b, i) => (
               <mesh key={i} position={[b.x, b.y, 0]} rotation={b.vertical ? [0, 0, 0] : [0, 0, Math.PI / 2]} castShadow raycast={noRaycast}>
                 <cylinderGeometry args={[b.vertical ? UPRIGHT_R : RUNG_R, b.vertical ? UPRIGHT_R : RUNG_R, b.length, 12]} />
-                <meshStandardMaterial color={clashColor(CHROME, active, !!clashes[rail.id])} metalness={clashMetalness(0.9, active, !!clashes[rail.id])} roughness={0.25} />
+                <meshStandardMaterial color={clashColor(CHROME, red, !!clashes[rail.id])} metalness={clashMetalness(0.9, red, !!clashes[rail.id])} roughness={0.25} />
               </mesh>
             ))}
             {/* Selected (PR2): furniture's blue line round each bar, and its card over the rail. */}

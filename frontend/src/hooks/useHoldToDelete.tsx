@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { create } from 'zustand'
 import { useTranslation } from 'react-i18next'
 import { createHoldTracker, HOLD_DELETE_MS } from '@/lib/holdToDelete'
+import { multiTouchGuard } from '@/lib/multiTouchGuard'
 
 /**
  * Press and hold a placed thing for a second and a delete button appears where the
@@ -42,9 +43,18 @@ const useHoldDeleteStore = create<HoldDeleteState>((set) => ({
  *  does not also read as a tap on the thing underneath. */
 let heldThisPress = false
 
+/** Two fingers down at once since the press began, in either order: a pinch or a twist, not a hold.
+ *  The second finger of one landed on a rail and its hold fired (phone QA #396 1, 8). Made here, so
+ *  it is counting before the first finger of any gesture lands. */
+const fingers = multiTouchGuard()
+let pressAt = 0
+
 const tracker = createHoldTracker<HoldDeleteItem>({
   holdMs: HOLD_DELETE_MS,
-  onHold: ({ x, y, payload }) => useHoldDeleteStore.getState().open({ x, y, item: payload }),
+  onHold: ({ x, y, payload }) => {
+    if (fingers.multiTouchSince(pressAt)) return
+    useHoldDeleteStore.getState().open({ x, y, item: payload })
+  },
 })
 
 if (typeof window !== 'undefined') {
@@ -88,8 +98,10 @@ export function cancelHoldToDelete() {
  */
 export function useHoldToDelete() {
   const bind = useCallback((item: HoldDeleteItem) => ({
-    onPointerDown: (e: { clientX: number; clientY: number; pointerId?: number }) =>
-      tracker.down(e.clientX, e.clientY, item, e.pointerId),
+    onPointerDown: (e: { clientX: number; clientY: number; pointerId?: number }) => {
+      pressAt = Date.now()
+      tracker.down(e.clientX, e.clientY, item, e.pointerId)
+    },
   }), [])
   /** Whether the press that just ended fired a hold — checked before treating
    *  a release as a tap. */
