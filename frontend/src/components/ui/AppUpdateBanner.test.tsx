@@ -41,6 +41,16 @@ describe("AppUpdateBanner", () => {
     off();
   });
 
+  // Phone QA 2026-11-24 (#393 #10, rasm 11): a strip across the top covered the studio's undo,
+  // redo, ? and ⋮. A small pill at the bottom, over the 3D only.
+  it("does not lie across the top of the page", () => {
+    render(<AppUpdateBanner />);
+    act(() => appUpdate.offer(vi.fn()));
+    const el = screen.getByRole("status");
+    expect(el.className).not.toMatch(/\btop-0\b|\binset-x-0\b/);
+    expect(el.className).toMatch(/\bbottom-/);
+  });
+
   it("has its texts in all three languages", () => {
     for (const l of [uz, ru, en] as Record<string, Record<string, string>>[]) {
       for (const k of ["banner", "apply", "not_saved"]) expect(l.app_update?.[k]).toBeTruthy();

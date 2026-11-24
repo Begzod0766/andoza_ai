@@ -16,6 +16,12 @@ export interface Autosave {
   changed(): void
   /** Save now, if anything is waiting to be saved. */
   flush(): void
+  /**
+   * Save what is waiting, after any save in flight, and resolve once nothing is left: true when
+   * the last save succeeded (or there was nothing to save). Before a reload of the app's own
+   * (lib/safeReload): nothing is left for the page's pagehide flush to send a second time.
+   */
+  settle(): Promise<boolean>
   dispose(): void
 }
 
@@ -28,21 +34,28 @@ export function createAutosave(
   let pending = false
   let saving = false
   let disposed = false
+  let current: Promise<void> | null = null
+  let lastOk = true
 
   const clear = () => { if (timer !== null) { clearTimeout(timer); timer = null } }
   const schedule = (ms: number) => { clear(); timer = setTimeout(run, ms) }
 
-  async function run() {
+  function run(): Promise<void> {
     timer = null
-    if (disposed || saving) return
+    if (disposed || saving) return current ?? Promise.resolve()
     pending = false
     saving = true
-    let ok = false
-    try { ok = await save() } catch { ok = false }
-    saving = false
-    if (disposed) return
-    if (pending) schedule(delayMs)
-    else if (!ok) { pending = true; schedule(retryMs) }
+    current = (async () => {
+      let ok = false
+      try { ok = await save() } catch { ok = false }
+      saving = false
+      current = null
+      lastOk = ok
+      if (disposed) return
+      if (pending) schedule(delayMs)
+      else if (!ok) { pending = true; schedule(retryMs) }
+    })()
+    return current
   }
 
   return {
@@ -55,6 +68,17 @@ export function createAutosave(
       if (disposed || !pending || saving) return
       clear()
       void run()
+    },
+    async settle() {
+      while (!disposed) {
+        if (current) { await current; continue }
+        if (!pending) return lastOk
+        clear()
+        await run()
+        // Failed: the retry stays scheduled, and the caller hears it.
+        if (!lastOk) return false
+      }
+      return lastOk
     },
     dispose() {
       disposed = true

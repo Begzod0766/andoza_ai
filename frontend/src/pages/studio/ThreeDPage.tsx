@@ -46,7 +46,7 @@ import { sunPosition, dayOfYear, siteOf } from "@/lib/sunPosition";
 import { ChiroqPlanView } from "@/features/studio/ChiroqPlanView";
 import type { LightTypeId } from "@/lib/lightCatalog";
 import { initialPhaseFor, initialViewStage, visibleStages, type PhaseKey } from "@/lib/phases";
-import { clearStudioPhase, forgetStudioPhase, peekStudioPhase, rememberStudioPhase } from "@/lib/studioResume";
+import { forgetStudioPhase, rememberStudioPhase, useResumedStage } from "@/lib/studioResume";
 import { stageAfterPlacing } from "@/lib/stageView";
 import { catalogRoomType, effectiveRoomType } from "@/lib/roomType";
 import { type ViewPreset } from "./three-d/constants";
@@ -335,11 +335,7 @@ export default function ThreeDPage() {
   // (its walls are still bare plaster — nothing has been done to them yet).
   // With no link it opens at the last stage, Mebel, on the finished room (spec 2026-11-18; it was
   // Bo'yoq) — REOPENING a room (projects list, tab switches, direct links).
-  // Back from a reload of the app's own (a new version, lib/safeReload): the stage the user was on,
-  // over the link's (phone QA 2026-11-24 #12: it went back to the link's ?phase=quvurlar).
-  const [resumed] = useState(() => peekStudioPhase(room.id))
-  useEffect(() => { clearStudioPhase() }, [])
-  const phaseParam = resumed?.phase ?? new URLSearchParams(location.search).get('phase')
+  const phaseParam = new URLSearchParams(location.search).get('phase')
   const openArgs = {
     phaseParam,
     roomKind: catalogRoomType(effectiveRoomType(room.room_type, room.name)),
@@ -361,12 +357,16 @@ export default function ThreeDPage() {
   /** The phone's stage list is open (MobileStagePicker). */
   const [stageListOpen, setStageListOpen] = useState(false);
   useEffect(() => {
-    setViewStage(resumed
-      ? initialViewStage({ ...openArgs, tab: undefined, phaseParam: resumed.viewStage })
-      : initialViewStage(openArgs));
+    setViewStage(initialViewStage(openArgs));
     return () => setViewStage('full');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.id]);
+  // Back from a reload of the app's own (a new version, lib/safeReload): the stage the user was on,
+  // over the link's, once the room has loaded (phone QA 2026-11-24 #12 and #393 #10).
+  useResumedStage(room.id, roomReady, (kept) => {
+    if (kept.phase) setActivePhase(initialPhaseFor({ ...openArgs, phaseParam: kept.phase }));
+    setViewStage(initialViewStage({ ...openArgs, tab: undefined, phaseParam: kept.viewStage }));
+  });
   /** A stage picked in the stage list: the panel and the 3D both go to it. */
   const pickStage = useCallback((phase: PhaseKey) => {
     setActivePhase(phase);

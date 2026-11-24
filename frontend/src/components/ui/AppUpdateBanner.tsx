@@ -6,6 +6,8 @@ import { reloadSafely } from "@/lib/safeReload";
 /**
  * A new version is ready (lib/appUpdate) and the studio is open: the user takes it when it suits,
  * the room saved first and its stage and undo history kept (lib/safeReload). Not saved: no update.
+ * A pill low over the 3D, above the bottom buttons: a strip across the top covered the studio's
+ * undo / redo / ? / ⋮ (phone QA 2026-11-24, #393 #10).
  */
 export function AppUpdateBanner() {
   const { t } = useTranslation();
@@ -23,8 +25,7 @@ export function AppUpdateBanner() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 top-0 z-[1000] flex items-center justify-center gap-3 bg-brand px-4 py-2 text-sm text-white shadow"
-      style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}
+      className="fixed left-1/2 z-[1000] flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-full bg-brand px-4 py-2 text-sm text-white shadow-lg bottom-[calc(env(safe-area-inset-bottom)+6rem)]"
     >
       <span>{notSaved ? t("app_update.not_saved") : t("app_update.banner")}</span>
       <button
